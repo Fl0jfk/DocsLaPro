@@ -528,7 +528,7 @@ export default function Page(){
                     <p>déclare accepter pour mon enfant le but de l&apos;Ecole Catholique.</p> 
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[100%]">
-                    <p>Celle-ci s&apos;efforce " de lier dans le même temps et le même acte l&apos;acquisition du savoir, la formation à l&apos;autonomie et à la prise de responsabilités et l&apos;éducation de la Foi. "</p>
+                    <p>Celle-ci s&apos;efforce &quot; de lier dans le même temps et le même acte l&apos;acquisition du savoir, la formation à l&apos;autonomie et à la prise de responsabilités et l&apos;éducation de la Foi. &quot;</p>
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[80%] mt-4 mx-auto">
                     <p>A :</p>
@@ -538,7 +538,7 @@ export default function Page(){
                 </div>
                 <div className="flex no-wrap justify-center gap-2 w-[100%] mt-4">
                     <p>Signature du ou des responsables</p>
-                    <p>(Faire précéder la signature de la mention "LU et APPROUVE")</p>
+                    <p>(Faire précéder la signature de la mention &quot;LU et APPROUVE&quot;)</p>
                 </div>
             </section>
         </main>
