@@ -8,6 +8,10 @@ export default function Page (){
     const select = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Selections+des+consommateurs.png"
     const selectProf = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/selection+des+profs.png"
     const modeleFact = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Exemple+Facture+Chorus+%C3%A0+envoyer.pdf"
+    const seco = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Se+connecter.jpg"
+    const dom = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Choix+du+dom.jpg"
+    const choixcat = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Choix+du+domaine.jpg"
+    const depotFact = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Depot+facture.jpg"
     return (
         <main className="p-4 text-xl flex flex-col gap-6 items-center justify-center mt-12">
             <h1 className="text-6xl underline font-bold">Le repas des professeurs</h1>
@@ -43,7 +47,14 @@ export default function Page (){
                 <p className="text-red-500">Attention ne pas rajouter de ligne sur la facture pour rajouter des profs sur le fichier excel ci-dessus il existe plusieurs onglets si la liste est trop grande pour l'onglet 1 !</p>
                 <Link className="text-blue-500 hover:underline" href={"https://portail.chorus-pro.gouv.fr/aife_csm/fr"}>Se connecter à Chorus</Link>
                 <p>Cliquez sur se connecter</p>
-                
+                <Image src={seco} alt="" width={500} height={500}/>
+                <Image src={dom} alt="" width={500} height={500}/>
+                <p>Choisir Facturation</p>
+                <Image src={choixcat} alt="" width={500} height={500}/>
+                <p>Choisir Factures Emises</p>
+                <Image src={depotFact} alt="" width={500} height={500}/>
+                <p>Cliquez déposer Facture</p>
+                <p>Charger la facture excel que vous avez préalablement transformer en PDF (bien mettre toutes les pages sur un seul fichier PDF)</p>
             </section>
         </main>
     )
