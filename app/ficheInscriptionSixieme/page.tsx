@@ -98,7 +98,7 @@ export default function Page(){
                         <ul className="list-inside">
                             <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 6ème "Classique" (Anglais LV1)</li>
+                                <li>Entrée en 6ème &quot;Classique&quot; (Anglais LV1)</li>
                             </div>
                         <hr className="border-blue-400" />
                         <div className="flex gap-4 items-center justify-center p-2">
