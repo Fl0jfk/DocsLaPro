@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
             hostname: 'docslapro.s3.eu-west-3.amazonaws.com',
             pathname: '/**',
         },
+        {
+            protocol: 'https',
+            hostname: 'docslapro.s3.eu-west-3.amazonaws.com/tutos/*',
+            pathname: '/**',
+        },
     ]
 }
 };
