@@ -14,7 +14,7 @@ export default function Page(){
                 </div>
             </div>
             <div className="bg-pink-400  rounded-xl flex flex-col text-white uppercase text-[18px] justify-center text-center p-4">
-                <p>Demande d'inscription en seconde générale et technologique</p>
+                <p>Demande d&apos;inscription en seconde générale et technologique</p>
             </div>
             <section className="border-2 border-pink-400 rounded-xl p-2 px-4 flex flex-col justify-center gap-2">
                 <h3 className="text-center underline font-bold text-xl">Elève</h3>
@@ -49,7 +49,7 @@ export default function Page(){
                     </div>
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[59%]">
-                    <p>Nombre d'enfants composant la famille :</p>
+                    <p>Nombre d&apos;enfants composant la famille :</p>
                     <p className="border-b-[1px] border-black flex-grow"></p>
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[69%]">
@@ -181,7 +181,7 @@ export default function Page(){
                                 <hr className="border-pink-400" />
                                 <div className="flex gap-2 items-center justify-center p-2">
                                     <input type="checkbox"></input>
-                                    <li>Sciences de l'ingénieur</li>
+                                    <li>Sciences de l&apos;ingénieur</li>
                                 </div>
                             </ul>
                             </ul>
@@ -189,9 +189,9 @@ export default function Page(){
                     </div>
                 </div>
                 </div>
-                <p>* L'option générale choisie en 2nde est obligatoirement poursuivie en 1ère et en terminale.</p>
-                <p>** L'option technologique est choisie en fonction des goûts et/ou du projet d'orientation de l'élève</p>
-                <p className="uppercase font-bold text-red-500">Il n'est pas obligatoire de choisir un enseignement optionnel</p>
+                <p>* L&apos;option générale choisie en 2nde est obligatoirement poursuivie en 1ère et en terminale.</p>
+                <p>** L&apos;option technologique est choisie en fonction des goûts et/ou du projet d&apos;orientation de l&apos;élève</p>
+                <p className="uppercase font-bold text-red-500">Il n&apos;est pas obligatoire de choisir un enseignement optionnel</p>
             </section>
             <section className="border-2 border-pink-400 rounded-xl p-2 px-4 flex flex-col justify-center mt-10 gap-[2px]">
                 <h3 className="text-center underline font-bold text-xl leading-5">Responsable principal</h3>
@@ -248,7 +248,7 @@ export default function Page(){
                 </div>
                 <div className="flex gap-4 mb-2">
                     <div className="flex no-wrap justify-center gap-4 w-[100%]">
-                        <p>Lien de parenté avec l'élève</p>
+                        <p>Lien de parenté avec l&apos;élève</p>
                         <p className="border-b-[1px] border-black flex-grow"></p>
                     </div>
                 </div>
@@ -300,7 +300,7 @@ export default function Page(){
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
-                        <p>recherche d'emploi</p>
+                        <p>recherche d&apos;emploi</p>
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
@@ -381,7 +381,7 @@ export default function Page(){
                 </div>
                 <div className="flex gap-4 mb-2">
                     <div className="flex no-wrap justify-center gap-4 w-[100%]">
-                        <p>Lien de parenté avec l'élève</p>
+                        <p>Lien de parenté avec l&apos;élève</p>
                         <p className="border-b-[1px] border-black flex-grow"></p>
                     </div>
                 </div>
@@ -433,7 +433,7 @@ export default function Page(){
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
-                        <p>recherche d'emploi</p>
+                        <p>recherche d&apos;emploi</p>
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
@@ -507,10 +507,10 @@ export default function Page(){
                 <div className="flex no-wrap justify-center  w-[100%] gap-[2px]">
                     <p>Je soussigné(e) : </p>
                     <p className="border-b-[1px] border-black flex-grow"></p>
-                    <p>déclare accepter pour mon enfant le but de l'Ecole Catholique.</p> 
+                    <p>déclare accepter pour mon enfant le but de l&apos;Ecole Catholique.</p> 
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[100%]">
-                    <p>Celle-ci s'efforce " de lier dans le même temps et le même acte l'acquisition du savoir, la formation à l'autonomie et à la prise de responsabilités et l'éducation de la Foi. "</p>
+                    <p>Celle-ci s&apos;efforce " de lier dans le même temps et le même acte l&apos;acquisition du savoir, la formation à l&apos;autonomie et à la prise de responsabilités et l&apos;éducation de la Foi. "</p>
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[80%] mt-4 mx-auto">
                     <p>A :</p>

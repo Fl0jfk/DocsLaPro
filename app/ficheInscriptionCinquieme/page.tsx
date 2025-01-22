@@ -14,7 +14,7 @@ export default function Page(){
                 </div>
             </div>
             <div className="bg-blue-400  rounded-xl flex flex-col text-white uppercase text-[18px] justify-center text-center p-4">
-                <p>Demande d'inscription en cinquième</p>
+                <p>Demande d&apos;inscription en cinquième</p>
             </div>
             <section className="border-2 border-blue-400 rounded-xl p-2 px-4 flex flex-col justify-center gap-1">
                 <h3 className="text-center underline font-bold text-xl mt-[-6px]">Elève</h3>
@@ -310,7 +310,7 @@ export default function Page(){
                 </div>
                 <div className="flex gap-4 mb-2">
                     <div className="flex no-wrap justify-center gap-4 w-[100%]">
-                        <p>Lien de parenté avec l'élève</p>
+                        <p>Lien de parenté avec l&apos;élève</p>
                         <p className="border-b-[1px] border-black flex-grow"></p>
                     </div>
                 </div>
@@ -362,7 +362,7 @@ export default function Page(){
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
-                        <p>recherche d'emploi</p>
+                        <p>recherche d&apos;emploi</p>
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
@@ -443,7 +443,7 @@ export default function Page(){
                 </div>
                 <div className="flex gap-4 mb-2">
                     <div className="flex no-wrap justify-center gap-4 w-[100%]">
-                        <p>Lien de parenté avec l'élève</p>
+                        <p>Lien de parenté avec l&apos;élève</p>
                         <p className="border-b-[1px] border-black flex-grow"></p>
                     </div>
                 </div>
@@ -495,7 +495,7 @@ export default function Page(){
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
-                        <p>recherche d'emploi</p>
+                        <p>recherche d&apos;emploi</p>
                     </div>
                     <div className="flex gap-2">
                         <input type="checkbox"></input>
@@ -525,10 +525,10 @@ export default function Page(){
                 <div className="flex no-wrap justify-center  w-[100%] gap-2">
                     <p>Je soussigné(e) : </p>
                     <p className="border-b-[1px] border-black flex-grow"></p>
-                    <p>déclare accepter pour mon enfant le but de l'Ecole Catholique.</p> 
+                    <p>déclare accepter pour mon enfant le but de l&apos;Ecole Catholique.</p> 
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[100%]">
-                    <p>Celle-ci s'efforce " de lier dans le même temps et le même acte l'acquisition du savoir, la formation à l'autonomie et à la prise de responsabilités et l'éducation de la Foi. "</p>
+                    <p>Celle-ci s&apos;efforce " de lier dans le même temps et le même acte l&apos;acquisition du savoir, la formation à l&apos;autonomie et à la prise de responsabilités et l&apos;éducation de la Foi. "</p>
                 </div>
                 <div className="flex no-wrap justify-center gap-4 w-[80%] mt-4 mx-auto">
                     <p>A :</p>

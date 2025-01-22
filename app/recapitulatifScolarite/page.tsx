@@ -63,7 +63,7 @@ export default function Home() {
         </div>
         <div className="mt-2 flex flex-nowrap gap-8">
           <p className="w-[65%]">
-            - Autorisez-vous l'établissement à diffuser un listing (Nom-Prénom des parents, Nom-Prénom-Classe de l'élève,
+            - Autorisez-vous l&apos;établissement à diffuser un listing (Nom-Prénom des parents, Nom-Prénom-Classe de l&apos;élève,
             commune, n°Tél domicile) aux autres familles intéressées :
           </p>
           <div className="flex gap-8 flex-grow">
@@ -87,7 +87,7 @@ export default function Home() {
             <tr className="bg-gray-100">
               <th className="border border-gray-300 py-2">Année Scolaire</th>
               <th className="border border-gray-300 py-2">Classe de</th>
-              <th className="border border-gray-300 py-2">Nom de l'Établissement</th>
+              <th className="border border-gray-300 py-2">Nom de l&apos;Établissement</th>
               <th className="border border-gray-300 px-14 py-2">Ville</th>
             </tr>
           </thead>
@@ -111,7 +111,7 @@ export default function Home() {
         </table>
       </div>
       <div className="flex flex-col w-full gap-4 border-4 border-black p-4">
-        <p>IMPORTANT : Afin de permettre la diffusion de documents internes à l'établissement (circulaires, courriers...) nous vous demandons une adresse mail valide qui restera confidentielle.</p>
+        <p>IMPORTANT : Afin de permettre la diffusion de documents internes à l&apos;établissement (circulaires, courriers...) nous vous demandons une adresse mail valide qui restera confidentielle.</p>
         <div className="flex justify-center gap-4 w-[100%] flex-nowrap">
           <p>E-mail :</p>
           <p className="border-b-[1px] border-black flex-grow"></p>
