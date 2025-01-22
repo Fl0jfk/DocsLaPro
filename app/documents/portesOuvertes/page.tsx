@@ -1,6 +1,6 @@
 import SSP from 'next/font/local';
 
-const Sspro = SSP({ src: "../../font/SourceSansPro-Regular.otf"})
+const Sspro = SSP({ src: "../../../font/SourceSansPro-Regular.otf"})
 
 export default function PortesOuvertes (){
     return (

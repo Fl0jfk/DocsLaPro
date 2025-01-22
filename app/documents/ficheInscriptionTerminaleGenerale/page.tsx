@@ -1,5 +1,5 @@
 import Image from "next/image"
-import logo from "/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
+import logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
 
 export default function Page(){
     return (
