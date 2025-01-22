@@ -4,44 +4,42 @@ export default function Home() {
   return (
     <main className="flex flex-col gap-6 p-6 w-1/2 mx-auto">
       <section className="space-y-4">
-        <details className="group bg-white rounded-lg shadow-md">
+      <details className="group bg-white rounded-lg shadow-md">
           <summary className="cursor-pointer select-none py-3 px-4 text-lg font-semibold text-gray-700 bg-gray-200 rounded-lg transition-all duration-300 group-open:rounded-b-none">
-            Collège
+            École
           </summary>
+          <ul className="pl-6 py-2 space-y-2 bg-gray-50 rounded-b-lg">
+            <li className="flex gap-10">
+              <p>Récapitulatif de scolarité</p>
+              <p>Version à imprimer</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Re%CC%81capitulatif+de+scolarite%CC%81.pdf"}>Version numérique</Link>
+            </li>
+          </ul>
+        </details>
+        <details className="group bg-white rounded-lg shadow-md">
+          <summary className="cursor-pointer select-none py-3 px-4 text-lg font-semibold text-gray-700 bg-gray-200 rounded-lg transition-all duration-300 group-open:rounded-b-none">Collège</summary>
           <ul className="pl-6 py-2 space-y-2 bg-gray-50 rounded-b-lg">
             <li className="flex gap-10">
               <p>Fiche d&apos;Inscription des Sixièmes</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Fiche+Inscription+Sixi%C3%A8me.pdf"}>Version à imprimer</Link>
-              <Link href={"/"}>Version numérique</Link>
+              <p>Version numérique</p>
             </li>
             <li>
-              <Link
-                href={"/ficheInscriptionCinquieme"}
-                className="text-blue-500 hover:underline"
-              >
-                ficheInscriptionCinquieme
-              </Link>
+              <p>Fiche d&apos;Inscription des Cinquièmes</p>
             </li>
             <li>
-              <Link
-                href={"/ficheInscriptionQuatrieme"}
-                className="text-blue-500 hover:underline"
-              >
-                ficheInscriptionQuatrieme
-              </Link>
+              <p>Fiche d&apos;Inscription des Quatrièmes</p>
             </li>
             <li>
-              <Link
-                href={"/ficheInscriptionTroisieme"}
-                className="text-blue-500 hover:underline"
-              >
-                ficheInscriptionTroisieme
-              </Link>
+              <p>Fiche d&apos;Inscription des Troisièmes</p>
+            </li>
+            <li className="flex gap-10">
+              <p>Récapitulatif de scolarité</p>
+              <p>Version à imprimer</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Re%CC%81capitulatif+de+scolarite%CC%81.pdf"}>Version numérique</Link>
             </li>
           </ul>
         </details>
-
-        {/* Lycée */}
         <details className="group bg-white rounded-lg shadow-md">
           <summary className="cursor-pointer select-none py-3 px-4 text-lg font-semibold text-gray-700 bg-gray-200 rounded-lg transition-all duration-300 group-open:rounded-b-none">
             Lycée
@@ -87,30 +85,10 @@ export default function Home() {
                 ficheInscriptionTerminaleST2S
               </Link>
             </li>
-          </ul>
-        </details>
-
-        {/* École */}
-        <details className="group bg-white rounded-lg shadow-md">
-          <summary className="cursor-pointer select-none py-3 px-4 text-lg font-semibold text-gray-700 bg-gray-200 rounded-lg transition-all duration-300 group-open:rounded-b-none">
-            École
-          </summary>
-          <ul className="pl-6 py-2 space-y-2 bg-gray-50 rounded-b-lg">
-            <li>
-              <Link
-                href={"/recapitulatifScolarite"}
-                className="text-blue-500 hover:underline"
-              >
-                recapitulatifScolarite
-              </Link>
-            </li>
-            <li>
-              <Link
-                href={"/portesOuvertesSVG"}
-                className="text-blue-500 hover:underline"
-              >
-                portesOuvertes
-              </Link>
+            <li className="flex gap-10">
+              <p>Récapitulatif de scolarité</p>
+              <p>Version à imprimer</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Re%CC%81capitulatif+de+scolarite%CC%81.pdf"}>Version numérique</Link>
             </li>
           </ul>
         </details>
