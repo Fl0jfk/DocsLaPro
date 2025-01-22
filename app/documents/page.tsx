@@ -10,7 +10,7 @@ export default function Home() {
           </summary>
           <ul className="pl-6 py-2 space-y-2 bg-gray-50 rounded-b-lg">
             <li className="flex gap-10">
-              <p>Fiche d'Inscription des Sixièmes</p>
+              <p>Fiche d&apos;Inscription des Sixièmes</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Fiche+Inscription+Sixi%C3%A8me.pdf"}>Version à imprimer</Link>
               <Link href={"/"}>Version numérique</Link>
             </li>
