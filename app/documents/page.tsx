@@ -96,6 +96,10 @@ export default function Home() {
               <p>Version à imprimer</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Re%CC%81capitulatif+de+scolarite%CC%81.pdf"}>Version numérique</Link>
             </li>
+            <li className="flex gap-10">
+              <p>Autorisation de sortie élèves</p>
+              <Link className="text-blue-500 hover:underline" href={"/documents/autorisationSortie"}>Version numérique</Link>
+            </li>
           </ul>
         </details>
       </section>
