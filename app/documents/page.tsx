@@ -24,17 +24,17 @@ export default function Home() {
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Fiche+Inscription+Sixi%C3%A8me.pdf"}>Version à imprimer</Link>
               <p>Version numérique</p>
             </li>
-            <li>
+            <li className="flex gap-10">
               <p>Fiche d&apos;Inscription des Cinquièmes</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Fiche+Inscription+Cinqui%C3%A8me.pdf"}>Version à imprimer</Link>
               <p>Version numérique</p>
             </li>
-            <li>
+            <li className="flex gap-10">
               <p>Fiche d&apos;Inscription des Quatrièmes</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Fiche+Inscription+Quatri%C3%A8me.pdf"}>Version à imprimer</Link>
               <p>Version numérique</p>
             </li>
-            <li>
+            <li className="flex gap-10">
               <p>Fiche d&apos;Inscription des Troisièmes</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Fiche+Inscription+Troisi%C3%A8me.pdf"}>Version à imprimer</Link>
               <p>Version numérique</p>
@@ -43,6 +43,21 @@ export default function Home() {
               <p>Récapitulatif de scolarité</p>
               <p>Version à imprimer</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Re%CC%81capitulatif+de+scolarite%CC%81.pdf"}>Version numérique</Link>
+            </li>
+            <li className="flex gap-10">
+              <p>Attestation Savoir Nager</p>
+              <p>Version à imprimer</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Attestation+Savoir+Nager.pdf"}>Version numérique</Link>
+            </li>
+            <li className="flex gap-10">
+              <p>Option Chorale</p>
+              <p>Version à imprimer</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Option+Chorale.pdf"}>Version numérique</Link>
+            </li>
+            <li className="flex gap-10">
+              <p>Option Théatre</p>
+              <p>Version à imprimer</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/Option+Th%C3%A9atre.pdf"}>Version numérique</Link>
             </li>
           </ul>
         </details>
