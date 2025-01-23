@@ -51,7 +51,7 @@ export default function Page (){
                     <Image src={modeleFact} alt="" width={500} height={500}/>
                 </Link>
                 <p className="text-red-500">Attention ne pas rajouter de ligne sur la facture pour rajouter des profs sur le fichier excel ci-dessus il existe plusieurs onglets si la liste est trop grande pour l&apos;onglet 1 !</p>
-                <p>Bien faire signer et tamponner le document comme sur l'exemple.</p>
+                <p>Bien faire signer et tamponner le document comme sur l&apos;exemple.</p>
                 <Link className="text-blue-500 hover:underline" href={"https://portail.chorus-pro.gouv.fr/aife_csm/fr"}>Se connecter à Chorus</Link>
                 <p>Cliquez sur se connecter.</p>
                 <Image src={seco} alt="" width={500} height={500}/>
@@ -65,9 +65,9 @@ export default function Page (){
                 <Image src={a1} alt="" width={1500} height={800} quality={100}/>
                 <p>Choisir A1 en cadre de facturation.</p>
                 <Image src={etat} alt="" width={1500} height={800} quality={100}/>
-                <p>Choisir l'Etat est le destinataire, trouver le code service FAC0000014.</p>
+                <p>Choisir l&apos;Etat est le destinataire, trouver le code service FAC0000014.</p>
                 <Image src={encaissement} alt="" width={1500} height={1000} quality={100}/>
-                <p>Nommer sa facture comme sur l'exemple en changeant l'année et le trimestre selon les besoins, choisir en type facture et en type de TVA : TVA sur les encaissements.</p>
+                <p>Nommer sa facture comme sur l&apos;exemple en changeant l&apos;année et le trimestre selon les besoins, choisir en type facture et en type de TVA : TVA sur les encaissements.</p>
                 <Image src={tva0} alt="" width={1500} height={800} quality={100}/>
                 <p>Bien vérifier que la pièce jointe est présente, mettre le montant calculé sur la facture dans le montant HT, mettre le montant TVA à 0.</p>
                 <p>Appuyer sur valider et envoyer.</p>
