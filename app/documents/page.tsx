@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="flex flex-col gap-6 p-6 w-1/2 mx-auto">
+    <main className="flex flex-col gap-6 p-6 w-full mx-auto max-w-[1000px]">
       <section className="space-y-4">
       <details className="group bg-white rounded-lg shadow-md">
           <summary className="cursor-pointer select-none py-3 px-4 text-lg font-semibold text-gray-700 bg-gray-200 rounded-lg transition-all duration-300 group-open:rounded-b-none">
