@@ -36,7 +36,7 @@ export default function Page (){
                     <iframe src={listRetournée} className="w-full h-[1000px] border rounded-lg shadow-md" title="Exemple Tutos Cumul Par Consommateur"/>
                 </Link>
                 <p className="text-red-500">Mettre en relation les profs qui ont un prix de repas à 5,43€ et moins, ils doivent avoir un grade de maximum 534 !</p>
-                <p className="text-red-500">Si ils ont un grade supérieur à 534, le déclarer en comptabilité car ils bénéficient d'un prix avantageux alors qui'ils ont un grade trop élévé !</p>
+                <p className="text-red-500">Si ils ont un grade supérieur à 534, le déclarer en comptabilité car ils bénéficient d&apos;un prix avantageux alors qui&apos;ils ont un grade trop élévé !</p>
             </section>
             <section className="flex flex-col gap-4 items-center justify-center w-full max-w-[1000px]">
                 <h2 className="underline text-2xl">Partie 2 : Préparer et envoyer la facture sur Chorus</h2>
@@ -44,7 +44,7 @@ export default function Page (){
                 <Link href={modeleFact} className="w-full">
                     <iframe src={modeleFact} className="w-full h-[1000px] border rounded-lg shadow-md" title="Exemple Tutos Cumul Par Consommateur"/>
                 </Link>
-                <p className="text-red-500">Attention ne pas rajouter de ligne sur la facture pour rajouter des profs sur le fichier excel ci-dessus il existe plusieurs onglets si la liste est trop grande pour l'onglet 1 !</p>
+                <p className="text-red-500">Attention ne pas rajouter de ligne sur la facture pour rajouter des profs sur le fichier excel ci-dessus il existe plusieurs onglets si la liste est trop grande pour l&apos;onglet 1 !</p>
                 <Link className="text-blue-500 hover:underline" href={"https://portail.chorus-pro.gouv.fr/aife_csm/fr"}>Se connecter à Chorus</Link>
                 <p>Cliquez sur se connecter</p>
                 <Image src={seco} alt="" width={500} height={500}/>
