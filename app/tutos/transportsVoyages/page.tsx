@@ -4,7 +4,7 @@ import Link from "next/link"
 export default function Page (){
     const demande ="https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/VoyagesTransports/Demande+de+voyages.jpg"
     return (
-        <main className="p-4 text-xl flex flex-col gap-6 items-center justify-center mt-12">
+        <main className="p-4 text-xl flex flex-col gap-6 items-center justify-center md:pt-[10vh] sm:pt-[10vh]">
             <h1 className="text-6xl underline font-bold">Le transport des voyages</h1>
             <p>Recevoir une demande par un prof pour une sortie scolaire demander au prof un maximum de détails sur sa sortie. (micro, transfert entre les monuments, horaires souhaitées etc )</p>
             <Image src={demande} alt="" width={500} height={500}></Image>

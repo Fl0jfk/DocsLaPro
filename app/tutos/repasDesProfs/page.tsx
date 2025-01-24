@@ -19,7 +19,7 @@ export default function Page (){
     const valider = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Confirmer+et+envoyer.jpg"
     const certificat = "https://docslapro.s3.eu-west-3.amazonaws.com/Tutos/Repas+Profs/Certificat+de+depot.jpg"
     return (
-        <main className="p-4 text-xl flex flex-col gap-6 items-center justify-center mt-12">
+        <main className="p-4 text-xl flex flex-col gap-6 items-center justify-center md:pt-[10vh] sm:pt-[10vh]">
             <h1 className="text-6xl underline font-bold">Le repas des professeurs</h1>
             <section className="flex flex-col gap-4 items-center justify-center w-full max-w-[1000px]">
                 <h2 className="text-2xl underline">Partie 1 : Etablir un listing des professeurs qui mangent à la cantine et leur grade</h2>
