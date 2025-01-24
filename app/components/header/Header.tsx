@@ -14,19 +14,15 @@ export default function Header() {
     const pathname = usePathname();
     const [menuOpened, setMenuOpened] = useState(false);
     const [hidden, setHidden] = useState(false);
-
     const opacityMenu = !menuOpened
         ? "sm:opacity-95 md:opacity-95 h-[10vh] ease-linear duration-300"
         : "h-[100vh] ease-linear duration-300";
-
     const opacityLogo = !menuOpened
         ? "ease-linear delay-100 duration-200 scale-1"
         : "ease-linear delay-150 duration-300 scale-0";
-
     const handleClick = () => {
         setMenuOpened(!menuOpened);
     };
-
     useMotionValueEvent(scrollY, "change", (latest: number) => {
         const previous = scrollY.getPrevious() ?? 0;
         if (latest > previous && latest > 150) {
@@ -35,15 +31,12 @@ export default function Header() {
             setHidden(false);
         }
     });
-
     const handleLinkClick: OnLinkClick = ({ clickOnLink }) => {
         setMenuOpened(clickOnLink);
     };
-
     if (pathname === "/documents/portesOuvertesSVG") {
         return null;
     }
-
     return (
         <motion.header
             variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
