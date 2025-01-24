@@ -37,7 +37,9 @@ export default function Navbar({menuOpened, onLinkClick} :NavbarProps ){
                             }
                         </div>
                         <div className={`flex flex-col gap-6 justify-center items-center w-full ${restOfMenu}`}>
-                            <Link className='hover:scale-110' href="/" onClick={handleLinkClick} aria-label="Lien vers la page d'accueil">Accueil</Link>
+                            <Link href="/" onClick={handleLinkClick} aria-label="Lien vers la page d'accueil">Accueil</Link>
+                            <Link href="laprovidence-nicolasbarre.fr" onClick={handleLinkClick} aria-label="Lien vers le site La Providence Nicolas Barré">Lien vers le site web</Link>
+                            <Link href="/contact" onClick={handleLinkClick} aria-label="Lien vers la page contact">Contact</Link>
                         </div>
                         <div  className={`flex flex-col gap-4 justify-center items-center w-full ${servicesVisible}`}>
                             <svg width="40px" height="40px" viewBox="0 0 24 24" fill="none" className='cursor-pointer absolute top-4 left-4' onClick={()=>setServicesAppear(false)}>

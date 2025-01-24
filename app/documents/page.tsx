@@ -102,6 +102,21 @@ export default function Home() {
             </li>
           </ul>
         </details>
+        <details className="group bg-white rounded-lg shadow-md">
+          <summary className="cursor-pointer select-none py-3 px-4 text-lg font-semibold text-gray-700 bg-gray-200 rounded-lg transition-all duration-300 group-open:rounded-b-none">
+            Professeurs
+          </summary>
+          <ul className="pl-6 py-2 space-y-2 bg-gray-50 rounded-b-lg">
+            <li className="flex gap-4">
+              <p>Demande de prise en charge partielle du prix des titres de transport :</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/documents/professeurs/Demande+de+prise+en+charge+partielle+du+prix+des+titres+de+transport.pdf"}>Version à imprimer</Link>
+            </li>
+            <li className="flex gap-4">
+              <p>Demande d'autoristation de cumul d'activites :</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/documents/professeurs/Demande+d'autoristation+de+cumul+d'activites.pdf"}>Version à imprimer</Link>
+            </li>
+          </ul>
+        </details>
       </section>
     </main>
   );
