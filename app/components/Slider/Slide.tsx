@@ -22,6 +22,5 @@ type SliderProps = {
   name: string;
   img: string;
   description: string;
-  shortDescription: string;
   link: string;
 };

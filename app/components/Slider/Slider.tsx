@@ -26,7 +26,7 @@ export default function Slider({ props }: SliderProps) {
   return (
     <div ref={containerRef} className="flex items-center overflow-x-scroll snap-x snap-mandatory cursor-grab select-none h-[650px]" onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}>
       {props.map((categories) => {
-        return <Slide name={categories.name} key={categories.id} link={categories.link} img={categories.img} shortDescription={categories.shortDescription} description={categories.description}/>
+        return <Slide name={categories.name} key={categories.id} link={categories.link} img={categories.img} description={categories.description}/>
       })}
     </div>
   );
@@ -41,6 +41,5 @@ type Category = {
   name: string;
   link: string;
   img: string;
-  shortDescription: string;
   description: string;
 };
