@@ -3,7 +3,7 @@ import { usePathname } from 'next/navigation';
 
 export default function Footer (){
     const pathname = usePathname();
-    if (pathname === "/documents/portesOuvertesSVG") {
+    if (pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport") {
         return null;
     }
     return(
