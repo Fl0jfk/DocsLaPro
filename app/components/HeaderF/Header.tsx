@@ -42,7 +42,7 @@ export default function Header() {
             variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
             animate={hidden ? "hidden" : "visible"}
             transition={{ duration: 0.35, ease: "easeInOut" }}
-            className={`flex p-4 justify-between items-center w-full sm:fixed md:fixed z-[12] md:mb-[100px] ${opacityMenu} self-center text-2xl overflow-hidden max-w-[1200px] mx-auto bg-[#fff]`}
+            className={`flex p-4 justify-between items-center w-full sm:fixed md:fixed z-[12] md:mb-[100px] ${opacityMenu} self-center text-2xl overflow-hidden bg-[#fff]`}
         >
             <div className="w-2/12 flex items-center h-full sm:w-4/12 md:w-4/12">
                 {Logo && (

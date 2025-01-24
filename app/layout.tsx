@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {title && <title>{title}</title>}
         {description && <meta name="description" content={description} />}
       </Head>
-      <body className="antialiased text-black font-medium bg-white max-w-[1200px] mx-auto">
+      <body className="antialiased text-black font-medium bg-white mx-auto">
         <DataProvider>
           <Header />
           {children}
