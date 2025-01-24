@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useState, PropsWithChildren } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  PropsWithChildren,
+} from "react";
 
 type Categories = {
   id: number;
@@ -15,14 +22,15 @@ type Data = {
 
 const initialData: Data = {
   categories: [],
-  error: null
+  error: null,
 };
 
 const DataContext = createContext<Data | undefined>(undefined);
 
-export const DataProvider = ({ children }: PropsWithChildren<{}>) => {
+export const DataProvider = ({ children }: PropsWithChildren<object>) => {
   const [error, setError] = useState<Error | null>(null);
   const [data, setData] = useState<Data | undefined>(undefined);
+
   const fetchData = useCallback(async () => {
     try {
       const response = await fetch("/data.json");
@@ -35,11 +43,14 @@ export const DataProvider = ({ children }: PropsWithChildren<{}>) => {
       setError(err instanceof Error ? err : new Error("An error occurred"));
     }
   }, []);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
   return (
     <DataContext.Provider value={data || initialData}>
+      {error && <p className="error">{error.message}</p>}
       {children}
     </DataContext.Provider>
   );
