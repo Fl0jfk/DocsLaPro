@@ -32,7 +32,7 @@
             "id":5,
             "name":"Demande de RDV avec la direction",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/directrice.avif",
-            "link":"/",
+            "link":"/contactDir",
             "description":""
         },
         {

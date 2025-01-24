@@ -67,7 +67,7 @@ function FormContact() {
             <option value="">Sélectionnez une directrice</option>
             <option value="lycee">Mme Dona - Directrice du lycée</option>
             <option value="college">Mme Dumouchel - Directrice du collège</option>
-            <option value="ecole">Mme Vallet - Directrice de l'école</option>
+            <option value="ecole">Mme Vallet - Directrice de l&apos;école</option>
           </select>
         </div>
         <div>
