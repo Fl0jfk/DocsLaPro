@@ -38,7 +38,7 @@ export default function Navbar({menuOpened, onLinkClick} :NavbarProps ){
                         </div>
                         <div className={`flex flex-col gap-6 justify-center items-center w-full ${restOfMenu}`}>
                             <Link href="/" onClick={handleLinkClick} aria-label="Lien vers la page d'accueil">Accueil</Link>
-                            <Link href="laprovidence-nicolasbarre.fr" onClick={handleLinkClick} aria-label="Lien vers le site La Providence Nicolas Barré">Lien vers le site web</Link>
+                            <Link href="https://laprovidence-nicolasbarre.fr" onClick={handleLinkClick} aria-label="Lien vers le site La Providence Nicolas Barré">Lien vers le site web</Link>
                             <Link href="/contact" onClick={handleLinkClick} aria-label="Lien vers la page contact">Contact</Link>
                         </div>
                         <div  className={`flex flex-col gap-4 justify-center items-center w-full ${servicesVisible}`}>

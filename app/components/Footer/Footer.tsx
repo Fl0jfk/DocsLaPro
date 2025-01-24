@@ -8,7 +8,7 @@ export default function Footer (){
     }
     return(
         <footer className="w-full h-full p-2 flex flex-col gap-4 max-w-[1200px] mx-auto">
-            <p>Footer</p>
+            <p>En cours de réalisation</p>
         </footer>
     )
 }

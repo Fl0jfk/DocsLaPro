@@ -115,6 +115,18 @@ export default function Home() {
               <p>Demande d&apos;autoristation de cumul d&apos;activites :</p>
               <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/documents/professeurs/Demande+d'autoristation+de+cumul+d'activites.pdf"}>Version à imprimer</Link>
             </li>
+            <li className="flex gap-4">
+              <p>Demande de photocopies couleur :</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/documents/professeurs/Demande+de+photocopies+couleur.pdf"}>Version à imprimer</Link>
+            </li>
+            <li className="flex gap-4">
+              <p>Demande autorisation d&apos;absence :</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/documents/professeurs/Demande+autorisation+d'absence.pdf"}>Version à imprimer</Link>
+            </li>
+            <li className="flex gap-4">
+              <p>Commande de cuisine déplacement :</p>
+              <Link className="text-blue-500 hover:underline" href={"https://docslapro.s3.eu-west-3.amazonaws.com/documents/professeurs/Commande+de+cuisine+d%C3%A9placement.pdf"}>Version à imprimer</Link>
+            </li>
           </ul>
         </details>
       </section>
