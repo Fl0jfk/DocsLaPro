@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import './globals.css';
-import Header from './components/Header/Header';
+import Header from './components/HeaderF/Header';
 import Footer from './components/Footer/Footer';
 import Head from 'next/head';
 import { DataProvider } from './contexts/data';
