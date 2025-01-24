@@ -33,5 +33,14 @@ export default function Slider({ props }: SliderProps) {
 }
 
 type SliderProps = {
-  props: any[];
+  props: Category[];
+};
+
+type Category = {
+  id: number; // Ou string, selon la source des données
+  name: string;
+  link: string;
+  img: string;
+  shortDescription: string;
+  description: string;
 };

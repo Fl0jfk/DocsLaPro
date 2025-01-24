@@ -57,5 +57,7 @@ export default function Navbar({menuOpened, onLinkClick} :NavbarProps ){
 
 type NavbarProps = {
     menuOpened: boolean;
-    onLinkClick: any;
+    onLinkClick: OnLinkClick;
 }
+
+type OnLinkClick = (data: { clickOnLink: boolean }) => void;

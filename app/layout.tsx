@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import './globals.css';
-
+import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
 import Head from 'next/head';
 import { DataProvider } from './contexts/data';
@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </Head>
       <body className="antialiased text-black font-medium bg-white max-w-[1200px] mx-auto">
         <DataProvider>
-         
+          <Header />
           {children}
           <Footer />
         </DataProvider>
