@@ -1,0 +1,39 @@
+{
+    "categories":[
+        {
+            "id":1,
+            "name":"Les documents",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/2151088790.jpg",
+            "link":"/documents",
+            "description":""
+        },
+        {
+            "id":2,
+            "name":"Les tutoriels",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/2149241019.jpg",
+            "link":"/tutos",
+            "description":""
+        },
+        {
+            "id":3,
+            "name":"Ecole Directe",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/Ecole+Direct.jpg",
+            "link":"https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
+            "description":""
+        },
+        {
+            "id":4,
+            "name":"Demande de maintenance",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/4869721_54401.jpg",
+            "link":"",
+            "description":""
+        },
+        {
+            "id":5,
+            "name":"Demande de RDV avec la direction",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/4869721_54401.jpg",
+            "link":"",
+            "description":""
+        }
+    ]
+}

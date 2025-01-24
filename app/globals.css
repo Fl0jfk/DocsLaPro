@@ -19,3 +19,39 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+a {
+  cursor: pointer;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Style pour la barre de défilement */
+::-webkit-scrollbar {
+  width: 8px; /* Largeur de la barre de défilement */
+  height: 8px; /* Hauteur de la barre de défilement horizontale */
+}
+
+/* Couleur de fond de la barre de défilement */
+::-webkit-scrollbar-track {
+  background: #f0f0f0; /* Gris clair */
+  border-radius: 10px; /* Coins arrondis */
+}
+
+/* Style de la "thumb" (la partie déplaçable) */
+::-webkit-scrollbar-thumb {
+  background: #888; /* Couleur grise */
+  border-radius: 10px; /* Coins arrondis */
+}
+
+/* Couleur de la thumb au survol */
+::-webkit-scrollbar-thumb:hover {
+  background: #555; /* Couleur plus foncée au survol */
+}
+
+/* Optionnel : bordure autour de la thumb */
+::-webkit-scrollbar-thumb {
+  border: 2px solid #f0f0f0; /* Bordure pour un effet d'espace */
+}
