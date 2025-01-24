@@ -7,7 +7,7 @@ export default function Footer (){
         return null;
     }
     return(
-        <footer className="w-full h-full p-2 flex flex-col gap-4 mx-auto">
+        <footer className="w-full h-full p-2 flex flex-col gap-4 mx-auto hidden">
             <p>En cours de réalisation</p>
         </footer>
     )

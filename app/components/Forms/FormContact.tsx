@@ -21,9 +21,9 @@ function FormContact() {
     }
   }
   return (
-    <section className="flex items-center justify-center w-full">
-      <form onSubmit={handleSubmit(onSubmit)} name="form email">
-        <div className="mb-5">
+    <section className="flex items-center justify-center w-full max-w-[600px] mx-auto">
+      <form onSubmit={handleSubmit(onSubmit)} name="form email" className='w-full'>
+        <div className="mb-5 w-full">
           <label htmlFor="name" className="mb-3 block text-base font-medium"> Votre nom et prénom</label>
           <input
             autoComplete="name"
