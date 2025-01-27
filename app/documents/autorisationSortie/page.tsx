@@ -44,11 +44,11 @@ export default function TransportRequestPage() {
             </div>
             <div className="mb-4 flex text-nowrap gap-4 items-center mt-4">
                 <label className="block font-bold" htmlFor="nom">Je soussigné(e) M. et/ou Mme :</label>
-                <input type="text" id="nom" className="p-2 border-b border-black w-full" placeholder="Nom des parents" />
+                <input type="text" id="nom" className="p-2 border-b border-black w-full" />
             </div>
             <div className="mb-4 flex text-nowrap gap-4 items-center mt-4">
                 <label className="block font-bold" htmlFor="eleve">Parents de l&apos;élève :</label>
-                <input type="text" id="eleve" className="p-2 border-b border-black w-full" placeholder="Nom de l'élève" />
+                <input type="text" id="eleve" className="p-2 border-b border-black w-full"/>
             </div>
             <div className="mb-4 flex text-nowrap gap-4 items-center mt-4">
                 <label className="block font-bold" htmlFor="classe">En classe de :</label>
