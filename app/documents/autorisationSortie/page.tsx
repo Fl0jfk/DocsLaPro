@@ -62,9 +62,10 @@ export default function TransportRequestPage() {
                 <p> à :</p>
                 <select  id="lieu"  className="p-2 border rounded" value={lieu}  onChange={(e) => setLieu(e.target.value)}>
                     <option value="">Choisir un lieu</option>
-                    <option value="McDonald's">McDonald&apos;s + Laser Game de Rouen</option>
-                    <option value="Laser Game">McDonald&apos;s + Cinéma de Rouen</option>
-                    <option value="Bowling">McDonald&apos;s + Bowling</option>
+                    <option value="McDonald's Laser Game">McDonald&apos;s + Laser Game de Rouen</option>
+                    <option value="Pique Nique Laser Game">Pique-Nique + Laser Game de Rouen</option>
+                    <option value="McDo Cinéma">McDonald&apos;s + Cinéma de Rouen</option>
+                    <option value="McDo Bowling">McDonald&apos;s + Bowling</option>
                 </select>  
             </div>
             <div>

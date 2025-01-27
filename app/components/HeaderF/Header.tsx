@@ -34,7 +34,7 @@ export default function Header() {
     const handleLinkClick: OnLinkClick = ({ clickOnLink }) => {
         setMenuOpened(clickOnLink);
     };
-    if (pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport") {
+    if (pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie") {
         return null;
     }
     return (
