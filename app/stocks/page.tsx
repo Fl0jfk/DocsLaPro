@@ -3,14 +3,7 @@
 import { useState, useEffect } from "react";
 
 export default function InventoryPage() {
-  type InventoryItem = {
-    code: string;
-    fournisseurs: string;
-    type: string;
-    date_achat: string;
-    prix_unitaire: number;
-    quantité: number;
-  };
+  type InventoryItem = { code: string; fournisseurs: string; type: string; date_achat: string; prix_unitaire: number; quantité: number;};
   const [inventory, setInventory] = useState<Record<string, InventoryItem>>({});
   const [temporaryInventory, setTemporaryInventory] = useState<Record<string, InventoryItem>>({});
   const [scannedCodeAdd, setScannedCodeAdd] = useState<string>(""); 
@@ -117,12 +110,7 @@ export default function InventoryPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            inventory: temporaryInventory, 
-            userName, 
-            password,
-            modificationsInProgress
-          }),
+          body: JSON.stringify({ inventory: temporaryInventory,  userName,  password, modificationsInProgress}),
         });
         if (!res.ok) {
           const errorData = await res.json();
@@ -171,23 +159,8 @@ export default function InventoryPage() {
     <div className="p-4 max-w-2xl mx-auto">
       <h1 className="text-xl font-bold mb-4">Gestion de l&apos;Inventaire</h1>
       {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
-      <input
-        type="text"
-        value={scannedCodeAdd}
-        onChange={(e) => setScannedCodeAdd(e.target.value)}
-        onKeyUp={handleScanAdd}
-        placeholder="Scannez un code-barres pour ajouter"
-        className="border p-2 w-full mb-4"
-        autoFocus
-      />
-      <input
-        type="text"
-        value={scannedCodeRemove}
-        onChange={(e) => setScannedCodeRemove(e.target.value)}
-        onKeyUp={handleScanRemove}
-        placeholder="Scannez un code-barres pour retirer"
-        className="border p-2 w-full mb-4"
-      />
+      <input type="text" value={scannedCodeAdd} onChange={(e) => setScannedCodeAdd(e.target.value)} onKeyUp={handleScanAdd} placeholder="Scannez un code-barres pour ajouter" className="border p-2 w-full mb-4" autoFocus/>
+      <input type="text" value={scannedCodeRemove} onChange={(e) => setScannedCodeRemove(e.target.value)} onKeyUp={handleScanRemove} placeholder="Scannez un code-barres pour retirer" className="border p-2 w-full mb-4"/>
       <table className="w-full border-collapse border border-gray-300 mb-4">
         <thead>
           <tr className="bg-gray-100">
@@ -248,47 +221,19 @@ export default function InventoryPage() {
   <div className="space-y-2">
     <div>
       <label htmlFor="code" className="block text-sm font-medium text-gray-700">Code-barres</label>
-      <input
-        id="code"
-        type="text"
-        placeholder="Code-barres"
-        value={newItem.code}
-        onChange={(e) => setNewItem({ ...newItem, code: e.target.value })}
-        className="border p-2 w-full"
-      />
+      <input id="code" type="text" placeholder="Code-barres" value={newItem.code} onChange={(e) => setNewItem({ ...newItem, code: e.target.value })} className="border p-2 w-full"/>
     </div>
     <div>
       <label htmlFor="fournisseurs" className="block text-sm font-medium text-gray-700">Fournisseurs</label>
-      <input
-        id="fournisseurs"
-        type="text"
-        placeholder="Fournisseurs"
-        value={newItem.type}
-        onChange={(e) => setNewItem({ ...newItem, fournisseurs: e.target.value })}
-        className="border p-2 w-full"
-      />
+      <input id="fournisseurs" type="text" placeholder="Fournisseurs" value={newItem.type} onChange={(e) => setNewItem({ ...newItem, fournisseurs: e.target.value })} className="border p-2 w-full"/>
     </div>
     <div>
       <label htmlFor="type" className="block text-sm font-medium text-gray-700">Type</label>
-      <input
-        id="type"
-        type="text"
-        placeholder="Type"
-        value={newItem.type}
-        onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}
-        className="border p-2 w-full"
-      />
+      <input id="type" type="text" placeholder="Type" value={newItem.type} onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}className="border p-2 w-full"/>
     </div>
     <div>
       <label htmlFor="date_achat" className="block text-sm font-medium text-gray-700">Date d&apos;achat</label>
-      <input
-        id="date_achat"
-        type="date"
-        placeholder="Date d'achat"
-        value={newItem.date_achat}
-        onChange={(e) => setNewItem({ ...newItem, date_achat: e.target.value })}
-        className="border p-2 w-full"
-      />
+      <input id="date_achat" type="date" placeholder="Date d'achat" value={newItem.date_achat} onChange={(e) => setNewItem({ ...newItem, date_achat: e.target.value })} className="border p-2 w-full"/>
     </div>
     <div>
       <label htmlFor="prix_unitaire" className="block text-sm font-medium text-gray-700">Prix (€)</label>
