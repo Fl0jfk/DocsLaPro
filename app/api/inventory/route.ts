@@ -61,7 +61,7 @@ export async function PUT(req: Request) {
     }
   }
 }
-const sendUpdateEmail = async (userName: string, modificationsInProgress: any[]) => { 
+const sendUpdateEmail = async (userName: string,modificationsInProgress: Record<string, unknown>[]) => { 
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
