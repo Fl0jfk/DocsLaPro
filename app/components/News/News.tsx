@@ -14,15 +14,16 @@ export default function News() {
           <thead className="bg-gray-100 rounded-t-lg">
             <tr>
               <th className="p-2 text-gray-700 border-r border-white">Jour</th>
-              <th className="p-2 text-gray-700 border-r border-white">Date</th>
               <th className="p-2 text-gray-700">Actualités</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700">
             {news.map((item: NewsItem) => (
                 <tr key={item.id}>
-                  <td className="p-2 border-r border-grey-100 text-4xl font-semibold">{item.jour}</td>
-                  <td className="p-2 border-r border-grey-100">{item.date}</td>
+                  <td className="p-2 border-r border-grey-100">
+                    <p className=" text-4xl font-semibold">{item.jour}</p>
+                    <p>{item.date}</p>
+                </td>
                   <td>{item.actus.map((actu, index) => (
                     <p className={`p-2 ${index !== item.actus.length - 1 ? 'border-b' : ''}`} key={actu.id}>- {actu.text}</p>
                   ))}</td>
