@@ -20,6 +20,7 @@ export default function InventoryPage() {
   const [password, setPassword] = useState<string>(""); 
   const [isPasswordCorrect, setIsPasswordCorrect] = useState<boolean>(false); 
   const [modificationsInProgress, setModificationsInProgress] = useState<InventoryItem[]>([]);
+  const [userName, setUserName] = useState("");
   console.log(inventory)
   console.log(isPasswordCorrect)
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function InventoryPage() {
     setPassword(e.target.value);
   };
   const handleConfirmChanges = async () => {
-    if (password === "LaProNB76240") {
+    if (password === "LaProNB76240" && userName.trim() !== "") { // Vérification du mot de passe et du nom
       setIsPasswordCorrect(true);
       try {
         const res = await fetch("/api/inventory", {
@@ -114,7 +115,12 @@ export default function InventoryPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(temporaryInventory),
+          body: JSON.stringify({
+            inventory: temporaryInventory, 
+            userName, 
+            password,
+            modificationsInProgress
+          }),
         });
         if (!res.ok) {
           const errorData = await res.json();
@@ -133,7 +139,7 @@ export default function InventoryPage() {
         }
       }
     } else {
-      alert("Mot de passe incorrect");
+      alert("Veuillez entrer le mot de passe et le nom de l'utilisateur.");
     }
   };
   const exportInventory = () => {
@@ -212,6 +218,8 @@ export default function InventoryPage() {
               <tr className="bg-gray-100">
                 <th className="border p-2">Code-barres</th>
                 <th className="border p-2">Type</th>
+                <th className="border p-2">Date d&apos;achat</th>
+                <th className="border p-2">Prix (€)</th>
                 <th className="border p-2">Quantité</th>
               </tr>
             </thead>
@@ -267,21 +275,14 @@ export default function InventoryPage() {
     </div>
     <div>
       <label htmlFor="prix_unitaire" className="block text-sm font-medium text-gray-700">Prix (€)</label>
-      <input
-        id="prix_unitaire"
-        type="number"
-        placeholder="Prix (€)"
-        value={newItem.prix_unitaire}
-        onChange={(e) => setNewItem({ ...newItem, prix_unitaire: +e.target.value })}
-        className="border p-2 w-full"
-      />
+      <input id="prix_unitaire" type="number" placeholder="Prix (€)" value={newItem.prix_unitaire}  onChange={(e) => setNewItem({ ...newItem, prix_unitaire: +e.target.value })} className="border p-2 w-full"/>
     </div>
   </div>
   <button type="submit" className="mt-4 p-2 bg-green-500 text-white">Ajouter le mobilier</button>
 </form>
-
       {localChanges && (
         <div className="mb-4">
+          <input  type="text"  placeholder="Entrez votre nom"  value={userName}  onChange={(e) => setUserName(e.target.value)}  className="border p-2 w-full" />
           <input type="password" placeholder="Entrez le mot de passe pour valider" value={password} onChange={handlePasswordChange} className="border p-2 w-full"/>
           <button onClick={handleConfirmChanges} className="mt-4 p-2 bg-blue-500 text-white">Valider les changements</button>
         </div>
@@ -290,5 +291,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-
-

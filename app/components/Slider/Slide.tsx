@@ -10,7 +10,7 @@ export default function Slide({name, img, link}: SliderProps) {
                         <p className='text-4xl font-bold z-[2]'>{name}</p>
                     </div>      
                     {img && 
-                        <Image src={img} fill alt={name} style={{objectFit:"cover"}}  className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
+                        <Image src={img} fill alt={name} style={{objectFit:"cover"}} quality={100}  className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
                     }
                 </>    
             }  

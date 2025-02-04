@@ -10,7 +10,7 @@ import { DataProvider } from './contexts/data';
 
 const metaDetails: Record<string, { title: string; description: string }> = {
   '/': {
-    title: 'Bienvenue chez dans lintranet La Providence',
+    title: "Bienvenue dans l'intranet de La Providence Nicolas Barré",
     description: 'Un intranet moderne pour connecter vos équipes.',
   },
 };
