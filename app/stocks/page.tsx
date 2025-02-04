@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
+import JsBarcode from "jsbarcode";
 
 export default function InventoryPage() {
   type InventoryItem = { code: string; fournisseurs: string; type: string; date_achat: string; prix_unitaire: number; quantité: number;};
@@ -15,6 +16,47 @@ export default function InventoryPage() {
   const [isPasswordCorrect, setIsPasswordCorrect] = useState<boolean>(false); 
   const [modificationsInProgress, setModificationsInProgress] = useState<InventoryItem[]>([]);
   const [userName, setUserName] = useState("");
+  const generateBarcode = (code: string) => {
+    const codesPerPage = 27; // 3 colonnes x 9 lignes
+    const codes = Array(codesPerPage).fill(code); // Remplit une page complète avec le même code
+  
+    const newWindow = window.open("", "_blank");
+    if (!newWindow) return;
+  
+    newWindow.document.write(`
+      <html>
+        <head>
+          <title>Impression Codes-Barres</title>
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; }
+            .container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; width: 100%; margin: 10mm auto; }
+            .barcode-item { display: flex; justify-content: center; align-items: center; height: 33mm; }
+            canvas { width: 50mm; height: 15mm; }
+            @media print {
+              @page { size: A4; margin: 10mm; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            ${codes.map(() => `<div class="barcode-item"><canvas class="barcode"></canvas></div>`).join("")}
+          </div>
+          <script>
+            window.onload = function() {
+              document.querySelectorAll(".barcode").forEach(canvas => {
+                JsBarcode(canvas, "${code}", { format: "CODE128", displayValue: false });
+              });
+              setTimeout(() => { window.print(); }, 500); // Attente pour l'affichage avant impression
+            };
+          </script>
+        </body>
+      </html>
+    `);
+  
+    newWindow.document.close(); // Nécessaire pour que la page se charge correctement
+  };
+  
   console.log(inventory)
   console.log(isPasswordCorrect)
   useEffect(() => {
@@ -71,7 +113,7 @@ export default function InventoryPage() {
               index === existingIndex ? { ...mod, quantité: mod.quantité - 1 } : mod
             );
           } else {
-            const itemFournisseurs = updatedInventory[code]?.fournisseurs || "Fournissuers inconnu";
+            const itemFournisseurs = updatedInventory[code]?.fournisseurs || "Fournisseurs inconnu";
             const itemType = updatedInventory[code]?.type || "Type inconnu";
             const dateAchat = updatedInventory[code]?.date_achat || "Inconnue";
             const prixUnitaire = updatedInventory[code]?.prix_unitaire || 0;
@@ -170,6 +212,7 @@ export default function InventoryPage() {
             <th className="border p-2">Date d&apos;achat</th>
             <th className="border p-2">Prix (€)</th>
             <th className="border p-2">Quantité</th>
+            <th className="border p-2">Imprimer Code-Barres</th>
           </tr>
         </thead>
         <tbody>
@@ -182,6 +225,7 @@ export default function InventoryPage() {
                 <td className="border p-2">{data.date_achat}</td>
                 <td className="border p-2">{data.prix_unitaire}</td>
                 <td className="border p-2">{data.quantité}</td>
+                <td className="border p-2"><button onClick={() => generateBarcode(code)} className="bg-blue-500 text-white px-2 py-1 rounded">Imprimer</button></td>
               </tr>
             );
           })}
