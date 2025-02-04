@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import JsBarcode from "jsbarcode";
 
 export default function InventoryPage() {
   type InventoryItem = { code: string; fournisseurs: string; type: string; date_achat: string; prix_unitaire: number; quantité: number;};
