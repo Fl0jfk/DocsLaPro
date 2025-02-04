@@ -66,11 +66,11 @@
                 },
                 {
                     "id":3,
-                    "text": "Présence d’Elise Deve, stagiaire avec Isabelle Sevcik"
+                    "text": "Présence d’E. Deve, stagiaire avec I. Sevcik"
                 },
                 {
                     "id":4,
-                    "text": "Présence de Bouquet Milan stagiaire en JE4"
+                    "text": "Présence de Bouquet M. stagiaire en JE4"
                 },
                 {
                     "id":5,
@@ -82,7 +82,7 @@
                 },
                 {
                     "id":7,
-                    "text": "12h30 : commission éducative pour Axel Abderame 4ème F en salle des conseils du collège"
+                    "text": "12h30 : commission éducative pour A. Abderame 4ème F en salle des conseils du collège"
                 },
                 {
                     "id":8,
@@ -109,7 +109,7 @@
                 },
                 {
                     "id":2,
-                    "text": "9h30 : ESS de Simon Victor-Caron 6ème B en salle des conseils du collège"
+                    "text": "9h30 : ESS de S. Victor-Caron 6ème B en salle des conseils du collège"
                 },
                 {
                     "id":3,
@@ -126,6 +126,53 @@
                 {
                     "id":6,
                     "text": "17h30 : réunion d’information voyage en Angleterre avec A. Thillay en grande salle"
+                }
+            ]
+        },
+        {
+            "id":3,
+            "jour":"Mercredi",
+            "date":"05/02/2025",
+            "actus": [
+                {
+                    "id":1,
+                    "text": "Absence de B. Sacilotto"
+                },
+                {
+                    "id":2,
+                    "text": "8h30-12h30 : épreuve de bac EPS (Mme Avril)"
+                },
+                {
+                    "id":3,
+                    "text": "12h30 : réunion du groupe de pilotage label ouverture internationale collège en salle des conseils du collège"
+                },
+                {
+                    "id":4,
+                    "text": "AM travaillé : rattrapage du vendredi 2 mai après-midi"
+                }
+            ]
+        }
+        ,
+        {
+            "id":3,
+            "jour":"Jeudi",
+            "date":"06/02/2025",
+            "actus": [
+                {
+                    "id":1,
+                    "text": "..."
+                },
+                {
+                    "id":2,
+                    "text": ""
+                },
+                {
+                    "id":3,
+                    "text": ""
+                },
+                {
+                    "id":4,
+                    "text": ""
                 }
             ]
         }
