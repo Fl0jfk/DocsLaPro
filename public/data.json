@@ -49,5 +49,85 @@
             "link":"/stocks",
             "description":""
         }
+    ],
+    "news":[
+        {
+            "id":1,
+            "jour":"Lundi",
+            "date":"03/02/2025",
+            "actus": [
+                {
+                    "id":1,
+                    "text": "Du 3 au 7 février : absence de C. Malhouitre"
+                },
+                {
+                    "id":2,
+                    "text": "Du 3 au 7 février : toutes les 3èmes et 4ème B en stage"
+                },
+                {
+                    "id":3,
+                    "text": "Présence d’Elise Deve, stagiaire avec Isabelle Sevcik"
+                },
+                {
+                    "id":4,
+                    "text": "Présence de Bouquet Milan stagiaire en JE4"
+                },
+                {
+                    "id":5,
+                    "text": "10h30-12h30 : absence de C. Ridel"
+                },
+                {
+                    "id":6,
+                    "text": "11h45 : signature des livrets de JE1"
+                },
+                {
+                    "id":7,
+                    "text": "12h30 : commission éducative pour Axel Abderame 4ème F en salle des conseils du collège"
+                },
+                {
+                    "id":8,
+                    "text": "15h30-17h30 : épreuve de bac EPS (Mme Avril)"
+                },
+                {
+                    "id":9,
+                    "text": "16h00 : réunion des surveillants n°2 en salle des conseils du collège"
+                },
+                {
+                    "id":10,
+                    "text": "17h30 : CA-AG-CA d’OGEC"
+                }
+            ]
+        },
+        {
+            "id":2,
+            "jour":"Mardi",
+            "date":"04/02/2025",
+            "actus": [
+                {
+                    "id":1,
+                    "text": "8h30-10h30 : absence O. Fortineau"
+                },
+                {
+                    "id":2,
+                    "text": "9h30 : ESS de Simon Victor-Caron 6ème B en salle des conseils du collège"
+                },
+                {
+                    "id":3,
+                    "text": "11h45 : signature des livrets de JE2"
+                },
+                {
+                    "id":4,
+                    "text": "12h30 : conseil pédagogique collège en salle des conseils du collège"
+                },
+                {
+                    "id":5,
+                    "text": "17h30 : conseil d’établissement"
+                },
+                {
+                    "id":6,
+                    "text": "17h30 : réunion d’information voyage en Angleterre avec A. Thillay en grande salle"
+                }
+            ]
+        }
     ]
 }

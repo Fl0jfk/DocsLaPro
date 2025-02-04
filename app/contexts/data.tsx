@@ -15,12 +15,26 @@ type Categories = {
   description: string;
 };
 
+type Actualite = {
+  id: number;
+  text: string;
+};
+
+type NewsItem = {
+  id: number;
+  jour: string;
+  date: string;
+  actus: Actualite[];
+};
+
 type Data = {
   categories: Categories[];
+  news: NewsItem[];
   error: string | null;
 };
 
 const initialData: Data = {
+  news: [],
   categories: [],
   error: null,
 };
