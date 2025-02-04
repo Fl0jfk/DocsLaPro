@@ -69,11 +69,6 @@ export default function InventoryPage() {
         updatedInventory[code].quantité -= 1;
         setErrorMessage("");
         setTemporaryInventory(updatedInventory);
-        interface Modification {
-          code: string;
-          type: string;
-          quantité: number;
-        }
         setModificationsInProgress((prev: InventoryItem[]) => {
           const existingIndex = prev.findIndex((mod) => mod.code === code);
           if (existingIndex !== -1) {
