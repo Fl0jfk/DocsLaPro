@@ -20,7 +20,7 @@ export default function News() {
           <tbody className="divide-y divide-gray-700">
             {news.map((item: NewsItem) => (
                 <tr key={item.id}>
-                  <td className="p-2 border-r border-grey-100">
+                  <td className="p-2 border-r border-grey-100 flex flex-col items-center">
                     <p className=" text-4xl font-semibold">{item.jour}</p>
                     <p>{item.date}</p>
                 </td>
