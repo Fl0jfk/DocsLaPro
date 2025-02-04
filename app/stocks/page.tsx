@@ -3,35 +3,36 @@
 import { useState, useEffect } from "react";
 
 export default function InventoryPage() {
-  const [inventory, setInventory] = useState<Record<string, any>>({});
+  type InventoryItem = {
+    code: string;
+    type: string;
+    date_achat: string;
+    prix_unitaire: number;
+    quantité: number;
+  };
+  const [inventory, setInventory] = useState<Record<string, InventoryItem>>({});
+  const [temporaryInventory, setTemporaryInventory] = useState<Record<string, InventoryItem>>({});
   const [scannedCodeAdd, setScannedCodeAdd] = useState<string>(""); 
   const [scannedCodeRemove, setScannedCodeRemove] = useState<string>("");
   const [newItem, setNewItem] = useState({ code: "", type: "", date_achat: "", prix_unitaire: 0, quantité: 0});
   const [localChanges, setLocalChanges] = useState<boolean>(false);
-  const [temporaryInventory, setTemporaryInventory] = useState<Record<string, any>>({});
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [password, setPassword] = useState<string>(""); 
   const [isPasswordCorrect, setIsPasswordCorrect] = useState<boolean>(false); 
-  const [modificationsInProgress, setModificationsInProgress] = useState<any[]>([]);
+  const [modificationsInProgress, setModificationsInProgress] = useState<InventoryItem[]>([]);
   console.log(inventory)
   console.log(isPasswordCorrect)
   useEffect(() => {
     fetch("/api/inventory")
-      .then((res) => {
-        if (!res.ok) {
-          console.error("Erreur lors de la récupération de l'inventaire : ", res.status);
-          throw new Error("Erreur lors de la récupération des données");
-        }
-        return res.json();
-      })
-      .then((data) => {
+      .then((res) => res.json())
+      .then((data: Record<string, InventoryItem>) => {
         setInventory(data);
         setTemporaryInventory(data);
       })
       .catch((err) => {
         console.error("Erreur de chargement du JSON", err);
       });
-  }, []);
+  }, []);  
   const handleScanAdd = async (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Enter") return;
     const code = scannedCodeAdd.trim();
@@ -52,10 +53,9 @@ export default function InventoryPage() {
           index === existingIndex ? { ...mod, quantité: mod.quantité + 1 } : mod
         );
       } else {
-        const itemType = updatedInventory[code]?.type || "Type inconnu";
-        return [...prev, { code, type: itemType, quantité: 1 }];
+        return [...prev, { code, type: updatedInventory[code].type, date_achat: updatedInventory[code].date_achat, prix_unitaire: updatedInventory[code].prix_unitaire, quantité: 1 }];
       }
-    });
+    });    
     setScannedCodeAdd(""); 
     setLocalChanges(true);
   };
@@ -69,7 +69,12 @@ export default function InventoryPage() {
         updatedInventory[code].quantité -= 1;
         setErrorMessage("");
         setTemporaryInventory(updatedInventory);
-        setModificationsInProgress((prev) => {
+        interface Modification {
+          code: string;
+          type: string;
+          quantité: number;
+        }
+        setModificationsInProgress((prev: InventoryItem[]) => {
           const existingIndex = prev.findIndex((mod) => mod.code === code);
           if (existingIndex !== -1) {
             return prev.map((mod, index) =>
@@ -77,7 +82,9 @@ export default function InventoryPage() {
             );
           } else {
             const itemType = updatedInventory[code]?.type || "Type inconnu";
-            return [...prev, { code, type: itemType, quantité: -1 }];
+            const dateAchat = updatedInventory[code]?.date_achat || "Inconnue";
+            const prixUnitaire = updatedInventory[code]?.prix_unitaire || 0;
+            return [...prev, { code, type: itemType, date_achat: dateAchat, prix_unitaire: prixUnitaire, quantité: -1 }];
           }
         });
       } else {
