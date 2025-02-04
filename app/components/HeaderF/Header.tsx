@@ -46,7 +46,7 @@ export default function Header() {
                     </Link>
                 )}
             </div>
-            <p className='w-8/12 text-center ml-[-20px] lg:hidden xl:hidden'>INTRANET</p>
+            {!menuOpened&&<p className='w-8/12 text-center ml-[-20px] lg:hidden xl:hidden'>INTRANET</p>}
             <div className="w-2/12 flex justify-end items-center sm:mt-[-5px] h-full">
                 <Navbar menuOpened={menuOpened} onLinkClick={handleLinkClick} />    
                 <div className="flex justify-end w-[40] items-center h-full" onClick={handleClick}>
