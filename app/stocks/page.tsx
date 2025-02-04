@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 export default function InventoryPage() {
   type InventoryItem = {
     code: string;
+    fournisseurs: string;
     type: string;
     date_achat: string;
     prix_unitaire: number;
@@ -14,7 +15,7 @@ export default function InventoryPage() {
   const [temporaryInventory, setTemporaryInventory] = useState<Record<string, InventoryItem>>({});
   const [scannedCodeAdd, setScannedCodeAdd] = useState<string>(""); 
   const [scannedCodeRemove, setScannedCodeRemove] = useState<string>("");
-  const [newItem, setNewItem] = useState({ code: "", type: "", date_achat: "", prix_unitaire: 0, quantité: 0});
+  const [newItem, setNewItem] = useState({ code: "",fournisseurs:"" ,type: "", date_achat: "", prix_unitaire: 0, quantité: 0});
   const [localChanges, setLocalChanges] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [password, setPassword] = useState<string>(""); 
@@ -54,7 +55,7 @@ export default function InventoryPage() {
           index === existingIndex ? { ...mod, quantité: mod.quantité + 1 } : mod
         );
       } else {
-        return [...prev, { code, type: updatedInventory[code].type, date_achat: updatedInventory[code].date_achat, prix_unitaire: updatedInventory[code].prix_unitaire, quantité: 1 }];
+        return [...prev, { code,fournisseurs : updatedInventory[code].fournisseurs, type: updatedInventory[code].type, date_achat: updatedInventory[code].date_achat, prix_unitaire: updatedInventory[code].prix_unitaire, quantité: 1 }];
       }
     });    
     setScannedCodeAdd(""); 
@@ -77,10 +78,11 @@ export default function InventoryPage() {
               index === existingIndex ? { ...mod, quantité: mod.quantité - 1 } : mod
             );
           } else {
+            const itemFournisseurs = updatedInventory[code]?.fournisseurs || "Fournissuers inconnu";
             const itemType = updatedInventory[code]?.type || "Type inconnu";
             const dateAchat = updatedInventory[code]?.date_achat || "Inconnue";
             const prixUnitaire = updatedInventory[code]?.prix_unitaire || 0;
-            return [...prev, { code, type: itemType, date_achat: dateAchat, prix_unitaire: prixUnitaire, quantité: -1 }];
+            return [...prev, { code,fournisseurs:itemFournisseurs, type: itemType, date_achat: dateAchat, prix_unitaire: prixUnitaire, quantité: -1 }];
           }
         });
       } else {
@@ -97,7 +99,7 @@ export default function InventoryPage() {
     if (newItem.code && newItem.type && newItem.date_achat && newItem.prix_unitaire) {
       const updatedInventory = { ...temporaryInventory, [newItem.code]: newItem };
       setTemporaryInventory(updatedInventory);
-      setNewItem({ code: "", type: "", date_achat: "", prix_unitaire: 0, quantité: 0 });
+      setNewItem({ code: "",fournisseurs:"", type: "", date_achat: "", prix_unitaire: 0, quantité: 0 });
       setLocalChanges(true);
     } else {
       console.error("Veuillez remplir tous les champs");
@@ -190,6 +192,7 @@ export default function InventoryPage() {
         <thead>
           <tr className="bg-gray-100">
             <th className="border p-2">Code-barres</th>
+            <th className="border p-2">Fournisseurs</th>
             <th className="border p-2">Type</th>
             <th className="border p-2">Date d&apos;achat</th>
             <th className="border p-2">Prix (€)</th>
@@ -201,6 +204,7 @@ export default function InventoryPage() {
             return (
               <tr key={code} className="text-center">
                 <td className="border p-2">{code}</td>
+                <td className="border p-2">{data.fournisseurs}</td>
                 <td className="border p-2">{data.type}</td>
                 <td className="border p-2">{data.date_achat}</td>
                 <td className="border p-2">{data.prix_unitaire}</td>
@@ -217,6 +221,7 @@ export default function InventoryPage() {
             <thead>
               <tr className="bg-gray-100">
                 <th className="border p-2">Code-barres</th>
+                <th className="border p-2">Fournisseurs</th>
                 <th className="border p-2">Type</th>
                 <th className="border p-2">Date d&apos;achat</th>
                 <th className="border p-2">Prix (€)</th>
@@ -227,6 +232,7 @@ export default function InventoryPage() {
               {modificationsInProgress.map((mod, index) => (
                 <tr key={index} className="text-center">
                   <td className="border p-2">{mod.code}</td>
+                  <td className="border p-2">{mod.fournisseurs}</td>
                   <td className="border p-2">{mod.type}</td>
                   <td className="border p-2">{mod.date_achat}</td>
                   <td className="border p-2">{mod.prix_unitaire}</td>
@@ -248,6 +254,17 @@ export default function InventoryPage() {
         placeholder="Code-barres"
         value={newItem.code}
         onChange={(e) => setNewItem({ ...newItem, code: e.target.value })}
+        className="border p-2 w-full"
+      />
+    </div>
+    <div>
+      <label htmlFor="fournisseurs" className="block text-sm font-medium text-gray-700">Fournisseurs</label>
+      <input
+        id="fournisseurs"
+        type="text"
+        placeholder="Fournisseurs"
+        value={newItem.type}
+        onChange={(e) => setNewItem({ ...newItem, fournisseurs: e.target.value })}
         className="border p-2 w-full"
       />
     </div>
