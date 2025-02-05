@@ -15,6 +15,15 @@ type Categories = {
   description: string;
 };
 
+type Travels = {
+  id: number;
+  name: string;
+  img: string;
+  date: string;
+  validated:string;
+  description: string;
+};
+
 type Actualite = {
   id: number;
   text: string;
@@ -29,12 +38,14 @@ type NewsItem = {
 
 type Data = {
   categories: Categories[];
+  travels: Travels[];
   news: NewsItem[];
   error: string | null;
 };
 
 const initialData: Data = {
   news: [],
+  travels: [],
   categories: [],
   error: null,
 };

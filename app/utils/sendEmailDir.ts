@@ -1,5 +1,5 @@
 export function sendEmailDir(data: FormData) {
-    const apiEndpoint = '/api/email';
+    const apiEndpoint = '/api/emailDir';
     fetch(apiEndpoint, {
       method: 'POST',
       body: JSON.stringify(data),
