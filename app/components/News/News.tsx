@@ -32,6 +32,10 @@ export default function News() {
           </tbody>
         </table>
       </div>
+
+            
+
+
     </section>
   );
 }
