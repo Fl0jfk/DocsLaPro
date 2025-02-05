@@ -287,16 +287,16 @@ export default function InventoryPage() {
       <input id="prix_unitaire" type="number" placeholder="Prix (€)" value={newItem.prix_unitaire}  onChange={(e) => setNewItem({ ...newItem, prix_unitaire: +e.target.value })} className="border p-2 w-full"/>
     </div>
   </div>
-  <button type="submit" className="mt-4 p-2 bg-green-500 text-white">Ajouter le mobilier</button>
+  <button type="submit" className="mt-4 p-2 bg-green-500 text-white rounded-xl">Ajouter le mobilier</button>
 </form>
       {localChanges && (
         <div className="mb-4">
           <input  type="text"  placeholder="Entrez votre nom"  value={userName}  onChange={(e) => setUserName(e.target.value)}  className="border p-2 w-full" />
           <input type="password" placeholder="Entrez le mot de passe pour valider" value={password} onChange={handlePasswordChange} className="border p-2 w-full"/>
-          <button onClick={handleConfirmChanges} className="mt-4 p-2 bg-blue-500 text-white">Valider les changements</button>
+          <button onClick={handleConfirmChanges} className="mt-4 p-2 bg-blue-500 text-white rounded-xl">Valider les changements</button>
         </div>
       )}
-      <button onClick={exportInventory} className="mt-4 p-2 bg-yellow-500 text-white">Télécharger les stocks sur le serveur</button>
+      <button onClick={exportInventory} className="mt-4 p-2 bg-yellow-500 text-white rounded-xl">Télécharger les stocks sur le serveur</button>
     </main>
   );
 }
