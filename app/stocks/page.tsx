@@ -197,7 +197,7 @@ export default function InventoryPage() {
       });
   };
   return (
-    <main className="p-4 max-w-2xl mx-auto className='sm:pt-[13vh] md:pt-[13vh]'">
+    <main className="p-4 max-w-2xl mx-auto sm:pt-[13vh] md:pt-[13vh]">
       <h1 className="text-xl font-bold mb-4">Gestion de l&apos;Inventaire</h1>
       {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
       <input type="text" value={scannedCodeAdd} onChange={(e) => setScannedCodeAdd(e.target.value)} onKeyUp={handleScanAdd} placeholder="Scannez un code-barres pour ajouter" className="border p-2 w-full mb-4" autoFocus/>
