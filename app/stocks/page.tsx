@@ -202,7 +202,7 @@ export default function InventoryPage() {
       {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
       <input type="text" value={scannedCodeAdd} onChange={(e) => setScannedCodeAdd(e.target.value)} onKeyUp={handleScanAdd} placeholder="Scannez un code-barres pour ajouter" className="border p-2 w-full mb-4" autoFocus/>
       <input type="text" value={scannedCodeRemove} onChange={(e) => setScannedCodeRemove(e.target.value)} onKeyUp={handleScanRemove} placeholder="Scannez un code-barres pour retirer" className="border p-2 w-full mb-4"/>
-      <table className="w-full border-collapse border border-gray-300 mb-4">
+      <table className="w-full border-collapse border border-gray-300 mb-4 overflow-x-scroll">
         <thead>
           <tr className="bg-gray-100">
             <th className="border p-2">Code-barres</th>
@@ -233,7 +233,7 @@ export default function InventoryPage() {
       {modificationsInProgress.length > 0 && (
         <div className="mb-4">
           <h2 className="text-lg font-semibold">Modifications en cours</h2>
-          <table className="w-full border-collapse border border-gray-300 mb-4">
+          <table className="w-full border-collapse border border-gray-300 mb-4 overflow-x-scroll">
             <thead>
               <tr className="bg-gray-100">
                 <th className="border p-2">Code-barres</th>
