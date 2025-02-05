@@ -202,61 +202,65 @@ export default function InventoryPage() {
       {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
       <input type="text" value={scannedCodeAdd} onChange={(e) => setScannedCodeAdd(e.target.value)} onKeyUp={handleScanAdd} placeholder="Scannez un code-barres pour ajouter" className="border p-2 w-full mb-4" autoFocus/>
       <input type="text" value={scannedCodeRemove} onChange={(e) => setScannedCodeRemove(e.target.value)} onKeyUp={handleScanRemove} placeholder="Scannez un code-barres pour retirer" className="border p-2 w-full mb-4"/>
-      <table className="w-full border-collapse border border-gray-300 mb-4 overflow-x-scroll">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="border p-2">Code-barres</th>
-            <th className="border p-2">Fournisseurs</th>
-            <th className="border p-2">Type</th>
-            <th className="border p-2">Date d&apos;achat</th>
-            <th className="border p-2">Prix (€)</th>
-            <th className="border p-2">Quantité</th>
-            <th className="border p-2">Imprimer Code-Barres</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(temporaryInventory).map(([code, data]) => {
-            return (
-              <tr key={code} className="text-center">
-                <td className="border p-2">{code}</td>
-                <td className="border p-2">{data.fournisseurs}</td>
-                <td className="border p-2">{data.type}</td>
-                <td className="border p-2">{data.date_achat}</td>
-                <td className="border p-2">{data.prix_unitaire}</td>
-                <td className="border p-2">{data.quantité}</td>
-                <td className="border p-2"><button onClick={() => generateBarcode(code)} className="bg-blue-500 text-white px-2 py-1 rounded">Imprimer</button></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto w-full">
+        <table className="w-full border-collapse border border-gray-300 mb-4">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border p-2">Code-barres</th>
+              <th className="border p-2">Fournisseurs</th>
+              <th className="border p-2">Type</th>
+              <th className="border p-2">Date d&apos;achat</th>
+              <th className="border p-2">Prix (€)</th>
+              <th className="border p-2">Quantité</th>
+              <th className="border p-2">Imprimer Code-Barres</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(temporaryInventory).map(([code, data]) => {
+              return (
+                <tr key={code} className="text-center">
+                  <td className="border p-2">{code}</td>
+                  <td className="border p-2">{data.fournisseurs}</td>
+                  <td className="border p-2">{data.type}</td>
+                  <td className="border p-2">{data.date_achat}</td>
+                  <td className="border p-2">{data.prix_unitaire}</td>
+                  <td className="border p-2">{data.quantité}</td>
+                  <td className="border p-2"><button onClick={() => generateBarcode(code)} className="bg-blue-500 text-white px-2 py-1 rounded">Imprimer</button></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       {modificationsInProgress.length > 0 && (
         <div className="mb-4">
           <h2 className="text-lg font-semibold">Modifications en cours</h2>
-          <table className="w-full border-collapse border border-gray-300 mb-4 overflow-x-scroll">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border p-2">Code-barres</th>
-                <th className="border p-2">Fournisseurs</th>
-                <th className="border p-2">Type</th>
-                <th className="border p-2">Date d&apos;achat</th>
-                <th className="border p-2">Prix (€)</th>
-                <th className="border p-2">Quantité</th>
-              </tr>
-            </thead>
-            <tbody>
-              {modificationsInProgress.map((mod, index) => (
-                <tr key={index} className="text-center">
-                  <td className="border p-2">{mod.code}</td>
-                  <td className="border p-2">{mod.fournisseurs}</td>
-                  <td className="border p-2">{mod.type}</td>
-                  <td className="border p-2">{mod.date_achat}</td>
-                  <td className="border p-2">{mod.prix_unitaire}</td>
-                  <td className="border p-2">{mod.quantité}</td>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full border-collapse border border-gray-300 mb-4">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border p-2">Code-barres</th>
+                  <th className="border p-2">Fournisseurs</th>
+                  <th className="border p-2">Type</th>
+                  <th className="border p-2">Date d&apos;achat</th>
+                  <th className="border p-2">Prix (€)</th>
+                  <th className="border p-2">Quantité</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {modificationsInProgress.map((mod, index) => (
+                  <tr key={index} className="text-center">
+                    <td className="border p-2">{mod.code}</td>
+                    <td className="border p-2">{mod.fournisseurs}</td>
+                    <td className="border p-2">{mod.type}</td>
+                    <td className="border p-2">{mod.date_achat}</td>
+                    <td className="border p-2">{mod.prix_unitaire}</td>
+                    <td className="border p-2">{mod.quantité}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       <form onSubmit={handleNewItemSubmit} className="mb-4">
