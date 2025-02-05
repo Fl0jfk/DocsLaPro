@@ -74,7 +74,7 @@ export default function QRCreator() {
         <label htmlFor="url" className="block text-lg">Adresse URL :</label>
         <input type="text" id="url"  value={url}  onChange={handleUrlChange} className="mt-2 p-2 border border-gray-300 rounded-xl w-full" placeholder="Entrez l'adresse URL"/>
       </div>
-      <button onClick={() => setUrl("https://nouvelle-url.com/")} className="bg-blue-500 text-white p-2 rounded-xl"> Changer l'URL</button>
+      <button onClick={() => setUrl("https://nouvelle-url.com/")} className="bg-blue-500 text-white p-2 rounded-xl"> Changer l&apos;URL</button>
       <div className="mb-4">
         <label htmlFor="logo" className="block text-lg">Télécharger un logo :</label>
         <input type="file" id="logo" onChange={handleLogoUpload} className="mt-2 p-2 border border-gray-300 rounded-xl w-full" accept="image/*"/>
