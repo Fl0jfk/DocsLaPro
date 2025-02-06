@@ -20,8 +20,9 @@ type Travels = {
   name: string;
   img: string;
   date: string;
-  validated:string;
+  validated:boolean;
   description: string;
+  company:string;
 };
 
 type Actualite = {

@@ -64,15 +64,40 @@
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/memorial+shoah.avif",
             "date": "06/03/2025",
             "validated":"Validé avec Perier",
-            "description":"En attente de la liste des élèves et du n°du chauffeur"
+            "description":"En attente de la liste des élèves et du n° du chauffeur",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
+            "to":"Meron"
+            
         },
         {
             "id":2,
             "name":"Paris Opéra Bastille",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/opera+bastille.jpg",
             "date": "13/03/2025",
-            "validated":"Validé avec Perier",
-            "description":"En attente de la liste des élèves et du n°du chauffeur"
+            "validated":"true",
+            "description":"En attente de la liste des élèves et du n° du chauffeur",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
+            "to":"Dubois"
+        },
+        {
+            "id":3,
+            "name":"Panthéon, Mémorial de la Shoah",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/memorial+shoah.avif",
+            "date": "18/03/2025",
+            "validated":"true",
+            "description":"En attente du n° du chauffeur",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
+            "to":"Desverite"
+        },
+        {
+            "id":4,
+            "name":"Musée Juliobona",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/juliobona-lillbeonne-passe-antique.jpg",
+            "date": "20/03/2025",
+            "validated":"true",
+            "description":"En attente de la liste des élèves et du n° du chauffeur",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
+            "to":"Bellanger"
         }
     ],
     "news":[
@@ -176,8 +201,7 @@
                     "text": "AM travaillé : rattrapage du vendredi 2 mai après-midi"
                 }
             ]
-        }
-        ,
+        },
         {
             "id":4,
             "jour":"Jeudi",
@@ -185,19 +209,73 @@
             "actus": [
                 {
                     "id":1,
-                    "text": "..."
+                    "text": "Absence : L. Durand et AM. Donà CAE"
                 },
                 {
                     "id":2,
-                    "text": ""
+                    "text": "Absence d’H. Leroy-Godé et I. Langlois"
                 },
                 {
                     "id":3,
-                    "text": ""
+                    "text": "Présence de la psychologue scolaire en collège/lycée"
                 },
                 {
                     "id":4,
-                    "text": ""
+                    "text": "09h00-11h00 : intervention-sensibilisation au handicap pour les 6èmes A"
+                },
+                {
+                    "id":5,
+                    "text": "11h00-12h30 : intervention-sensibilisation au handicap pour les 6 èmes D"
+                },
+                {
+                    "id":6,
+                    "text": "Présence d’Amnesty International en 1ère A et 1ère B et en hist-géo terminales de M. Méron"
+                },
+                {
+                    "id":7,
+                    "text": "11h45 : Signature des livrets de JE3"
+                },
+                {
+                    "id":8,
+                    "text": "12h30 : conseil de discipline d’A Bazille 4ème E en salle des conseils du collège reporté au 25 février"
+                },
+                {
+                    "id":9,
+                    "text": "Départ en vacances pour les élèves du collège et du lycée après les cours"
+                },
+                {
+                    "id":10,
+                    "text": "18h00 : soirée retour de Madagascar en grande salle"
+                }
+            ]
+        },
+        {
+            "id":5,
+            "jour":"Vendredi",
+            "date":"07/02/2025",
+            "actus": [
+                {
+                    "id":1,
+                    "text": "08h30-11h30 : école pour les primaires"
+                },
+                {
+                    "id":2,
+                    "text": "8h30-17h00 : journée de concertation pédagogique collège-lycée"
+                },
+                {
+                    "id":3,
+                    "text": "AP : concertation pédagogique école"
+                }
+            ]
+        },
+        {
+            "id":6,
+            "jour":"Samedi",
+            "date":"08/02/2025",
+            "actus": [
+                {
+                    "id":1,
+                    "text": "Départ pour New-York de 14 élèves de la section basket avec S. Laquièvre et P. Chauvet (retour le 15 février)"
                 }
             ]
         }
