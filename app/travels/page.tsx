@@ -65,12 +65,12 @@ export default function Page() {
     }
   };
   return (
-    <div className="container mx-auto p-4">
+    <main className="container mx-auto p-4 max-w-[800px] mx-auto">
       <h1 className="text-3xl font-bold mb-6">Transports scolaires</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {futureTravels.map((travel) => (
-          <div key={travel.id} className="bg-white p-4 rounded-lg shadow-lg flex flex-col items-center">
-            <Image src={travel.img} alt={travel.name} className="w-full h-48 object-cover rounded-lg mb-4"/>
+          <div key={travel.id} className="bg-white p-4 rounded-lg shadow-lg flex flex-col items-center h-[500px]">
+            <Image src={travel.img} alt={travel.name} width={1500} height={800} objectFit={"cover"} className="rounded-lg h-1/2 mb-4"/>
             <h2 className="text-xl font-semibold mb-2">{travel.name}</h2>
             <p className="text-gray-600 mb-2">Date : {travel.date}</p>
             <p className="text-gray-600 mb-2">Validation : {travel.validated}</p>
@@ -82,7 +82,7 @@ export default function Page() {
           </div>
         ))}
       </div>
-    </div>
+    </main>
   );
 }
 
