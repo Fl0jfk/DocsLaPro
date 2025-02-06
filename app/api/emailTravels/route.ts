@@ -4,7 +4,7 @@ import Busboy from "busboy";
 import { Readable } from "stream";
 
 export async function POST(request: NextRequest) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const headersObject = Object.fromEntries(request.headers.entries());
     const busboy = Busboy({ headers: headersObject });
     const fileBuffers: { filename: string; buffer: Buffer }[] = [];
@@ -61,8 +61,7 @@ export async function POST(request: NextRequest) {
         resolve(NextResponse.json({ error: "Erreur lors de l'envoi de l'email." }, { status: 500 }));
       }
     });
-
-    // ✅ Correction : Convertir le flux en un stream compatible avec Busboy
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const stream = Readable.from(request.body as any);
     stream.pipe(busboy);
   });
