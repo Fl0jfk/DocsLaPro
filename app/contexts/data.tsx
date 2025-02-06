@@ -23,6 +23,7 @@ type Travels = {
   validated:boolean;
   description: string;
   company:string;
+  to:string;
 };
 
 type Actualite = {

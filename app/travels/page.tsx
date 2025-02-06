@@ -11,7 +11,8 @@ type Travels = {
   date: string;
   validated: boolean;
   description: string;
-  company: string;  // Ajout de l'entreprise
+  company: string;
+  to:string;
 };
 
 export default function Page() {
@@ -82,29 +83,17 @@ export default function Page() {
       <div className="grid sm:grid-cols-1 grid-cols-3 md:grid-cols-2 gap-6">
         {futureTravels.map((travel) => (
           <div key={travel.id} className="bg-white p-4 rounded-lg shadow-lg flex flex-col gap-2 items-center h-full relative">
-            <div
-              className={`absolute top-2 right-2 text-white px-3 py-1 rounded-full ${
-                travel.validated ? "bg-green-500" : "bg-orange-500"
-              }`}
-            >
-              {travel.validated ? "Validé" : "En attente"}
-            </div>
+            <div className={`absolute top-2 right-2 text-white px-3 py-1 rounded-full ${ travel.validated ? "bg-green-500" : "bg-orange-500"}`}>{travel.validated ? "Validé" : "En attente"}</div>
             <Image src={travel.img} alt={travel.name} width={1500} height={800} quality={100} className="rounded-lg h-[250px] mb-4 object-cover" />
             <div className="mb-4">
               <Image src={travel.company} alt="Logo de la compagnie" width={100} height={80} className="h-[50px] object-cover"/>
             </div>
             <h2 className="text-xl font-semibold mb-2">{travel.name}</h2>
             <p className="text-gray-600 mb-2">Date : {travel.date}</p>
+            <p className="text-gray-600 mb-2">Professeur demandeur : {travel.to}</p>
             <p className="text-gray-700">{travel.description}</p>
             <form onSubmit={handleSubmit} className="w-full flex flex-col items-center">
-              <input
-                type="text"
-                placeholder="Votre nom"
-                value={profName}
-                onChange={(e) => setProfName(e.target.value)}
-                className="mb-2 p-2 border border-gray-300 rounded w-full"
-                required
-              />
+              <input type="text" placeholder="Votre nom" value={profName} onChange={(e) => setProfName(e.target.value)} className="mb-2 p-2 border border-gray-300 rounded w-full" required/>
               <input
                 type="email"
                 placeholder="Votre email"
