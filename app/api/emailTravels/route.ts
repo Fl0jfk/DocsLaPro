@@ -1,58 +1,72 @@
-import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
-import Mail from 'nodemailer/lib/mailer';
+import { NextRequest, NextResponse } from "next/server";
+import nodemailer from "nodemailer";
+import Busboy from "busboy";
+import { Readable } from "stream";
 
 export async function POST(request: NextRequest) {
-  const formData = await request.formData(); // Récupère les données envoyées dans le formData
+  return new Promise((resolve, reject) => {
+    const headersObject = Object.fromEntries(request.headers.entries());
+    const busboy = Busboy({ headers: headersObject });
+    const fileBuffers: { filename: string; buffer: Buffer }[] = [];
+    let travelId = "";
+    let travelName = "";
+    let name = "";
+    let email = "";
 
-  const file = formData.get('file');
-  const travelId = formData.get('travelId');
-  const travelName = formData.get('travelName');
-  const name = formData.get('name');
-  const email = formData.get('email');
+    busboy.on("file", (fieldname, file, fileInfo) => {
+      const { filename } = fileInfo;
+      const chunks: Buffer[] = [];
+      file.on("data", (chunk) => chunks.push(chunk));
+      file.on("end", () => {
+        fileBuffers.push({ filename, buffer: Buffer.concat(chunks) });
+      });
+    });
 
-  // Vérifie que le fichier existe et est bien un fichier
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json({ error: 'Aucun fichier valide n\'a été envoyé.' }, { status: 400 });
-  }
+    busboy.on("field", (fieldname, value) => {
+      if (fieldname === "travelId") travelId = value;
+      if (fieldname === "travelName") travelName = value;
+      if (fieldname === "name") name = value;
+      if (fieldname === "email") email = value;
+    });
 
-  // Convertir le fichier en Buffer
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
+    busboy.on("finish", async () => {
+      if (!fileBuffers.length) {
+        return resolve(NextResponse.json({ error: "Aucun fichier reçu." }, { status: 400 }));
+      }
 
-  // Prépare les données pour l'email
-  const transport = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.MY_EMAIL,
-      pass: process.env.MY_PASSWORD,
-    },
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.MY_EMAIL,
+            pass: process.env.MY_PASSWORD,
+          },
+        });
+
+        const mailOptions = {
+          from: process.env.MY_EMAIL,
+          to: "florian.hacqueville-mathi@ac-normandie.fr",
+          subject: `Nouvelle pièce jointe pour le voyage ${travelName}`,
+          text: `Un professeur a ajouté une pièce jointe pour le voyage "${travelName}" (ID: ${travelId}).\nNom: ${name}\nEmail: ${email}`,
+          attachments: fileBuffers.map((file) => ({
+            filename: file.filename,
+            content: file.buffer,
+          })),
+        };
+
+        await transporter.sendMail(mailOptions);
+        resolve(NextResponse.json({ message: "Email envoyé avec succès !" }));
+      } catch (error) {
+        console.error("Erreur lors de l'envoi de l'email:", error);
+        resolve(NextResponse.json({ error: "Erreur lors de l'envoi de l'email." }, { status: 500 }));
+      }
+    });
+
+    // ✅ Correction : Convertir le flux en un stream compatible avec Busboy
+    const stream = Readable.from(request.body as any);
+    stream.pipe(busboy);
   });
-
-  const mailOptions: Mail.Options = {
-    from: process.env.MY_EMAIL,
-    to: "florian.hacqueville-mathi@ac-normandie.fr", // Ton email
-    subject: `Nouvelle pièce jointe pour le voyage ${travelName}`,
-    text: `
-      Un professeur a ajouté une pièce jointe pour le voyage "${travelName}" (ID: ${travelId}).
-      Nom du professeur: ${name}
-      Email du professeur: ${email}
-    `,
-    attachments: [
-      {
-        filename: file.name,   // Nom du fichier
-        content: fileBuffer,    // Utilisation du Buffer pour le contenu du fichier
-      },
-    ],
-  };
-
-  // Envoi du mail
-  try {
-    await transport.sendMail(mailOptions);
-    return NextResponse.json({ message: 'Email envoyé' });
-  } catch (err) {
-    console.error("Erreur lors de l'envoi du mail:", err);
-    return NextResponse.json({ error: 'Erreur lors de l\'envoi de l\'email.' }, { status: 500 });
-  }
 }
+
 
 
