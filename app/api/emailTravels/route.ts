@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 import Busboy from "busboy";
 import { Readable } from "stream";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   return new Promise((resolve) => {
     const headersObject = Object.fromEntries(request.headers.entries());
     const busboy = Busboy({ headers: headersObject });
@@ -55,12 +55,13 @@ export async function POST(request: NextRequest) {
         };
 
         await transporter.sendMail(mailOptions);
-        resolve(NextResponse.json({ message: "Email envoyé avec succès !" }));
+        return resolve(NextResponse.json({ message: "Email envoyé avec succès !" }));
       } catch (error) {
         console.error("Erreur lors de l'envoi de l'email:", error);
-        resolve(NextResponse.json({ error: "Erreur lors de l'envoi de l'email." }, { status: 500 }));
+        return resolve(NextResponse.json({ error: "Erreur lors de l'envoi de l'email." }, { status: 500 }));
       }
     });
+
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const stream = Readable.from(request.body as any);
     stream.pipe(busboy);
