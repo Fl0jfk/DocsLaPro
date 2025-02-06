@@ -14,12 +14,3 @@ export async function sendEmailTravels(formData: FormData) {
     alert('Une erreur est survenue lors de l’envoi de l’email.');
   }
 }
-
-  
-  type TravelEmailData = {
-    name: string;          // Nom du professeur
-    email: string;         // Email du professeur
-    travelId: number;      // ID du voyage
-    travelName: string;    // Nom du voyage
-    file: File | null;     // Fichier (ici un PDF)
-  };
