@@ -1,61 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import Busboy from "busboy";
+import { Readable } from "stream";
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.MY_EMAIL,
-    pass: process.env.MY_PASSWORD, 
-  },
-});
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  return new Promise((resolve) => {
+    const headersObject = Object.fromEntries(request.headers.entries());
+    const busboy = Busboy({ headers: headersObject });
+    let profName2 = "";
+    let destination = "";
+    let dateAller = "";
+    let heureAller = "";
+    let dateRetour = "";
+    let heureRetour = "";
+    let nombreAcc = "";
+    let nombreEleves = "";
+    let details = "";
+    busboy.on("field", (fieldname, value) => {
+        console.log(`Received field: ${fieldname} with value: ${value}`);
+        if (fieldname === "profName2") profName2 = value;
+        if (fieldname === "destination") destination = value;
+        if (fieldname === "dateAller") dateAller = value;
+        if (fieldname === "heureAller") heureAller = value;
+        if (fieldname === "dateRetour") dateRetour = value;
+        if (fieldname === "heureRetour") heureRetour = value;
+        if (fieldname === "nombreAcc") nombreAcc = value;
+        if (fieldname === "nombreEleves") nombreEleves = value;
+        if (fieldname === "details") details = value;
+      });
+      
 
-export async function POST(req: NextRequest) {
-  try {
-    const data = await req.json();
-    const { profName2, destination, dateAller, heureAller, dateRetour, heureRetour, nombreAcc, nombreEleves, details,} = data;
-    if ( !profName2 || !destination || !dateAller || !heureAller || !dateRetour || !heureRetour || !nombreAcc || !nombreEleves) {
-      return NextResponse.json(
-        { message: "Tous les champs sont obligatoires." },
-        { status: 400 }
-      );
-    }
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: 'florian.hacqueville-mathi@ac-normandie.fr',
-      subject: 'Demande de voyage scolaire',
-      text: `
-        Nouveau formulaire de demande de voyage :
+    busboy.on("finish", async () => {
+      if (!profName2 || !destination || !dateAller || !heureAller || !dateRetour || !heureRetour || !nombreAcc || !nombreEleves) {
+        return resolve(NextResponse.json({ error: "Veuillez remplir tous les champs." }, { status: 400 }));
+      }
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.MY_EMAIL,
+            pass: process.env.MY_PASSWORD,
+          },
+        });
 
-        Professeur : ${profName2}
-        Destination : ${destination}
-        Date d'aller : ${dateAller} à ${heureAller}
-        Date de retour : ${dateRetour} à ${heureRetour}
-        Nombre d'accompagnateurs : ${nombreAcc}
-        Nombre d'élèves : ${nombreEleves}
-        Détails supplémentaires : ${details}
-      `,
-      html: `
-        <h2>Nouvelle demande de voyage scolaire</h2>
-        <p><strong>Professeur :</strong> ${profName2}</p>
-        <p><strong>Destination :</strong> ${destination}</p>
-        <p><strong>Date d'aller :</strong> ${dateAller} à ${heureAller}</p>
-        <p><strong>Date de retour :</strong> ${dateRetour} à ${heureRetour}</p>
-        <p><strong>Nombre d'accompagnateurs :</strong> ${nombreAcc}</p>
-        <p><strong>Nombre d'élèves :</strong> ${nombreEleves}</p>
-        <p><strong>Détails supplémentaires :</strong> ${details}</p>
-      `,
-    };
-    await transporter.sendMail(mailOptions);
-    return NextResponse.json(
-      { message: "La demande de voyage a été envoyée par email avec succès." },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Erreur lors de l'envoi de l'email :", error);
-    return NextResponse.json(
-      { message: "Erreur lors de l'envoi de la demande." },
-      { status: 500 }
-    );
-  }
+        const mailOptions = {
+          from: process.env.MY_EMAIL,
+          to: "florian.hacqueville-mathi@ac-normandie.fr",
+          subject: `Demande de voyage - ${destination}`,
+          text: `Une nouvelle demande de voyage a été soumise:\n\n` +
+                `Professeur: ${profName2}\nDestination: ${destination}\nDate Aller: ${dateAller}\n` +
+                `Heure de départ: ${heureAller}\nDate de retour: ${dateRetour}\nHeure de retour: ${heureRetour}\n` +
+                `Nombre d'élèves: ${nombreEleves}\nNombre d'accompagnateurs: ${nombreAcc}\nDétails: ${details}`,
+        };
+        await transporter.sendMail(mailOptions);
+        return resolve(NextResponse.json({ message: "Email envoyé avec succès !" }));
+      } catch (error) {
+        console.error("Erreur lors de l'envoi de l'email:", error);
+        return resolve(NextResponse.json({ error: "Erreur lors de l'envoi de l'email." }, { status: 500 }));
+      }
+    });
+    const stream = Readable.from(request.body as any);
+    stream.pipe(busboy);
+  });
 }
+
 

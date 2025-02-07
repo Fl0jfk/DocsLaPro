@@ -4,24 +4,22 @@ import { useState, useEffect } from "react";
 import { useData } from "../contexts/data";
 import Image from "next/image";
 
-type Travels = { id: number; name: string; img: string; date: string; validated: boolean; description: string; company: string; to: string};
+type Travels = { id: number; name: string; img: string; date: string; validated: boolean; description: string; company: string; to: string };
 
 export default function Page() {
   const [futureTravels, setFutureTravels] = useState<Travels[]>([]);
   const { travels } = useData();
-  const [file, setFile] = useState<File | null>(null);
-  const [selectedTravelId, setSelectedTravelId] = useState<number | null>(null);
-  const [profName, setProfName] = useState<string>("");
+  const [formData, setFormData] = useState<{ [key: number]: { profName: string; profEmail: string; file: File | null } }>({});
   const [profName2, setProfName2] = useState<string>("");
-  const [profEmail, setProfEmail] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
   const [dateAller, setDateAller] = useState<string>("");
   const [heureAller, setHeureAller] = useState<string>("");
   const [dateRetour, setDateRetour] = useState<string>("");
   const [heureRetour, setHeureRetour] = useState<string>("");
-  const [nombreAcc, setNombreAcc] = useState<number | string>("");
-  const [nombreEleves, setNombreEleves] = useState<number | string>("");
+  const [nombreAcc, setNombreAcc] = useState<string>("");
+  const [nombreEleves, setNombreEleves] = useState<string>("");
   const [details, setDetails] = useState<string>("");
+
   useEffect(() => {
     if (!travels || travels.length === 0) return;
     const today = new Date();
@@ -31,38 +29,43 @@ export default function Page() {
       .sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
     setFutureTravels(filteredTravels);
   }, [travels]);
+
   const parseDate = (dateStr: string) => {
     const [day, month, year] = dateStr.split("/");
     return new Date(`${year}-${month}-${day}`);
   };
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setFile(event.target.files[0]);
-    }
+
+  const handleInputChange = (id: number, field: "profName" | "profEmail" | "file", value: string | File | null) => {
+    setFormData((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [field]: value,
+      },
+    }));
   };
-  const handleSubmit = async (event: React.FormEvent) => {
+
+  const handleSubmit = async (event: React.FormEvent, travelId: number) => {
     event.preventDefault();
-    if (!file || !selectedTravelId || !profName || !profEmail) {
+    const data = formData[travelId] || { profName: "", profEmail: "", file: null };
+    if (!data.file || !data.profName || !data.profEmail) {
       alert("Veuillez remplir tous les champs.");
       return;
     }
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("travelId", String(selectedTravelId));
-    formData.append("travelName", travels.find((t) => t.id === selectedTravelId)?.name || "");
-    formData.append("name", profName);
-    formData.append("email", profEmail);
+    const formDataToSend = new FormData();
+    formDataToSend.append("file", data.file);
+    formDataToSend.append("travelId", String(travelId));
+    formDataToSend.append("travelName", travels.find((t) => t.id === travelId)?.name || "");
+    formDataToSend.append("name", data.profName);
+    formDataToSend.append("email", data.profEmail);
     try {
-      const response = await fetch("/api/emailTravels", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      alert(data.message);
-      setFile(null);
-      setSelectedTravelId(null);
-      setProfName("");
-      setProfEmail("");
+      const response = await fetch("/api/emailTravels", { method: "POST",  body: formDataToSend});
+      const responseData = await response.json();
+      alert(responseData.message);
+      setFormData((prev) => ({
+        ...prev,
+        [travelId]: { profName: "", profEmail: "", file: null },
+      }));
     } catch (error) {
       console.error("Erreur lors de l’envoi du message:", error);
     }
@@ -73,21 +76,18 @@ export default function Page() {
       alert("Veuillez remplir tous les champs.");
       return;
     }
-    const formData = new FormData();
-    formData.append("name", profName2);
-    formData.append("destination", destination);
-    formData.append("dateAller", dateAller);
-    formData.append("heureAller", heureAller);
-    formData.append("dateRetour", dateRetour);
-    formData.append("heureRetour", heureRetour);
-    formData.append("nombreAcc", String(nombreAcc));
-    formData.append("nombreEleves", String(nombreEleves));
-    formData.append("details", details);
+    const formDataToSend = new FormData();
+    formDataToSend.append("profName2", profName2);
+    formDataToSend.append("destination", destination);
+    formDataToSend.append("dateAller", dateAller);
+    formDataToSend.append("heureAller", heureAller);
+    formDataToSend.append("dateRetour", dateRetour);
+    formDataToSend.append("heureRetour", heureRetour);
+    formDataToSend.append("nombreAcc", nombreAcc);
+    formDataToSend.append("nombreEleves", nombreEleves);
+    formDataToSend.append("details", details);
     try {
-      const response = await fetch("/api/sendTravelRequest", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch("/api/sendTravelRequest", {  method: "POST", body: formDataToSend});
       const data = await response.json();
       alert(data.message);
       setProfName2("");
@@ -113,26 +113,21 @@ export default function Page() {
               {travel.validated ? "Validé" : "En attente"}
             </div>
             <Image src={travel.img} alt={travel.name} width={1500} height={800} quality={100} className="rounded-lg h-[250px] mb-4 object-cover" />
-            <div className="mb-4">
-              <Image src={travel.company} alt="Logo de la compagnie" width={100} height={80} className="h-[50px] object-cover"/>
-            </div>
             <h2 className="text-xl font-semibold mb-2">{travel.name}</h2>
-            <p className="text-gray-600 mb-2">Date : {travel.date}</p>
-            <p className="text-gray-600 mb-2">Professeur demandeur : {travel.to}</p>
-            <p className="text-gray-700">{travel.description}</p>
-            <form onSubmit={handleSubmit} className="w-full flex flex-col items-center">
-              <input type="text" placeholder="Votre nom" value={profName} onChange={(e) => setProfName(e.target.value)} className="mb-2 p-2 border border-gray-300 rounded w-full" required />
-              <input type="email" placeholder="Votre email" value={profEmail} onChange={(e) => setProfEmail(e.target.value)} className="mb-2 p-2 border border-gray-300 rounded w-full" required/>
-              <input type="file" onChange={handleFileChange} accept="application/pdf" className="mb-4" required/>
-              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded" onClick={() => setSelectedTravelId(travel.id)}>Envoyer la pièce jointe</button>
+            <form onSubmit={(event) => handleSubmit(event, travel.id)} className="w-full flex flex-col items-center">
+              <input type="text" placeholder="Votre nom" value={formData[travel.id]?.profName || ""} onChange={(e) => handleInputChange(travel.id, "profName", e.target.value)} className="mb-2 p-2 border border-gray-300 rounded w-full" required />
+              <input type="email" placeholder="Votre email" value={formData[travel.id]?.profEmail || ""} onChange={(e) => handleInputChange(travel.id, "profEmail", e.target.value)} className="mb-2 p-2 border border-gray-300 rounded w-full" required />
+              <input type="file" onChange={(e) => handleInputChange(travel.id, "file", e.target.files ? e.target.files[0] : null)} accept="application/pdf" className="mb-4" required />
+              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">Envoyer la pièce jointe</button>
             </form>
           </div>
         ))}
       </div>
-      <h2 className="text-2xl font-bold mt-10 max-w-[600px] mx-auto">Demande de voyage</h2>
-      <form onSubmit={handleSecondFormSubmit} className="mt-4 flex flex-col gap-2 max-w-[600px] mx-auto">
-        <label>Nom du professeur</label>
-        <input type="text" className="p-2 border border-gray-300 rounded" required onChange={(e) => setProfName2(e.target.value)} value={profName} />
+
+      <h2 className="text-4xl font-semibold mt-10 max-w-[800px] mx-auto">Demande de voyage</h2>
+      <form onSubmit={(event) =>handleSecondFormSubmit(event)} className="p-4 mt-4 flex flex-col gap-2 max-w-[800px] mx-auto">
+      <label>Nom du professeur</label>
+        <input type="text" className="p-2 border border-gray-300 rounded" required onChange={(e) => setProfName2(e.target.value)} value={profName2} />
         <label>Destination</label>
         <input type="text" className="p-2 border border-gray-300 rounded" required onChange={(e) => setDestination(e.target.value)} value={destination} />
         <label>Date d&apos;aller</label>
@@ -154,6 +149,7 @@ export default function Page() {
     </main>
   );
 }
+
 
 
 
