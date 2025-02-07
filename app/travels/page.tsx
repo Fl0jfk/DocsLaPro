@@ -12,6 +12,7 @@ export default function Page() {
   const [file, setFile] = useState<File | null>(null);
   const [selectedTravelId, setSelectedTravelId] = useState<number | null>(null);
   const [profName, setProfName] = useState<string>("");
+  const [profName2, setProfName2] = useState<string>("");
   const [profEmail, setProfEmail] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
   const [dateAller, setDateAller] = useState<string>("");
@@ -73,6 +74,7 @@ export default function Page() {
       return;
     }
     const formData = new FormData();
+    formData.append("name", profName2);
     formData.append("destination", destination);
     formData.append("dateAller", dateAller);
     formData.append("heureAller", heureAller);
@@ -88,6 +90,7 @@ export default function Page() {
       });
       const data = await response.json();
       alert(data.message);
+      setProfName2("");
       setDestination("");
       setDateAller("");
       setHeureAller("");
@@ -129,7 +132,7 @@ export default function Page() {
       <h2 className="text-2xl font-bold mt-10 max-w-[600px] mx-auto">Demande de voyage</h2>
       <form onSubmit={handleSecondFormSubmit} className="mt-4 flex flex-col gap-2 max-w-[600px] mx-auto">
         <label>Nom du professeur</label>
-        <input type="text" className="p-2 border border-gray-300 rounded" required onChange={(e) => setProfName(e.target.value)} value={profName} />
+        <input type="text" className="p-2 border border-gray-300 rounded" required onChange={(e) => setProfName2(e.target.value)} value={profName} />
         <label>Destination</label>
         <input type="text" className="p-2 border border-gray-300 rounded" required onChange={(e) => setDestination(e.target.value)} value={destination} />
         <label>Date d&apos;aller</label>

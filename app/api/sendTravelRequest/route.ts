@@ -12,8 +12,8 @@ const transporter = nodemailer.createTransport({
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
-    const { profName, destination, dateAller, heureAller, dateRetour, heureRetour, nombreAcc, nombreEleves, details,} = data;
-    if ( !profName || !destination || !dateAller || !heureAller || !dateRetour || !heureRetour || !nombreAcc || !nombreEleves) {
+    const { profName2, destination, dateAller, heureAller, dateRetour, heureRetour, nombreAcc, nombreEleves, details,} = data;
+    if ( !profName2 || !destination || !dateAller || !heureAller || !dateRetour || !heureRetour || !nombreAcc || !nombreEleves) {
       return NextResponse.json(
         { message: "Tous les champs sont obligatoires." },
         { status: 400 }
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       text: `
         Nouveau formulaire de demande de voyage :
 
-        Professeur : ${profName}
+        Professeur : ${profName2}
         Destination : ${destination}
         Date d'aller : ${dateAller} à ${heureAller}
         Date de retour : ${dateRetour} à ${heureRetour}
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       `,
       html: `
         <h2>Nouvelle demande de voyage scolaire</h2>
-        <p><strong>Professeur :</strong> ${profName}</p>
+        <p><strong>Professeur :</strong> ${profName2}</p>
         <p><strong>Destination :</strong> ${destination}</p>
         <p><strong>Date d'aller :</strong> ${dateAller} à ${heureAller}</p>
         <p><strong>Date de retour :</strong> ${dateRetour} à ${heureRetour}</p>
