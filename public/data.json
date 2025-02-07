@@ -63,7 +63,7 @@
             "name":"Panthéon, Mémorial de la Shoah",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/memorial+shoah.avif",
             "date": "06/03/2025",
-            "validated":"Validé avec Perier",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
             "to":"Meron"
@@ -74,7 +74,7 @@
             "name":"Paris Opéra Bastille",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/opera+bastille.jpg",
             "date": "13/03/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
             "to":"Dubois"
@@ -84,7 +84,7 @@
             "name":"Panthéon, Mémorial de la Shoah",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/memorial+shoah.avif",
             "date": "18/03/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
             "to":"Desverite"
@@ -94,7 +94,7 @@
             "name":"Musée Juliobona",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/juliobona-lillbeonne-passe-antique.jpg",
             "date": "20/03/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
             "to":"Bellanger"
@@ -104,7 +104,7 @@
             "name":"Assemblée Nationale",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/assembl%C3%A9e+nationale.jpg",
             "date": "01/04/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
             "to":"Meron"
@@ -114,7 +114,7 @@
             "name":"Musée Juliobona",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/juliobona-lillbeonne-passe-antique.jpg",
             "date": "03/04/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
             "to":"Bellanger"
@@ -124,7 +124,7 @@
             "name":"Chateaux Val de Loire",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/chateau_chambord_loire.jpg.webp",
             "date": "28/04/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
             "to":"Lecesne"
@@ -134,7 +134,7 @@
             "name":"Pointe du Hoc, Cimetière Américain, Mémorial Caen",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/cimetiere_americain_3.jpg",
             "date": "13/05/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
             "to":"Quibel"
@@ -144,7 +144,7 @@
             "name":"Centrale Nucléaire Paluel",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/paluel.jpg",
             "date": "16/05/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/hangard.png",
             "to":"Gandolfo"
@@ -154,10 +154,20 @@
             "name":"Surf - Vieux Boucau les Bains",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/vieux+boucau.jpg",
             "date": "19/05/2025",
-            "validated":"true",
+            "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
             "to":"Grout"
+        },
+        {
+            "id":11,
+            "name":"Abbaye de Saint-Wandrille",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/saint-wandrille.jpg",
+            "date": "21/05/2025",
+            "validated":false,
+            "description":"En attente des devis",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/en+attente.jpg",
+            "to":"Duboc"
         }
     ],
     "news":[
