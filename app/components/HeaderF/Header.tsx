@@ -41,7 +41,7 @@ export default function Header() {
             <div className="w-2/12 flex items-center h-full sm:w-4/12 md:w-4/12">
                 {Logo && (
                     <Link href="/">
-                        <Image src={Logo} alt="Mon memoji" style={{width:"auto"}} width={65} height={65} className={`cursor-pointer z-[8] ${opacityLogo}`} quality={100}  onClick={() => { window.scrollTo({ top: 0, left: 0, behavior: "smooth" }); }}/>
+                        <Image src={Logo} alt="Mon memoji" style={{width:"auto"}} width={75} height={75} className={`cursor-pointer z-[8] ${opacityLogo}`} quality={100}  onClick={() => { window.scrollTo({ top: 0, left: 0, behavior: "smooth" }); }}/>
                     </Link>
                 )}
             </div>
