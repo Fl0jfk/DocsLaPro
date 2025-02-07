@@ -5,9 +5,9 @@ import QRCode from 'qrcode';
 
 export default function QRCreator() {
   const [url, setUrl] = useState("https://laprovidence-nicolasbarre.fr/");
-  const [logo, setLogo] = useState<string | null>(null); // Type explicite : string ou null
-  const [fillColor, setFillColor] = useState("#000000"); // Couleur de remplissage
-  const [backColor, setBackColor] = useState("#ffffff"); // Couleur de fond
+  const [logo, setLogo] = useState<string | null>(null);
+  const [fillColor, setFillColor] = useState("#000000");
+  const [backColor, setBackColor] = useState("#ffffff"); 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const generateQRCodeWithLogo = () => {
     if (canvasRef.current) {
@@ -20,7 +20,7 @@ export default function QRCreator() {
           { 
             width: 256, 
             errorCorrectionLevel: 'H',
-            color: { dark: fillColor, light: backColor }, // Couleur du QR code
+            color: { dark: fillColor, light: backColor },
             margin: 4
           },
           (error) => {
@@ -30,7 +30,7 @@ export default function QRCreator() {
               logoImg.src = logo;
               logoImg.onload = () => {
                 const qrSize = canvas.width;
-                const logoSize = qrSize / 4; // Taille du logo (1/4 du QR code)
+                const logoSize = qrSize / 4;
                 const x = (qrSize - logoSize) / 2;
                 const y = (qrSize - logoSize) / 2;
                 ctx.drawImage(logoImg, x, y, logoSize, logoSize);
@@ -52,19 +52,19 @@ export default function QRCreator() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogo(reader.result as string); // Stocker l'URL de l'image
+        setLogo(reader.result as string);
       };
-      reader.readAsDataURL(file); // Convertir l'image en URL de données
+      reader.readAsDataURL(file); 
     }
   };
   const handleDownloadQRCode = () => {
     if (canvasRef.current) {
       const canvas = canvasRef.current;
-      const dataUrl = canvas.toDataURL("image/png"); // Obtenir l'image en base64
+      const dataUrl = canvas.toDataURL("image/png"); 
       const link = document.createElement("a");
       link.href = dataUrl;
-      link.download = "qr_code_avec_logo.png"; // Nom du fichier
-      link.click(); // Simuler le clic pour télécharger
+      link.download = "qr_code_avec_logo.png";
+      link.click();
     }
   };
   return (
