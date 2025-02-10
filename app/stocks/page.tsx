@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 export default function InventoryPage() {
   type InventoryItem = { code: string; fournisseurs: string; type: string; date_achat: string; prix_unitaire: number; quantité: number;};
@@ -15,13 +16,24 @@ export default function InventoryPage() {
   const [isPasswordCorrect, setIsPasswordCorrect] = useState<boolean>(false); 
   const [modificationsInProgress, setModificationsInProgress] = useState<InventoryItem[]>([]);
   const [userName, setUserName] = useState("");
+  const startScanner = (setCodeFunction: (code: string) => void) => {
+    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
+    scanner.render(
+      (decodedText) => {
+        setCodeFunction(decodedText);
+        scanner.clear();
+        document.getElementById("reader")!.innerHTML = "";
+      },
+      (errorMessage) => {
+        console.warn(errorMessage);
+      }
+    );
+  };
   const generateBarcode = (code: string) => {
-    const codesPerPage = 27; // 3 colonnes x 9 lignes
-    const codes = Array(codesPerPage).fill(code); // Remplit une page complète avec le même code
-  
+    const codesPerPage = 27;
+    const codes = Array(codesPerPage).fill(code);
     const newWindow = window.open("", "_blank");
     if (!newWindow) return;
-  
     newWindow.document.write(`
       <html>
         <head>
@@ -52,10 +64,8 @@ export default function InventoryPage() {
         </body>
       </html>
     `);
-  
-    newWindow.document.close(); // Nécessaire pour que la page se charge correctement
+    newWindow.document.close();
   };
-  
   console.log(inventory)
   console.log(isPasswordCorrect)
   useEffect(() => {
@@ -143,7 +153,7 @@ export default function InventoryPage() {
     setPassword(e.target.value);
   };
   const handleConfirmChanges = async () => {
-    if (password === "LaProNB76240" && userName.trim() !== "") { // Vérification du mot de passe et du nom
+    if (password === "LaProNB76240" && userName.trim() !== "") {
       setIsPasswordCorrect(true);
       try {
         const res = await fetch("/api/inventory", {
@@ -200,8 +210,17 @@ export default function InventoryPage() {
     <main className="p-4 max-w-2xl mx-auto sm:pt-[13vh] md:pt-[13vh]">
       <h1 className="text-xl font-bold mb-4">Gestion de l&apos;Inventaire</h1>
       {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
-      <input type="text" value={scannedCodeAdd} onChange={(e) => setScannedCodeAdd(e.target.value)} onKeyUp={handleScanAdd} placeholder="Scannez un code-barres pour ajouter" className="border p-2 w-full mb-4" autoFocus/>
-      <input type="text" value={scannedCodeRemove} onChange={(e) => setScannedCodeRemove(e.target.value)} onKeyUp={handleScanRemove} placeholder="Scannez un code-barres pour retirer" className="border p-2 w-full mb-4"/>
+      <div className="relative">
+  <input type="text" value={scannedCodeAdd} onChange={(e) => setScannedCodeAdd(e.target.value)} onKeyUp={handleScanAdd} placeholder="Scannez un code-barres pour ajouter" className="border p-2 w-full mb-2"/>
+  <button type="button" onClick={() => startScanner(setScannedCodeAdd)} className="bg-gray-500 text-white p-2 rounded w-full mt-2">Scanner avec l&apos;appareil photo</button>
+  <div id="reader" className="mt-2"></div> {/* Scanner UI */}
+</div>
+<div className="relative">
+  <input type="text" value={scannedCodeRemove} onChange={(e) => setScannedCodeRemove(e.target.value)} onKeyUp={handleScanRemove} placeholder="Scannez un code-barres pour retirer" className="border p-2 w-full mb-2"/>
+  <button type="button" onClick={() => startScanner(setScannedCodeRemove)} className="bg-gray-500 text-white p-2 rounded w-full mt-2">Scanner avec l&apos;appareil photo</button>
+  <div id="reader" className="mt-2"></div> {/* Scanner UI */}
+</div>
+
       <div className="overflow-x-auto w-full">
         <table className="w-full border-collapse border border-gray-300 mb-4">
           <thead>
