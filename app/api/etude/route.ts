@@ -40,14 +40,17 @@ export async function GET() {
 export async function PUT(req: Request) {
   try {
     const { etude, userName, password, modificationsInProgress } = await req.json();
+    console.log(modificationsInProgress)
     if (password !== "test") {
       return new NextResponse("Mot de passe incorrect", { status: 403 });
     }
     const { Body } = await s3.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: FILE_KEY }));
     if (!Body) throw new Error("Fichier vide");
     const oldData = await streamToString(Body as Readable);
-    let allEleves = JSON.parse(oldData);
+    const allEleves = JSON.parse(oldData);
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const updatedData = allEleves.map((eleve: any) => {
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       const presentEleve = etude.find((p: any) => p.id === eleve.id);
       if (presentEleve) {
         return {

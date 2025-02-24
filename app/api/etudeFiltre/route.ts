@@ -30,6 +30,7 @@ export async function GET() {
       const allEleves = JSON.parse(etudeJson);
   
       // Filtrer uniquement les élèves ayant plus d'une heure d'étude
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       const filteredEleves = allEleves.filter((eleve: any) => eleve["Total Heures"] > 1);
   
       // Transformer en JSON

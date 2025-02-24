@@ -55,6 +55,13 @@
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/qrcreator",
             "description":""
+        },
+        {
+            "id":9,
+            "name":"Suivi de l'étude",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/etude.jpg",
+            "link":"/etude",
+            "description":""
         }
     ],
     "travels":[
