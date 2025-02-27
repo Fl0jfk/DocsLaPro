@@ -129,6 +129,14 @@ export default function Home() {
             </li>
           </ul>
         </details>
+        <details className="group bg-white rounded-lg shadow-md">
+          <summary className="cursor-pointer select-none py-3 px-4 text-lg font-semibold text-gray-700 bg-gray-200 rounded-lg transition-all duration-300 group-open:rounded-b-none">
+            Comptabilité, RH
+          </summary>
+          <ul className="pl-6 py-2 space-y-2 bg-gray-50 rounded-b-lg">
+            
+          </ul>
+        </details>
       </section>
     </main>
   );
