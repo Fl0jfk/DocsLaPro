@@ -38,10 +38,22 @@ type NewsItem = {
   actus: Actualite[];
 };
 
+type DocumentItem = {
+  title: string;
+  printable?: string;
+  digital?: string;
+};
+
+type DocumentCategory = {
+  category: string;
+  documents: DocumentItem[];
+};
+
 type Data = {
   categories: Categories[];
   travels: Travels[];
   news: NewsItem[];
+  documents: DocumentCategory[];
   error: string | null;
 };
 
@@ -49,6 +61,7 @@ const initialData: Data = {
   news: [],
   travels: [],
   categories: [],
+  documents: [],
   error: null,
 };
 
