@@ -79,9 +79,19 @@
             "category": "Collège",
             "documents": [
                 {
-                    "title": "Récapitulatif de scolarité",
-                    "printable": "",
-                    "digital": ""
+                    "title": "Fiche d'inscription Sixième",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Coll%C3%A8ge/Fiche+Inscription+Sixi%C3%A8me.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Coll%C3%A8ge/Fiche%2BInscription%2BSixi%C3%A8me+Num%C3%A9rique.pdf"
+                },
+                {
+                    "title": "Fiche d'inscription Cinquième",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Coll%C3%A8ge/Fiche+Inscription+Cinqui%C3%A8me.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Coll%C3%A8ge/Fiche+Inscription+Cinqui%C3%A8me+Num%C3%A9rique.pdf"
+                },
+                {
+                    "title": "Fiche d'inscription Quatrième",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Coll%C3%A8ge/Fiche+Inscription+Quatri%C3%A8me.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Coll%C3%A8ge/Fiche+Inscription+Quatri%C3%A8me+Num%C3%A9rique.pdf"
                 }
             ]
         },
@@ -89,9 +99,34 @@
             "category": "Lycée",
             "documents": [
                 {
+                    "title": "Fiche d'inscription Seconde",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Seconde.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Seconde+Num%C3%A9rique.pdf"
+                },
+                {
+                    "title": "Fiche d'inscription Première Générale",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Premi%C3%A8re+G%C3%A9n%C3%A9rale.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Premie%CC%80re+Ge%CC%81ne%CC%81rale+Num%C3%A9rique.pdf"
+                },
+                {
+                    "title": "Fiche d'inscription Première ST2S",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Premi%C3%A8re+ST2S.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Premi%C3%A8re+ST2S+Num%C3%A9rique.pdf"
+                },
+                {
+                    "title": "Fiche d'inscription Terminale Générale",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Terminale+G%C3%A9n%C3%A9rale.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Terminale+G%C3%A9n%C3%A9rale+Num%C3%A9rique.pdf"
+                },
+                {
+                    "title": "Fiche d'inscription Terminale ST2S",
+                    "printable": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Terminale+ST2S.pdf",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Lyc%C3%A9e/Fiche+Inscription+Terminale+ST2S+Num%C3%A9rique.pdf"
+                },
+                {
                     "title": "Récapitulatif de scolarité",
                     "printable": "",
-                    "digital": ""
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Re%CC%81capitulatif+de+scolarite%CC%81.pdf"
                 }
             ]
         },

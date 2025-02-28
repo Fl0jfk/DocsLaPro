@@ -17,7 +17,7 @@ export default function Header() {
         setIsClient(true);
     }, []);
     useEffect(() => {
-        if (isClient && (pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
+        if (isClient && (pathname === "/documents/ficheInscriptionTerminaleGenerale" || pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
             setHidden(true);
         }
     }, [isClient, pathname]);
@@ -33,7 +33,7 @@ export default function Header() {
         }
     });
     const handleLinkClick: OnLinkClick = ({ clickOnLink }) => { setMenuOpened(clickOnLink)};
-    if (isClient && (pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
+    if (isClient && ( pathname === "/documents/ficheInscriptionTerminaleGenerale" || pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
         return null;
     }
     return (
