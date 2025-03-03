@@ -18,16 +18,10 @@ export default function Home() {
                 <li key={docIndex} className="flex gap-4">
                   <p>{doc.title} :</p>
                   {doc.printable && (
-                    <Link className="text-blue-500 hover:underline" href={doc.printable}>
-                      Version à imprimer
-                    </Link>
+                    <Link className="text-blue-500 hover:underline" href={doc.printable}>Version à imprimer</Link>
                   )}
-                  {doc.digital ? (
-                    <Link className="text-blue-500 hover:underline" href={doc.digital}>
-                      Version numérique
-                    </Link>
-                  ) : (
-                    <p>Version numérique</p>
+                  {doc.digital && (
+                    <Link className="text-blue-500 hover:underline" href={doc.digital}>Version numérique</Link>
                   )}
                 </li>
               ))}
