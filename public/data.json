@@ -188,7 +188,7 @@
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/memorial+shoah.avif",
             "date": "06/03/2025",
             "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
+            "description":"Prêt",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
             "to":"Meron"
             
@@ -290,7 +290,7 @@
             "date": "21/05/2025",
             "validated":true,
             "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/en+attente.jpg",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/hangard.png",
             "to":"Duboc"
         },
         {
@@ -298,10 +298,30 @@
             "name":"La Cité des Sciences et de l'Industrie",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/cite-des-sciences-et-de-l-industrie.jpg",
             "date": "13/05/2025",
-            "validated":false,
-            "description":"En attente des devis",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/en+attente.jpg",
+            "validated":true,
+            "description":"En attente de la liste des élèves et du n° du chauffeur",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/grisel.png",
             "to":"Faucheux"
+        },
+        {
+            "id":13,
+            "name":"Chateau de Chantilly - Grandes Ecuries",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/Chantilly+%C3%A9curies.jpg",
+            "date": "05/06/2025",
+            "validated":false,
+            "description":"En attente du retour des devis",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/en+attente.jpg",
+            "to":"Dumouchel"
+        },
+        {
+            "id":14,
+            "name":"Parc Astérix",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/parc+asterix.jpg",
+            "date": "10/06/2025",
+            "validated":false,
+            "description":"En attente de création des devis",
+            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/en+attente.jpg",
+            "to":"Leroy-Gode"
         }
     ],
     "news":[

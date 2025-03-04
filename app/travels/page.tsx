@@ -114,6 +114,11 @@ export default function Page() {
             </div>
             <Image src={travel.img} alt={travel.name} width={1500} height={800} quality={100} className="rounded-lg h-[250px] mb-4 object-cover" />
             <h2 className="text-xl font-semibold mb-2">{travel.name}</h2>
+            <Image src={travel.company} alt={travel.name} width={800} height={500} quality={100} className="rounded-lg h-[80px] mb-4 w-full object-contain"/>
+            <p>Demandeur : {travel.to}</p>
+            <p>Date : {travel.date}</p>
+            <p>Description : {travel.description}</p>
+            <p></p>
             <form onSubmit={(event) => handleSubmit(event, travel.id)} className="w-full flex flex-col items-center">
               <input type="text" placeholder="Votre nom" value={formData[travel.id]?.profName || ""} onChange={(e) => handleInputChange(travel.id, "profName", e.target.value)} className="mb-2 p-2 border border-gray-300 rounded w-full" required />
               <input type="email" placeholder="Votre email" value={formData[travel.id]?.profEmail || ""} onChange={(e) => handleInputChange(travel.id, "profEmail", e.target.value)} className="mb-2 p-2 border border-gray-300 rounded w-full" required />

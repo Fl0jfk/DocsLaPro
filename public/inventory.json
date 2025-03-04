@@ -1,0 +1,1089 @@
+{
+    "pieces": [
+        {
+            "id":1,
+            "name": "Self",
+            "underPieces":[
+                {
+                    "id":1,
+                    "name": "Réfectoire 1",
+                    "materials":[
+                        {
+                            "id":1,
+                            "name": "Chaise",
+                            "quantity": 181,
+                            "barcode":""
+                        },
+                        {
+                            "id":2,
+                            "name": "Table 4 places",
+                            "quantity": 27,
+                            "barcode":""
+                        },
+                        {
+                            "id":3,
+                            "name": "Table 6 places",
+                            "quantity": 8,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":2,
+                    "name": "Réfectoire 2",
+                    "materials":[
+                        {
+                            "id":1,
+                            "name": "Chaise",
+                            "quantity": 193,
+                            "barcode":""
+                        },
+                        {
+                            "id":2,
+                            "name": "Table 4 places",
+                            "quantity": 17,
+                            "barcode":""
+                        },
+                        {
+                            "id":3,
+                            "name": "Table 6 places",
+                            "quantity": 21,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":3,
+                    "name": "Réfectoire 3",
+                    "materials":[
+                        {
+                            "id":1,
+                            "name": "Chaise",
+                            "quantity": 104,
+                            "barcode":""
+                        },
+                        {
+                            "id":2,
+                            "name": "Table 4 places",
+                            "quantity": 3,
+                            "barcode":""
+                        },
+                        {
+                            "id":3,
+                            "name": "Table 6 places",
+                            "quantity": 15,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":4,
+                    "name": "Réfectoire 4",
+                    "materials":[
+                        {
+                            "id":1,
+                            "name": "Chaise",
+                            "quantity": 69,
+                            "barcode":""
+                        },
+                        {
+                            "id":2,
+                            "name": "Table 4 places",
+                            "quantity": 6,
+                            "barcode":""
+                        },
+                        {
+                            "id":3,
+                            "name": "Table 6 places",
+                            "quantity": 5,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":5,
+                    "name": "Maternelle",
+                    "materials":[
+                        {
+                            "id":1,
+                            "name": "Chaise",
+                            "quantity": 70,
+                            "barcode":""
+                        },
+                        {
+                            "id":2,
+                            "name": "Table 4 places",
+                            "quantity": 6,
+                            "barcode":""
+                        },
+                        {
+                            "id":3,
+                            "name": "Table 6 places",
+                            "quantity": 6,
+                            "barcode":""
+                        }
+                    ]
+                }
+            ],
+            "materials":[
+                {
+                    "id":4,
+                    "name": "Table demi-lune",
+                    "quantity": 6,
+                    "barcode":""
+                },
+                {
+                    "id":5,
+                    "name": "Table carrée",
+                    "quantity": 2,
+                    "barcode":""
+                },
+                {
+                    "id":6,
+                    "name": "Micro-ondes",
+                    "quantity": 6,
+                    "barcode":""
+                },
+                {
+                    "id":7,
+                    "name": "Table école",
+                    "quantity": 1,
+                    "barcode":""
+                },
+                {
+                    "id":8,
+                    "name": "Table 2 places",
+                    "quantity": 2,
+                    "barcode":""
+                }
+            ]
+        },
+        {
+            "id":2,
+            "name": "Jean XVIII",
+            "underPieces" : [
+                {
+                    "id":1,
+                    "name": "Accueil",
+                    "materials":[
+                        {
+                            "id":9,
+                            "name": "Fauteuil",
+                            "quantity": 3,
+                            "barcode":""
+                        },
+                        {
+                            "id":10,
+                            "name": "Table basse",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":11,
+                            "name": "Chaise",
+                            "quantity": 3,
+                            "barcode":""
+                        },
+                        {
+                            "id":12,
+                            "name": "Table",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":13,
+                            "name": "Bureau",
+                            "quantity": 2,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":2,
+                    "name": "Bureau Cécile comptabilité",
+                    "materials":[
+                        {
+                            "id":14,
+                            "name": "Chaise",
+                            "quantity": 2,
+                            "barcode":""
+                        },
+                        {
+                            "id":15,
+                            "name": "Armoire",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":16,
+                            "name": "Ordinateur AiO",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":17,
+                            "name": "Ecran Ordinateur",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":18,
+                            "name": "Bureau",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":19,
+                            "name": "Imprimante",
+                            "quantity": 1,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":2,
+                    "name": "Bureau Anaïs comptabilité",
+                    "materials":[
+                        {
+                            "id":20,
+                            "name": "Chaise",
+                            "quantity": 2,
+                            "barcode":""
+                        },
+                        {
+                            "id":21,
+                            "name": "Table 1 place",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":22,
+                            "name": "Table 2 places",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":23,
+                            "name": "Armoire",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":24,
+                            "name": "Ordinateur AiO",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":25,
+                            "name": "Ecran Ordinateur",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":26,
+                            "name": "Bureau",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":27,
+                            "name": "Colonne clapet",
+                            "quantity": 4,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":3,
+                    "name": "Bureau Valérie comptabilité",
+                    "materials":[
+                        {
+                            "id":28,
+                            "name": "Chaise",
+                            "quantity": 3,
+                            "barcode":""
+                        },
+                        {
+                            "id":29,
+                            "name": "Table 2 places",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":30,
+                            "name": "Armoire",
+                            "quantity": 3,
+                            "barcode":""
+                        },
+                        {
+                            "id":31,
+                            "name": "Ordinateur AiO",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":32,
+                            "name": "Ecran Ordinateur",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":33,
+                            "name": "Bureau",
+                            "quantity": 1,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":4,
+                    "name": "Parloir",
+                    "materials":[
+                        {
+                            "id":34,
+                            "name": "Chaise",
+                            "quantity": 11,
+                            "barcode":""
+                        },
+                        {
+                            "id":35,
+                            "name": "Grande table",
+                            "quantity": 1,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":5,
+                    "name": "Double bureau Gaëlle",
+                    "materials":[
+                        {
+                            "id":36,
+                            "name": "Chaise",
+                            "quantity": 2,
+                            "barcode":""
+                        },
+                        {
+                            "id":37,
+                            "name": "Table 1 place",
+                            "quantity": 2,
+                            "barcode":""
+                        },
+                        {
+                            "id":38,
+                            "name": "Armoire",
+                            "quantity": 3,
+                            "barcode":""
+                        },
+                        {
+                            "id":39,
+                            "name": "Ordinateur AiO",
+                            "quantity": 3,
+                            "barcode":""
+                        },
+                        {
+                            "id":40,
+                            "name": "Ecran Ordinateur",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":40,
+                            "name": "Bureau",
+                            "quantity": 3,
+                            "barcode":""
+                        }
+                    ]
+                },
+                {
+                    "id":6,
+                    "name": "Bureau psychologue",
+                    "materials":[
+                        {
+                            "id":41,
+                            "name": "Chaise",
+                            "quantity": 4,
+                            "barcode":""
+                        },
+                        {
+                            "id":42,
+                            "name": "Table ronde",
+                            "quantity": 1,
+                            "barcode":""
+                        },
+                        {
+                            "id":43,
+                            "name": "Armoire",
+                            "quantity": 1,
+                            "barcode":""
+                        }
+                    ]
+                }
+            ]
+            
+        },
+        {
+            "id":3,
+            "name": "Saint-Joseph",
+            "underPieces" : [
+                {
+                    "id":1,
+                    "name": "Salle de gauche",
+                    "materials":[
+                        {
+                            "id":44,
+                            "name": "Chaise",
+                            "quantity": 41
+                        },
+                        {
+                            "id":45,
+                            "name": "Table 1 place",
+                            "quantity": 1
+                        },
+                        {
+                            "id":46,
+                            "name": "Table 2 places",
+                            "quantity": 20
+                        },
+                        {
+                            "id":47,
+                            "name": "Armoire",
+                            "quantity": 2
+                        },
+                        {
+                            "id":48,
+                            "name": "Tableau",
+                            "quantity": 2
+                        },
+                        {
+                            "id":49,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":2,
+                    "name": "Salle de droite",
+                    "materials":[
+                        {
+                            "id":50,
+                            "name": "Chaise",
+                            "quantity": 42
+                        },
+                        {
+                            "id":51,
+                            "name": "Table 1 place",
+                            "quantity": 27
+                        },
+                        {
+                            "id":52,
+                            "name": "Table 2 places",
+                            "quantity": 9
+                        },
+                        {
+                            "id":53,
+                            "name": "Armoire",
+                            "quantity": 1
+                        },
+                        {
+                            "id":54,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":3,
+                    "name": "Petite salle de gauche",
+                    "materials":[
+                        {
+                            "id":55,
+                            "name": "Table 1 place",
+                            "quantity": 1
+                        },
+                        {
+                            "id":56,
+                            "name": "Table 2 places",
+                            "quantity": 8
+                        }
+                    ]
+                },
+                {
+                    "id":4,
+                    "name": "Petite salle de droite",
+                    "materials":[
+                        {
+                            "id":57,
+                            "name": "Chaise",
+                            "quantity": 27
+                        },
+                        {
+                            "id":58,
+                            "name": "Table 2 places",
+                            "quantity": 3
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id":4,
+            "name": "CDI, BDI",
+            "underPieces" : [
+                {
+                    "id":1,
+                    "name": "BDI",
+                    "materials":[
+                        {
+                            "id":59,
+                            "name": "Chaise",
+                            "quantity": 10
+                        },
+                        {
+                            "id":60,
+                            "name": "Grande table",
+                            "quantity": 1
+                        },
+                        {
+                            "id":61,
+                            "name": "Armoire",
+                            "quantity": 2
+                        },
+                        {
+                            "id":62,
+                            "name": "Ordinateur Dell",
+                            "quantity": 5
+                        },
+                        {
+                            "id":63,
+                            "name": "Bureau",
+                            "quantity": 1
+                        },
+                        {
+                            "id":64,
+                            "name": "Imprimante",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":2,
+                    "name": "Annexe CDI",
+                    "materials":[
+                        {
+                            "id":65,
+                            "name": "Chaise",
+                            "quantity": 27
+                        },
+                        {
+                            "id":66,
+                            "name": "Table 1 place",
+                            "quantity": 3
+                        },
+                        {
+                            "id":67,
+                            "name": "Table 2 places",
+                            "quantity": 11
+                        },
+                        {
+                            "id":68,
+                            "name": "Casier",
+                            "quantity": 1
+                        },
+                        {
+                            "id":69,
+                            "name": "Ordinateur Dell",
+                            "quantity": 2
+                        },
+                        {
+                            "id":70,
+                            "name": "Vidéo-projecteur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":71,
+                            "name": "Grande table",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":3,
+                    "name": "CDI",
+                    "materials":[
+                        {
+                            "id":72,
+                            "name": "Chaise",
+                            "quantity": 48
+                        },
+                        {
+                            "id":73,
+                            "name": "Fauteuil",
+                            "quantity": 14
+                        },
+                        {
+                            "id":74,
+                            "name": "Fauteuil de bureau",
+                            "quantity": 1
+                        },
+                        {
+                            "id":75,
+                            "name": "Table 1 place",
+                            "quantity": 3
+                        },
+                        {
+                            "id":76,
+                            "name": "Table 2 places",
+                            "quantity": 17
+                        },
+                        {
+                            "id":77,
+                            "name": "Casier",
+                            "quantity": 20
+                        },
+                        {
+                            "id":78,
+                            "name": "Armoire",
+                            "quantity": 2
+                        },
+                        {
+                            "id":79,
+                            "name": "Ordinateur Dell",
+                            "quantity": 5
+                        },
+                        {
+                            "id":80,
+                            "name": "Ecran Ordinateur Iiyama",
+                            "quantity": 10
+                        },
+                        {
+                            "id":81,
+                            "name": "Ecran Ordinateur Belinea",
+                            "quantity": 1
+                        },
+                        {
+                            "id":82,
+                            "name": "Photo copieur Toshiba Studio 2528A",
+                            "quantity": 1
+                        },
+                        {
+                            "id":83,
+                            "name": "Grand bureau de professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":84,
+                            "name": "Ordinateur",
+                            "quantity": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id":5,
+            "name": "Gymnase",
+            "underPieces" : [
+                {
+                    "id":1,
+                    "name": "Salle des professeurs",
+                    "materials":[
+                        {
+                            "id":85,
+                            "name": "Chaise",
+                            "quantity": 4
+                        },
+                        {
+                            "id":86,
+                            "name": "Table 1 place",
+                            "quantity": 2
+                        },
+                        {
+                            "id":87,
+                            "name": "Grande table",
+                            "quantity": 3
+                        },
+                        {
+                            "id":88,
+                            "name": "Armoire",
+                            "quantity": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id":5,
+            "name": "Fatima",
+            "underPieces" : [
+                {
+                    "id":1,
+                    "name": "Bureau CPE",
+                    "materials":[
+                        {
+                            "id":89,
+                            "name": "Chaise",
+                            "quantity": 2
+                        },
+                        {
+                            "id":90,
+                            "name": "Fauteuil",
+                            "quantity": 2
+                        },
+                        {
+                            "id":91,
+                            "name": "Bureau",
+                            "quantity": 2
+                        },
+                        {
+                            "id":92,
+                            "name": "Meuble tiroir",
+                            "quantity": 2
+                        },
+                        {
+                            "id":93,
+                            "name": "Ordinateur AiO",
+                            "quantity": 1
+                        },
+                        {
+                            "id":94,
+                            "name": "Ecran Ordinateur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":95,
+                            "name": "Photo copieur Toshiba Studio 409S",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":2,
+                    "name": "4B",
+                    "materials":[
+                        {
+                            "id":96,
+                            "name": "Chaise",
+                            "quantity": 19
+                        },
+                        {
+                            "id":97,
+                            "name": "Table 1 place",
+                            "quantity": 7
+                        },
+                        {
+                            "id":98,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":99,
+                            "name": "Table 2 places",
+                            "quantity": 15
+                        },
+                        {
+                            "id":100,
+                            "name": "Casier",
+                            "quantity": 30
+                        },
+                        {
+                            "id":101,
+                            "name": "Ordinateur Dell",
+                            "quantity": 5
+                        },
+                        {
+                            "id":102,
+                            "name": "Ordinateur Dell HP",
+                            "quantity": 1
+                        },
+                        {
+                            "id":103,
+                            "name": "Vidéo-projecteur EPSON",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":3,
+                    "name": "4A",
+                    "materials":[
+                        {
+                            "id":104,
+                            "name": "Chaise",
+                            "quantity": 33
+                        },
+                        {
+                            "id":105,
+                            "name": "Table 1 place",
+                            "quantity": 1
+                        },
+                        {
+                            "id":106,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":107,
+                            "name": "Table 2 places",
+                            "quantity": 17
+                        },
+                        {
+                            "id":108,
+                            "name": "Casier",
+                            "quantity": 30
+                        },
+                        {
+                            "id":109,
+                            "name": "Ordinateur Dell HP",
+                            "quantity": 1
+                        },
+                        {
+                            "id":110,
+                            "name": "Vidéo-projecteur EPSON",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":4,
+                    "name": "4C",
+                    "materials":[
+                        {
+                            "id":111,
+                            "name": "Chaise",
+                            "quantity": 32
+                        },
+                        {
+                            "id":112,
+                            "name": "Table 1 place",
+                            "quantity": 1
+                        },
+                        {
+                            "id":113,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":114,
+                            "name": "Table 2 places",
+                            "quantity": 17
+                        },
+                        {
+                            "id":115,
+                            "name": "Casier",
+                            "quantity": 30
+                        },
+                        {
+                            "id":116,
+                            "name": "Ordinateur Dell",
+                            "quantity": 1
+                        },
+                        {
+                            "id":117,
+                            "name": "Vidéo-projecteur EPSON",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":5,
+                    "name": "4D",
+                    "materials":[
+                        {
+                            "id":118,
+                            "name": "Chaise",
+                            "quantity": 33
+                        },
+                        {
+                            "id":119,
+                            "name": "Table 1 place",
+                            "quantity": 2
+                        },
+                        {
+                            "id":120,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":121,
+                            "name": "Table 2 places",
+                            "quantity": 16
+                        },
+                        {
+                            "id":122,
+                            "name": "Casier",
+                            "quantity": 30
+                        },
+                        {
+                            "id":123,
+                            "name": "Ordinateur Dell",
+                            "quantity": 1
+                        },
+                        {
+                            "id":124,
+                            "name": "Vidéo-projecteur EPSON",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":6,
+                    "name": "4E",
+                    "materials":[
+                        {
+                            "id":125,
+                            "name": "Chaise",
+                            "quantity": 30
+                        },
+                        {
+                            "id":126,
+                            "name": "Table 1 place",
+                            "quantity": 2
+                        },
+                        {
+                            "id":127,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":128,
+                            "name": "Table 2 places",
+                            "quantity": 15
+                        },
+                        {
+                            "id":129,
+                            "name": "Casier",
+                            "quantity": 30
+                        },
+                        {
+                            "id":130,
+                            "name": "Ordinateur Dell",
+                            "quantity": 1
+                        },
+                        {
+                            "id":131,
+                            "name": "Vidéo-projecteur EPSON",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":7,
+                    "name": "4F",
+                    "materials":[
+                        {
+                            "id":132,
+                            "name": "Chaise",
+                            "quantity": 30
+                        },
+                        {
+                            "id":133,
+                            "name": "Table 1 place",
+                            "quantity": 2
+                        },
+                        {
+                            "id":134,
+                            "name": "Bureau professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":135,
+                            "name": "Table 2 places",
+                            "quantity": 15
+                        },
+                        {
+                            "id":136,
+                            "name": "Casier",
+                            "quantity": 20
+                        },
+                        {
+                            "id":137,
+                            "name": "Ordinateur Dell",
+                            "quantity": 1
+                        },
+                        {
+                            "id":138,
+                            "name": "Vidéo-projecteur EPSON",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":8,
+                    "name": "Salle des surveillants",
+                    "materials":[
+                        {
+                            "id":139,
+                            "name": "Chaise",
+                            "quantity": 8
+                        },
+                        {
+                            "id":140,
+                            "name": "Table 1 place",
+                            "quantity": 1
+                        },
+                        {
+                            "id":141,
+                            "name": "Bureau",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":9,
+                    "name": "Réserve 4ème",
+                    "materials":[
+                        {
+                            "id":142,
+                            "name": "Armoire",
+                            "quantity": 3
+                        },
+                        {
+                            "id":143,
+                            "name": "Etagère",
+                            "quantity": 4
+                        }
+                    ]
+                },
+                {
+                    "id":10,
+                    "name": "Salle d'activité",
+                    "materials":[
+                        {
+                            "id":144,
+                            "name": "Chaise",
+                            "quantity": 6
+                        },
+                        {
+                            "id":145,
+                            "name": "Fauteuil",
+                            "quantity": 5
+                        },
+                        {
+                            "id":146,
+                            "name": "Tabouret",
+                            "quantity": 6
+                        },
+                        {
+                            "id":147,
+                            "name": "Paillasse",
+                            "quantity": 1
+                        },
+                        {
+                            "id":148,
+                            "name": "Armoire",
+                            "quantity": 2
+                        },
+                        {
+                            "id":149,
+                            "name": "Table",
+                            "quantity": 4
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
