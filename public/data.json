@@ -177,6 +177,11 @@
                     "title": "Mandat de prélèvement SEPA",
                     "printable": "",
                     "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Compta+RH/Mandat+SEPA+Num%C3%A9rique.pdf"
+                },
+                {
+                    "title": "Grille tarifaire 2025-2026",
+                    "printable": "",
+                    "digital": "https://docslapro.s3.eu-west-3.amazonaws.com/documents/Compta+RH/Grille+tarifaire+2025-2026.pdf"
                 }
             ]
         }
