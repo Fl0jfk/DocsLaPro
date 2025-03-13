@@ -308,8 +308,8 @@
             "name":"Chateau de Chantilly - Grandes Ecuries",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/Chantilly+%C3%A9curies.jpg",
             "date": "05/06/2025",
-            "validated":false,
-            "description":"En attente du retour des devis",
+            "validated":true,
+            "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/en+attente.jpg",
             "to":"Dumouchel"
         },
@@ -317,9 +317,9 @@
             "id":14,
             "name":"Parc Astérix",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/parc+asterix.jpg",
-            "date": "10/06/2025",
-            "validated":false,
-            "description":"En attente de création des devis",
+            "date": "11/06/2025",
+            "validated":true,
+            "description":"En attente de la liste des élèves et du n° du chauffeur",
             "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/en+attente.jpg",
             "to":"Leroy-Gode"
         }
