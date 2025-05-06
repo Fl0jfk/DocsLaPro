@@ -54,8 +54,7 @@ export default function TransportRequestPage() {
                 <label className="block font-bold" htmlFor="classe">En classe de :</label>
                 <input type="text" id="classe" className="p-2 border rounded w-full" placeholder="Classe de l'élève" value={classe} onChange={(e) => setClasse(e.target.value)} />
             </div>
-            <p className="text-lg w-[80%]">Autorise mon enfant à participer à une sortie, organisée par les élèves et leurs professeurs de {classe},</p>
-            
+            {classe&&<p className="text-lg w-[80%]">Autorise mon enfant à participer à une sortie, organisée par les élèves et leurs professeurs de {classe},</p>}
             <div className="flex text-nowrap gap-1 items-center ">
                 <p>le :</p>
                 <input  type="date"  id="date"  className="w-full text-center"  value={date}  onChange={(e) => setDate(e.target.value)} />
