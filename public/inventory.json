@@ -3235,6 +3235,155 @@
                             "quantity": 2
                         }
                     ]
+                },
+                {
+                    "id":5,
+                    "name": "Classe 13",
+                    "materials":[
+                        {
+                            "id":439,
+                            "name": "Tabouret",
+                            "quantity": 6
+                        },
+                        {
+                            "id":434,
+                            "name": "Chaise",
+                            "quantity": 1
+                        },
+                        {
+                            "id":435,
+                            "name": "Table 1 place avec chaises intégrées",
+                            "quantity": 1
+                        },
+                        {
+                            "id":436,
+                            "name": "Grande table",
+                            "quantity": 1
+                        },
+                        {
+                            "id":437,
+                            "name": "Petite table",
+                            "quantity": 2
+                        },
+                        {
+                            "id":438,
+                            "name": "Table 2 places avec chaises intégrées",
+                            "quantity": 13
+                        },
+                        {
+                            "id":438,
+                            "name": "Ecran Ordinateur Mirai",
+                            "quantity": 1
+                        },
+                        {
+                            "id":438,
+                            "name": "Ecran Ordinateur Neovo",
+                            "quantity": 1
+                        },
+                        {
+                            "id":438,
+                            "name": "Ecran Ordinateur Acer",
+                            "quantity": 1
+                        },
+                        {
+                            "id":438,
+                            "name": "Ordinateur Lenovo",
+                            "quantity": 1
+                        },
+                        {
+                            "id":438,
+                            "name": "Ordinateur ASUS",
+                            "quantity": 2
+                        },
+                        {
+                            "id":438,
+                            "name": "Ordinateur Logitech",
+                            "quantity": 1
+                        },
+                        {
+                            "id":438,
+                            "name": "Grand bureau de professeur",
+                            "quantity": 1
+                        },
+                        {
+                            "id":438,
+                            "name": "Armoire",
+                            "quantity": 3
+                        },
+                        {
+                            "id":438,
+                            "name": "Vidéo-projecteur Sanio",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":6,
+                    "name": "Salle informatique",
+                    "materials":[
+                        {
+                            "id":439,
+                            "name": "Chaise",
+                            "quantity": 4
+                        },
+                        {
+                            "id":434,
+                            "name": "Table 1 place",
+                            "quantity": 2
+                        },
+                        {
+                            "id":435,
+                            "name": "Photo copieur Toshiba Studio 339CS",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                {
+                    "id":7,
+                    "name": "Classe 12",
+                    "materials":[
+                        {
+                            "id":439,
+                            "name": "Chaise",
+                            "quantity": 4
+                        },
+                        {
+                            "id":434,
+                            "name": "Tabouret",
+                            "quantity": 6
+                        },
+                        {
+                            "id":435,
+                            "name": "Meuble ordinateur",
+                            "quantity": 4
+                        },
+                        {
+                            "id":434,
+                            "name": "Table 2 places avec chaises intégrées",
+                            "quantity": 14
+                        },
+                        {
+                            "id":435,
+                            "name": "Table double",
+                            "quantity": 1
+                        },
+                        {
+                            "id":439,
+                            "name": "Ecran Ordinateur Acer",
+                            "quantity": 1
+                        },
+                        {
+                            "id":434,
+                            "name": "Ecran Ordinateur Hanns",
+                            "quantity": 2
+                        },
+                        {
+                            "id":435,
+                            "name": "Ecran Ordinateur Neovo",
+                            "quantity": 1
+                        }
+                    
+                    ]
                 }
             ]
         }        
