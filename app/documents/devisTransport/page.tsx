@@ -78,7 +78,7 @@ export default function TransportRequestPage() {
                     </div>
                     <div className="mb-4">
                         <label className="block font-bold mb-1" htmlFor="other-details">Autres détails :</label>
-                        <textarea id="other-details" style={{ height: '100px' }} className="p-2 border rounded w-full" placeholder="Autres informations ou besoins spécifiques"></textarea>
+                        <textarea id="other-details" style={{ height: '140px' }} className="p-2 border rounded w-full" placeholder="Autres informations ou besoins spécifiques"></textarea>
                     </div>
                 </div>
             </section>

@@ -66,6 +66,7 @@ export default function TransportRequestPage() {
                     <option value="McDo Cinéma">McDonald&apos;s + Cinéma de Rouen</option>
                     <option value="McDo Bowling">McDonald&apos;s + Bowling</option>
                     <option value="Bowling Amfreville La Mi-Voie">Bowling Amfreville La Mi-Voie</option>
+                    <option value="Domicile de Mr FAUCHEUX">Domicile de Mr FAUCHEUX</option>
                 </select>  
             </div>
             <div>
