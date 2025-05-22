@@ -4,7 +4,7 @@ import { UserCircle, School, FileText, HeartPulse, Users, BookOpen, AlertCircle,
 export default function Organigramme() {
   return (
     <main className="relative w-full flex flex-col gap-3 items-center justify-center p-2 max-w-[800px] mx-auto bg-white text-black">
-        <h1 className="font-bold text-3xl underline">A qui s'adresser ?</h1>
+        <h1 className="font-bold text-3xl underline">A qui s&apos;adresser ?</h1>
       <Section title="Direction" icon={<School className="text-blue-600" />}>
         <Person title="Directrice" name="Madame DUMOUCHEL" icon={<UserCircle />} tasks={["Problème grave personnel ou scolaire"]} contact="0762565a@ac-normandie.fr"/>
         <Person title="Secrétariat" name="Madame VILLIER" icon={<FileText />} tasks={["Inscriptions", "Questions administratives", "RDV 1er PAP"]} contact="sarah.buno@ac-normandie.fr"/>

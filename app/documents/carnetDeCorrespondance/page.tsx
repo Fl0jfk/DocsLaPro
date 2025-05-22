@@ -23,8 +23,8 @@ export default function CarnetDeCorrespondance() {
                 </div>
                 <p className="text-3xl">Année scolaire 2025 / 2026</p>
                 <div className="flex flex-col gap-2 text-2xl">
-                    <p>Nom de l'élève : ___________________________________</p>
-                    <p>Prénom de l'élève : ________________________________</p>
+                    <p>Nom de l&apos;élève : ___________________________________</p>
+                    <p>Prénom de l&apos;élève : ________________________________</p>
                     <p>Classe : _________________________________________</p>
                     <p>Adresse : ________________________________________</p>
                 </div>
@@ -38,8 +38,8 @@ export default function CarnetDeCorrespondance() {
                 </div>
                 <div className="flex flex-col mt-[210px] text-outline-black font-bold">
                     <p>Le carnet de liaison est un lien permanent entre le collège et la famille.</p>
-                    <p>L'élève doit l'avoir constamment sur lui.</p>
-                    <p>Il porte tout changement d'horaire, toute notification des absences et des retards.</p>
+                    <p>L&apos;élève doit l&apos;avoir constamment sur lui.</p>
+                    <p>Il porte tout changement d&apos;horaire, toute notification des absences et des retards.</p>
                     <p>Les parents doivent le consulter chaque jour et signer toute communication faite soit par eux, soit par le collège.</p>
                 </div>
                 <div className="flex mt-[-55px] mx-auto">
