@@ -65,11 +65,13 @@ export default function TransportRequestPage() {
                     <option value="Pique Nique Laser Game">Pique-Nique + Laser Game de Rouen</option>
                     <option value="McDo Cinéma">McDonald&apos;s + Cinéma de Rouen</option>
                     <option value="McDo Bowling">McDonald&apos;s + Bowling</option>
+                    <option value="Restaurant La Pasta Tinto">Restaurant La Pasta Tinto</option>
                     <option value="Bowling Amfreville La Mi-Voie">Bowling Amfreville La Mi-Voie</option>
                     <option value="Domicile de Mr FAUCHEUX">Domicile de Mr FAUCHEUX</option>
+                    <option value="Domicile de Mme BALESTA">Domicile de Mme BALESTA</option>
                 </select>  
             </div>
-            <div>
+            <div className="w-[74%]">
                 <p>Les élèves pensionnaires se rendront à la sortie accompagnés de :</p>
                 <input type="text" id="accompagnant" className="p-2 border-b border-black w-full" placeholder="Nom de l'accompagnant" />
                 <p>Puis seront raccompagnés à la Providence par :</p>
