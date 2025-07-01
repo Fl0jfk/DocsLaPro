@@ -1,7 +1,7 @@
 // app/api/sorties/send-devis/route.ts
 import { NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { S3Client} from '@aws-sdk/client-s3';
+//import { S3Client} from '@aws-sdk/client-s3';
 
 //const s3 = new S3Client({ region: 'eu-west-3' });
 

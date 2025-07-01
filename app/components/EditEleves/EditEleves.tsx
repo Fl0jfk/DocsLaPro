@@ -88,7 +88,7 @@ export default function ExplorerEleves() {
         <h2 className="font-bold mb-2">Tous les dossiers élèves</h2>
         <div className="mb-2">
           <label>Présence : </label>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any*/}
           <select value={filtrePresence} onChange={e => setFiltrePresence(e.target.value as any)}>
             <option value="tous">Tous</option>
             <option value="present">Présents</option>

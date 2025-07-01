@@ -45,6 +45,7 @@ export default function DemandeSortie() {
     },
     documents: [],
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sortieEnvoyee, setSortieEnvoyee] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
