@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+a {
+  cursor: pointer;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Style pour la barre de défilement */
+::-webkit-scrollbar {
+  width: 8px; /* Largeur de la barre de défilement */
+  height: 8px; /* Hauteur de la barre de défilement horizontale */
+}
+
+/* Couleur de fond de la barre de défilement */
+::-webkit-scrollbar-track {
+  background: #f0f0f0; /* Gris clair */
+  border-radius: 10px; /* Coins arrondis */
+}
+
+/* Style de la "thumb" (la partie déplaçable) */
+::-webkit-scrollbar-thumb {
+  background: #888; /* Couleur grise */
+  border-radius: 10px; /* Coins arrondis */
+}
+
+/* Couleur de la thumb au survol */
+::-webkit-scrollbar-thumb:hover {
+  background: #555; /* Couleur plus foncée au survol */
+}
+
+/* Optionnel : bordure autour de la thumb */
+::-webkit-scrollbar-thumb {
+  border: 2px solid #f0f0f0; /* Bordure pour un effet d'espace */
+}
+
+.text-outline-black {
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000;
+}
+

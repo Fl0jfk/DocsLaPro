@@ -1,0 +1,76 @@
+'use client';
+
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import './globals.css';
+import Header from './components/HeaderF/Header';
+import Footer from './components/Footer/Footer';
+import Head from 'next/head';
+import { DataProvider } from './contexts/data';
+
+import {
+  ClerkProvider,
+  SignedIn,
+  SignedOut,
+  SignIn,
+} from '@clerk/nextjs';
+
+const metaDetails: Record<string, { title: string; description: string }> = {
+  '/': {
+    title: "Bienvenue dans l'intranet de La Providence Nicolas Barré",
+    description: 'Un intranet moderne pour connecter vos équipes.',
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { title, description } = metaDetails[pathname] || {};
+
+  useEffect(() => {
+    if (title) document.title = title;
+
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', description || '');
+    } else if (description) {
+      const newMetaDescription = document.createElement('meta');
+      newMetaDescription.name = 'description';
+      newMetaDescription.content = description;
+      document.head.appendChild(newMetaDescription);
+    }
+  }, [pathname, title, description]);
+
+  return (
+    <ClerkProvider>
+      <html lang="fr">
+        <Head>
+          <meta name="robots" content="noindex, nofollow" />
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no"
+          />
+          <meta name="theme-color" content="#fff" />
+          {title && <title>{title}</title>}
+          {description && <meta name="description" content={description} />}
+        </Head>
+        <body className="antialiased text-black font-medium bg-white mx-auto">
+          <DataProvider>
+            <SignedOut>
+              <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                <SignIn />
+              </div>
+            </SignedOut>
+            <SignedIn>
+              <Header />
+              {children}
+              <Footer />
+            </SignedIn>
+          </DataProvider>
+        </body>
+      </html>
+    </ClerkProvider>
+  );
+}
+
+
+
