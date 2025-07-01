@@ -7,8 +7,10 @@ export default function UploadAndAnalyzeDocument() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string>('');
   const [ocrText, setOcrText] = useState<string>('');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [gptResult, setGptResult] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [moveResult, setMoveResult] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 

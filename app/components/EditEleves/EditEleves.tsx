@@ -88,6 +88,7 @@ export default function ExplorerEleves() {
         <h2 className="font-bold mb-2">Tous les dossiers élèves</h2>
         <div className="mb-2">
           <label>Présence : </label>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           <select value={filtrePresence} onChange={e => setFiltrePresence(e.target.value as any)}>
             <option value="tous">Tous</option>
             <option value="present">Présents</option>
@@ -158,7 +159,7 @@ export default function ExplorerEleves() {
               <>
                 <div className="mb-4">
                   <strong>Date de naissance :</strong> {elevesFiltres[selected].fiche?.date_naissance || 'N/A'}<br />
-                  <strong>Date d'entrée :</strong> {elevesFiltres[selected].fiche?.date_entree || 'N/A'}<br />
+                  <strong>Date d&apos;entrée :</strong> {elevesFiltres[selected].fiche?.date_entree || 'N/A'}<br />
                   <strong>Date de sortie :</strong> {elevesFiltres[selected].fiche?.date_sortie || 'N/A'}<br />
                   <strong>Classes :</strong> {elevesFiltres[selected].fiche?.classes?.join(' → ') || 'N/A'}<br />
                   <strong>Notes :</strong> {elevesFiltres[selected].fiche?.notes || 'N/A'}<br />

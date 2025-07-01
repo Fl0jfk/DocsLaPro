@@ -39,6 +39,6 @@ export async function GET(req: NextRequest) {
       })) || [];
     return new Response(JSON.stringify(files), { status: 200 });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Erreur serveur S3" }), { status: 500 });
+    return new Response(JSON.stringify({ error: err }), { status: 500 });
   }
 }

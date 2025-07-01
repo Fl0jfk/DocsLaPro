@@ -43,6 +43,7 @@ export async function GET() {
         fiche = await ficheRes.json();
       }
     } catch (e) {
+      console.log(e)
       fiche = null;
     }
 
