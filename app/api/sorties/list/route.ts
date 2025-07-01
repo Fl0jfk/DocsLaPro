@@ -15,6 +15,7 @@ async function streamToString(stream: Readable): Promise<string> {
 }
 
 export async function GET(req: Request) { // <-- Ici, ajoute req: Request
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { userId } = getAuth(req as any);
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 

@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 export async function POST(req: Request) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { userId } = getAuth(req as any);
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
