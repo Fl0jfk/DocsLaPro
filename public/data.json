@@ -26,14 +26,6 @@
         },
         {
             "id":5,
-            "name":"RDV avec la direction",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/directrice.avif",
-            "link":"/contactDir",
-            "description":"",
-            "allowedRoles": ["direction", "administratif", "admin"]
-        },
-        {
-            "id":6,
             "name":"Transport scolaire",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/transport.avif",
             "link":"/travels",
@@ -41,7 +33,7 @@
             "allowedRoles": ["direction", "administratif", "admin"]
         },
         {
-            "id":7,
+            "id":6,
             "name":"Gestion du stock",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/Stocks.jpg",
             "link":"/stocks",
@@ -49,20 +41,12 @@
             "allowedRoles": ["direction", "administratif", "admin"]
         },
         {
-            "id":8,
+            "id":7,
             "name":"Création de QR Code",
             "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/qrcreator",
             "description":"",
             "allowedRoles": ["direction", "administratif", "admin"]
-        },
-        {
-            "id":9,
-            "name":"Suivi de l'étude",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/etude.jpg",
-            "link":"/etude",
-            "description":"",
-            "allowedRoles": ["direction", "administratif"]
         }
     ],
     "documents":[
