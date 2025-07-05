@@ -1,4 +1,3 @@
-// components/UploadAndAnalyzeDocument.tsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -7,17 +6,13 @@ export default function UploadAndAnalyzeDocument() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string>('');
   const [ocrText, setOcrText] = useState<string>('');
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [gptResult, setGptResult] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [moveResult, setMoveResult] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Ajoute un log dans la liste
   const addLog = (msg: string) => setLogs(prev => [...prev, msg]);
 
-  // Génère un nom de fichier unique
   const generateFileName = (type: string, eleve: string) => {
     const now = new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
@@ -26,11 +21,11 @@ export default function UploadAndAnalyzeDocument() {
     return `${type}_${safeEleve}_${dateStr}_${timeStr}.pdf`;
   };
 
-  // Fonction principale
   const handleUploadAndAnalyze = async () => {
     setGptResult(null);
     setMoveResult(null);
     setOcrText('');
+    setLogs([]);
     if (!file) return;
     setStatus('Récupération de l’URL signée...');
     addLog('Demande de l’URL signée pour ' + file.name);
@@ -41,17 +36,45 @@ export default function UploadAndAnalyzeDocument() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, contentType: file.type }),
     });
-    const { url, key } = await res1.json();
+
+    if (!res1.ok) {
+      const err = await res1.text();
+      addLog('Erreur API upload-url: ' + err);
+      setStatus('Erreur lors de la génération de l’URL signée');
+      return;
+    }
+
+    let url: string | undefined, key: string | undefined;
+    try {
+      const data = await res1.json();
+      url = data.url;
+      key = data.key;
+    } catch (e) {
+      addLog('Erreur de parsing JSON sur la réponse API upload-url');
+      setStatus('Erreur lors de la génération de l’URL signée');
+      return;
+    }
+
+    if (!url || !key) {
+      addLog('Clé S3 ou URL manquante dans la réponse API! Réponse brute: ' + JSON.stringify({ url, key }));
+      setStatus('Erreur: clé S3 ou URL manquante');
+      return;
+    }
     addLog('URL signée reçue, clé S3 : ' + key);
 
     // 2. Upload le fichier sur S3
     setStatus('Upload sur S3 en cours...');
     addLog('Upload du fichier sur S3...');
-    await fetch(url, {
+    const uploadRes = await fetch(url, {
       method: 'PUT',
       body: file,
       headers: { 'Content-Type': file.type },
     });
+    if (!uploadRes.ok) {
+      addLog('Erreur lors de l’upload S3: ' + uploadRes.statusText);
+      setStatus('Erreur lors de l’upload S3');
+      return;
+    }
     addLog('Upload terminé.');
 
     // 3. Lance Textract OCR
@@ -62,7 +85,26 @@ export default function UploadAndAnalyzeDocument() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key }),
     });
-    const { jobId } = await res2.json();
+    if (!res2.ok) {
+      const err = await res2.text();
+      addLog('Erreur API ocr-process: ' + err);
+      setStatus('Erreur lors du lancement de l\'OCR');
+      return;
+    }
+    let jobId: string | undefined;
+    try {
+      const data = await res2.json();
+      jobId = data.jobId;
+    } catch (e) {
+      addLog('Erreur de parsing JSON sur la réponse API ocr-process');
+      setStatus('Erreur lors du lancement de l\'OCR');
+      return;
+    }
+    if (!jobId) {
+      addLog('JobId manquant dans la réponse API ocr-process!');
+      setStatus('Erreur: jobId manquant');
+      return;
+    }
     addLog('Job Textract lancé, jobId : ' + jobId);
 
     // 4. Polling pour récupérer le résultat OCR
@@ -77,6 +119,12 @@ export default function UploadAndAnalyzeDocument() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId }),
       });
+      if (!res3.ok) {
+        const err = await res3.text();
+        addLog('Erreur API ocr-result: ' + err);
+        setStatus('Erreur lors de la récupération du résultat OCR');
+        return;
+      }
       const data = await res3.json();
       ocrStatus = data.status || (data.text ? 'SUCCEEDED' : '');
       if (ocrStatus === 'SUCCEEDED' && data.text) {
@@ -100,6 +148,12 @@ export default function UploadAndAnalyzeDocument() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       });
+      if (!res4.ok) {
+        const err = await res4.text();
+        addLog('Erreur API analyze-doc: ' + err);
+        setStatus('Erreur lors de l\'analyse GPT');
+        return;
+      }
       const gpt = await res4.json();
       setGptResult(gpt);
       addLog('Réponse GPT reçue : ' + JSON.stringify(gpt));
@@ -115,6 +169,12 @@ export default function UploadAndAnalyzeDocument() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sourceKey: key, eleveId, newFileName }),
         });
+        if (!res5.ok) {
+          const err = await res5.text();
+          addLog('Erreur API move-file: ' + err);
+          setStatus('Erreur lors du déplacement du fichier');
+          return;
+        }
         const move = await res5.json();
         setMoveResult(move);
         addLog('Résultat du déplacement : ' + JSON.stringify(move));

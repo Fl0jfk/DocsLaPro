@@ -1,13 +1,5 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
-
-export default clerkMiddleware();
-
-export const config = {
-  matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico).*)'],
-};
-
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
 const ContentSecurityPolicy = `
   default-src 'self';
@@ -20,11 +12,15 @@ const ContentSecurityPolicy = `
   font-src 'self' https:;
 `;
 
-export function middleware(request: NextRequest) {
+export default clerkMiddleware(() => {
   const response = NextResponse.next();
   response.headers.set(
     "Content-Security-Policy",
     ContentSecurityPolicy.replace(/\n/g, "")
   );
   return response;
-}
+});
+
+export const config = {
+  matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico).*)'],
+};
