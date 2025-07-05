@@ -1,21 +1,23 @@
-// app/api/move-file/route.ts
 import { NextResponse } from 'next/server';
 import { S3Client, CopyObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getAuth } from '@clerk/nextjs/server';
 
 const s3 = new S3Client({ region: 'eu-west-3' });
 
-// Fonction de normalisation large pour les noms
-function normalizeName(name: string): string {
+// Normalisation + tri (ordre, accents, séparateurs)
+function normalizeAndSortName(name: string): string {
   return name
-    .normalize('NFD') // enlève accents
+    .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]/g, '_')
-    .replace(/_+/g, '_')
-    .toUpperCase();
+    .replace(/[^a-zA-Z0-9]/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map(w => w.toUpperCase())
+    .sort()
+    .join('_');
 }
 
-// Distance de Levenshtein (matching flou)
+// Distance de Levenshtein
 function levenshtein(a: string, b: string): number {
   const matrix = Array.from({ length: a.length + 1 }, (_, i) =>
     Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
@@ -31,24 +33,8 @@ function levenshtein(a: string, b: string): number {
   return matrix[a.length][b.length];
 }
 
-// Trouve le dossier le plus proche (tolérance paramétrable)
-function findClosestFolder(inputName: string, folders: string[], tolerance = 5): string | null {
-  const normalizedInput = normalizeName(inputName);
-  let bestMatch: string | null = null;
-  let bestScore = Infinity;
-  for (const folder of folders) {
-    const normFolder = normalizeName(folder);
-    const dist = levenshtein(normalizedInput, normFolder);
-    if (dist < bestScore) {
-      bestScore = dist;
-      bestMatch = folder;
-    }
-  }
-  return bestScore <= tolerance ? bestMatch : null;
-}
-
 // Liste tous les dossiers élèves (1er niveau sous 'eleves/')
-async function listElevesFolders(s3: S3Client, bucket: string) {
+async function listElevesFolders(s3: S3Client, bucket: string): Promise<string[]> {
   const command = new ListObjectsV2Command({
     Bucket: bucket,
     Delimiter: '/',
@@ -56,11 +42,32 @@ async function listElevesFolders(s3: S3Client, bucket: string) {
   });
   const result = await s3.send(command);
   return (
-  result.CommonPrefixes
-    ?.map(p => p.Prefix?.split('/')[1])
-    .filter((folder): folder is string => !!folder && folder !== '')
-  || []
-);
+    result.CommonPrefixes
+      ?.map(p => p.Prefix?.split('/')[1])
+      .filter((folder): folder is string => !!folder && folder !== '')
+    || []
+  );
+}
+
+// Matching exact, puis fallback Levenshtein si besoin
+function findBestFolder(inputName: string, folders: string[], tolerance = 5): { folder: string | null, distance: number } {
+  const normalizedInput = normalizeAndSortName(inputName);
+  let bestMatch: string | null = null;
+  let bestScore = Infinity;
+
+  for (const folder of folders) {
+    const normFolder = normalizeAndSortName(folder);
+    if (normFolder === normalizedInput) {
+      // Match exact
+      return { folder, distance: 0 };
+    }
+    const dist = levenshtein(normalizedInput, normFolder);
+    if (dist < bestScore) {
+      bestScore = dist;
+      bestMatch = folder;
+    }
+  }
+  return bestScore <= tolerance ? { folder: bestMatch, distance: bestScore } : { folder: null, distance: bestScore };
 }
 
 export async function POST(req: Request) {
@@ -76,12 +83,17 @@ export async function POST(req: Request) {
     // Liste des dossiers élèves
     const existingFolders = await listElevesFolders(s3, bucket);
 
-    // Matching flou sur le dossier élève
-    const matchedFolder = findClosestFolder(eleveId, existingFolders, 5);
+    // Matching exact puis flou
+    const { folder: matchedFolder, distance } = findBestFolder(eleveId, existingFolders, 5);
 
     if (!matchedFolder) {
       return NextResponse.json(
-        { error: 'Aucun dossier élève correspondant trouvé. À valider manuellement.', dossiersExistants: existingFolders },
+        {
+          error: 'Aucun dossier élève correspondant trouvé. À valider manuellement.',
+          dossiersExistants: existingFolders,
+          distanceMin: distance,
+          eleveNormalise: normalizeAndSortName(eleveId)
+        },
         { status: 404 }
       );
     }
@@ -101,7 +113,7 @@ export async function POST(req: Request) {
       Key: sourceKey,
     }));
 
-    return NextResponse.json({ success: true, destKey, dossierTrouve: matchedFolder });
+    return NextResponse.json({ success: true, destKey, dossierTrouve: matchedFolder, distance });
   } catch (err) {
     console.error('Erreur move-file:', err);
     return NextResponse.json(

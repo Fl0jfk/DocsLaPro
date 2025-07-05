@@ -137,10 +137,10 @@ export default function UploadAndAnalyzeDocument() {
         break;
       } else {
         addLog('OCR pas encore prêt, statut : ' + ocrStatus);
-        await new Promise(r => setTimeout(r, 3000)); // 3s entre chaque essai
+        await new Promise(r => setTimeout(r, 5000)); // 3s entre chaque essai
       }
       tries++;
-    } while (tries < 20);
+    } while (tries < 30);
 
     if (text) {
       setOcrText(text);
