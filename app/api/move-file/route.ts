@@ -5,6 +5,49 @@ import { getAuth } from '@clerk/nextjs/server';
 
 const s3 = new S3Client({ region: 'eu-west-3' });
 
+// Fonction de normalisation large pour les noms
+function normalizeName(name: string): string {
+  return name
+    .normalize('NFD') // enlève accents
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .toUpperCase();
+}
+
+// Distance de Levenshtein (matching flou)
+function levenshtein(a: string, b: string): number {
+  const matrix = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      matrix[i][j] =
+        a[i - 1] === b[j - 1]
+          ? matrix[i - 1][j - 1]
+          : Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + 1);
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+// Trouve le dossier le plus proche (tolérance paramétrable)
+function findClosestFolder(inputName: string, folders: string[], tolerance = 5): string | null {
+  const normalizedInput = normalizeName(inputName);
+  let bestMatch: string | null = null;
+  let bestScore = Infinity;
+  for (const folder of folders) {
+    const normFolder = normalizeName(folder);
+    const dist = levenshtein(normalizedInput, normFolder);
+    if (dist < bestScore) {
+      bestScore = dist;
+      bestMatch = folder;
+    }
+  }
+  return bestScore <= tolerance ? bestMatch : null;
+}
+
+// Liste tous les dossiers élèves (1er niveau sous 'eleves/')
 async function listElevesFolders(s3: S3Client, bucket: string) {
   const command = new ListObjectsV2Command({
     Bucket: bucket,
@@ -12,42 +55,40 @@ async function listElevesFolders(s3: S3Client, bucket: string) {
     Prefix: 'eleves/',
   });
   const result = await s3.send(command);
-  return result.CommonPrefixes
+  return (
+  result.CommonPrefixes
     ?.map(p => p.Prefix?.split('/')[1])
-    .filter(Boolean) || [];
+    .filter((folder): folder is string => !!folder && folder !== '')
+  || []
+);
 }
 
 export async function POST(req: Request) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { userId } = getAuth(req as any);
-  if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
-  const { sourceKey, eleveId, newFileName } = await req.json();
-  const bucket = process.env.AWS_S3_BUCKET_NAME!;
-
-  // Récupère la liste des dossiers élèves
-  const existingFolders = await listElevesFolders(s3, bucket);
-
-  // Nettoyage du nom de dossier
-  const safeEleveId = eleveId.replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase();
-
-  // Recherche du dossier correspondant
-  const matchedFolder = existingFolders.find(folder =>
-  folder && folder.replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase() === safeEleveId
-);
-
-
-  if (!matchedFolder) {
-    return NextResponse.json(
-      { error: 'Aucun dossier élève correspondant trouvé. À valider manuellement.' },
-      { status: 404 }
-    );
-  }
-
-  // Utilise le nom exact du dossier existant
-  const destKey = `eleves/${matchedFolder}/${newFileName}`;
-
   try {
+    // Clerk Auth
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { userId } = getAuth(req as any);
+    if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+
+    const { sourceKey, eleveId, newFileName } = await req.json();
+    const bucket = process.env.AWS_S3_BUCKET_NAME!;
+
+    // Liste des dossiers élèves
+    const existingFolders = await listElevesFolders(s3, bucket);
+
+    // Matching flou sur le dossier élève
+    const matchedFolder = findClosestFolder(eleveId, existingFolders, 5);
+
+    if (!matchedFolder) {
+      return NextResponse.json(
+        { error: 'Aucun dossier élève correspondant trouvé. À valider manuellement.', dossiersExistants: existingFolders },
+        { status: 404 }
+      );
+    }
+
+    // Utilise le nom exact du dossier existant
+    const destKey = `eleves/${matchedFolder}/${newFileName}`;
+
     // Copie le fichier dans le dossier élève
     await s3.send(new CopyObjectCommand({
       Bucket: bucket,
@@ -59,12 +100,13 @@ export async function POST(req: Request) {
       Bucket: bucket,
       Key: sourceKey,
     }));
-    return NextResponse.json({ success: true, destKey });
+
+    return NextResponse.json({ success: true, destKey, dossierTrouve: matchedFolder });
   } catch (err) {
+    console.error('Erreur move-file:', err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Erreur inconnue' },
       { status: 500 }
     );
   }
 }
-
