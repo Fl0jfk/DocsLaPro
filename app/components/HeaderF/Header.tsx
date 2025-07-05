@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import CrossButton from '../Buttons/CrossButton';
 import Navbar from '../Navbar/Navbar';
+import { SignedIn, SignedOut, UserButton, SignInButton, SignOutButton} from '@clerk/nextjs';
 import { motion, useScroll, useMotionValueEvent } from 'framer-motion';	
 import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp";
 import Link from 'next/link';
@@ -45,8 +46,24 @@ export default function Header() {
                     </Link>
                 )}
             </div>
-            {!menuOpened && <p className='w-8/12 text-center ml-[-20px] lg:hidden xl:hidden'>INTRANET</p>}
-            <div className="w-2/12 flex justify-end items-center sm:mt-[-5px] h-full">
+            <div className="w-8/12 gap-4 flex justify-end items-center sm:mt-[-5px] h-full">
+             <div className="flex gap-4">
+              <SignedOut>
+                <SignInButton>
+                  <button className="px-4 py-2">
+                    Se connecter
+                  </button>
+                </SignInButton>
+              </SignedOut>
+              <SignedIn>
+                <UserButton/>
+                <SignOutButton>
+                  <button className="px-2 py-2">
+                    Se déconnecter
+                  </button>
+                </SignOutButton>
+              </SignedIn>
+            </div>
                 <Navbar menuOpened={menuOpened} onLinkClick={handleLinkClick} />    
                 <div className="flex justify-end w-[40] items-center h-full" onClick={handleClick}>
                     <CrossButton menuOpened={menuOpened} />
