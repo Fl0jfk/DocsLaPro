@@ -1,4 +1,3 @@
-// app/api/documents/list/route.ts
 import { NextRequest } from "next/server";
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { getAuth, clerkClient } from "@clerk/nextjs/server";

@@ -1,5 +1,3 @@
-"use client";
-
 import Slider, { Category } from "./Slider";
 type RollingSliderProps = {
   categories: Category[];

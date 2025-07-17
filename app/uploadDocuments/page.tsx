@@ -194,7 +194,7 @@ export default function UploadAndAnalyzeDocument() {
   };
 
   return (
-    <div className="max-w-xl mx-auto p-4">
+    <div className="max-w-xl mx-auto p-4 pt-[10vh]">
       <h2 className="font-bold mb-2">Upload + OCR + Analyse IA + MoveFile</h2>
       <input
         type="file"

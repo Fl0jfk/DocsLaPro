@@ -59,10 +59,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         return resolve(NextResponse.json({ error: "Erreur lors de l'envoi de l'email." }, { status: 500 }));
       }
     });
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+   
     const stream = Readable.from(request.body as any);
     stream.pipe(busboy);
   });
 }
-
-

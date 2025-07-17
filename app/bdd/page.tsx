@@ -1,5 +1,4 @@
-// components/ExplorerEleves.tsx
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 
@@ -27,22 +26,17 @@ export default function ExplorerEleves() {
   const [filtreClasse, setFiltreClasse] = useState<string>('toutes');
   const [filtreTag, setFiltreTag] = useState<string>('tous');
   const [editFiche, setEditFiche] = useState<Eleve['fiche'] | null>(null);
-
   useEffect(() => {
     fetch('/api/eleves/list')
       .then(res => res.json())
       .then(setEleves);
   }, []);
-
-  // Récupère toutes les classes et tags existants pour les filtres
   const toutesClasses = Array.from(
     new Set(eleves.flatMap(e => e.fiche?.classes ?? []))
   ).sort();
   const tousTags = Array.from(
     new Set(eleves.flatMap(e => e.fiche?.tags ?? []))
   ).sort();
-
-  // Filtrage
   const aujourdHui = new Date().toISOString().slice(0, 10);
   const elevesFiltres = eleves.filter(eleve => {
     const fiche = eleve.fiche;
@@ -55,8 +49,6 @@ export default function ExplorerEleves() {
     if (!tagOk) return false;
     return true;
   });
-
-  // Sauvegarde de la fiche modifiée
   const handleSaveFiche = async () => {
     if (!editFiche || selected === null) return;
     await fetch('/api/eleves/update-fiche', {
@@ -67,7 +59,6 @@ export default function ExplorerEleves() {
         fiche: editFiche,
       }),
     });
-    // Recharge la liste après modification
     fetch('/api/eleves/list')
       .then(res => res.json())
       .then(data => {
@@ -75,15 +66,11 @@ export default function ExplorerEleves() {
         setEditFiche(null);
       });
   };
-
-  // Téléchargement global (sauvegarde)
   const handleDownloadAll = async () => {
     window.open('/api/eleves/download-all', '_blank');
   };
-
   return (
-    <div className="max-w-6xl mx-auto flex flex-row gap-8">
-      {/* Filtres */}
+    <div className="max-w-6xl mx-auto flex flex-row gap-8 pt-[10vh]">
       <div className="w-1/3 bg-gray-100 p-4 rounded">
         <h2 className="font-bold mb-2">Tous les dossiers élèves</h2>
         <div className="mb-2">
@@ -251,4 +238,3 @@ export default function ExplorerEleves() {
     </div>
   );
 }
-
