@@ -33,41 +33,45 @@ export async function POST(request: NextRequest) {
 
   // 2. Multipart (fichier joint)
   if (contentType.startsWith("multipart/form-data")) {
-    return new Promise((resolve) => {
-      const busboy = Busboy({ headers: Object.fromEntries(request.headers.entries()) });
-      const fields: Record<string, string> = {};
-      const attachments: Attachment[] = [];
+    const busboy = Busboy({ headers: Object.fromEntries(request.headers.entries()) });
+    const fields: Record<string, string> = {};
+    const attachments: Attachment[] = [];
 
-      busboy.on("file", (fieldname, file, { filename, mimeType }) => {
-        const chunks: Buffer[] = [];
-        file.on("data", (chunk) => chunks.push(chunk));
-        file.on("end", () => {
-          attachments.push({
-            filename,
-            content: Buffer.concat(chunks),
-            contentType: mimeType,
-          });
+    busboy.on("file", (fieldname, file, { filename, mimeType }) => {
+      const chunks: Buffer[] = [];
+      file.on("data", (chunk) => chunks.push(chunk));
+      file.on("end", () => {
+        attachments.push({
+          filename,
+          content: Buffer.concat(chunks),
+          contentType: mimeType,
         });
       });
-      busboy.on("field", (fieldname, value) => {
-        fields[fieldname] = value;
-      });
-      busboy.on("finish", async () => {
-        const to = RECIPIENTS[fields.target] || RECIPIENTS.default;
-        await sendMail({
-          to,
-          subject: fields.subject || "[Système] Nouveau formulaire",
-          text: fields.text || "",
-          html: fields.html || "",
-          attachments,
-          replyTo: fields.replyTo,
-        });
-        resolve(NextResponse.json({ success: true, message: "Email (avec pièce jointe si présente) envoyé." }));
-      });
-        // @ts-expect-error: Readable.fromWeb typage Node.js pas encore correct pour Next App Router
+    });
+
+    busboy.on("field", (fieldname, value) => {
+      fields[fieldname] = value;
+    });
+
+    // Attend que busboy ait tout lu AVANT de poursuivre
+    await new Promise<void>((resolve, reject) => {
+      busboy.on("finish", resolve);
+      busboy.on("error", reject);
+      // @ts-expect-error: Node.js Readable.fromWeb typage pas encore correct pour Next App Router
       const nodeStream = Readable.fromWeb(request.body as unknown as ReadableStream<Uint8Array>);
       nodeStream.pipe(busboy);
     });
+
+    const to = RECIPIENTS[fields.target] || RECIPIENTS.default;
+    await sendMail({
+      to,
+      subject: fields.subject || "[Système] Nouveau formulaire",
+      text: fields.text || "",
+      html: fields.html || "",
+      attachments,
+      replyTo: fields.replyTo,
+    });
+    return NextResponse.json({ success: true, message: "Email (avec pièce jointe si présente) envoyé." });
   }
 
   return NextResponse.json({ error: "Type de contenu non supporté." }, { status: 415 });
