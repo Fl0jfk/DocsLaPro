@@ -3,6 +3,7 @@ import { getAuth } from '@clerk/nextjs/server';
 
 export async function POST(req: Request) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
     if (!userId)
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     }
 
     const mistralData = await mistralResponse.json();
-    let result = mistralData.choices?.[0]?.message?.content || '';
+    const result = mistralData.choices?.[0]?.message?.content || '';
 
     // Extraction robuste du JSON depuis n'importe où dans la chaîne
     // - prend le bloc json dans les balises markdown, ou le 1er objet JSON qui traîne

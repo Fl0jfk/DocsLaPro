@@ -46,6 +46,7 @@ export default function ValidationAbsences() {
         const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
         setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
       } catch (e) {
+        console.error("Erreur lors du chargement des absences :", e);
         setMsg("Erreur lors du chargement des absences.");
       }
     }
@@ -65,6 +66,7 @@ export default function ValidationAbsences() {
       const result = await res.json();
       setMsg(result.message || result.error);
       setAbsences((old) => old.filter((a) => a.id !== id));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       setMsg(error?.message || "Erreur lors de la validation.");
     } finally {

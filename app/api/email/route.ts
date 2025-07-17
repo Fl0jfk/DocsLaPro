@@ -1,4 +1,4 @@
-/*import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sendMail, Attachment } from "@/app/utils/sendEmail";
 import Busboy from "busboy";
 import { Readable } from "stream";
@@ -72,4 +72,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ error: "Type de contenu non supporté." }, { status: 415 });
 }
-*/
