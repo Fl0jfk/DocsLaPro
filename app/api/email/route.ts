@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         });
         resolve(NextResponse.json({ success: true, message: "Email (avec pièce jointe si présente) envoyé." }));
       });
-      // @ts-ignore
+        // @ts-expect-error: Readable.fromWeb typage Node.js pas encore correct pour Next App Router
       const nodeStream = Readable.fromWeb(request.body as unknown as ReadableStream<Uint8Array>);
       nodeStream.pipe(busboy);
     });
