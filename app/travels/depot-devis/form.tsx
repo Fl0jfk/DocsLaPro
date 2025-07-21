@@ -22,6 +22,7 @@ export default function DepotDevisForm() {
     formData.set("id", id);
     if (transporteur) formData.set("transporteur", transporteur);
     formData.set("devis", fileInput.current.files[0]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     formData.set("message", (e.target as any).message.value);
     const res = await fetch("/api/voyages/deposer-devis", { method: "POST", body: formData });
     const rep = await res.json();
