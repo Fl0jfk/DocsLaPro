@@ -43,19 +43,19 @@ export default function ValidationAbsences() {
     async function fetchAbsences() {
       try {
   const res = await fetch("/api/absence/validate");
-  const txt = await res.text(); // ← on log tout le RAW !
+  const txt = await res.text();
   console.log("Réponse brute API :", txt);
-  const arr = JSON.parse(txt); // s'il ne plante pas ici, c'est bon
+  const arr = JSON.parse(txt);
   const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
   setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
 } catch (e) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setMsg("Erreur de récupération absences : " + (e as any).message);
   console.error("Erreur parsing JSON ou fetch : ", e);
 }
     }
     fetchAbsences();
   }, [cible]);
-
   const handleValidation = async (id: string, statut: "validee" | "refusee") => {
     setLoading(true);
     setMsg("");
@@ -76,16 +76,12 @@ export default function ValidationAbsences() {
       setLoading(false);
     }
   };
-
   if (!isLoaded) return <div className="pt-[10vh] flex">Chargement utilisateur…</div>;
   if (!user) return <div className="pt-[10vh] flex">Vous devez être connecté(e).</div>;
   if (!cible) return <div className="pt-[10vh] flex">Vous n’avez pas accès à la gestion des absences.<br />Rôle non reconnu.</div>;
-
   return (
     <div className="pt-[10vh] flex">
-      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>
-        Demandes d’absence à valider ({cible})
-      </h2>
+      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>Demandes d’absence à valider ({cible})</h2>
       {msg && <div style={{ color: msg.toLowerCase().includes("succès") || msg.toLowerCase().includes("envoyé") ? "green" : "red", marginBottom: 18 }}>{msg}</div>}
       {!absences.length && <div>Aucune absence à traiter pour l’instant.</div>}
       <ul style={{ listStyle: "none", padding: 0 }}>

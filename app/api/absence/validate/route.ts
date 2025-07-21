@@ -16,6 +16,7 @@ export async function GET() {
     const absences = await readStore();
     return NextResponse.json(absences);
   } catch (e) {
+    console.error("Erreur lors de la lecture des absences :", e);
     return NextResponse.json([], { status: 200 });
   }
 }

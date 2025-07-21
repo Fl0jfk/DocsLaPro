@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const date_fin = data.get("date_fin") as string;
   const motif = data.get("motif") as string;
   const commentaire = data.get("commentaire") as string | undefined;
-  let attachments: {
+  const attachments: {
     filename: string;
     buffer: string;
     type: string;

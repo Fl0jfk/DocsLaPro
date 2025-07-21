@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 type Eleve = {
   dossier: string;
@@ -108,7 +109,9 @@ export default function ExplorerEleves() {
               onClick={() => { setSelected(i); setEditFiche(null); }}
             >
               {eleve.photoUrl && (
-                <img
+                <Image
+                  width={32}
+                  height={32}
                   src={eleve.photoUrl}
                   alt="photo élève"
                   className="w-8 h-8 rounded-full mr-2 object-cover border"
@@ -127,8 +130,6 @@ export default function ExplorerEleves() {
           Télécharger tous les documents (sauvegarde)
         </button>
       </div>
-
-      {/* Détail d'un élève */}
       <div className="flex-1 bg-white p-4 rounded shadow">
         {selected !== null && elevesFiltres[selected] && (
           <>
@@ -136,7 +137,9 @@ export default function ExplorerEleves() {
               {elevesFiltres[selected].fiche?.prenom} {elevesFiltres[selected].fiche?.nom}
             </h3>
             {elevesFiltres[selected].photoUrl && (
-              <img
+              <Image
+                width={64}
+                height={64}
                 src={elevesFiltres[selected].photoUrl}
                 alt="photo élève"
                 className="w-16 h-16 rounded-full mb-2 object-cover border"
