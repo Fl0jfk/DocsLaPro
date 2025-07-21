@@ -15,7 +15,21 @@ export default function AbsenceDeclarationForm() {
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    const res = await fetch("/api/absence", {
+    // CONTRÔLE 5 PJ MAX
+    if (fileInput.current?.files && fileInput.current.files.length > 5) {
+      setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
+      setLoading(false);
+      return;
+    }
+
+    // Ajoute chaque fichier comme "attachments"
+    if (fileInput.current?.files) {
+      Array.from(fileInput.current.files).forEach(file => {
+        formData.append("attachments", file);
+      });
+    }
+
+    const res = await fetch("/api/absence/want", {
       method: "POST",
       body: formData,
     });
@@ -28,7 +42,7 @@ export default function AbsenceDeclarationForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} encType="multipart/form-data" style={{ maxWidth: 450, margin: "2rem auto", padding: 24, background: "#f7f7fa", borderRadius: 8 }}>
+    <form onSubmit={handleSubmit} encType="multipart/form-data" className="pt-[20vh] flex flex-col items-center gap-4">
       <h2>Déclaration d’absence</h2>
       <label>
         Je suis&nbsp;:
@@ -42,7 +56,7 @@ export default function AbsenceDeclarationForm() {
         Établissement concerné&nbsp;:
         <select name="cible" required>
           <option value="">Choisir…</option>
-          <option value="ecole">École</option>
+          <option value="direction_ecole">École</option>
           <option value="college">Collège</option>
           <option value="lycee">Lycée</option>
         </select>
@@ -66,8 +80,15 @@ export default function AbsenceDeclarationForm() {
         <input type="text" name="motif" required />
       </label>
       <label>
-        Justificatif (pdf/image)&nbsp;:
-        <input type="file" name="attachment" accept="image/*,.pdf" ref={fileInput} />
+        Justificatifs (5 max)&nbsp;:
+        <input
+          type="file"
+          name="attachments"
+          ref={fileInput}
+          multiple
+          accept="image/*,.pdf"
+          max={5}
+        />
       </label>
       <label>
         Commentaire :

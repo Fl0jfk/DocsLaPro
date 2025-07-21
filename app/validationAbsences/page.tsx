@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import type { UserResource } from "@clerk/types";
+import Link from "next/link";
 
 type AbsenceEntry = {
   id: string;
   type: "prof" | "salarie";
-  cible: "ecole" | "college" | "lycee";
+  cible: "direction_ecole" | "college" | "directionlycee";
   nom: string;
   email: string;
   date_debut: string;
@@ -19,10 +20,10 @@ type AbsenceEntry = {
   date_declaration: string;
 };
 
-const CIBLE_MAP: Record<string, "lycee" | "college" | "ecole"> = {
-  direction_lycee: "lycee",
+const CIBLE_MAP: Record<string, "directionlycee" | "college" | "direction_ecole"> = {
+  direction_lycee: "directionlycee",
   direction_college: "college",
-  direction_ecole: "ecole",
+  direction_ecole: "direction_ecole",
 };
 
 export default function ValidationAbsences() {
@@ -31,7 +32,7 @@ export default function ValidationAbsences() {
   const [choix, setChoix] = useState<Record<string, "validee" | "refusee" | "">>({});
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
-  function getCibleFromRole(user: UserResource | null | undefined): "lycee" | "college" | "ecole" | null {
+  function getCibleFromRole(user: UserResource | null | undefined): "directionlycee" | "college" | "direction_ecole" | null {
     if (!user) return null;
     const role = (user.publicMetadata?.role as string | undefined) || "";
     return (role && CIBLE_MAP[role]) ? CIBLE_MAP[role] : null;
@@ -41,14 +42,16 @@ export default function ValidationAbsences() {
     if (!cible) return;
     async function fetchAbsences() {
       try {
-        const res = await fetch("/api/absence");
-        const arr = await res.json();
-        const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
-        setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
-      } catch (e) {
-        console.error("Erreur lors du chargement des absences :", e);
-        setMsg("Erreur lors du chargement des absences.");
-      }
+  const res = await fetch("/api/absence/validate");
+  const txt = await res.text(); // ← on log tout le RAW !
+  console.log("Réponse brute API :", txt);
+  const arr = JSON.parse(txt); // s'il ne plante pas ici, c'est bon
+  const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
+  setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
+} catch (e) {
+  setMsg("Erreur de récupération absences : " + (e as any).message);
+  console.error("Erreur parsing JSON ou fetch : ", e);
+}
     }
     fetchAbsences();
   }, [cible]);
@@ -74,12 +77,12 @@ export default function ValidationAbsences() {
     }
   };
 
-  if (!isLoaded) return <div>Chargement utilisateur…</div>;
-  if (!user) return <div>Vous devez être connecté(e).</div>;
-  if (!cible) return <div>Vous n’avez pas accès à la gestion des absences.<br />Rôle non reconnu.</div>;
+  if (!isLoaded) return <div className="pt-[10vh] flex">Chargement utilisateur…</div>;
+  if (!user) return <div className="pt-[10vh] flex">Vous devez être connecté(e).</div>;
+  if (!cible) return <div className="pt-[10vh] flex">Vous n’avez pas accès à la gestion des absences.<br />Rôle non reconnu.</div>;
 
   return (
-    <div style={{ maxWidth: 700, margin: "2rem auto", background: "#fff", borderRadius: 12, padding: 30, boxShadow: "0 0 12px #eee" }}>
+    <div className="pt-[10vh] flex">
       <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>
         Demandes d’absence à valider ({cible})
       </h2>
@@ -105,7 +108,7 @@ export default function ValidationAbsences() {
             )}
             {a.justificatif_filename && (
               <div>
-                <b>Justificatif :</b> <span style={{ color: "#0070f3" }}>{a.justificatif_filename}</span> (envoyé automatiquement en PJ après validation)
+                <b>Justificatif :</b> <Link href={a.justificatif_filename} style={{ color: "#0070f3" }}>{a.justificatif_filename}</Link> (envoyé automatiquement en PJ après validation)
               </div>
             )}
             <div style={{ marginTop: 14 }}>

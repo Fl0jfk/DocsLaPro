@@ -6,7 +6,7 @@ const FILE = path.resolve(process.cwd(), "absences_en_attente.json");
 export type AbsenceEntry = {
   id: string;
   type: "prof" | "salarie";
-  cible: "ecole" | "college" | "lycee";
+  cible: "direction_ecole" | "college" | "lycee";
   nom: string;
   email: string;
   date_debut: string;
@@ -15,6 +15,7 @@ export type AbsenceEntry = {
   commentaire?: string;
   justificatif_filename?: string;
   justificatif_buffer?: string;
+  justificatifs?: { filename: string; buffer: string; type: string }[];
   justificatif_type?: string;
   etat: "en_attente" | "validee" | "refusee";
   date_declaration: string;

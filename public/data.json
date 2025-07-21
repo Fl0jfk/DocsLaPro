@@ -63,6 +63,14 @@
             "link":"/bdd",
             "description":"",
             "allowedRoles": ["direction", "administratif"]
+        },
+        {
+            "id":10,
+            "name":"Demande d'absence",
+            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+            "link":"/absenceForm",
+            "description":"",
+            "allowedRoles": ["direction", "administratif", "direction_ecole"]
         }
     ],
     "documents":[
