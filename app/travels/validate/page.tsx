@@ -60,6 +60,7 @@ export default function ValidationVoyages() {
         const arr = await res.json();
         setVoyages(Array.isArray(arr) ? arr.filter(v => v.etat === "en_attente") : []);
       } catch (e) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setMsg("Erreur de récupération des voyages : " + (e as any).message);
       }
     }
@@ -78,6 +79,7 @@ export default function ValidationVoyages() {
       const result = await res.json();
       setMsg(result.message || result.error);
       setVoyages((old) => old.filter((a) => a.id !== id));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       setMsg(error?.message || "Erreur lors de la validation.");
     } finally {

@@ -7,6 +7,7 @@ export async function GET() {
     const voyages = await readVoyages();
     return NextResponse.json(voyages);
   } catch (e) {
+    console.error("Erreur lors de la récupération des voyages :", e);
     return NextResponse.json([], { status: 200 });
   }
 }
@@ -17,11 +18,8 @@ export async function POST(req: NextRequest) {
   const voyageIdx = voyages.findIndex(v => v.id === id);
   if (voyageIdx === -1)
     return NextResponse.json({ error: "Voyage introuvable" }, { status: 404 });
-
   const voyage = voyages[voyageIdx];
-
   if (statut === "refusee") {
-    // Suppression directe si refus
     await removeVoyage(id);
     // (tu peux aussi notifier le prof ici si besoin)
     return NextResponse.json({ success: true, message: "Voyage refusé et supprimé." });

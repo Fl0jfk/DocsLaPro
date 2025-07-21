@@ -74,6 +74,7 @@ export default function ValidationAbsences() {
         const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
         setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
       } catch (e) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setMsg("Erreur de récupération absences : " + (e as any).message);
         console.error("Erreur parsing JSON ou fetch : ", e);
       }
@@ -93,6 +94,7 @@ export default function ValidationAbsences() {
       const result = await res.json();
       setMsg(result.message || result.error);
       setAbsences((old) => old.filter((a) => a.id !== id));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       setMsg(error?.message || "Erreur lors de la validation.");
     } finally {
