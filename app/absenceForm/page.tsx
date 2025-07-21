@@ -8,16 +8,12 @@ export default function AbsenceDeclarationForm() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const { user, isLoaded } = useUser();
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setResult(null);
-
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-
-    // Récupération infos Clerk
     const prenomClerk =
       user?.firstName || "";
     const nomClerk =
@@ -26,39 +22,31 @@ export default function AbsenceDeclarationForm() {
       user?.primaryEmailAddress?.emailAddress ||
       user?.emailAddresses?.[0]?.emailAddress ||
       "";
-
-    // Ajout forcé (sureté RGPD)
     formData.set("nom", `${prenomClerk} ${nomClerk}`.trim());
     formData.set("email", emailClerk);
-
     if (fileInput.current?.files && fileInput.current.files.length > 5) {
       setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
       setLoading(false);
       return;
     }
-
     const res = await fetch("/api/absence/want", {
       method: "POST",
       body: formData,
     });
-
     const reponse = await res.json();
     setLoading(false);
     setResult(reponse.message || reponse.error);
     if (fileInput.current) fileInput.current.value = "";
     form.reset();
   }
-
   if (!isLoaded) return <div>Chargement…</div>;
   if (!user) return <div>Vous devez être connecté(e).</div>;
-
   const prenomClerk = user.firstName || "";
   const nomClerk = user.lastName || "";
   const emailClerk =
     user.primaryEmailAddress?.emailAddress ||
     user.emailAddresses?.[0]?.emailAddress ||
     "";
-
   return (
     <form onSubmit={handleSubmit} encType="multipart/form-data" className="pt-[20vh] flex flex-col items-center gap-4">
       <h2>Déclaration d’absence</h2>
@@ -92,10 +80,8 @@ export default function AbsenceDeclarationForm() {
           <option value="lycee">Lycée</option>
         </select>
       </label>
-      {/* Le vrai champ nom (invisible, pour la synthèse serveur ou RGPD au besoin) */}
       <input type="hidden" name="nom" value={`${prenomClerk} ${nomClerk}`.trim()} readOnly />
       <input type="hidden" name="email" value={emailClerk} readOnly />
-
       <label>
         Début&nbsp;: <input type="date" name="date_debut" required />
       </label>
