@@ -5,7 +5,7 @@ const FILE = path.resolve(process.cwd(), "voyages_en_attente.json");
 
 export type VoyagePieceJointe = {
   filename: string;
-  buffer: string;    // base64
+  buffer: string;  
   type: string;
 };
 
@@ -34,7 +34,7 @@ export type DevisTransporteur = {
   commentaire?: string;
   devis?: DevisTransporteur[];
   pieces_jointes?: VoyagePieceJointe[];
-  etat: "en_attente" | "validee" | "refusee" | "etape_2_en_attente"| "etape_3_en_attente";
+  etat: "en_attente" | "etape_2_en_attente" | "etape_3_en_attente" | "validation_finale_en_attente" | "validee_definitive" | "validee" | "refusee";
   date_declaration: string;
   programme?: {
     filename: string;
@@ -49,6 +49,18 @@ export type DevisTransporteur = {
     lieu_repas?: string;
     devis_transporteur: boolean;
     details_devis_transporteur?: string;
+    commentaire?: string;
+    date?: string;
+  };
+  etape_3?: {
+    circulaire_depart?: VoyagePieceJointe[];        
+    date_reunion_info?: string;          
+    date_envoi_circulaire_parents?: string;
+    participation_famille?: number;
+    cout_total_voyage?: number;
+    liste_eleves?: VoyagePieceJointe[];
+    liste_accompagnateurs?: VoyagePieceJointe[];
+    autres_pieces?: VoyagePieceJointe[];
     commentaire?: string;
     date?: string;
   };

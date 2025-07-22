@@ -30,7 +30,6 @@ export default function DepotDevisForm() {
     setMsg(rep.message || rep.error);
     if (rep.success) { if (fileInput.current) fileInput.current.value = ""; }
   }
-
   if (!id) return <div>Aucun voyage identifié.</div>;
   return (
     <form onSubmit={handleSubmit} style={{ maxWidth: 400, margin: "5vh auto", background: "#fff", borderRadius: 8, padding: 32, boxShadow: "0 1px 5px #ddd" }}>

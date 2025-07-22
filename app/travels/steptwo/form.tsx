@@ -48,13 +48,9 @@ export default function VoyageEtape2Form() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id") || "";
   const router = useRouter();
-
-  // Étape 1 : on récupère le voyage à enrichir
   const [voyage, setVoyage] = useState<VoyageEntry | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
-
-  // Champs "État" du formulaire étape 2
   const [panier, setPanier] = useState(false);
   const [nbRepas, setNbRepas] = useState<number>(0);
   const [nbVeg, setNbVeg] = useState<number>(0);
@@ -63,15 +59,13 @@ export default function VoyageEtape2Form() {
   const [devis, setDevis] = useState(false);
   const [detailsDevis, setDetailsDevis] = useState("");
   const [commentaire, setCommentaire] = useState("");
-
   useEffect(() => {
     async function fetchVoyage() {
       if (!id) return;
-      const res = await fetch(`/api/voyages/one?id=${id}`);
+      const res = await fetch(`/api/travels/stepone?id=${id}`);
       if (res.ok) {
         const v = await res.json();
         setVoyage(v);
-        // Pré-remplissage si étape 2 déjà initialisée
         if (v.etape_2) {
           setPanier(!!v.etape_2.panier_repas);
           setNbRepas(Number(v.etape_2.nb_repas || 0));
@@ -86,12 +80,10 @@ export default function VoyageEtape2Form() {
     }
     fetchVoyage();
   }, [id]);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setResult(null);
-
     const payload = {
       id,
       panier_repas: panier,
@@ -103,8 +95,7 @@ export default function VoyageEtape2Form() {
       details_devis_transporteur: devis ? detailsDevis : undefined,
       commentaire,
     };
-
-    const res = await fetch("/api/voyages/etape2", {
+    const res = await fetch("/api/travels/steptwo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -112,18 +103,14 @@ export default function VoyageEtape2Form() {
     const rep = await res.json();
     setLoading(false);
     setResult(rep.message || rep.error);
-
-    // Redirige vers l'étape 3 (si besoin de devis transporteur)
     if (devis && rep.success) {
       setTimeout(() => {
-        router.push(`/voyages/etape3?id=${id}`);
+        router.push(`/voyages/stepthree?id=${id}`);
       }, 1500);
     }
   }
-
   if (!id) return <div>Aucun voyage identifié.</div>;
   if (!voyage) return <div>Chargement…</div>;
-
   return (
     <form onSubmit={handleSubmit} className="pt-[8vh] flex flex-col items-center gap-4 max-w-xl mx-auto">
       <h2>Voyage scolaire – Étape 2</h2>

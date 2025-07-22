@@ -29,7 +29,7 @@ export default function MesVoyages() {
       user.primaryEmailAddress?.emailAddress ||
       user.emailAddresses?.[0]?.emailAddress ||
       "";
-    fetch("/api/voyages/by-user?email=" + encodeURIComponent(email))
+    fetch("/api/travels/by-user?email=" + encodeURIComponent(email))
       .then(r => r.json())
       .then(setVoyages);
   }, [user]);
@@ -46,10 +46,10 @@ export default function MesVoyages() {
             <div>{v.date_depart} – {v.date_retour}</div>
             <div><b>Statut :</b> {ETAPES[v.etat as keyof typeof ETAPES] || v.etat}</div>
             {v.etat === "etape_2_en_attente" && (
-              <Link href={`/voyages/etape2?id=${v.id}`}>Poursuivre l’étape 2</Link>
+              <Link href={`/travels/steptwo?id=${v.id}`}>Poursuivre l’étape 2</Link>
             )}
             {v.etat === "etape_3_en_attente" && (
-              <Link href={`/voyages/etape3?id=${v.id}`}>Déposer devis reçus (étape 3)</Link>
+              <Link href={`/travels/stepthree?id=${v.id}`}>Déposer devis reçus (étape 3)</Link>
             )}
             {v.etat === "en_attente" && <span>En attente d’accord direction</span>}
             {v.etat === "validee" && <span>Terminé</span>}

@@ -52,11 +52,10 @@ export default function ValidationVoyages() {
   const [voyages, setVoyages] = useState<VoyageEntry[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
-
   useEffect(() => {
     async function fetchVoyages() {
       try {
-        const res = await fetch("/api/voyages/validation");
+        const res = await fetch("/api/travels/validate");
         const arr = await res.json();
         setVoyages(Array.isArray(arr) ? arr.filter(v => v.etat === "en_attente") : []);
       } catch (e) {
@@ -66,12 +65,11 @@ export default function ValidationVoyages() {
     }
     fetchVoyages();
   }, []);
-
   const handleValidation = async (id: string, statut: "validee" | "refusee") => {
     setLoadingId(id);
     setMsg("");
     try {
-      const res = await fetch("/api/voyages/validation", {
+      const res = await fetch("/api/travels/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, statut }),
@@ -86,15 +84,11 @@ export default function ValidationVoyages() {
       setLoadingId(null);
     }
   };
-
   if (!isLoaded) return <div className="pt-[10vh] flex">Chargement…</div>;
   if (!user) return <div className="pt-[10vh] flex">Vous devez être connecté(e).</div>;
-
   return (
     <div className="pt-[10vh] flex flex-col w-full items-center">
-      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>
-        Demandes de voyage à valider
-      </h2>
+      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>Demandes de voyage à valider</h2>
       {msg && (
         <div style={{ color: msg.toLowerCase().includes("succès") || msg.toLowerCase().includes("envoyé") ? "green" : "red", marginBottom: 18 }}>{msg}</div>
       )}

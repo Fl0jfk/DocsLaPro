@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { addVoyage, VoyageEntry } from "@/app/utils/voyageStore";
 
 const RECIPIENTS: Record<string, string[]> = {
-  direction_ecole: ["mail.direction.ecole@domaine.fr"],
+  direction_ecole: ["flojfk+direction.ecole@gmail.com"],
   direction_college: ["mail.direction.college@domaine.fr"],
   direction_lycee: ["mail.direction.lycee@domaine.fr"],
   default: ["secretariat@domaine.fr"],
@@ -12,8 +12,6 @@ const RECIPIENTS: Record<string, string[]> = {
 export async function POST(req: NextRequest) {
   const form = await req.formData();
   const direction_cible = form.get("direction_cible") as keyof typeof RECIPIENTS;
-
-  // Traitement PJ générales (max 5)
   const files = form.getAll("pj").filter(f => f instanceof File) as File[];
   if (files.length > 5) return NextResponse.json({ error: "Pas plus de 5 fichiers" }, { status: 400 });
   const pieces_jointes = [];
@@ -25,7 +23,6 @@ export async function POST(req: NextRequest) {
       type: file.type,
     });
   }
-  // Programme obligatoire (1 fichier)
   const programmeFile = (form.get("programme") instanceof File) ? form.get("programme") as File : null;
   let programme = null;
   if (programmeFile) {
@@ -36,7 +33,6 @@ export async function POST(req: NextRequest) {
       type: programmeFile.type,
     };
   }
-
   const voyage: VoyageEntry = {
     id: uuidv4(),
     prenom: form.get("prenom") as string,
@@ -57,8 +53,6 @@ export async function POST(req: NextRequest) {
     date_declaration: new Date().toISOString(),
   };
   await addVoyage(voyage);
-
-  // Prépare les PJ pour Nodemailer (programme AVANT, puis toutes les autres PJ)
   const attachments = [
     ...(programme ? [{ filename: programme.filename, content: Buffer.from(programme.buffer, "base64"), contentType: programme.type }] : []),
     ...pieces_jointes.map(f => ({
@@ -67,7 +61,6 @@ export async function POST(req: NextRequest) {
       contentType: f.type,
     }))
   ];
-
   const to = RECIPIENTS[direction_cible] || RECIPIENTS.default;
   const subject = `[Voyage scolaire] Nouvelle demande à valider - ${voyage.lieu}`;
   const text =
@@ -79,14 +72,12 @@ export async function POST(req: NextRequest) {
     `Classes concernées : ${voyage.classes}\n` +
     `Élèves : ${voyage.effectif_eleves} | Accompagnateurs : ${voyage.effectif_accompagnateurs}\n` +
     (voyage.commentaire ? `Programme : ${voyage.commentaire}\n` : "") +
-    `\nLien de validation : ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/validation/voyage?id=${voyage.id}`;
-
+    `\nLien de validation : ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/travels/validate?id=${voyage.id}`;
   await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email`, {
     method: "POST",
     body: JSON.stringify({ to, subject, text, attachments }),
     headers: { "Content-Type": "application/json" },
   });
-
   return NextResponse.json({ success: true, message: "Demande enregistrée et transmise à la direction." });
 }
 

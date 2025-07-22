@@ -9,16 +9,12 @@ export default function VoyageForm() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const { user, isLoaded } = useUser();
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setResult(null);
-
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-
-    // Infos Clerk
     if (!user) return;
     const prenom = user.firstName || "";
     const nom = user.lastName || "";
@@ -26,25 +22,20 @@ export default function VoyageForm() {
       user.primaryEmailAddress?.emailAddress ||
       user.emailAddresses?.[0]?.emailAddress ||
       "";
-
     formData.set("prenom", prenom);
     formData.set("nom", nom);
     formData.set("email", email);
-
-    // CONTRÔLE 5 PJ MAX
     if (fileInput.current?.files && fileInput.current.files.length > 5) {
       setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
       setLoading(false);
       return;
     }
-
     if (progInput.current?.files && progInput.current.files.length > 1) {
       setResult("Une seule pièce jointe autorisée pour le programme.");
       setLoading(false);
       return;
     }
-
-    const res = await fetch("/api/voyages/create", {
+    const res = await fetch("/api/travels/create", {
       method: "POST",
       body: formData,
     });
@@ -55,17 +46,14 @@ export default function VoyageForm() {
     if (progInput.current) progInput.current.value = "";
     form.reset();
   }
-
   if (!isLoaded) return <div>Chargement…</div>;
   if (!user) return <div>Vous devez être connecté(e).</div>;
-
   const prenom = user.firstName || "";
   const nom = user.lastName || "";
   const email =
     user.primaryEmailAddress?.emailAddress ||
     user.emailAddresses?.[0]?.emailAddress ||
     "";
-
   return (
     <form onSubmit={handleSubmit} className="pt-[15vh] flex flex-col items-center gap-4 max-w-xl mx-auto" encType="multipart/form-data">
       <h2>Demande de sortie / voyage scolaire</h2>
@@ -81,7 +69,6 @@ export default function VoyageForm() {
       <input type="hidden" name="prenom" value={prenom} />
       <input type="hidden" name="nom" value={nom} />
       <input type="hidden" name="email" value={email} />
-
       <label>Établissement concerné :
         <select name="direction_cible" required>
           <option value="">Choisir…</option>
@@ -103,7 +90,7 @@ export default function VoyageForm() {
         <input type="text" name="activite" required />
       </label>
       <label>Classes concernées :
-        <input type="text" name="classes" placeholder="Ex : 3A, 3B, ULIS…" required />
+        <input type="text" name="classes" placeholder="Ex: 3A, 3B, ULIS…" required />
       </label>
       <label>Nombre d’élèves :
         <input type="number" name="effectif_eleves" min={1} required />
@@ -117,7 +104,6 @@ export default function VoyageForm() {
           type="file"
           name="programme"
           accept=".pdf,.doc,.docx,image/*"
-          required
         />
       </label>
       <label>Autres pièces jointes (5 max) :
@@ -130,7 +116,7 @@ export default function VoyageForm() {
           max={5}
         />
       </label>
-      <label>Commentaire :
+      <label>Commentaire:
         <textarea name="commentaire" />
       </label>
       <button type="submit" disabled={loading} style={{ marginTop: 15 }}>

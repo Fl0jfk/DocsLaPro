@@ -17,15 +17,11 @@ export async function POST(req: NextRequest) {
     devis_transporteur, details_devis_transporteur,
     commentaire
   } = body;
-
   const voyages = await readVoyages();
   const voyageIdx = voyages.findIndex(v => v.id === id);
   if (voyageIdx === -1)
     return NextResponse.json({ error: "Voyage introuvable" }, { status: 404 });
-
   const voyage = voyages[voyageIdx];
-
-  // MAJ du contenu étape 2
   voyages[voyageIdx] = {
     ...voyage,
     etape_2: {
@@ -41,10 +37,7 @@ export async function POST(req: NextRequest) {
     },
     etat: !!devis_transporteur ? "etape_3_en_attente" : "validee"
   };
-
   await writeVoyages(voyages);
-
-  // ---- PDF pour la cantine
   if (panier_repas) {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([595, 842]);
@@ -81,8 +74,6 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" }
     });
   }
-
-  // --- Pour chaque transporteur, on prépare un mail PERSONNALISE avec un lien dépôt unique
   if (devis_transporteur) {
     for (const { email, nom } of TRANSPORTEURS) {
       const pdfDoc = await PDFDocument.create();
@@ -99,10 +90,8 @@ export async function POST(req: NextRequest) {
       y -= 20; page.drawText(`Détails demande :`, { x: 50, y, size, font });
       y -= 18; page.drawText(details_devis_transporteur || "A compléter", { x: 60, y, size: 11, font });
       y -= 32; page.drawText(`Commentaire prof : ${commentaire || ""}`, { x: 50, y, size: 11, font });
-
       const pdfBytes = await pdfDoc.save();
       const pdfBuffer = Buffer.from(pdfBytes);
-
       const deposeUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/voyages/deposer-devis?id=${voyage.id}&transporteur=${encodeURIComponent(nom)}`;
       const subject = `[Voyage scolaire] Demande de devis transporteur - ${voyage.lieu}`;
       const text = `
@@ -113,7 +102,6 @@ Demande de devis transporteur pour le voyage scolaire :
 - Détails dans le PDF joint et dans le programme le cas échéant.
 Vous pouvez déposer votre devis directement ici :
 ${deposeUrl}
-
 Merci de ne pas répondre à ce mail automatique, utilisez le lien pour déposer votre devis PDF.
       `;
       const attachments = [
@@ -125,7 +113,6 @@ Merci de ne pas répondre à ce mail automatique, utilisez le lien pour déposer
           filename: f.filename, content: Buffer.from(f.buffer, "base64"), contentType: f.type
         })) ?? [])
       ];
-
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email`, {
         method: "POST",
         body: JSON.stringify({

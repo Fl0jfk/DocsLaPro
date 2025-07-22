@@ -10,12 +10,10 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
     if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
     const body = await req.json();
     if (!body.filename || !body.contentType) {
       return NextResponse.json({ error: 'filename et contentType requis' }, { status: 400 });
     }
-
     const key = `uploads-temp/${Date.now()}_${body.filename}`;
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME!,

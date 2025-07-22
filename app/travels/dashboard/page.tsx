@@ -58,13 +58,13 @@ export default function AdminVoyagesDashboard() {
   const [voyages, setVoyages] = useState<VoyageEntry[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetch("/api/voyages/all")
+    fetch("/api/travels/view-all")
       .then(r => r.json())
       .then(setVoyages)
       .finally(() => setLoading(false));
   }, []);
   return (
-    <div style={{ maxWidth: 800, margin: "6vh auto" }}>
+    <div className="pt-[10vh]">
       <h2 style={{ fontSize: 22, marginBottom: 24 }}>Tous les voyages scolaires</h2>
       {loading ? <div>Chargement…</div> : (
         <>
