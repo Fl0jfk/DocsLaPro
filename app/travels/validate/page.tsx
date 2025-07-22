@@ -145,14 +145,14 @@ export default function ValidationVoyages() {
   };
   if (!isLoaded) return <div className="pt-[10vh] flex">Chargement…</div>;
   if (!user) return <div className="pt-[10vh] flex">Vous devez être connecté(e).</div>;
-  if (!directionCible) return <div className="pt-[10vh] flex">Vous n'avez pas accès aux validations (rôle non reconnu).</div>;
+  if (!directionCible) return <div className="pt-[10vh] flex">Vous n&apos;avez pas accès aux validations (rôle non reconnu).</div>;
   return (
     <div className="pt-[10vh] flex flex-col w-full items-center">
       <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>Validations direction ({directionCible.replace("direction_", "").toUpperCase()})</h2>
       {msg && (
         <div style={{ color: msg.toLowerCase().includes("succès") || msg.toLowerCase().includes("envoyé") ? "green" : "red", marginBottom: 18 }}>{msg}</div>
       )}
-      {!voyages.length && <div>Aucun voyage à traiter pour l’instant.</div>}
+      {!voyages.length && <div>Aucun voyage à traiter pour l&apos;instant.</div>}
       <ul style={{ listStyle: "none", padding: 0, width: "100%", maxWidth: 780 }}>
         {voyages.map((v) => (
           <li key={v.id} style={{ border: "1px solid #ececec", borderRadius: 8, marginBottom: 30, padding: 18 }}>
@@ -207,21 +207,21 @@ export default function ValidationVoyages() {
             {v.etape_3 && v.etat === "validation_finale_en_attente" && (
               <div style={{marginTop: 7, background: "#fcfcfc", padding: 12, borderRadius: 6}}>
                 <b>Pièces finales déposées :</b>
-                <div>Circulaire de départ : {v.etape_3.circulaire_depart && (
+                <div>Circulaire de départ: {v.etape_3.circulaire_depart && (
                   <a href={base64ToUrl(v.etape_3.circulaire_depart)} target="_blank" rel="noopener noreferrer">{v.etape_3.circulaire_depart.filename}</a>
                 )}</div>
                 <div>Date réunion info : {v.etape_3.date_reunion_info || "–"}</div>
                 <div>Date envoi circulaire parents : {v.etape_3.date_envoi_circulaire_parents || "–"}</div>
                 <div>Participation famille (€) : {v.etape_3.participation_famille}</div>
                 <div>Coût total voyage (€) : {v.etape_3.cout_total_voyage}</div>
-                <div>Liste élèves : {v.etape_3.liste_eleves && (
+                <div>Liste élèves: {v.etape_3.liste_eleves && (
                   <a href={base64ToUrl(v.etape_3.liste_eleves)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_eleves.filename}</a>
                 )}</div>
-                <div>Liste accompagnateurs : {v.etape_3.liste_accompagnateurs && (
+                <div>Liste accompagnateurs: {v.etape_3.liste_accompagnateurs && (
                   <a href={base64ToUrl(v.etape_3.liste_accompagnateurs)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_accompagnateurs.filename}</a>
                 )}</div>
                 {v.etape_3.autres_pieces && v.etape_3.autres_pieces.length > 0 && (
-                  <div>Autres PJ :
+                  <div>Autres PJ:
                     {v.etape_3.autres_pieces.map((pj: PieceJointe, i: number) =>
                       <a key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 10 }}>{pj.filename}</a>
                     )}

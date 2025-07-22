@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   const voyageIdx = voyages.findIndex(v => v.id === id);
   if (voyageIdx === -1) return NextResponse.json({ error: "Voyage introuvable" }, { status: 404 });
   const voyage = voyages[voyageIdx];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function fileToObj(file: File | null): Promise<any | null> {
     if (!file) return null;
     const buf = await file.arrayBuffer();

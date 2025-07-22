@@ -36,7 +36,9 @@ type VoyageEntry = {
   etat: string;
   date_declaration: string;
   devis?: DevisTransporteur[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   etape_2?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   etape_3?: any;
 };
 
