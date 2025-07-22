@@ -73,16 +73,9 @@ function Loader() {
   );
 }
 
-const ETAPES_TITRE: Record<string, string> = {
-  en_attente: "Validation INITIALe: création du voyage",
-  validation_finale_en_attente: "Validation FINALE: documents complets et devis déposés"
-};
+const ETAPES_TITRE: Record<string, string> = { en_attente: "Validation INITIALe: création du voyage", validation_finale_en_attente: "Validation FINALE: documents complets et devis déposés"};
 
-const CLERK_TO_VOYAGE_DIRECTION: Record<string, string> = {
-  direction_ecole: "direction_ecole",
-  direction_college: "direction_college",
-  direction_lycee: "direction_lycee",
-};
+const CLERK_TO_VOYAGE_DIRECTION: Record<string, string> = { direction_ecole: "direction_ecole", direction_college: "direction_college", direction_lycee: "direction_lycee"};
 
 export default function ValidationVoyages() {
   const { user, isLoaded } = useUser();
@@ -231,20 +224,7 @@ export default function ValidationVoyages() {
               </div>
             )}
             <div style={{ marginTop: 14 }}>
-              <button
-                onClick={() => handleValidation(v, "validee")}
-                disabled={!!loadingId}
-                style={{
-                  marginRight: 10,
-                  padding: "8px 14px",
-                  background: "#27ae60",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: loadingId ? "not-allowed" : "pointer",
-                  opacity: loadingId === v.id ? 0.7 : 1,
-                }}
-              >
+              <button onClick={() => handleValidation(v, "validee")} disabled={!!loadingId} style={{ marginRight: 10, padding: "8px 14px", background: "#27ae60", color: "#fff", border: "none", borderRadius: 4, cursor: loadingId ? "not-allowed" : "pointer", opacity: loadingId === v.id ? 0.7 : 1,}}>
                 {loadingId === v.id && <Loader />}
                 Valider {v.etat === "validation_finale_en_attente" ? "définitivement" : ""}
               </button>

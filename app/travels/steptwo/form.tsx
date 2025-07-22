@@ -125,12 +125,7 @@ export default function VoyageEtape2Form() {
         <div style={{ marginTop: 10 }}>
           <b>Programme (itinéraire):</b><br/>
           {voyage.programme && (
-            <a
-              href={base64ToUrl(voyage.programme)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "#0070f3" }}
-            >{voyage.programme.filename}</a>
+            <a href={base64ToUrl(voyage.programme)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{voyage.programme.filename}</a>
           )}
         </div>
         {voyage.pieces_jointes && voyage.pieces_jointes.length > 0 && (
@@ -218,26 +213,14 @@ export default function VoyageEtape2Form() {
       </div>
       {devis && (
         <div style={{ width: "100%", background: "#f5f5f9", padding: 8, borderRadius: 5 }}>
-          <label>
-            Détails (jours, horaires, points de départ, besoins, etc.) :
-            <textarea
-              value={detailsDevis}
-              onChange={e => setDetailsDevis(e.target.value)}
-              name="details_devis_transporteur"
-              style={{ width: 255, display: "block" }}
-            />
+          <label>Détails (jours, horaires, points de départ, besoins, etc.) :
+            <textarea value={detailsDevis} onChange={e => setDetailsDevis(e.target.value)} name="details_devis_transporteur" style={{ width: 255, display: "block" }}/>
           </label>
         </div>
       )}
       <div>
-        <label>
-          Commentaire complémentaire (facultatif) :
-          <textarea
-            value={commentaire}
-            onChange={e => setCommentaire(e.target.value)}
-            name="commentaire"
-            style={{ width: 345 }}
-          />
+        <label>Commentaire complémentaire (facultatif) :
+          <textarea value={commentaire} onChange={e => setCommentaire(e.target.value)} name="commentaire" style={{ width: 345 }}/>
         </label>
       </div>
       <button type="submit" disabled={loading} style={{ marginTop: 15 }}>
@@ -246,9 +229,7 @@ export default function VoyageEtape2Form() {
       {result && <div style={{ marginTop: 12 }}>{result}</div>}
       {devis &&
         result?.toLowerCase().includes("succès") && (
-          <div style={{ color: "green", marginTop: 10 }}>
-            Etape 2 terminée. Vous allez être redirigé vers l’étape 3 pour la saisie des devis transporteur.
-          </div>
+          <div style={{ color: "green", marginTop: 10 }}>Etape 2 terminée. Vous allez être redirigé vers l’étape 3 pour la saisie des devis transporteur.</div>
         )}
     </form>
   );
