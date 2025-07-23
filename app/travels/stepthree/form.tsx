@@ -73,7 +73,7 @@ export default function Step3Form() {
         setVoyage(v);
         if (
           v.etape_2?.devis_transporteur &&
-          (!v.devis || v.devis.length < 1) // <--- change "1" par le nombre attendu si besoin
+          (!v.devis || v.devis.length < 1)
         ) {
           setBlocked(true);
         }

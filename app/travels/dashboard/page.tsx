@@ -49,9 +49,11 @@ type VoyageEntry = {
   devis?: Devis[];
 };
 
-function base64ToUrl({ buffer, type }: { buffer: string; type: string }) {
-  if (buffer.startsWith("")) return buffer;
-  return `${type};base64,${buffer}`;
+function getPJUrl(type: "pj" | "prog" | "devis", id: string, idx: number) {
+  if (type === "pj") return `/api/travels/pj?id=${encodeURIComponent(id)}&idx=${idx}`;
+  if (type === "prog") return `/api/travels/pj?id=${encodeURIComponent(id)}&prog=1`;
+  if (type === "devis") return `/api/travels/pj?id=${encodeURIComponent(id)}&devis=${idx}`;
+  return "#";
 }
 
 export default function AdminVoyagesDashboard() {
@@ -84,7 +86,7 @@ export default function AdminVoyagesDashboard() {
               </div>
               {v.programme && (
                 <div style={{ marginTop: 10 }}>
-                  <b>Programme :</b> <a href={base64ToUrl(v.programme)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{v.programme.filename}</a>
+                  <b>Programme :</b> <a href={getPJUrl("prog", v.id, 0)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{v.programme.filename}</a>
                 </div>
               )}
               {v.pieces_jointes && v.pieces_jointes.length > 0 && (
@@ -93,7 +95,7 @@ export default function AdminVoyagesDashboard() {
                   <ul>
                     {v.pieces_jointes.map((pj, i) => (
                       <li key={i}>
-                        <a href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>
+                        <a href={getPJUrl("pj", v.id, i)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>
                           {pj.filename}
                         </a>
                       </li>
@@ -132,7 +134,7 @@ export default function AdminVoyagesDashboard() {
                     {v.devis.map((d, i) => (
                       <li key={i}>
                         {d.transporteur ? <span><b>{d.transporteur}</b> : </span> : null}
-                        <a href={base64ToUrl(d)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{d.filename}</a>
+                        <a href={getPJUrl("devis", v.id, i)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{d.filename}</a>
                         {d.message && <div style={{ fontSize: 13, color: "#444" }}>📝 {d.message}</div>}
                         <div style={{ fontSize: 12, color: "#777" }}>
                           {d.date ? "Déposé le " + new Date(d.date).toLocaleString() : ""}

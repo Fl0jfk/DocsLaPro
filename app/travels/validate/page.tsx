@@ -61,9 +61,11 @@ type VoyageEntry = {
   etape_3?: Etape3;
 };
 
-function base64ToUrl({ buffer, type }: { buffer: string; type: string }) {
-  if (buffer.startsWith("")) return buffer;
-  return `${type};base64,${buffer}`;
+function getPJUrl({ type, idx }: { type: "programme" | "pieces_jointes" | "devis"; idx: number }, v: VoyageEntry) {
+  if (type === "programme") return `/api/voyage-pj?id=${encodeURIComponent(v.id)}&prog=1`;
+  if (type === "pieces_jointes") return `/api/voyage-pj?id=${encodeURIComponent(v.id)}&idx=${idx}`;
+  if (type === "devis") return `/api/voyage-pj?id=${encodeURIComponent(v.id)}&devis=${idx}`;
+  return "#";
 }
 
 function Loader() {
@@ -173,14 +175,14 @@ export default function ValidationVoyages() {
             {v.programme && (
               <div style={{ marginTop: 7 }}>
                 <b>Programme : </b>
-                <Link href={base64ToUrl(v.programme)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{v.programme.filename}</Link>
+                <a href={getPJUrl({ type: "programme", idx: 0 }, v)} target="_blank" rel="noopener noreferrer">{v.programme.filename}</a>
               </div>
             )}
             {v.pieces_jointes && v.pieces_jointes.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <b>Autres pièces jointes :</b> {" "}
                 {v.pieces_jointes.map((pj, i) =>
-                  <Link key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginRight: 7 }}>{pj.filename}</Link>
+                  <a key={i} href={getPJUrl({ type: "pieces_jointes", idx: i }, v)} target="_blank" rel="noopener noreferrer" style={{ marginRight: 7 }}>{pj.filename}</a>
                 )}
               </div>
             )}
@@ -191,7 +193,7 @@ export default function ValidationVoyages() {
                   {v.devis.map((d, i) =>
                     <li key={i}>
                       {d.transporteur && <span><b>{d.transporteur} :</b> </span>}
-                      <Link href={base64ToUrl(d)} target="_blank" rel="noopener noreferrer">{d.filename}</Link>
+                      <a href={getPJUrl({ type: "devis", idx: i }, v)} target="_blank" rel="noopener noreferrer">{d.filename}</a>
                       {d.message && <span style={{ color: "#777", fontSize: "13px" }}> – {d.message}</span>}
                     </li>
                   )}
@@ -199,31 +201,64 @@ export default function ValidationVoyages() {
               </div>
             )}
             {v.etape_3 && v.etat === "validation_finale_en_attente" && (
-              <div style={{marginTop: 7, background: "#fcfcfc", padding: 12, borderRadius: 6}}>
-                <b>Pièces finales déposées :</b>
-                <div>Circulaire de départ: {v.etape_3.circulaire_depart && (
-                  <Link href={base64ToUrl(v.etape_3.circulaire_depart)} target="_blank" rel="noopener noreferrer">{v.etape_3.circulaire_depart.filename}</Link>
-                )}</div>
-                <div>Date réunion info : {v.etape_3.date_reunion_info || "–"}</div>
-                <div>Date envoi circulaire parents : {v.etape_3.date_envoi_circulaire_parents || "–"}</div>
-                <div>Participation famille (€) : {v.etape_3.participation_famille}</div>
-                <div>Coût total voyage (€) : {v.etape_3.cout_total_voyage}</div>
-                <div>Liste élèves: {v.etape_3.liste_eleves && (
-                  <Link href={base64ToUrl(v.etape_3.liste_eleves)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_eleves.filename}</Link>
-                )}</div>
-                <div>Liste accompagnateurs: {v.etape_3.liste_accompagnateurs && (
-                  <Link href={base64ToUrl(v.etape_3.liste_accompagnateurs)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_accompagnateurs.filename}</Link>
-                )}</div>
-                {v.etape_3.autres_pieces && v.etape_3.autres_pieces.length > 0 && (
-                  <div>Autres PJ:
-                    {v.etape_3.autres_pieces.map((pj: PieceJointe, i: number) =>
-                      <Link key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 10 }}>{pj.filename}</Link>
-                    )}
-                  </div>
-                )}
-                {v.etape_3.commentaire && <div>Commentaire final : {v.etape_3.commentaire}</div>}
-              </div>
-            )}
+  <div style={{marginTop: 7, background: "#fcfcfc", padding: 12, borderRadius: 6}}>
+    <b>Pièces finales déposées :</b>
+    <div>
+      Circulaire de départ: {v.etape_3.circulaire_depart && (
+        <a
+          href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=circulaire`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {v.etape_3.circulaire_depart.filename}
+        </a>
+      )}
+    </div>
+    <div>Date réunion info : {v.etape_3.date_reunion_info || "–"}</div>
+    <div>Date envoi circulaire parents : {v.etape_3.date_envoi_circulaire_parents || "–"}</div>
+    <div>Participation famille (€) : {v.etape_3.participation_famille}</div>
+    <div>Coût total voyage (€) : {v.etape_3.cout_total_voyage}</div>
+    <div>
+      Liste élèves : {v.etape_3.liste_eleves && (
+        <a
+          href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=eleves`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {v.etape_3.liste_eleves.filename}
+        </a>
+      )}
+    </div>
+    <div>
+      Liste accompagnateurs : {v.etape_3.liste_accompagnateurs && (
+        <a
+          href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=accompagnateurs`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {v.etape_3.liste_accompagnateurs.filename}
+        </a>
+      )}
+    </div>
+    {v.etape_3.autres_pieces && v.etape_3.autres_pieces.length > 0 && (
+      <div>
+        Autres PJ:
+        {v.etape_3.autres_pieces.map((pj: PieceJointe, i: number) =>
+          <a
+            key={i}
+            href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=autres&idx=${i}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginLeft: 10 }}
+          >
+            {pj.filename}
+            </a>
+          )}
+          </div>
+          )}
+          {v.etape_3.commentaire && <div>Commentaire final : {v.etape_3.commentaire}</div>}
+        </div>
+         )}
             <div style={{ marginTop: 14 }}>
               <button onClick={() => handleValidation(v, "validee")} disabled={!!loadingId} style={{ marginRight: 10, padding: "8px 14px", background: "#27ae60", color: "#fff", border: "none", borderRadius: 4, cursor: loadingId ? "not-allowed" : "pointer", opacity: loadingId === v.id ? 0.7 : 1,}}>
                 {loadingId === v.id && <Loader />}

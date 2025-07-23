@@ -140,17 +140,17 @@ export default function ValidationAbsences() {
                   {a.justificatifs.map((f, idx) => {
                     const viewable = f.type.startsWith("image/");
                     const isPdf = f.type === "application/pdf";
-                    const url = base64ToUrl(f);
+                    const url = `/api/pj-pdf?id=${encodeURIComponent(a.id)}&idx=${idx}`;
                     return (
                       <li key={idx} style={{ marginBottom: 8 }}>
                         {viewable && (
                           <>
                             <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3", marginRight: 8 }}>Voir l’image</a>
-                            <Image src={url} alt={f.filename} width={120} height={80} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc", display:"inline-block", verticalAlign:"middle"}} />
+                            <img src={url} alt={f.filename} width={120} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc", display:"inline-block", verticalAlign:"middle"}} />
                           </>
                         )}
                         {isPdf && (
-                          <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3"}}>Ouvrir PDF: {f.filename}</a>
+                          <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3"}}>Ouvrir PDF : {f.filename}</a>
                         )}
                         {!viewable && !isPdf && (
                           <a href={url} download={f.filename} style={{ color: "#0070f3" }}>Télécharger : {f.filename}</a>
