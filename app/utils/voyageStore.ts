@@ -1,7 +1,15 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
-const FILE = path.resolve(process.cwd(), "voyages_en_attente.json");
+export const s3 = new S3Client({
+  region: "eu-west-3",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+export const BUCKET = process.env.AWS_S3_BUCKET_NAME!;
+
+const KEY = "voyages_en_attente.json";
 
 export type VoyagePieceJointe = {
   filename: string;
@@ -68,15 +76,19 @@ export type DevisTransporteur = {
 
 export async function readVoyages(): Promise<VoyageEntry[]> {
   try {
-    const raw = await fs.readFile(FILE, "utf-8");
-    return JSON.parse(raw) as VoyageEntry[];
-  } catch {
-    return [];
+    const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: KEY }));
+    const body = await obj.Body?.transformToString();
+    return body ? JSON.parse(body) : [];
+  } catch (e: any) {
+    if (e.$metadata?.httpStatusCode === 404) return [];
+    throw e;
   }
 }
 
 export async function writeVoyages(entries: VoyageEntry[]) {
-  await fs.writeFile(FILE, JSON.stringify(entries, null, 2), "utf-8");
+  await s3.send(
+    new PutObjectCommand({ Bucket: BUCKET, Key: KEY, Body: JSON.stringify(entries, null, 2), ContentType: "application/json"})
+  );
 }
 
 export async function addVoyage(entry: VoyageEntry) {

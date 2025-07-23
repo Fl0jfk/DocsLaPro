@@ -17,12 +17,7 @@ export default function QRCreator() {
         QRCode.toCanvas(
           canvas, 
           url, 
-          { 
-            width: 256, 
-            errorCorrectionLevel: 'H',
-            color: { dark: fillColor, light: backColor },
-            margin: 4
-          },
+          { width: 256, errorCorrectionLevel: 'H', color: { dark: fillColor, light: backColor }, margin: 4 },
           (error) => {
             if (error) console.error(error);
             if (logo) {
