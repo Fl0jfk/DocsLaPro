@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import type { UserResource } from "@clerk/types";
-import Link from "next/link";
 import Image from "next/image";
 
 type Justificatif = {
@@ -146,15 +145,15 @@ export default function ValidationAbsences() {
                       <li key={idx} style={{ marginBottom: 8 }}>
                         {viewable && (
                           <>
-                            <Link target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3", marginRight: 8 }}>Voir l’image</Link>
+                            <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3", marginRight: 8 }}>Voir l’image</a>
                             <Image src={url} alt={f.filename} width={120} height={80} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc", display:"inline-block", verticalAlign:"middle"}} />
                           </>
                         )}
                         {isPdf && (
-                          <Link target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3"}}>Ouvrir PDF: {f.filename}</Link>
+                          <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3"}}>Ouvrir PDF: {f.filename}</a>
                         )}
                         {!viewable && !isPdf && (
-                          <Link href={url} download={f.filename} style={{ color: "#0070f3" }}>Télécharger : {f.filename}</Link>
+                          <a href={url} download={f.filename} style={{ color: "#0070f3" }}>Télécharger : {f.filename}</a>
                         )}
                       </li>
                     );
