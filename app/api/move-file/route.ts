@@ -4,7 +4,6 @@ import { getAuth } from '@clerk/nextjs/server';
 
 const s3 = new S3Client({ region: 'eu-west-3' });
 
-// Normalisation + tri (ordre, accents, séparateurs)
 function normalizeAndSortName(name: string): string {
   return name
     .normalize('NFD')
@@ -17,7 +16,6 @@ function normalizeAndSortName(name: string): string {
     .join('_');
 }
 
-// Distance de Levenshtein
 function levenshtein(a: string, b: string): number {
   const matrix = Array.from({ length: a.length + 1 }, (_, i) =>
     Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
@@ -33,7 +31,6 @@ function levenshtein(a: string, b: string): number {
   return matrix[a.length][b.length];
 }
 
-// Liste tous les dossiers élèves (1er niveau sous 'eleves/')
 async function listElevesFolders(s3: S3Client, bucket: string): Promise<string[]> {
   const command = new ListObjectsV2Command({
     Bucket: bucket,
@@ -49,16 +46,13 @@ async function listElevesFolders(s3: S3Client, bucket: string): Promise<string[]
   );
 }
 
-// Matching exact, puis fallback Levenshtein si besoin
 function findBestFolder(inputName: string, folders: string[], tolerance = 5): { folder: string | null, distance: number } {
   const normalizedInput = normalizeAndSortName(inputName);
   let bestMatch: string | null = null;
   let bestScore = Infinity;
-
   for (const folder of folders) {
     const normFolder = normalizeAndSortName(folder);
     if (normFolder === normalizedInput) {
-      // Match exact
       return { folder, distance: 0 };
     }
     const dist = levenshtein(normalizedInput, normFolder);
@@ -72,20 +66,13 @@ function findBestFolder(inputName: string, folders: string[], tolerance = 5): { 
 
 export async function POST(req: Request) {
   try {
-    // Clerk Auth
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
     if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
     const { sourceKey, eleveId, newFileName } = await req.json();
     const bucket = process.env.AWS_S3_BUCKET_NAME!;
-
-    // Liste des dossiers élèves
     const existingFolders = await listElevesFolders(s3, bucket);
-
-    // Matching exact puis flou
     const { folder: matchedFolder, distance } = findBestFolder(eleveId, existingFolders, 5);
-
     if (!matchedFolder) {
       return NextResponse.json(
         {
@@ -97,22 +84,16 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
-
-    // Utilise le nom exact du dossier existant
     const destKey = `eleves/${matchedFolder}/${newFileName}`;
-
-    // Copie le fichier dans le dossier élève
     await s3.send(new CopyObjectCommand({
       Bucket: bucket,
       CopySource: `${bucket}/${sourceKey}`,
       Key: destKey,
     }));
-    // Supprime l’original (optionnel)
     await s3.send(new DeleteObjectCommand({
       Bucket: bucket,
       Key: sourceKey,
     }));
-
     return NextResponse.json({ success: true, destKey, dossierTrouve: matchedFolder, distance });
   } catch (err) {
     console.error('Erreur move-file:', err);

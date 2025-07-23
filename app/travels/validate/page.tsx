@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
 
 type PieceJointe = {
   filename: string;
@@ -172,14 +173,14 @@ export default function ValidationVoyages() {
             {v.programme && (
               <div style={{ marginTop: 7 }}>
                 <b>Programme : </b>
-                <a href={base64ToUrl(v.programme)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{v.programme.filename}</a>
+                <Link href={base64ToUrl(v.programme)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{v.programme.filename}</Link>
               </div>
             )}
             {v.pieces_jointes && v.pieces_jointes.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <b>Autres pièces jointes :</b> {" "}
                 {v.pieces_jointes.map((pj, i) =>
-                  <a key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginRight: 7 }}>{pj.filename}</a>
+                  <Link key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginRight: 7 }}>{pj.filename}</Link>
                 )}
               </div>
             )}
@@ -190,7 +191,7 @@ export default function ValidationVoyages() {
                   {v.devis.map((d, i) =>
                     <li key={i}>
                       {d.transporteur && <span><b>{d.transporteur} :</b> </span>}
-                      <a href={base64ToUrl(d)} target="_blank" rel="noopener noreferrer">{d.filename}</a>
+                      <Link href={base64ToUrl(d)} target="_blank" rel="noopener noreferrer">{d.filename}</Link>
                       {d.message && <span style={{ color: "#777", fontSize: "13px" }}> – {d.message}</span>}
                     </li>
                   )}
@@ -201,22 +202,22 @@ export default function ValidationVoyages() {
               <div style={{marginTop: 7, background: "#fcfcfc", padding: 12, borderRadius: 6}}>
                 <b>Pièces finales déposées :</b>
                 <div>Circulaire de départ: {v.etape_3.circulaire_depart && (
-                  <a href={base64ToUrl(v.etape_3.circulaire_depart)} target="_blank" rel="noopener noreferrer">{v.etape_3.circulaire_depart.filename}</a>
+                  <Link href={base64ToUrl(v.etape_3.circulaire_depart)} target="_blank" rel="noopener noreferrer">{v.etape_3.circulaire_depart.filename}</Link>
                 )}</div>
                 <div>Date réunion info : {v.etape_3.date_reunion_info || "–"}</div>
                 <div>Date envoi circulaire parents : {v.etape_3.date_envoi_circulaire_parents || "–"}</div>
                 <div>Participation famille (€) : {v.etape_3.participation_famille}</div>
                 <div>Coût total voyage (€) : {v.etape_3.cout_total_voyage}</div>
                 <div>Liste élèves: {v.etape_3.liste_eleves && (
-                  <a href={base64ToUrl(v.etape_3.liste_eleves)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_eleves.filename}</a>
+                  <Link href={base64ToUrl(v.etape_3.liste_eleves)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_eleves.filename}</Link>
                 )}</div>
                 <div>Liste accompagnateurs: {v.etape_3.liste_accompagnateurs && (
-                  <a href={base64ToUrl(v.etape_3.liste_accompagnateurs)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_accompagnateurs.filename}</a>
+                  <Link href={base64ToUrl(v.etape_3.liste_accompagnateurs)} target="_blank" rel="noopener noreferrer">{v.etape_3.liste_accompagnateurs.filename}</Link>
                 )}</div>
                 {v.etape_3.autres_pieces && v.etape_3.autres_pieces.length > 0 && (
                   <div>Autres PJ:
                     {v.etape_3.autres_pieces.map((pj: PieceJointe, i: number) =>
-                      <a key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 10 }}>{pj.filename}</a>
+                      <Link key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 10 }}>{pj.filename}</Link>
                     )}
                   </div>
                 )}

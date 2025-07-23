@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
   const voyage = voyages[voyageIdx];
   if (statut === "refusee") {
     await removeVoyage(id);
-    // (tu peux aussi notifier le prof ici si besoin)
     return NextResponse.json({ success: true, message: "Voyage refusé et supprimé." });
   }
   voyages[voyageIdx] = {

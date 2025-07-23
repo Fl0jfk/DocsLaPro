@@ -5,10 +5,9 @@ import { Readable } from "stream";
 
 const RECIPIENTS: Record<string, string[]> = {
   direction_ecole: ["flojfk+directionecole@gmail.com"],
-  college: ["email.direction.college@gmail.com"],
-  lycee: ["email.direction.lycee@gmail.com"],
-  rh: ["rh@gmail.com"],
-  voyages: ["voyages@ecole.com"],
+  college: ["flojfk+direction.college@gmail.com"],
+  lycee: ["flojfk+direction.lycee@gmail.com"],
+  rh: ["flojfk+rh@gmail.com"],
   default: ["secretariat@ecole.com"],
 };
 
@@ -33,7 +32,6 @@ export async function POST(request: NextRequest) {
         contentType: att.contentType,
       }));
     }
-    console.log("Envoi mail à :", to, body.subject);
     await sendMail({
       to,
       subject: body.subject || "[Système] Message reçu",
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest) {
     let to: string | string[];
     if (fields.to) {
       try {
-        to = JSON.parse(fields.to); // support array ou string
+        to = JSON.parse(fields.to);
       } catch {
         to = fields.to;
       }
@@ -81,7 +79,6 @@ export async function POST(request: NextRequest) {
     } else {
       to = RECIPIENTS.default;
     }
-    console.log("Envoi mail à :", to, fields.subject);
     await sendMail({
       to,
       subject: fields.subject || "[Système] Nouveau formulaire",

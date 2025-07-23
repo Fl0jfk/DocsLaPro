@@ -4,8 +4,8 @@ import { addVoyage, VoyageEntry } from "@/app/utils/voyageStore";
 
 const RECIPIENTS: Record<string, string[]> = {
   direction_ecole: ["flojfk+direction.ecole@gmail.com"],
-  direction_college: ["mail.direction.college@domaine.fr"],
-  direction_lycee: ["mail.direction.lycee@domaine.fr"],
+  direction_college: ["flojfk+direction.college@gmail.com"],
+  direction_lycee: ["flojfk+direction.lycee@gmail.com"],
   default: ["secretariat@domaine.fr"],
 };
 

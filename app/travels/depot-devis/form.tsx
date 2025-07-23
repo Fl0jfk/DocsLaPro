@@ -9,7 +9,6 @@ export default function DepotDevisForm() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!id || !fileInput.current?.files?.[0]) {

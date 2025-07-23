@@ -3,8 +3,8 @@ import { readVoyages, writeVoyages } from "@/app/utils/voyageStore";
 
 const RECIPIENTS_DIRECTION: Record<string, string[]> = {
   direction_ecole: ["flojfk+direction.ecole@gmail.com"],
-  direction_college: ["mail.direction.college@domaine.fr"],
-  direction_lycee: ["mail.direction.lycee@domaine.fr"],
+  direction_college: ["flojfk+direction.college@gmail.com"],
+  direction_lycee: ["flojfk+direction.lycee@gmail.com"],
   default: ["secretariat@domaine.fr"],
 };
 export async function POST(req: NextRequest) {
@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
   const autres_files = (form.getAll("autres_pieces").filter(f=>f instanceof File) as File[]);
   const autres_pieces = [];
   for (const f of autres_files) autres_pieces.push(await fileToObj(f));
-
   const etape_3 = {
     circulaire_depart,
     date_reunion_info: form.get("date_reunion_info") as string,
@@ -51,12 +50,11 @@ export async function POST(req: NextRequest) {
   await writeVoyages(voyages);
   const to = RECIPIENTS_DIRECTION[voyage.direction_cible] || RECIPIENTS_DIRECTION.default;
   const subject = `[Voyage scolaire] Validation finale à traiter : ${voyage.lieu} (${voyage.date_depart})`;
-  const text = `
-Un voyage scolaire attend votre validation finale.
-Organisateur: ${voyage.prenom} ${voyage.nom} (${voyage.email})
-Période : du ${voyage.date_depart} au ${voyage.date_retour}
-Lien admin: ${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")}/travels/admin-dashboard
-Détail et documents dans la fiche voyage.`;
+  const text = `Un voyage scolaire attend votre validation finale.
+                Organisateur: ${voyage.prenom} ${voyage.nom} (${voyage.email})
+                Période : du ${voyage.date_depart} au ${voyage.date_retour}
+                Lien admin: ${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")}/travels/admin-dashboard
+                Détail et documents dans la fiche voyage.`;
   await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email`, {
     method: "POST",
     body: JSON.stringify({ to, subject, text }),

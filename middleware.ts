@@ -13,8 +13,6 @@ const ContentSecurityPolicy = `
   font-src 'self' https:;
 `;
 
-
-
 export default clerkMiddleware(() => {
   const response = NextResponse.next();
   response.headers.set(

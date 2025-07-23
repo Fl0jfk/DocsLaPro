@@ -9,10 +9,8 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
     if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
     const { key } = await req.json();
     if (!key) return NextResponse.json({ error: 'key requis' }, { status: 400 });
-
     const bucket = process.env.AWS_S3_BUCKET_NAME!;
     const command = new StartDocumentTextDetectionCommand({
       DocumentLocation: { S3Object: { Bucket: bucket, Name: key } },

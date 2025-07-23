@@ -99,22 +99,10 @@ export default function VoyageForm() {
         <input type="number" name="effectif_accompagnateurs" min={1} required />
       </label>
       <label>Programme (itinéraire/jours/destination en détail) :
-        <input
-          ref={progInput}
-          type="file"
-          name="programme"
-          accept=".pdf,.doc,.docx,image/*"
-        />
+        <input ref={progInput} type="file" name="programme" accept=".pdf,.doc,.docx,image/*"/>
       </label>
       <label>Autres pièces jointes (5 max) :
-        <input
-          ref={fileInput}
-          type="file"
-          name="pj"
-          multiple
-          accept="image/*,.pdf"
-          max={5}
-        />
+        <input ref={fileInput} type="file" name="pj" multiple accept="image/*,.pdf" max={5}/>
       </label>
       <label>Commentaire:
         <textarea name="commentaire" />

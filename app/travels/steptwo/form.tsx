@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 
 type PieceJointe = {
   filename: string;
@@ -84,17 +86,7 @@ export default function VoyageEtape2Form() {
     e.preventDefault();
     setLoading(true);
     setResult(null);
-    const payload = {
-      id,
-      panier_repas: panier,
-      nb_repas: panier ? nbRepas : undefined,
-      nb_vegetariens: panier ? nbVeg : undefined,
-      lieu_repas: panier ? lieuRepas : undefined,
-      details_panier_repas: panier ? detailsRepas : undefined,
-      devis_transporteur: devis,
-      details_devis_transporteur: devis ? detailsDevis : undefined,
-      commentaire,
-    };
+    const payload = { id, panier_repas: panier, nb_repas: panier ? nbRepas : undefined, nb_vegetariens: panier ? nbVeg : undefined, lieu_repas: panier ? lieuRepas : undefined, details_panier_repas: panier ? detailsRepas : undefined, devis_transporteur: devis, details_devis_transporteur: devis ? detailsDevis : undefined, commentaire,};
     const res = await fetch("/api/travels/steptwo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -105,7 +97,7 @@ export default function VoyageEtape2Form() {
     setResult(rep.message || rep.error);
     if (devis && rep.success) {
       setTimeout(() => {
-        router.push(`/voyages/stepthree?id=${id}`);
+        router.push(`/travels/stepthree?id=${id}`);
       }, 1500);
     }
   }
@@ -125,7 +117,7 @@ export default function VoyageEtape2Form() {
         <div style={{ marginTop: 10 }}>
           <b>Programme (itinéraire):</b><br/>
           {voyage.programme && (
-            <a href={base64ToUrl(voyage.programme)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{voyage.programme.filename}</a>
+            <Link href={base64ToUrl(voyage.programme)} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{voyage.programme.filename}</Link>
           )}
         </div>
         {voyage.pieces_jointes && voyage.pieces_jointes.length > 0 && (
@@ -140,21 +132,15 @@ export default function VoyageEtape2Form() {
                   <li key={idx}>
                     {isImg && (
                       <>
-                        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3", marginRight: 8 }}>
-                          Voir l’image
-                        </a>
-                        <img src={url} alt={f.filename} style={{ maxWidth: 90, maxHeight: 60, border: "1px solid #ccc" }} />
+                        <Link href={url} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3", marginRight: 8 }}>Voir l’image</Link>
+                        <Image width={90} height={60} src={url} alt={f.filename} style={{ maxWidth: 90, maxHeight: 60, border: "1px solid #ccc" }} />
                       </>
                     )}
                     {isPdf && (
-                      <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>
-                        {f.filename}
-                      </a>
+                      <Link href={url} target="_blank" rel="noopener noreferrer" style={{ color: "#0070f3" }}>{f.filename}</Link>
                     )}
                     {!isImg && !isPdf && (
-                      <a href={url} download={f.filename} style={{ color: "#0070f3" }}>
-                        Télécharger&nbsp;: {f.filename}
-                      </a>
+                      <Link href={url} download={f.filename} style={{ color: "#0070f3" }}>Télécharger&nbsp;: {f.filename}</Link>
                     )}
                   </li>
                 );
@@ -165,11 +151,7 @@ export default function VoyageEtape2Form() {
       </div>
       <div>
         <label>
-          <input
-            type="checkbox"
-            checked={panier}
-            onChange={e => setPanier(e.target.checked)}
-          />&nbsp;Besoin de paniers repas ?
+          <input type="checkbox" checked={panier} onChange={e => setPanier(e.target.checked)}/>&nbsp;Besoin de paniers repas ?
         </label>
       </div>
       {panier && (
@@ -182,33 +164,16 @@ export default function VoyageEtape2Form() {
           </label>
           <label style={{ display: "block", marginTop: 7 }}>
             Lieu de repas / récupération :
-            <input
-              type="text"
-              value={lieuRepas}
-              onChange={e => setLieuRepas(e.target.value)}
-              name="lieu_repas"
-              style={{ width: 255, marginLeft: 8 }}
-              placeholder="Ex : cantine, à emporter, livrés au car, etc."
-            />
+            <input type="text" value={lieuRepas} onChange={e => setLieuRepas(e.target.value)} name="lieu_repas" style={{ width: 255, marginLeft: 8 }} placeholder="Ex : cantine, à emporter, livrés au car, etc."/>
           </label>
-          <label style={{ display: "block", marginTop: 5 }}>
-            Détails / particularités (allergies…)&nbsp;:
-            <textarea
-              value={detailsRepas}
-              onChange={e => setDetailsRepas(e.target.value)}
-              name="details_panier_repas"
-              style={{ width: 255, display: "block" }}
-            />
+          <label style={{ display: "block", marginTop: 5 }}>Détails / particularités (allergies…)&nbsp;:
+            <textarea value={detailsRepas} onChange={e => setDetailsRepas(e.target.value)} name="details_panier_repas" style={{ width: 255, display: "block" }}/>
           </label>
         </div>
       )}
       <div>
         <label>
-          <input
-            type="checkbox"
-            checked={devis}
-            onChange={e => setDevis(e.target.checked)}
-          />&nbsp;Demande de devis transporteurs ?
+          <input type="checkbox" checked={devis} onChange={e => setDevis(e.target.checked)}/>&nbsp;Demande de devis transporteurs ?
         </label>
       </div>
       {devis && (
@@ -223,9 +188,7 @@ export default function VoyageEtape2Form() {
           <textarea value={commentaire} onChange={e => setCommentaire(e.target.value)} name="commentaire" style={{ width: 345 }}/>
         </label>
       </div>
-      <button type="submit" disabled={loading} style={{ marginTop: 15 }}>
-        {loading ? "Traitement…" : "Soumettre l’étape 2" }
-      </button>
+      <button type="submit" disabled={loading} style={{ marginTop: 15 }}>{loading ? "Traitement…" : "Soumettre l’étape 2" }</button>
       {result && <div style={{ marginTop: 12 }}>{result}</div>}
       {devis &&
         result?.toLowerCase().includes("succès") && (

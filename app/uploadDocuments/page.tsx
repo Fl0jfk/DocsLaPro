@@ -12,9 +12,7 @@ export default function UploadAndAnalyzeDocument() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [moveResult, setMoveResult] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
   const addLog = (msg: string) => setLogs(prev => [...prev, msg]);
-
   const generateFileName = (type: string, eleve: string) => {
     const now = new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
@@ -22,7 +20,6 @@ export default function UploadAndAnalyzeDocument() {
     const safeEleve = eleve.replace(/[^a-zA-Z0-9_]/g, '_');
     return `${type}_${safeEleve}_${dateStr}_${timeStr}.pdf`;
   };
-
   const handleUploadAndAnalyze = async () => {
     setGptResult(null);
     setMoveResult(null);
@@ -31,21 +28,17 @@ export default function UploadAndAnalyzeDocument() {
     if (!file) return;
     setStatus('Récupération de l’URL signée...');
     addLog('Demande de l’URL signée pour ' + file.name);
-
-    // 1. Demande une URL signée
     const res1 = await fetch('/api/upload-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, contentType: file.type }),
     });
-
     if (!res1.ok) {
       const err = await res1.text();
       addLog('Erreur API upload-url: ' + err);
       setStatus('Erreur lors de la génération de l’URL signée');
       return;
     }
-
     let url: string | undefined, key: string | undefined;
     try {
       const data = await res1.json();
@@ -57,15 +50,12 @@ export default function UploadAndAnalyzeDocument() {
       console.log(e)
       return;
     }
-
     if (!url || !key) {
       addLog('Clé S3 ou URL manquante dans la réponse API! Réponse brute: ' + JSON.stringify({ url, key }));
       setStatus('Erreur: clé S3 ou URL manquante');
       return;
     }
     addLog('URL signée reçue, clé S3 : ' + key);
-
-    // 2. Upload le fichier sur S3
     setStatus('Upload sur S3 en cours...');
     addLog('Upload du fichier sur S3...');
     const uploadRes = await fetch(url, {
@@ -79,8 +69,6 @@ export default function UploadAndAnalyzeDocument() {
       return;
     }
     addLog('Upload terminé.');
-
-    // 3. Lance Textract OCR
     setStatus('Lancement de l\'OCR AWS Textract...');
     addLog('Appel de /api/ocr-process avec la clé S3...');
     const res2 = await fetch('/api/ocr-process', {
@@ -110,8 +98,6 @@ export default function UploadAndAnalyzeDocument() {
       return;
     }
     addLog('Job Textract lancé, jobId : ' + jobId);
-
-    // 4. Polling pour récupérer le résultat OCR
     setStatus('Attente du résultat OCR...');
     let ocrStatus = '';
     let text = '';
@@ -141,12 +127,10 @@ export default function UploadAndAnalyzeDocument() {
       }
       tries++;
     } while (tries < 30);
-
     if (text) {
       setOcrText(text);
       setStatus('OCR terminé ! Envoi à GPT...');
       addLog('Envoi du texte OCR à GPT (route /api/analyze-doc)...');
-      // 5. Appel GPT
       const res4 = await fetch('/api/analyze-doc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,8 +145,6 @@ export default function UploadAndAnalyzeDocument() {
       const gpt = await res4.json();
       setGptResult(gpt);
       addLog('Réponse GPT reçue : ' + JSON.stringify(gpt));
-
-      // 6. Si GPT a trouvé l’élève, renomme et déplace le fichier
       if (gpt.eleve && gpt.type) {
         const newFileName = generateFileName(gpt.type, gpt.eleve);
         const eleveId = gpt.eleve.replace(/[^a-zA-Z0-9_]/g, '_'); // Sécurise le nom du dossier
@@ -192,23 +174,11 @@ export default function UploadAndAnalyzeDocument() {
       addLog('OCR non terminé après 20 essais.');
     }
   };
-
   return (
     <div className="max-w-xl mx-auto p-4 pt-[10vh]">
       <h2 className="font-bold mb-2">Upload + OCR + Analyse IA + MoveFile</h2>
-      <input
-        type="file"
-        ref={fileRef}
-        onChange={e => setFile(e.target.files?.[0] || null)}
-        className="mb-2"
-      />
-      <button
-        onClick={handleUploadAndAnalyze}
-        disabled={!file}
-        className="bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Uploader et tout analyser
-      </button>
+      <input type="file" ref={fileRef} onChange={e => setFile(e.target.files?.[0] || null)} className="mb-2"/>
+      <button onClick={handleUploadAndAnalyze} disabled={!file} className="bg-blue-600 text-white px-4 py-2 rounded">Uploader et tout analyser</button>
       <div className="my-4">
         <strong>Statut :</strong> {status}
       </div>

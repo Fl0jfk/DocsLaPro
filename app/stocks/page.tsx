@@ -220,7 +220,6 @@ export default function InventoryPage() {
   <button type="button" onClick={() => startScanner(setScannedCodeRemove)} className="bg-gray-500 text-white p-2 rounded w-full mt-2">Scanner avec l&apos;appareil photo</button>
   <div id="reader" className="mt-2"></div> {/* Scanner UI */}
 </div>
-
       <div className="overflow-x-auto w-full">
         <table className="w-full border-collapse border border-gray-300 mb-4">
           <thead>

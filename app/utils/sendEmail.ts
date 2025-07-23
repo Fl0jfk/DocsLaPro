@@ -7,7 +7,6 @@ export type Attachment = {
   contentType?: string;
 };
 
-// Définition du type
 export type GenericMailData = {
   to: string | string[];
   subject: string;
@@ -17,18 +16,16 @@ export type GenericMailData = {
   replyTo?: string;
 };
 
-// Initialisation du transporteur Nodemailer
 const transporter = nodemailer.createTransport({
   service: "gmail",
   host: "smtp.gmail.com",
-  port: 587, // STARTTLS
-  secure: false, // false = utilise STARTTLS, true = SSL (465)
+  port: 587,
+  secure: false,
   auth: {
-    user: process.env.SMTP_USER, // ex: ton.email@gmail.com
-    pass: process.env.SMTP_PASS, // ton mot de passe d'application Gmail
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
-
 
 export async function sendMail( data :GenericMailData): Promise<void> {
   const mailOptions: Mail.Options = {

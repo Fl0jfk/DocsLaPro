@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readVoyages, writeVoyages } from "@/app/utils/voyageStore";
 
-const MAIL_COMPTA = ["compta@etab.fr"];
-const MAIL_ADMIN = ["admin@etab.fr"];
-const MAIL_CANTINE_DEDUCTION = ["deductionrepas@etab.fr"];
+const MAIL_COMPTA = ["flojfk+compta@gmail.com"];
+const MAIL_ADMIN = ["flojfk+admin@gmail.com"];
+const MAIL_CANTINE_DEDUCTION = ["flojfk+deducrepas@gmail.com"];
 
 export async function POST(req: NextRequest) {
   const { id, statut } = await req.json();
@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
   const mails = [...MAIL_COMPTA, ...MAIL_ADMIN, ...MAIL_CANTINE_DEDUCTION];
   const subject = `Voyage validé définitivement : ${voyage.lieu} (${voyage.date_depart})`;
   const text = `Le voyage "${voyage.lieu}" a été validé par la direction.
-Consultez tous les documents et justificatifs dans le dashboard admin.
-Id voyage: ${voyage.id}\n
-Lien admin : ${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")}/voyages/admin-dashboard
-`;
+                Consultez tous les documents et justificatifs dans le dashboard admin.
+                Id voyage: ${voyage.id}\n
+                Lien admin : ${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")}/voyages/admin-dashboard
+                `;
   await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email`, {
     method: "POST",
     body: JSON.stringify({ to: mails, subject, text }),

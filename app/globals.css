@@ -28,32 +28,27 @@ button {
   cursor: pointer;
 }
 
-/* Style pour la barre de défilement */
 ::-webkit-scrollbar {
-  width: 8px; /* Largeur de la barre de défilement */
-  height: 8px; /* Hauteur de la barre de défilement horizontale */
+  width: 8px;
+  height: 8px;
 }
 
-/* Couleur de fond de la barre de défilement */
 ::-webkit-scrollbar-track {
-  background: #f0f0f0; /* Gris clair */
-  border-radius: 10px; /* Coins arrondis */
+  background: #f0f0f0;
+  border-radius: 10px;
 }
 
-/* Style de la "thumb" (la partie déplaçable) */
 ::-webkit-scrollbar-thumb {
-  background: #888; /* Couleur grise */
-  border-radius: 10px; /* Coins arrondis */
+  background: #888;
+  border-radius: 10px;
 }
 
-/* Couleur de la thumb au survol */
 ::-webkit-scrollbar-thumb:hover {
-  background: #555; /* Couleur plus foncée au survol */
+  background: #555;
 }
 
-/* Optionnel : bordure autour de la thumb */
 ::-webkit-scrollbar-thumb {
-  border: 2px solid #f0f0f0; /* Bordure pour un effet d'espace */
+  border: 2px solid #f0f0f0;
 }
 
 .text-outline-black {
@@ -63,4 +58,3 @@ button {
     -1px  1px 0 #000,
      1px  1px 0 #000;
 }
-

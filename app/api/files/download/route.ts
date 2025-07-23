@@ -16,17 +16,14 @@ export async function POST(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
-
   const body = await req.json();
   const { path } = body;
-
   try {
     const command = new GetObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME!,
       Key: path,
     });
     const url = await getSignedUrl(s3, command, { expiresIn: 60 });
-    console.log("URL signée:", url);
     return NextResponse.json({ url });
   } catch (err) {
     console.error("Erreur serveur S3:", err);

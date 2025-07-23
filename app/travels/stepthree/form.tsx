@@ -1,6 +1,7 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 type PieceJointe = {
   filename: string;
@@ -122,12 +123,12 @@ export default function Step3Form() {
       <div>Direction concernée : <b>{voyage.direction_cible}</b></div>
       <div>Effectif : {voyage.effectif_eleves} élèves, {voyage.effectif_accompagnateurs} accompagnateurs</div>
       <div>Programme : {voyage.programme && (
-        <a href={base64ToUrl(voyage.programme)} target="_blank" rel="noopener noreferrer">{voyage.programme.filename}</a>
+        <Link href={base64ToUrl(voyage.programme)} target="_blank" rel="noopener noreferrer">{voyage.programme.filename}</Link>
       )}</div>
       {voyage.pieces_jointes && voyage.pieces_jointes.length > 0 && (
         <div>Autres PJ:&nbsp;
           {voyage.pieces_jointes.map((pj, i) =>
-            <a key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginRight: 7 }}>{pj.filename}</a>
+            <Link key={i} href={base64ToUrl(pj)} target="_blank" rel="noopener noreferrer" style={{ marginRight: 7 }}>{pj.filename}</Link>
           )}
         </div>
       )}
@@ -138,7 +139,7 @@ export default function Step3Form() {
             {voyage.devis.map((d, i) =>
               <li key={i}>
                 {d.transporteur && <b>{d.transporteur} : </b>}
-                <a href={base64ToUrl(d)} target="_blank" rel="noopener noreferrer">{d.filename}</a>
+                <Link href={base64ToUrl(d)} target="_blank" rel="noopener noreferrer">{d.filename}</Link>
               </li>
             )}
           </ul>

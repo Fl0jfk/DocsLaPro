@@ -12,7 +12,6 @@ export default function Home() {
   const filteredCategories = data.categories.filter(category => category.allowedRoles.includes(role ?? ""));
   return (
     <main className="flex flex-col w-full text-xl md:pt-[15vh] sm:pt-[15vh]">
-      <>
         {filteredCategories.length > 0 && (
           <RollingSlider categories={filteredCategories} />
         )}
@@ -21,7 +20,6 @@ export default function Home() {
             <button className="p-4">Se connecter</button>
           </SignInButton>
         </SignedOut>
-      </>
     </main>
   );
 }

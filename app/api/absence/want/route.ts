@@ -5,7 +5,7 @@ import { addEntry, AbsenceEntry } from "@/app/utils/jsonStore";
 export async function POST(req: NextRequest) {
   const data = await req.formData();
   const type = data.get("type") as "prof" | "salarie";
-  const cible = data.get("cible") as "direction_ecole" | "college" | "lycee";
+  const cible = data.get("cible") as "direction_ecole" | "direction_college" | "direction_lycee";
   const nom = data.get("nom") as string;
   const email = data.get("email") as string;
   const date_debut = data.get("date_debut") as string;

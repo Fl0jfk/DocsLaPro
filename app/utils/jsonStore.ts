@@ -6,7 +6,7 @@ const FILE = path.resolve(process.cwd(), "absences_en_attente.json");
 export type AbsenceEntry = {
   id: string;
   type: "prof" | "salarie";
-  cible: "direction_ecole" | "college" | "lycee";
+  cible: "direction_ecole" | "direction_college" | "direction_lycee";
   nom: string;
   email: string;
   date_debut: string;

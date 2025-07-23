@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { readVoyages, writeVoyages } from "@/app/utils/voyageStore";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
-const CANTINE_EMAILS = ["cantine@etab.fr"];
+const CANTINE_EMAILS = ["flojfk+cantine@gmail.com"];
 const TRANSPORTEURS = [
-  { email: "transporteur1@autocar.fr", nom: "Transporteur 1" },
-  { email: "transporteur2@bus.fr", nom: "Transporteur 2" },
-  { email: "transporteur3@voyage.fr", nom: "Transporteur 3" }
+  { email: "flojfk+transporteur1@gmail.com", nom: "Transporteur 1" },
+  { email: "flojfk+transporteur1@gmail.com", nom: "Transporteur 2" },
+  { email: "flojfk+transporteur1@gmail.com", nom: "Transporteur 3" }
 ];
 
 export async function POST(req: NextRequest) {
@@ -92,18 +92,16 @@ export async function POST(req: NextRequest) {
       y -= 32; page.drawText(`Commentaire prof : ${commentaire || ""}`, { x: 50, y, size: 11, font });
       const pdfBytes = await pdfDoc.save();
       const pdfBuffer = Buffer.from(pdfBytes);
-      const deposeUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/voyages/deposer-devis?id=${voyage.id}&transporteur=${encodeURIComponent(nom)}`;
+      const deposeUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/travels/depot-devis?id=${voyage.id}&transporteur=${encodeURIComponent(nom)}`;
       const subject = `[Voyage scolaire] Demande de devis transporteur - ${voyage.lieu}`;
-      const text = `
-Demande de devis transporteur pour le voyage scolaire :
-- Organisateur : ${voyage.prenom} ${voyage.nom} (${voyage.email})
-- Date : du ${voyage.date_depart} au ${voyage.date_retour}
-- Classes : ${voyage.classes}
-- Détails dans le PDF joint et dans le programme le cas échéant.
-Vous pouvez déposer votre devis directement ici :
-${deposeUrl}
-Merci de ne pas répondre à ce mail automatique, utilisez le lien pour déposer votre devis PDF.
-      `;
+      const text = `Demande de devis transporteur pour le voyage scolaire :
+                    - Organisateur : ${voyage.prenom} ${voyage.nom} (${voyage.email})
+                    - Date : du ${voyage.date_depart} au ${voyage.date_retour}
+                    - Classes : ${voyage.classes}
+                    - Détails dans le PDF joint et dans le programme le cas échéant.
+                    Vous pouvez déposer votre devis directement ici :
+                    ${deposeUrl}
+                    Merci de ne pas répondre à ce mail automatique, utilisez le lien pour déposer votre devis PDF.`;
       const attachments = [
         { filename: "demande-devis-transporteur.pdf", content: pdfBuffer, contentType: "application/pdf" },
         ...(voyage.programme ? [

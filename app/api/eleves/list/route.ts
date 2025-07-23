@@ -6,8 +6,6 @@ const s3 = new S3Client({ region: 'eu-west-3' });
 
 export async function GET() {
   const bucket = process.env.AWS_S3_BUCKET_NAME!;
-
-  // Liste tous les dossiers sous eleves/
   const foldersCommand = new ListObjectsV2Command({
     Bucket: bucket,
     Prefix: 'eleves/',
@@ -15,8 +13,6 @@ export async function GET() {
   });
   const foldersResult = await s3.send(foldersCommand);
   const folders = foldersResult.CommonPrefixes?.map(p => p.Prefix) || [];
-
-  // Pour chaque dossier, liste les fichiers (sauf fiche.json)
   const eleves = [];
   for (const folder of folders) {
     const filesCommand = new ListObjectsV2Command({
@@ -24,8 +20,6 @@ export async function GET() {
       Prefix: folder,
     });
     const filesResult = await s3.send(filesCommand);
-
-    // Filtre les documents (hors fiche.json et les dossiers)
     const docs = filesResult.Contents
       ?.filter(f => !f.Key?.endsWith('fiche.json') && !f.Key?.endsWith('/'))
       .map(f => ({
@@ -33,8 +27,6 @@ export async function GET() {
         name: f.Key?.split('/').pop(),
         url: `https://${bucket}.s3.eu-west-3.amazonaws.com/${f.Key}`
       })) || [];
-
-    // Essaie de lire la fiche élève
     let fiche = null;
     try {
       const ficheFile = filesResult.Contents?.find(f => f.Key?.endsWith('fiche.json'));
@@ -46,15 +38,12 @@ export async function GET() {
       console.log(e)
       fiche = null;
     }
-
-    // Cherche une photo (jpg, jpeg, png)
     const photoFile = filesResult.Contents?.find(f =>
       f.Key && /\.(jpg|jpeg|png)$/i.test(f.Key) && !f.Key?.endsWith('/')
     );
     const photoUrl = photoFile
       ? `https://${bucket}.s3.eu-west-3.amazonaws.com/${photoFile.Key}`
       : null;
-
     eleves.push({
       dossier: folder,
       fiche,
@@ -62,6 +51,5 @@ export async function GET() {
       documents: docs,
     });
   }
-
   return NextResponse.json(eleves);
 }

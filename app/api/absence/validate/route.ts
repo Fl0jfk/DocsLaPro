@@ -4,12 +4,11 @@ import { PDFDocument, rgb } from "pdf-lib";
 
 const RECIPIENTS: Record<string, string[]> = {
   direction_ecole: ["flojfk+directionecole@gmail.com"],
-  college: ["email.direction.college@gmail.com"],
-  lycee: ["email.direction.lycee@gmail.com"],
+  college: ["flojfk+directioncollege@gmail.com"],
+  lycee: ["flojfk+directionlycee@gmail.com"],
   rh: ["flojfk+rh@gmail.com"],
-  voyages: ["voyages@ecole.com"],
   default: ["secretariat@ecole.com"],
-  secretariat: ["secretariat@ecole.com"], // <- adresse de stockage papier ici
+  secretariat: ["secretariat@ecole.com"],
 };
 
 export async function GET() {
@@ -28,11 +27,9 @@ export async function POST(req: NextRequest) {
   const demande = absences.find(a => a.id === id);
   if (!demande)
     return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
-
   let destinataire: string | string[];
   let mailSujet: string;
   let mailTexte: string;
-
   if (demande.type === "prof" && statut === "validee") {
     destinataire = RECIPIENTS.rh;
     mailSujet = "Déclaration d'absence professeur validée";
@@ -46,8 +43,6 @@ export async function POST(req: NextRequest) {
     mailSujet = "Votre demande a été refusée";
     mailTexte = "Malheureusement, votre demande d'absence a été refusée par la direction.";
   }
-
-  // Génère le PDF recap
   let pdfBuffer: Buffer | undefined = undefined;
   if (statut === "validee") {
     const pdfDoc = await PDFDocument.create();
@@ -82,8 +77,6 @@ export async function POST(req: NextRequest) {
       : []),
     ...pjJustificatifs,
   ];
-
-  // Mail 1 : RH (toujours)
   await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email`, {
     method: "POST",
     body: JSON.stringify({
@@ -94,8 +87,6 @@ export async function POST(req: NextRequest) {
     }),
     headers: { "Content-Type": "application/json" },
   });
-
-  // Mail 2 : demandeur concerné (toujours si validée et mail existe)
   if (
     statut === "validee" &&
     demande.email &&
@@ -115,8 +106,6 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   }
-
-  // Mail 3 : secrétariat à l'archivage (SEULEMENT si prof validé)
   if (demande.type === "prof" && statut === "validee") {
     await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email`, {
       method: "POST",
@@ -132,8 +121,6 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   }
-
   await removeEntry(id);
-
   return NextResponse.json({ success: true, message: "Traitement effectué et notification(s) transmise(s)." });
 }
