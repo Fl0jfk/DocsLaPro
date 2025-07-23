@@ -7,7 +7,7 @@ export default function UploadAndAnalyzeDocument() {
   const [status, setStatus] = useState<string>('');
   const [ocrText, setOcrText] = useState<string>('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [gptResult, setGptResult] = useState<any>(null);
+  const [mistralResult, setmistralResult] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [moveResult, setMoveResult] = useState<any>(null);
@@ -21,7 +21,7 @@ export default function UploadAndAnalyzeDocument() {
     return `${type}_${safeEleve}_${dateStr}_${timeStr}.pdf`;
   };
   const handleUploadAndAnalyze = async () => {
-    setGptResult(null);
+    setmistralResult(null);
     setMoveResult(null);
     setOcrText('');
     setLogs([]);
@@ -123,14 +123,14 @@ export default function UploadAndAnalyzeDocument() {
         break;
       } else {
         addLog('OCR pas encore prêt, statut : ' + ocrStatus);
-        await new Promise(r => setTimeout(r, 5000)); // 3s entre chaque essai
+        await new Promise(r => setTimeout(r, 5000));
       }
       tries++;
     } while (tries < 30);
     if (text) {
       setOcrText(text);
-      setStatus('OCR terminé ! Envoi à GPT...');
-      addLog('Envoi du texte OCR à GPT (route /api/analyze-doc)...');
+      setStatus('OCR terminé ! Envoi à Mistral AI...');
+      addLog('Envoi du texte OCR à Mistral AI (route /api/analyze-doc)...');
       const res4 = await fetch('/api/analyze-doc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,16 +139,16 @@ export default function UploadAndAnalyzeDocument() {
       if (!res4.ok) {
         const err = await res4.text();
         addLog('Erreur API analyze-doc: ' + err);
-        setStatus('Erreur lors de l\'analyse GPT');
+        setStatus('Erreur lors de l\'analyse mistral');
         return;
       }
-      const gpt = await res4.json();
-      setGptResult(gpt);
-      addLog('Réponse GPT reçue : ' + JSON.stringify(gpt));
-      if (gpt.eleve && gpt.type) {
-        const newFileName = generateFileName(gpt.type, gpt.eleve);
-        const eleveId = gpt.eleve.replace(/[^a-zA-Z0-9_]/g, '_'); // Sécurise le nom du dossier
-        setStatus(`Déplacement du fichier dans le dossier de l’élève ${gpt.eleve}...`);
+      const mistral = await res4.json();
+      setmistralResult(mistral);
+      addLog('Réponse mistral reçue : ' + JSON.stringify(mistral));
+      if (mistral.eleve && mistral.type) {
+        const newFileName = generateFileName(mistral.type, mistral.eleve);
+        const eleveId = mistral.eleve.replace(/[^a-zA-Z0-9_]/g, '_');
+        setStatus(`Déplacement du fichier dans le dossier de l’élève ${mistral.eleve}...`);
         addLog(`Appel de /api/move-file avec eleveId : ${eleveId}, newFileName : ${newFileName}`);
         const res5 = await fetch('/api/move-file', {
           method: 'POST',
@@ -167,7 +167,7 @@ export default function UploadAndAnalyzeDocument() {
         setStatus('Document déplacé dans le dossier élève !');
       } else {
         setStatus('Impossible d’identifier l’élève. À traiter manuellement.');
-        addLog('Aucun élève trouvé par GPT.');
+        addLog('Aucun élève trouvé par mistral.');
       }
     } else {
       setStatus('OCR non terminé après 1 minute. Réessayez plus tard.');
@@ -196,11 +196,11 @@ export default function UploadAndAnalyzeDocument() {
           <pre className="whitespace-pre-wrap">{ocrText}</pre>
         </div>
       )}
-      {gptResult && (
+      {mistralResult && (
         <div className="bg-yellow-100 p-2 rounded mb-2">
-          <strong>Réponse GPT :</strong>
+          <strong>Réponse Mistral AI :</strong>
           <pre className="whitespace-pre-wrap">
-            {JSON.stringify(gptResult, null, 2)}
+            {JSON.stringify(mistralResult, null, 2)}
           </pre>
         </div>
       )}
