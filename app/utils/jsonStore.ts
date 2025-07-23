@@ -34,6 +34,7 @@ export async function readStore(): Promise<AbsenceEntry[]> {
     const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: KEY }));
     const body = await obj.Body?.transformToString();
     return body ? JSON.parse(body) : [];
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     if (e.$metadata?.httpStatusCode === 404) return [];
     throw e;
