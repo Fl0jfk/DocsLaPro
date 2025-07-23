@@ -46,11 +46,6 @@ function Loader() {
   );
 }
 
-function base64ToUrl({ buffer, type }: { buffer: string; type: string }) {
-  if (buffer.startsWith("")) return buffer;
-  return `${type};base64,${buffer}`;
-}
-
 export default function ValidationAbsences() {
   const { user, isLoaded } = useUser();
   const [absences, setAbsences] = useState<AbsenceEntry[]>([]);
@@ -146,7 +141,7 @@ export default function ValidationAbsences() {
                         {viewable && (
                           <>
                             <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3", marginRight: 8 }}>Voir l’image</a>
-                            <img src={url} alt={f.filename} width={120} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc", display:"inline-block", verticalAlign:"middle"}} />
+                            <Image src={url} alt={f.filename} width={120} height={80} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc", display:"inline-block", verticalAlign:"middle"}} />
                           </>
                         )}
                         {isPdf && (

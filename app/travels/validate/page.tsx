@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import Link from "next/link";
 
 type PieceJointe = {
   filename: string;

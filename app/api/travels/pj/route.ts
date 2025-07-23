@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const voyages = await readVoyages();
   const voyage = voyages.find(v => v.id === id);
   if (!voyage) return new Response("Non trouvé", { status: 404 });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let pj: any;
   if (prog && voyage.programme) pj = voyage.programme;
   else if (typeof idx === "string" && voyage.pieces_jointes && voyage.pieces_jointes[Number(idx)]) pj = voyage.pieces_jointes[Number(idx)];
