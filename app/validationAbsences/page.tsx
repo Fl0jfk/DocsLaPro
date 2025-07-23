@@ -15,7 +15,7 @@ type Justificatif = {
 type AbsenceEntry = {
   id: string;
   type: "prof" | "salarie";
-  cible: "direction_ecole" | "college" | "directionlycee";
+  cible: "direction_ecole" | "direction_college" | "direction_lycee";
   nom: string;
   email: string;
   date_debut: string;
@@ -27,9 +27,9 @@ type AbsenceEntry = {
   date_declaration: string;
 };
 
-const CIBLE_MAP: Record<string, "directionlycee" | "college" | "direction_ecole"> = {
-  direction_lycee: "directionlycee",
-  direction_college: "college",
+const CIBLE_MAP: Record<string, "direction_lycee" | "direction_college" | "direction_ecole"> = {
+  direction_lycee: "direction_lycee",
+  direction_college: "direction_college",
   direction_ecole: "direction_ecole",
 };
 
@@ -58,7 +58,7 @@ export default function ValidationAbsences() {
   const [choix, setChoix] = useState<Record<string, "validee" | "refusee" | "">>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
-  function getCibleFromRole(user: UserResource | null | undefined): "directionlycee" | "college" | "direction_ecole" | null {
+  function getCibleFromRole(user: UserResource | null | undefined): "direction_lycee" | "direction_college" | "direction_ecole" | null {
     if (!user) return null;
     const role = (user.publicMetadata?.role as string | undefined) || "";
     return (role && CIBLE_MAP[role]) ? CIBLE_MAP[role] : null;
@@ -101,7 +101,6 @@ export default function ValidationAbsences() {
       setLoadingId(null);
     }
   };
-
   if (!isLoaded) return <div className="pt-[10vh] flex">Chargement utilisateur…</div>;
   if (!user) return <div className="pt-[10vh] flex">Vous devez être connecté(e).</div>;
   if (!cible) return <div className="pt-[10vh] flex">Vous n’avez pas accès à la gestion des absences.<br />Rôle non reconnu.</div>;
