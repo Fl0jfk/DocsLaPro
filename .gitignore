@@ -1,0 +1,7 @@
+node_modules
+
+# clerk configuration (can include secrets)
+/.clerk/
+
+# environnement local (ne jamais pousser de secrets)
+.env.local

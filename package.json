@@ -1,0 +1,44 @@
+{
+  "name": "docslapro",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "latest",
+    "@aws-sdk/client-textract": "latest",
+    "@aws-sdk/s3-request-presigner": "latest",
+    "@clerk/nextjs": "latest",
+    "busboy": "latest",
+    "framer-motion": "latest",
+    "html5-qrcode": "latest",
+    "lucide-react": "latest",
+    "next": "^15.4.1",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "latest",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "latest",
+    "qrcode.react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "latest"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "latest",
+    "@types/busboy": "latest",
+    "@types/node": "latest",
+    "@types/nodemailer": "latest",
+    "@types/qrcode": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "^9.31.0",
+    "eslint-config-next": "latest",
+    "postcss": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  }
+}
