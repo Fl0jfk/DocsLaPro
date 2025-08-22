@@ -3,6 +3,7 @@ module.exports = {
 "[project]/app/absences/page.tsx [app-ssr] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
+// app/components/AbsenceDeclarationForm.tsx
 __turbopack_context__.s({
     "default": ()=>AbsenceDeclarationForm
 });
@@ -20,42 +21,54 @@ function AbsenceDeclarationForm() {
     const { user, isLoaded } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$shared$2f$dist$2f$react$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useUser"])();
     async function handleSubmit(e) {
         e.preventDefault();
+        if (!user) return;
         setLoading(true);
         setResult(null);
-        const form = e.target;
-        const formData = new FormData(form);
-        const prenomClerk = user?.firstName || "";
-        const nomClerk = user?.lastName || "";
-        const emailClerk = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "";
-        formData.set("nom", `${prenomClerk} ${nomClerk}`.trim());
-        formData.set("email", emailClerk);
-        if (fileInput.current?.files && fileInput.current.files.length > 5) {
-            setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
+        try {
+            const form = e.target;
+            const formData = new FormData(form);
+            const prenomClerk = user.firstName || "";
+            const nomClerk = user.lastName || "";
+            const emailClerk = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
+            formData.set("nom", `${prenomClerk} ${nomClerk}`.trim());
+            formData.set("email", emailClerk);
+            if (fileInput.current?.files && fileInput.current.files.length > 5) {
+                setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
+                setLoading(false);
+                return;
+            }
+            const res = await fetch("/api/absence/want", {
+                method: "POST",
+                body: formData
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                setResult(json.error || "Erreur lors de l'envoi.");
+            } else {
+                setResult(json.message || "Demande envoyée.");
+                // Reset du formulaire
+                if (fileInput.current) fileInput.current.value = "";
+                form.reset();
+            }
+        } catch (err) {
+            console.error("Erreur envoi formulaire:", err);
+            setResult("Erreur serveur.");
+        } finally{
             setLoading(false);
-            return;
         }
-        const res = await fetch("/api/absence/want", {
-            method: "POST",
-            body: formData
-        });
-        const reponse = await res.json();
-        setLoading(false);
-        setResult(reponse.message || reponse.error);
-        if (fileInput.current) fileInput.current.value = "";
-        form.reset();
     }
     if (!isLoaded) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Chargement…"
     }, void 0, false, {
         fileName: "[project]/app/absences/page.tsx",
-        lineNumber: 37,
+        lineNumber: 56,
         columnNumber: 25
     }, this);
     if (!user) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Vous devez être connecté(e)."
     }, void 0, false, {
         fileName: "[project]/app/absences/page.tsx",
-        lineNumber: 38,
+        lineNumber: 57,
         columnNumber: 21
     }, this);
     const prenomClerk = user.firstName || "";
@@ -67,19 +80,17 @@ function AbsenceDeclarationForm() {
         className: "pt-[20vh] flex flex-col items-center gap-4",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
-                className: "",
                 children: "Déclaration d’absence"
             }, void 0, false, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 47,
+                lineNumber: 72,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Prénom : ",
+                    "Prénom :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                         type: "text",
-                        name: "prenom_display",
                         value: prenomClerk,
                         readOnly: true,
                         tabIndex: -1,
@@ -88,21 +99,20 @@ function AbsenceDeclarationForm() {
                         }
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 48,
-                        columnNumber: 28
+                        lineNumber: 77,
+                        columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 48,
+                lineNumber: 75,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Nom : ",
+                    "Nom :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                         type: "text",
-                        name: "nom_display",
                         value: nomClerk,
                         readOnly: true,
                         tabIndex: -1,
@@ -111,21 +121,20 @@ function AbsenceDeclarationForm() {
                         }
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 50,
-                        columnNumber: 25
+                        lineNumber: 81,
+                        columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 50,
+                lineNumber: 79,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Email : ",
+                    "Email :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                         type: "email",
-                        name: "email_display",
                         value: emailClerk,
                         readOnly: true,
                         tabIndex: -1,
@@ -134,13 +143,33 @@ function AbsenceDeclarationForm() {
                         }
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 52,
-                        columnNumber: 27
+                        lineNumber: 85,
+                        columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 52,
+                lineNumber: 83,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                type: "hidden",
+                name: "nom",
+                value: `${prenomClerk} ${nomClerk}`.trim(),
+                readOnly: true
+            }, void 0, false, {
+                fileName: "[project]/app/absences/page.tsx",
+                lineNumber: 89,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                type: "hidden",
+                name: "email",
+                value: emailClerk,
+                readOnly: true
+            }, void 0, false, {
+                fileName: "[project]/app/absences/page.tsx",
+                lineNumber: 90,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -155,7 +184,7 @@ function AbsenceDeclarationForm() {
                                 children: "Choisir…"
                             }, void 0, false, {
                                 fileName: "[project]/app/absences/page.tsx",
-                                lineNumber: 57,
+                                lineNumber: 95,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -163,7 +192,7 @@ function AbsenceDeclarationForm() {
                                 children: "Professeur"
                             }, void 0, false, {
                                 fileName: "[project]/app/absences/page.tsx",
-                                lineNumber: 58,
+                                lineNumber: 96,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -171,19 +200,19 @@ function AbsenceDeclarationForm() {
                                 children: "Personnel/salarié"
                             }, void 0, false, {
                                 fileName: "[project]/app/absences/page.tsx",
-                                lineNumber: 59,
+                                lineNumber: 97,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 56,
+                        lineNumber: 94,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 54,
+                lineNumber: 92,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -198,7 +227,7 @@ function AbsenceDeclarationForm() {
                                 children: "Choisir…"
                             }, void 0, false, {
                                 fileName: "[project]/app/absences/page.tsx",
-                                lineNumber: 65,
+                                lineNumber: 104,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -206,7 +235,7 @@ function AbsenceDeclarationForm() {
                                 children: "École"
                             }, void 0, false, {
                                 fileName: "[project]/app/absences/page.tsx",
-                                lineNumber: 66,
+                                lineNumber: 105,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -214,7 +243,7 @@ function AbsenceDeclarationForm() {
                                 children: "Collège"
                             }, void 0, false, {
                                 fileName: "[project]/app/absences/page.tsx",
-                                lineNumber: 67,
+                                lineNumber: 106,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -222,39 +251,19 @@ function AbsenceDeclarationForm() {
                                 children: "Lycée"
                             }, void 0, false, {
                                 fileName: "[project]/app/absences/page.tsx",
-                                lineNumber: 68,
+                                lineNumber: 107,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 64,
+                        lineNumber: 103,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 62,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                type: "hidden",
-                name: "nom",
-                value: `${prenomClerk} ${nomClerk}`.trim(),
-                readOnly: true
-            }, void 0, false, {
-                fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 71,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                type: "hidden",
-                name: "email",
-                value: emailClerk,
-                readOnly: true
-            }, void 0, false, {
-                fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 72,
+                lineNumber: 101,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -266,13 +275,13 @@ function AbsenceDeclarationForm() {
                         required: true
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 74,
+                        lineNumber: 112,
                         columnNumber: 22
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 73,
+                lineNumber: 111,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -284,13 +293,13 @@ function AbsenceDeclarationForm() {
                         required: true
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 77,
+                        lineNumber: 115,
                         columnNumber: 20
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 76,
+                lineNumber: 114,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -302,13 +311,13 @@ function AbsenceDeclarationForm() {
                         required: true
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 81,
+                        lineNumber: 120,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 79,
+                lineNumber: 118,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -319,17 +328,16 @@ function AbsenceDeclarationForm() {
                         name: "attachments",
                         ref: fileInput,
                         multiple: true,
-                        accept: "image/*,.pdf",
-                        max: 5
+                        accept: "image/*,.pdf"
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 85,
+                        lineNumber: 125,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 83,
+                lineNumber: 123,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -339,13 +347,13 @@ function AbsenceDeclarationForm() {
                         name: "commentaire"
                     }, void 0, false, {
                         fileName: "[project]/app/absences/page.tsx",
-                        lineNumber: 87,
-                        columnNumber: 27
+                        lineNumber: 136,
+                        columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 87,
+                lineNumber: 134,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -357,7 +365,7 @@ function AbsenceDeclarationForm() {
                 children: loading ? "Envoi..." : "Déclarer mon absence"
             }, void 0, false, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 89,
+                lineNumber: 139,
                 columnNumber: 7
             }, this),
             result && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -367,13 +375,13 @@ function AbsenceDeclarationForm() {
                 children: result
             }, void 0, false, {
                 fileName: "[project]/app/absences/page.tsx",
-                lineNumber: 90,
+                lineNumber: 143,
                 columnNumber: 18
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/absences/page.tsx",
-        lineNumber: 46,
+        lineNumber: 67,
         columnNumber: 5
     }, this);
 }

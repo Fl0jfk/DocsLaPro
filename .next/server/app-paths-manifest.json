@@ -1,5 +1,6 @@
 {
   "/absences/page": "app/absences/page.js",
+  "/api/absence/want/route": "app/api/absence/want/route.js",
   "/api/documents/list/route": "app/api/documents/list/route.js",
   "/documents/page": "app/documents/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",

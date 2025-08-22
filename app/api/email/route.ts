@@ -1,37 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendMail, Attachment } from "@/app/utils/sendEmail";
-import Busboy from "busboy";
-import { Readable } from "stream";
 
 const RECIPIENTS: Record<string, string[]> = {
-  direction_ecole: ["flojfk+directionecole@gmail.com"],
-  college: ["flojfk+direction.college@gmail.com"],
-  lycee: ["flojfk+direction.lycee@gmail.com"],
-  rh: ["flojfk+rh@gmail.com"],
+  direction_ecole: ["florian.hacqueville-mathi@ac-normandie.fr"],
+  direction_college: ["florian.hacqueville-mathi@ac-normandie.fr"],
+  direction_lycee: ["florian.hacqueville-mathi@ac-normandie.fr"],
+  rh: ["florian.hacqueville-mathi@ac-normandie.fr"],
   default: ["secretariat@ecole.com"],
 };
 
-export async function POST(request: NextRequest) {
-  const contentType = request.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    const body = await request.json();
-    let to: string | string[];
-    if (body.to) {
-      to = body.to;
-    } else if (body.target) {
-      to = RECIPIENTS[body.target] || RECIPIENTS.default;
-    } else {
-      to = RECIPIENTS.default;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let attachments: any[] | undefined = undefined;
-    if (Array.isArray(body.attachments) && body.attachments.length) {
-      attachments = body.attachments.map((att: { filename: string; content: string; contentType: string; }) => ({
-        filename: att.filename,
-        content: Buffer.from(att.content, "base64"),
-        contentType: att.contentType,
-      }));
-    }
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const target = body.target as string;
+    const to = target ? RECIPIENTS[target] || RECIPIENTS.default : RECIPIENTS.default;
+
+    const attachments: Attachment[] | undefined = body.attachments?.map((att: any) => ({
+      filename: att.filename,
+      content: Buffer.from(att.content, "base64"),
+      contentType: att.contentType,
+    }));
+
+    console.log("📨 Envoi mail à:", to);
+    console.log("📄 Sujet:", body.subject);
+    console.log("✉️ Texte:", body.text);
+    if (attachments) console.log("📎 Pièces jointes:", attachments.map(a => a.filename));
+
     await sendMail({
       to,
       subject: body.subject || "[Système] Message reçu",
@@ -40,54 +34,11 @@ export async function POST(request: NextRequest) {
       replyTo: body.replyTo,
       attachments,
     });
-    return NextResponse.json({ success: true, message: "Email envoyé." });
+
+    console.log("✅ Mail envoyé via /api/email");
+    return NextResponse.json({ success: true, message: "Mail envoyé." });
+  } catch (err) {
+    console.error("❌ Erreur /api/email:", err);
+    return NextResponse.json({ error: "Erreur serveur email." }, { status: 500 });
   }
-  if (contentType.startsWith("multipart/form-data")) {
-    const busboy = Busboy({ headers: Object.fromEntries(request.headers.entries()) });
-    const fields: Record<string, string> = {};
-    const attachments: Attachment[] = [];
-    busboy.on("file", (fieldname, file, { filename, mimeType }) => {
-      const chunks: Buffer[] = [];
-      file.on("data", (chunk) => chunks.push(chunk));
-      file.on("end", () => {
-        attachments.push({
-          filename,
-          content: Buffer.concat(chunks),
-          contentType: mimeType,
-        });
-      });
-    });
-    busboy.on("field", (fieldname, value) => {
-      fields[fieldname] = value;
-    });
-    await new Promise<void>((resolve, reject) => {
-      busboy.on("finish", resolve);
-      busboy.on("error", reject);
-      // @ts-expect-error: Readable.fromWeb est OK ici
-      const nodeStream = Readable.fromWeb(request.body as unknown as ReadableStream<Uint8Array>);
-      nodeStream.pipe(busboy);
-    });
-    let to: string | string[];
-    if (fields.to) {
-      try {
-        to = JSON.parse(fields.to);
-      } catch {
-        to = fields.to;
-      }
-    } else if (fields.target) {
-      to = RECIPIENTS[fields.target] || RECIPIENTS.default;
-    } else {
-      to = RECIPIENTS.default;
-    }
-    await sendMail({
-      to,
-      subject: fields.subject || "[Système] Nouveau formulaire",
-      text: fields.text || "",
-      html: fields.html || "",
-      attachments,
-      replyTo: fields.replyTo,
-    });
-    return NextResponse.json({ success: true, message: "Email (avec pièce jointe si présente) envoyé." });
-  }
-  return NextResponse.json({ error: "Type de contenu non supporté." }, { status: 415 });
 }
