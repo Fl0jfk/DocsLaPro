@@ -379,6 +379,10 @@ img, video {
   left: 1rem;
 }
 
+.left-\[38\%\] {
+  left: 38%;
+}
+
 .right-4 {
   right: 1rem;
 }
@@ -403,52 +407,16 @@ img, video {
   top: 300px;
 }
 
+.top-\[48\%\] {
+  top: 48%;
+}
+
 .top-\[830px\] {
   top: 830px;
 }
 
 .top-\[900px\] {
   top: 900px;
-}
-
-.top-\[\] {
-  top: ;
-}
-
-.top-\[50\%\] {
-  top: 50%;
-}
-
-.left-\[\] {
-  left: ;
-}
-
-.left-\[50\] {
-  left: 50px;
-}
-
-.left-\[50\%\] {
-  left: 50%;
-}
-
-.left-\[40\%\] {
-  left: 40%;
-}
-
-.left-\[45\%\] {
-  left: 45%;
-}
-
-.left-\[42\%\] {
-  left: 42%;
-}
-
-.top-\[48\%\] {
-  top: 48%;
-}
-
-.left-\[38\%\] {
-  left: 38%;
 }
 
 .z-10, .z-\[10\] {
@@ -614,8 +582,12 @@ img, video {
   height: 100vh;
 }
 
-.h-auto {
-  height: auto;
+.h-\[500px\] {
+  height: 500px;
+}
+
+.h-\[100px\] {
+  height: 100px;
 }
 
 .min-h-screen {
@@ -636,6 +608,10 @@ img, video {
 
 .w-2\/12 {
   width: 16.6667%;
+}
+
+.w-4\/12 {
+  width: 33.3333%;
 }
 
 .w-8 {
@@ -742,12 +718,12 @@ img, video {
   width: 100vw;
 }
 
-.w-4\/12 {
-  width: 33.3333%;
-}
-
 .min-w-\[320px\] {
   min-width: 320px;
+}
+
+.min-w-\[250px\] {
+  min-width: 250px;
 }
 
 .max-w-2xl {
@@ -764,6 +740,14 @@ img, video {
 
 .max-w-xl {
   max-width: 36rem;
+}
+
+.max-w-\[\] {
+  max-width: ;
+}
+
+.max-w-\[1500px\] {
+  max-width: 1500px;
 }
 
 .flex-1 {
@@ -867,6 +851,10 @@ img, video {
   gap: 2.5rem;
 }
 
+.gap-12 {
+  gap: 3rem;
+}
+
 .gap-14 {
   gap: 3.5rem;
 }
@@ -905,10 +893,6 @@ img, video {
 
 .gap-\[50px\] {
   gap: 50px;
-}
-
-.gap-12 {
-  gap: 3rem;
 }
 
 .space-y-2 > :not([hidden]) ~ :not([hidden]) {
@@ -1276,11 +1260,6 @@ img, video {
   line-height: 2rem;
 }
 
-.text-3xl {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-}
-
 .text-4xl {
   font-size: 2.25rem;
   line-height: 2.5rem;
@@ -1536,20 +1515,12 @@ a, button {
 }
 
 @media (min-width: 350px) and (max-width: 767px) {
-  .sm\:fixed {
-    position: fixed;
-  }
-
   .sm\:mt-\[-5px\] {
     margin-top: -5px;
   }
 
   .sm\:flex {
     display: flex;
-  }
-
-  .sm\:hidden {
-    display: none;
   }
 
   .sm\:h-\[500px\] {
@@ -1560,8 +1531,12 @@ a, button {
     height: 650px;
   }
 
-  .sm\:w-4\/12 {
-    width: 33.3333%;
+  .sm\:h-\[550px\] {
+    height: 550px;
+  }
+
+  .sm\:h-\[450px\] {
+    height: 450px;
   }
 
   .sm\:min-w-\[280px\] {
@@ -1588,6 +1563,10 @@ a, button {
     overflow-x: scroll;
   }
 
+  .sm\:pt-\[10vh\] {
+    padding-top: 10vh;
+  }
+
   .sm\:pt-\[13vh\] {
     padding-top: 13vh;
   }
@@ -1596,46 +1575,34 @@ a, button {
     padding-top: 15vh;
   }
 
-  .sm\:pt-\[10vh\] {
-    padding-top: 10vh;
-  }
-
-  .sm\:opacity-95 {
-    opacity: .95;
-  }
-
   .sm\:active\:cursor-grabbing:active {
     cursor: grabbing;
   }
 }
 
 @media (min-width: 768px) and (max-width: 991px) {
-  .md\:fixed {
-    position: fixed;
-  }
-
   .md\:mb-\[100px\] {
     margin-bottom: 100px;
-  }
-
-  .md\:flex {
-    display: flex;
   }
 
   .md\:grid {
     display: grid;
   }
 
-  .md\:hidden {
-    display: none;
-  }
-
   .md\:h-\[300px\] {
     height: 300px;
   }
 
-  .md\:w-4\/12 {
-    width: 33.3333%;
+  .md\:h-\[500px\] {
+    height: 500px;
+  }
+
+  .md\:h-\[00px\] {
+    height: 0;
+  }
+
+  .md\:h-\[400px\] {
+    height: 400px;
   }
 
   .md\:min-w-\[120px\] {
@@ -1646,6 +1613,10 @@ a, button {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .md\:pt-\[10vh\] {
+    padding-top: 10vh;
+  }
+
   .md\:pt-\[13vh\] {
     padding-top: 13vh;
   }
@@ -1654,39 +1625,31 @@ a, button {
     padding-top: 15vh;
   }
 
-  .md\:pt-\[10vh\] {
-    padding-top: 10vh;
+  .md\:pt-\[5vh\] {
+    padding-top: 5vh;
+  }
+
+  .md\:pt-\[1vh\] {
+    padding-top: 1vh;
   }
 
   .md\:text-2xl {
     font-size: 1.5rem;
     line-height: 2rem;
   }
-
-  .md\:opacity-95 {
-    opacity: .95;
-  }
 }
 
 @media (min-width: 992px) and (max-width: 1199px) {
-  .lg\:absolute {
-    position: absolute;
-  }
-
-  .lg\:left-\[30\%\] {
-    left: 30%;
-  }
-
   .lg\:grid {
     display: grid;
   }
 
-  .lg\:hidden {
-    display: none;
-  }
-
   .lg\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .lg\:hover\:scale-105:hover {
@@ -1697,20 +1660,8 @@ a, button {
 }
 
 @media (min-width: 1200px) {
-  .xl\:absolute {
-    position: absolute;
-  }
-
-  .xl\:left-\[35\%\] {
-    left: 35%;
-  }
-
   .xl\:grid {
     display: grid;
-  }
-
-  .xl\:hidden {
-    display: none;
   }
 
   .xl\:grid-cols-4 {

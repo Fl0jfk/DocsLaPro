@@ -23,9 +23,9 @@ const nextConfig: NextConfig = {
         },
         {
             protocol: 'https',
-            hostname: 'docslapro.s3.eu-west-3.amazonaws.com/tutos/*',
+            hostname: 'docslaproimage.s3.eu-west-3.amazonaws.com',
             pathname: '/**',
-        },
+        }
     ]
   },
   async headers() {

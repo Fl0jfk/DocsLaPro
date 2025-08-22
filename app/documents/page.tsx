@@ -8,6 +8,7 @@ type DocumentNode = {
   name: string;
   url?: string;
   path: string;
+  ext?: string;
 };
 
 export default function DocumentsPage() {
@@ -15,8 +16,20 @@ export default function DocumentsPage() {
   const [items, setItems] = useState<DocumentNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<string[]>([]);
+  const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
+  const cacheTTL = 24 * 60 * 60 * 1000;
   useEffect(() => {
     setLoading(true);
+    const cachedRaw = localStorage.getItem(cacheKey(currentPrefix));
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw);
+      const now = Date.now();
+      if (now - cached.timestamp < cacheTTL) {
+        setItems(cached.data);
+        setLoading(false);
+        return;
+      }
+    }
     fetch(`/api/documents/list?prefix=${currentPrefix}`)
       .then(res => res.json())
       .then(data => {
@@ -25,6 +38,10 @@ export default function DocumentsPage() {
           setItems([]);
         } else {
           setItems(data);
+          localStorage.setItem(cacheKey(currentPrefix), JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          }));
         }
         setLoading(false);
       })
@@ -33,7 +50,6 @@ export default function DocumentsPage() {
         setLoading(false);
       });
   }, [currentPrefix]);
-
   const enterFolder = (path: string) => {
     setHistory(prev => [...prev, currentPrefix]);
     setCurrentPrefix(path.replace(/^documents\/[^/]+\//, ""));
@@ -45,10 +61,17 @@ export default function DocumentsPage() {
       setCurrentPrefix(prev);
     }
   };
+  const getFileIcon = (ext?: string) => {
+    if (!ext) return "📄";
+    if (ext === "pdf") return "📄";
+    if (ext === "doc" || ext === "docx") return "📝";
+    if (ext === "xls" || ext === "xlsx") return "📊";
+    return "📄";
+  };
   if (loading) return <div>Chargement...</div>;
   return (
-    <main className="flex flex-col gap-12 p-6 w-full mx-auto max-w-[1000px] md:pt-[10vh] sm:pt-[10vh]">
-      <section className="space-y-4">
+    <main className="flex flex-col gap-4 p-4 w-full mx-auto max-w-[1000px] sm:pt-[10vh]">
+      <section className="space-y-4 flex flex-col gap-2">
         {history.length > 0 && (
           <button onClick={goBack} className="text-blue-500 hover:underline mb-4">← Retour</button>
         )}
@@ -56,17 +79,14 @@ export default function DocumentsPage() {
           items.map((item, idx) => (
             <div key={idx} className="p-4 bg-white rounded-lg shadow-md">
               {item.type === "folder" ? (
-                <div
-                  className="cursor-pointer font-semibold text-yellow-700"
-                  onClick={() => enterFolder(item.path)}
-                >
+                <div className="cursor-pointer font-semibold text-yellow-700" onClick={() => enterFolder(item.path)}>
                   📁 {item.name}
                 </div>
               ) : (
-                <>
-                  <h3 className="font-semibold">{item.name}</h3>
+                <div className="flex justify-between">
+                  <h3 className="font-semibold">{getFileIcon(item.ext)} {item.name}</h3>
                   <Link className="text-blue-500 hover:underline" href={item.url!}>Télécharger</Link>
-                </>
+                </div>
               )}
             </div>
           ))

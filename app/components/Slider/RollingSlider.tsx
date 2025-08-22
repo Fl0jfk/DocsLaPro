@@ -7,7 +7,7 @@ export default function RollingSlider({ categories }: RollingSliderProps) {
     return <div className="text-center py-4">Aucune catégorie disponible pour votre rôle</div>;
   }
   return (
-    <section id="slideshow" className="w-full self-center mx-auto">
+    <section id="slideshow" className="w-full self-center mx-auto max-w-[1500px]">
       <Slider items={categories} />
     </section>
   );

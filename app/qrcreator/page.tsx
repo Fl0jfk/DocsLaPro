@@ -63,7 +63,7 @@ export default function QRCreator() {
     }
   };
   return (
-    <main className='sm:pt-[13vh] md:pt-[13vh] p-4 flex flex-col gap-4 max-w-[1000px] mx-auto'>
+    <main className='sm:pt-[13vh] p-4 flex flex-col gap-4 max-w-[1000px] mx-auto'>
       <h1 className='text-4xl'>Création de QR Code</h1>
       <div className="mt-4">
         <label htmlFor="url" className="block text-lg">Adresse URL :</label>

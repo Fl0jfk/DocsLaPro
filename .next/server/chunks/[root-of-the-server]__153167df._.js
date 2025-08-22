@@ -211,7 +211,6 @@ async function GET(req) {
     const prefixParam = url.searchParams.get("prefix") || "";
     const cacheKey = `${userId}-${prefixParam}`;
     const now = Date.now();
-    // Si cache valide (< 5 min), renvoyer directement
     if (cache[cacheKey] && now - cache[cacheKey].timestamp < 5 * 60 * 1000) {
         return new Response(JSON.stringify(cache[cacheKey].data), {
             status: 200
@@ -230,7 +229,13 @@ async function GET(req) {
                 name: p.Prefix.split("/").slice(-2, -1)[0],
                 path: p.Prefix
             })) || [];
-        const files = await Promise.all((response.Contents || []).filter((file)=>file.Key && !file.Key.endsWith("/")).filter((file)=>file.Key.endsWith(".pdf")).map(async (file)=>{
+        const files = await Promise.all((response.Contents || []).filter((file)=>file.Key && !file.Key.endsWith("/")).filter((file)=>[
+                ".pdf",
+                ".doc",
+                ".docx",
+                ".xls",
+                ".xlsx"
+            ].some((ext)=>file.Key.endsWith(ext))).map(async (file)=>{
             const getObjectCommand = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["GetObjectCommand"]({
                 Bucket: process.env.AWS_S3_BUCKET_NAME,
                 Key: file.Key
@@ -240,16 +245,16 @@ async function GET(req) {
             });
             return {
                 type: "file",
-                name: file.Key.split("/").pop().replace(".pdf", ""),
+                name: file.Key.split("/").pop().replace(/\.(pdf|docx|xlsx)$/, ""),
                 url,
-                path: file.Key
+                path: file.Key,
+                ext: file.Key.split(".").pop()?.toLowerCase()
             };
         }));
         const items = [
             ...folders,
             ...files
         ];
-        // Stocker dans le cache
         cache[cacheKey] = {
             data: items,
             timestamp: now

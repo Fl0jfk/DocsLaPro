@@ -3,217 +3,74 @@
         {
             "id":1,
             "name":"Les documents",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
             "link":"/documents",
             "description":"",
             "allowedRoles": ["direction", "administratif", "professeur"]
         },
         {
-            "id":3,
+            "id":2,
             "name":"Ecole Directe",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/Ecole+direct.png",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Ecole+direct.png",
             "link":"https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
             "description":"",
             "allowedRoles": ["direction", "administratif","professeur"]
         },
         {
-            "id":4,
+            "id":3,
             "name":"Maintenance",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/maintenance.avif",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/maintenance.avif",
             "link":"https://providence.dedikam.com/index.php?a=add",
             "description":"",
             "allowedRoles": ["direction", "administratif","professeur"]
         },
         {
-            "id":5,
+            "id":4,
             "name":"Séjour scolaire",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/transport.avif",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
             "link":"/travels/new",
             "description":"",
             "allowedRoles": ["direction", "administratif", "direction_ecole","professeur"]
         },
         {
-            "id":6,
+            "id":5,
             "name":"Gestion du stock",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/Stocks.jpg",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Stocks.jpg",
             "link":"/stocks",
             "description":"",
             "allowedRoles": ["direction", "administratif"]
         },
         {
-            "id":7,
+            "id":6,
             "name":"Création de QR Code",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/qrcreator",
             "description":"",
             "allowedRoles": ["direction", "administratif","professeur"]
         },
         {
-            "id":8,
+            "id":7,
             "name":"Upload Docs",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/uploadDocuments",
             "description":"",
             "allowedRoles": ["direction", "administratif"]
         },
         {
-            "id":9,
+            "id":8,
             "name":"Base de données Elèves",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/bdd",
             "description":"",
             "allowedRoles": ["direction", "administratif"]
         },
         {
-            "id":10,
+            "id":9,
             "name":"Demande d'absence",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/absences",
             "description":"",
             "allowedRoles": ["direction", "administratif", "direction_ecole","professeur"]
-        }
-    ],
-    "travels":[
-        {
-            "id":1,
-            "name":"Panthéon, Mémorial de la Shoah",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/memorial+shoah.avif",
-            "date": "06/03/2025",
-            "validated":true,
-            "description":"Prêt",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
-            "to":"Meron"
-            
-        },
-        {
-            "id":2,
-            "name":"Paris Opéra Bastille",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/opera+bastille.jpg",
-            "date": "13/03/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
-            "to":"Dubois"
-        },
-        {
-            "id":3,
-            "name":"Panthéon, Mémorial de la Shoah",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/memorial+shoah.avif",
-            "date": "18/03/2025",
-            "validated":true,
-            "description":"En attente du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
-            "to":"Desverite"
-        },
-        {
-            "id":4,
-            "name":"Musée Juliobona",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/juliobona-lillbeonne-passe-antique.jpg",
-            "date": "20/03/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
-            "to":"Bellanger"
-        },
-        {
-            "id":5,
-            "name":"Assemblée Nationale",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/assembl%C3%A9e+nationale.jpg",
-            "date": "01/04/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
-            "to":"Meron"
-        },
-        {
-            "id":6,
-            "name":"Musée Juliobona",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/juliobona-lillbeonne-passe-antique.jpg",
-            "date": "03/04/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
-            "to":"Bellanger"
-        },
-        {
-            "id":7,
-            "name":"Chateaux Val de Loire",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/chateau_chambord_loire.jpg.webp",
-            "date": "28/04/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
-            "to":"Lecesne"
-        },
-        {
-            "id":8,
-            "name":"Pointe du Hoc, Cimetière Américain, Mémorial Caen",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/cimetiere_americain_3.jpg",
-            "date": "13/05/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/perier.png",
-            "to":"Quibel"
-        },
-        {
-            "id":9,
-            "name":"Centrale Nucléaire Paluel",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/paluel.jpg",
-            "date": "16/05/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/hangard.png",
-            "to":"Gandolfo"
-        },
-        {
-            "id":10,
-            "name":"Surf - Vieux Boucau les Bains",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/vieux+boucau.jpg",
-            "date": "19/05/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
-            "to":"Grout"
-        },
-        {
-            "id":11,
-            "name":"Abbaye de Saint-Wandrille",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/saint-wandrille.jpg",
-            "date": "21/05/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/hangard.png",
-            "to":"Duboc"
-        },
-        {
-            "id":12,
-            "name":"La Cité des Sciences et de l'Industrie",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/cite-des-sciences-et-de-l-industrie.jpg",
-            "date": "13/05/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/grisel.png",
-            "to":"Faucheux"
-        },
-        {
-            "id":13,
-            "name":"Chateau de Chantilly - Grandes Ecuries",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/Chantilly+%C3%A9curies.jpg",
-            "date": "05/06/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/logo-REFLEXE-VOYAGES-apres.png",
-            "to":"Dumouchel"
-        },
-        {
-            "id":14,
-            "name":"Parc Astérix",
-            "img":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/parc+asterix.jpg",
-            "date": "30/06/2025",
-            "validated":true,
-            "description":"En attente de la liste des élèves et du n° du chauffeur",
-            "company":"https://docslapro.s3.eu-west-3.amazonaws.com/VoyagesTransports/hangard.png",
-            "to":"Leroy-Gode"
         }
     ]
 }

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (role === "professeur") folder = "professeurs/";
   else if (role === "administratif") folder = "administratif/";
   else if (role === "direction") folder = "direction/";
-  else if (role === "admin") folder = "admin/";
+  else if (role === "comptabilité") folder = "comptabilité/";
   else return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403 });
   const url = new URL(req.url);
   const prefixParam = url.searchParams.get("prefix") || "";
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     const files = await Promise.all(
       (response.Contents || [])
         .filter(file => file.Key && !file.Key.endsWith("/"))
-        .filter(file => file.Key!.endsWith(".pdf"))
+        .filter(file => [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext => file.Key!.endsWith(ext)))
         .map(async file => {
           const getObjectCommand = new GetObjectCommand({
             Bucket: process.env.AWS_S3_BUCKET_NAME!,
@@ -58,9 +58,10 @@ export async function GET(req: NextRequest) {
           const url = await getSignedUrl(s3, getObjectCommand, { expiresIn: 6000 });
           return {
             type: "file" as const,
-            name: file.Key!.split("/").pop()!.replace(".pdf", ""),
+            name: file.Key!.split("/").pop()!.replace(/\.(pdf|docx|xlsx)$/, ""),
             url,
             path: file.Key!,
+            ext: file.Key!.split(".").pop()?.toLowerCase(),
           };
         })
     );

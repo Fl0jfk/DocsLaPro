@@ -38,7 +38,7 @@ export default function Header() {
         return null;
     }
     return (
-        <motion.header  variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}  animate={hidden ? "hidden" : "visible"}  transition={{ duration: 0.35, ease: "easeInOut" }} className={`flex p-4 justify-between items-center w-fullfixed z-[12] md:mb-[100px] ${opacityMenu} self-center text-2xl overflow-hidden bg-[#fff]`}>
+        <motion.header  variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}  animate={hidden ? "hidden" : "visible"}  transition={{ duration: 0.35, ease: "easeInOut" }} className={`max-w-[1500px] mx-auto flex p-4 justify-between items-center w-fullfixed z-[12] md:mb-[100px] ${opacityMenu} self-center text-2xl overflow-hidden bg-[#fff]`}>
             <div className="flex items-center h-full w-4/12">
                 {Logo && (
                     <Link href="/">

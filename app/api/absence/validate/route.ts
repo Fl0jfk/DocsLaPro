@@ -4,11 +4,11 @@ import { PDFDocument, rgb } from "pdf-lib";
 
 const RECIPIENTS: Record<string, string[]> = {
   direction_ecole: ["flojfk+directionecole@gmail.com"],
-  college: ["flojfk+directioncollege@gmail.com"],
-  lycee: ["flojfk+directionlycee@gmail.com"],
+  direction_college: ["flojfk+directioncollege@gmail.com"],
+  direction_lycee: ["flojfk+directionlycee@gmail.com"],
   rh: ["flojfk+rh@gmail.com"],
   default: ["secretariat@ecole.com"],
-  secretariat: ["secretariat@ecole.com"],
+  secretariat: ["florian.hacquevil"],
 };
 
 export async function GET() {
