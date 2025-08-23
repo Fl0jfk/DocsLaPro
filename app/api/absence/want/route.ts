@@ -22,26 +22,16 @@ export async function POST(req: NextRequest) {
     const date_fin = data.get("date_fin") as string;
     const motif = data.get("motif") as string;
     const commentaire = (data.get("commentaire") as string) || undefined;
-    if (!type || !cible || !nom || !email || !date_debut || !date_fin || !motif) {
-      return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 });
-    }
+    if (!type || !cible || !nom || !email || !date_debut || !date_fin || !motif) { return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 })}
     const filesRaw = data.getAll("attachments");
     const files = filesRaw
       .filter(f => f instanceof File && f.name && f.size > 0) as File[];
-    if (files.length > MAX_FILES) {
-      return NextResponse.json({ error: `Pas plus de ${MAX_FILES} fichiers.` }, { status: 400 });
-    }
+    if (files.length > MAX_FILES) { return NextResponse.json({ error: `Pas plus de ${MAX_FILES} fichiers.` }, { status: 400 })}
     const attachments = [];
     for (const file of files) {
-      if (!ALLOWED_MIME.has(file.type)) {
-        return NextResponse.json({ error: `Type de fichier non autorisé: ${file.name}` }, { status: 400 });
-      }
+      if (!ALLOWED_MIME.has(file.type)) { return NextResponse.json({ error: `Type de fichier non autorisé: ${file.name}` }, { status: 400 })}
       const arrayBuffer = await file.arrayBuffer();
-      attachments.push({
-        filename: file.name,
-        content: Buffer.from(arrayBuffer),
-        contentType: file.type || "application/octet-stream",
-      });
+      attachments.push({ filename: file.name, content: Buffer.from(arrayBuffer), contentType: file.type || "application/octet-stream"});
     }
     const absence: AbsenceEntry = {
       id: uuidv4(),
