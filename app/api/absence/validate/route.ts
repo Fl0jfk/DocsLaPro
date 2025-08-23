@@ -7,7 +7,7 @@ const RECIPIENTS: Record<string, string[]> = {
   direction_ecole:   ["florian.hacqueville-mathi@ac-normandie.fr"],
   direction_college: ["florian@h-me.fr"],
   direction_lycee:   ["florian.hacqueville-mathi@ac-normandie.fr"],
-  rh:                ["valerie.vasseur@ac-normandie.fr"],
+  rh:                ["florian@h-me.fr"],
   default:           ["secretariat@ecole.com"],
   secretariat: [
     "florian@h-me.fr",
