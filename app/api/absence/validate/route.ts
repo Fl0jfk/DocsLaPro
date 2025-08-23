@@ -39,11 +39,13 @@ async function fetchSignatureBytes(url: string): Promise<Uint8Array> {
   }
 }
 
+// --- GET : renvoie une URL pré-signée GET pour S3 absences_en_attente.json ---
 export async function GET() {
-  const url = await getPresignedAbsenceStoreUrl(300);
+  const url = await getPresignedAbsenceStoreUrl(300); // 5 min
   return NextResponse.json({ url });
 }
 
+// --- POST : logique de validation, PDF, mails et suppression ---
 export async function POST(req: NextRequest) {
   try {
     const { id, statut } = await req.json() as { id: string; statut: "validee" | "refusee" };
@@ -57,9 +59,11 @@ export async function POST(req: NextRequest) {
     if (!demande) {
       return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
     }
+
     let destinataire: string | string[];
     let mailSujet: string;
     let mailTexte: string;
+
     if ((demande.type === "prof" || demande.type === "salarie") && statut === "validee") {
       destinataire = RECIPIENTS.rh;
       mailSujet = `Déclaration d'absence ${demande.type} validée`;
@@ -75,17 +79,35 @@ Motif: ${demande.motif}`;
       mailSujet = "Déclaration d'absence traitée";
       mailTexte = `La demande d'absence de ${demande.nom} a été traitée.`;
     }
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     let pdfBuffer: Buffer | undefined = undefined;
+
     if (statut === "validee") {
       const pdfDoc = await PDFDocument.create();
       const page = pdfDoc.addPage([595, 842]);
+      page.drawText("Déclaration d'absence validée", { x: 50, y: 800, size: 18, color: rgb(0, 0, 0) });
+      page.drawText(`Établissement : ${demande.cible}`, { x: 50, y: 770 });
+      page.drawText(`Nom : ${demande.nom}`, { x: 50, y: 740 });
+      page.drawText(`Email : ${demande.email}`, { x: 50, y: 720 });
+      page.drawText(`Type : ${demande.type}`, { x: 50, y: 700 });
+      page.drawText(`Période : ${demande.date_debut} au ${demande.date_fin}`, { x: 50, y: 680 });
+      page.drawText(`Motif : ${demande.motif}`, { x: 50, y: 660 });
+      if (demande.commentaire) {
+        page.drawText(`Commentaire : ${demande.commentaire}`, { x: 50, y: 640 });
+      }
+      page.drawText(`Absence validée par la direction le ${new Date().toLocaleDateString()}`, {
+        x: 50, y: 600, size: 12, color: rgb(0, 0, 1),
+      });
+
+      // Signature
       const directriceKey =
         demande.directrice ||
         DEFAULT_DIRECTRICE_BY_CIBLE[demande.cible] ||
         "directrice_ecole";
       const sigUrl = SIGNATURES[directriceKey];
       const sigBytes = await fetchSignatureBytes(sigUrl);
+
       if (sigBytes.length > 0) {
         let sigImage;
         if (sigUrl.toLowerCase().endsWith(".png")) {
@@ -105,6 +127,7 @@ Motif: ${demande.motif}`;
       const pdfBytes = await pdfDoc.save();
       pdfBuffer = Buffer.from(pdfBytes);
     }
+
     const pjJustificatifs =
       (demande.justificatifs || []).slice(0, 5).map(f => ({
         filename: f.filename,
@@ -117,6 +140,7 @@ Motif: ${demande.motif}`;
         : []),
       ...pjJustificatifs,
     ];
+
     await fetch(`${appUrl}/api/email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -127,6 +151,7 @@ Motif: ${demande.motif}`;
         attachments,
       }),
     });
+
     if (statut === "validee" && demande.email) {
       await fetch(`${appUrl}/api/email`, {
         method: "POST",
@@ -143,6 +168,7 @@ Motif: ${demande.motif}`;
         }),
       });
     }
+
     if (demande.type === "prof" && statut === "validee") {
       await fetch(`${appUrl}/api/email`, {
         method: "POST",
@@ -158,6 +184,7 @@ Motif: ${demande.motif}`;
         }),
       });
     }
+
     await removeEntry(id);
 
     return NextResponse.json({ success: true, message: "Traitement effectué et notification(s) transmise(s)." });
