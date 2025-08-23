@@ -5,7 +5,7 @@ import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 const s3 = new S3Client({ region: 'eu-west-3' });
 
 export async function GET() {
-  const bucket = process.env.AWS_S3_BUCKET_NAME!;
+  const bucket = process.env.BUCKET_NAME!;
   const foldersCommand = new ListObjectsV2Command({
     Bucket: bucket,
     Prefix: 'eleves/',

@@ -6,8 +6,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 const s3 = new S3Client({
   region: "eu-west-3",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.ACCESS_KEY_ID!,
+    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
   },
 });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const prefix = `documents/${folder}${prefixParam}`;
   try {
     const command = new ListObjectsV2Command({
-      Bucket: process.env.AWS_S3_BUCKET_NAME!,
+      Bucket: process.env.BUCKET_NAME!,
       Prefix: prefix,
       Delimiter: "/",
     });
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         .filter(file => [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext => file.Key!.endsWith(ext)))
         .map(async file => {
           const getObjectCommand = new GetObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET_NAME!,
+            Bucket: process.env.BUCKET_NAME!,
             Key: file.Key!,
           });
           const url = await getSignedUrl(s3, getObjectCommand, { expiresIn: 6000 });

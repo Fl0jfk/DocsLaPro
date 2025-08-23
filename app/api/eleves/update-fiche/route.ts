@@ -6,7 +6,7 @@ const s3 = new S3Client({ region: 'eu-west-3' });
 
 export async function POST(req: Request) {
   const { dossier, fiche } = await req.json();
-  const bucket = process.env.AWS_S3_BUCKET_NAME!;
+  const bucket = process.env.BUCKET_NAME!;
   const key = `${dossier}fiche.json`;
   await s3.send(new PutObjectCommand({
     Bucket: bucket,

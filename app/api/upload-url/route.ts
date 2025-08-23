@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
     const key = `uploads-temp/${Date.now()}_${body.filename}`;
     const command = new PutObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET_NAME!,
+      Bucket: process.env.BUCKET_NAME!,
       Key: key,
       ContentType: body.contentType,
     });
