@@ -1,4 +1,3 @@
-// app/components/AbsenceDeclarationForm.tsx
 "use client";
 
 import { useRef, useState } from "react";
@@ -13,10 +12,8 @@ export default function AbsenceDeclarationForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
-
     setLoading(true);
     setResult(null);
-
     try {
       const form = e.target as HTMLFormElement;
       const formData = new FormData(form);
@@ -35,13 +32,11 @@ export default function AbsenceDeclarationForm() {
         method: "POST",
         body: formData,
       });
-
       const json = await res.json();
       if (!res.ok) {
         setResult(json.error || "Erreur lors de l'envoi.");
       } else {
         setResult(json.message || "Demande envoyée.");
-        // Reset du formulaire
         if (fileInput.current) fileInput.current.value = "";
         form.reset();
       }
@@ -52,26 +47,14 @@ export default function AbsenceDeclarationForm() {
       setLoading(false);
     }
   }
-
   if (!isLoaded) return <div>Chargement…</div>;
   if (!user) return <div>Vous devez être connecté(e).</div>;
-
   const prenomClerk = user.firstName || "";
   const nomClerk = user.lastName || "";
-  const emailClerk =
-    user.primaryEmailAddress?.emailAddress ||
-    user.emailAddresses?.[0]?.emailAddress ||
-    "";
-
+  const emailClerk = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
   return (
-    <form
-      onSubmit={handleSubmit}
-      encType="multipart/form-data"
-      className="pt-[20vh] flex flex-col items-center gap-4"
-    >
+    <form onSubmit={handleSubmit} encType="multipart/form-data" className="pt-[20vh] flex flex-col items-center gap-4">
       <h2>Déclaration d’absence</h2>
-
-      {/* Affichage informatif (readonly) */}
       <label>
         Prénom&nbsp;:
         <input type="text" value={prenomClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />

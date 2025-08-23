@@ -35,13 +35,7 @@ const CIBLE_MAP: Record<string, "direction_lycee" | "direction_college" | "direc
 function Loader() {
   return (
     <svg width={22} height={22} viewBox="0 0 22 22" className="inline mr-2 animate-spin" style={{ verticalAlign: "middle" }}>
-      <circle
-        cx="11" cy="11" r="9"
-        stroke="#888" strokeWidth="4"
-        fill="none"
-        strokeDasharray="28 60"
-        strokeLinecap="round"
-      />
+      <circle cx="11" cy="11" r="9" stroke="#888" strokeWidth="4"  fill="none" strokeDasharray="28 60" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -64,7 +58,15 @@ export default function ValidationAbsences() {
       try {
         const res = await fetch("/api/absence/validate");
         const txt = await res.text();
-        const arr = JSON.parse(txt);
+        let arr: AbsenceEntry[] = [];
+        try {
+          arr = txt.trim() ? JSON.parse(txt) : [];
+        } catch (e) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setMsg("Erreur de récupération absences : " + (e as any).message);
+          console.error("Erreur parsing JSON ou fetch, réponse brute :", txt);
+          return;
+        }
         const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
         setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
       } catch (e) {
@@ -100,9 +102,7 @@ export default function ValidationAbsences() {
   if (!cible) return <div className="pt-[10vh] flex">Vous n’avez pas accès à la gestion des absences.<br />Rôle non reconnu.</div>;
   return (
     <div className="pt-[10vh] flex flex-col w-full items-center">
-      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>
-        Demandes d’absence à valider ({cible})
-      </h2>
+      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>Demandes d’absence à valider ({cible})</h2>
       {msg && (
         <div style={{
           color: msg.toLowerCase().includes("succès") || msg.toLowerCase().includes("envoyé") ? "green" : "red",
