@@ -112,7 +112,9 @@ export async function POST(req: NextRequest) {
       let errorMessage = "Erreur lors de l'envoi du mail";
       let errorStack = "";
       if (errMail && typeof errMail === "object") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ("message" in errMail) errorMessage = (errMail as any).message;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ("stack" in errMail) errorStack = (errMail as any).stack;
       }
       return NextResponse.json({
