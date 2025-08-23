@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readStore, removeEntry, AbsenceEntry, getPresignedAbsenceStoreUrl } from "@/app/utils/jsonStore";
 import { PDFDocument, rgb } from "pdf-lib";
+import nodemailer from "nodemailer";
 
 const RECIPIENTS: Record<string, string[]> = {
   direction_ecole:   ["florian.hacqueville-mathi@ac-normandie.fr"],
@@ -39,13 +40,11 @@ async function fetchSignatureBytes(url: string): Promise<Uint8Array> {
   }
 }
 
-// --- GET : renvoie une URL pré-signée GET pour S3 absences_en_attente.json ---
 export async function GET() {
   const url = await getPresignedAbsenceStoreUrl(300); // 5 min
   return NextResponse.json({ url });
 }
 
-// --- POST : logique de validation, PDF, mails et suppression ---
 export async function POST(req: NextRequest) {
   try {
     const { id, statut } = await req.json() as { id: string; statut: "validee" | "refusee" };
@@ -53,17 +52,14 @@ export async function POST(req: NextRequest) {
     if (!id || !statut) {
       return NextResponse.json({ error: "Paramètres manquants." }, { status: 400 });
     }
-
     const absences = await readStore();
     const demande = absences.find(a => a.id === id);
     if (!demande) {
       return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
     }
-
     let destinataire: string | string[];
     let mailSujet: string;
     let mailTexte: string;
-
     if ((demande.type === "prof" || demande.type === "salarie") && statut === "validee") {
       destinataire = RECIPIENTS.rh;
       mailSujet = `Déclaration d'absence ${demande.type} validée`;
@@ -79,10 +75,7 @@ Motif: ${demande.motif}`;
       mailSujet = "Déclaration d'absence traitée";
       mailTexte = `La demande d'absence de ${demande.nom} a été traitée.`;
     }
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     let pdfBuffer: Buffer | undefined = undefined;
-
     if (statut === "validee") {
       const pdfDoc = await PDFDocument.create();
       const page = pdfDoc.addPage([595, 842]);
@@ -99,15 +92,9 @@ Motif: ${demande.motif}`;
       page.drawText(`Absence validée par la direction le ${new Date().toLocaleDateString()}`, {
         x: 50, y: 600, size: 12, color: rgb(0, 0, 1),
       });
-
-      // Signature
-      const directriceKey =
-        demande.directrice ||
-        DEFAULT_DIRECTRICE_BY_CIBLE[demande.cible] ||
-        "directrice_ecole";
+      const directriceKey = demande.directrice || DEFAULT_DIRECTRICE_BY_CIBLE[demande.cible] || "directrice_ecole";
       const sigUrl = SIGNATURES[directriceKey];
       const sigBytes = await fetchSignatureBytes(sigUrl);
-
       if (sigBytes.length > 0) {
         let sigImage;
         if (sigUrl.toLowerCase().endsWith(".png")) {
@@ -127,69 +114,72 @@ Motif: ${demande.motif}`;
       const pdfBytes = await pdfDoc.save();
       pdfBuffer = Buffer.from(pdfBytes);
     }
-
     const pjJustificatifs =
       (demande.justificatifs || []).slice(0, 5).map(f => ({
         filename: f.filename,
         content: Buffer.from(f.buffer, "base64"),
+        encoding: "base64",
         contentType: f.type,
       }));
     const attachments = [
       ...(pdfBuffer
-        ? [{ filename: "attestation-validation.pdf", content: pdfBuffer, contentType: "application/pdf" }]
+        ? [{
+          filename: "attestation-validation.pdf",
+          content: pdfBuffer.toString("base64"),
+          encoding: "base64",
+          contentType: "application/pdf"
+        }]
         : []),
-      ...pjJustificatifs,
+      ...pjJustificatifs
     ];
-
-    await fetch(`${appUrl}/api/email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: Array.isArray(destinataire) ? destinataire : [destinataire],
-        subject: mailSujet,
-        text: mailTexte,
-        attachments,
-      }),
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "email-smtp.eu-west-3.amazonaws.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
     });
-
+    await transporter.sendMail({
+      from: process.env.SMTP_MAIL,
+      to: destinataire,
+      subject: mailSujet,
+      text: mailTexte,
+      attachments,
+    });
     if (statut === "validee" && demande.email) {
-      await fetch(`${appUrl}/api/email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: demande.email,
-          subject: "Votre déclaration d'absence a bien été validée",
-          text:
-            "Votre demande d'absence a été traitée et validée par la direction.\n\n" +
-            "Vous trouverez en pièce jointe l'attestation PDF.",
-          attachments: pdfBuffer
-            ? [{ filename: "attestation-validation.pdf", content: pdfBuffer, contentType: "application/pdf" }]
-            : undefined,
-        }),
+      await transporter.sendMail({
+        from: process.env.SMTP_MAIL,
+        to: demande.email,
+        subject: "Votre déclaration d'absence a bien été validée",
+        text: "Votre demande d'absence a été traitée et validée par la direction.\n\nVous trouverez en pièce jointe l'attestation PDF.",
+        attachments: pdfBuffer
+          ? [{
+            filename: "attestation-validation.pdf",
+            content: pdfBuffer.toString("base64"),
+            encoding: "base64",
+            contentType: "application/pdf"
+          }]
+          : [],
       });
     }
-
     if (demande.type === "prof" && statut === "validee") {
-      await fetch(`${appUrl}/api/email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: RECIPIENTS.secretariat,
-          subject: "Déclaration d'absence d'un professeur",
-          text:
-            `L'absence de ${demande.nom} (${demande.email}) a été validée par la direction.\n` +
-            `Du ${demande.date_debut} au ${demande.date_fin}\nMotif: ${demande.motif}\n\n` +
-            `Voir PJ pour impression (PDF attestation + justificatifs).`,
-          attachments,
-        }),
+      await transporter.sendMail({
+        from: process.env.SMTP_MAIL,
+        to: RECIPIENTS.secretariat,
+        subject: "Déclaration d'absence d'un professeur",
+        text:
+          `L'absence de ${demande.nom} (${demande.email}) a été validée par la direction.\n` +
+          `Du ${demande.date_debut} au ${demande.date_fin}\nMotif: ${demande.motif}\n\n` +
+          `Voir PJ pour impression (PDF attestation + justificatifs).`,
+        attachments,
       });
     }
-
     await removeEntry(id);
-
     return NextResponse.json({ success: true, message: "Traitement effectué et notification(s) transmise(s)." });
   } catch (err) {
     console.error("Erreur /api/absence/validate:", err);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: "Erreur serveur", details: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }
 }
