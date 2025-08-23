@@ -69,16 +69,15 @@ export async function POST(req: NextRequest) {
     const mailSubject = `[Absence] Nouvelle demande (${motif})`;
     const mailText = `Nouvelle demande d'absence de ${nom} (${email}) du ${date_debut} au ${date_fin}.\nMotif: ${motif}\nCliquez pour traiter: ${lien}`;
     const transporter = nodemailer.createTransport({
-      service: "ac-normandie",
-      host: "smtp.ac-normandie.fr",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+        host: "email-smtp.eu-west-3.amazonaws.com",
+        port: 465,                
+        secure: true,             
+        auth: {
+          user: process.env.SMTP_USER,  
+          pass: process.env.SMTP_PASS, 
+        }
     });
-    try {
+   try {
         await transporter.sendMail({
         from: process.env.SMTP_MAIL,
         to: mailTo,

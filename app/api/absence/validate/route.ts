@@ -115,11 +115,8 @@ Motif: ${demande.motif}`;
         } else {
           sigImage = await pdfDoc.embedJpg(sigBytes);
         }
-        // Taille raisonnable
         const scale = 0.5;
         const sigDims = { width: sigImage.width * scale, height: sigImage.height * scale };
-
-        // zone bas droite
         page.drawImage(sigImage, {
           x: 595 - 50 - sigDims.width,
           y: 80,
@@ -127,27 +124,21 @@ Motif: ${demande.motif}`;
           height: sigDims.height,
         });
       }
-
       const pdfBytes = await pdfDoc.save();
       pdfBuffer = Buffer.from(pdfBytes);
     }
-
-    // Pièces jointes justificatifs (max 5 déjà côté création)
     const pjJustificatifs =
       (demande.justificatifs || []).slice(0, 5).map(f => ({
         filename: f.filename,
         content: Buffer.from(f.buffer, "base64"),
         contentType: f.type,
       }));
-
     const attachments = [
       ...(pdfBuffer
         ? [{ filename: "attestation-validation.pdf", content: pdfBuffer, contentType: "application/pdf" }]
         : []),
       ...pjJustificatifs,
     ];
-
-    // 1) Email principal (RH ou demandeur si refus)
     await fetch(`${appUrl}/api/email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -158,8 +149,6 @@ Motif: ${demande.motif}`;
         attachments,
       }),
     });
-
-    // 2) Email au demandeur si validée (attestation)
     if (statut === "validee" && demande.email) {
       await fetch(`${appUrl}/api/email`, {
         method: "POST",
@@ -176,8 +165,6 @@ Motif: ${demande.motif}`;
         }),
       });
     }
-
-    // 3) Email au secrétariat si PROF et validée (pour impression)
     if (demande.type === "prof" && statut === "validee") {
       await fetch(`${appUrl}/api/email`, {
         method: "POST",
@@ -193,10 +180,7 @@ Motif: ${demande.motif}`;
         }),
       });
     }
-
-    // Nettoyage du store
     await removeEntry(id);
-
     return NextResponse.json({ success: true, message: "Traitement effectué et notification(s) transmise(s)." });
   } catch (err) {
     console.error("Erreur /api/absence/validate:", err);
