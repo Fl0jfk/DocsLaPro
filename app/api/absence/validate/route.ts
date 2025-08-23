@@ -5,14 +5,12 @@ import nodemailer from "nodemailer";
 
 const RECIPIENTS: Record<string, string[]> = {
   direction_ecole:   ["florian.hacqueville-mathi@ac-normandie.fr"],
-  direction_college: ["florian.hacqueville-mathi@ac-normandie.fr"],
+  direction_college: ["florian@h-me.fr"],
   direction_lycee:   ["florian.hacqueville-mathi@ac-normandie.fr"],
   rh:                ["valerie.vasseur@ac-normandie.fr"],
   default:           ["secretariat@ecole.com"],
   secretariat: [
-    "florian.hacqueville-mathi@ac-normandie.fr",
-    "pauline.leblond@ac-normandie.fr",
-    "sarah.buno@ac-normandie.fr",
+    "florian@h-me.fr",
   ],
 };
 
