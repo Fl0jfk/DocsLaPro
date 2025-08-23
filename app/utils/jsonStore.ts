@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const s3 = new S3Client({
   region: process.env.REGION || "eu-west-3",
@@ -9,7 +10,7 @@ export const s3 = new S3Client({
 });
 
 export const BUCKET = process.env.BUCKET_NAME!;
-const KEY = "absences_en_attente.json";
+export const KEY = "absences_en_attente.json";
 
 export type AbsenceEntry = {
   id: string;
@@ -30,8 +31,13 @@ export type AbsenceEntry = {
 export async function readStore(): Promise<AbsenceEntry[]> {
   try {
     const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: KEY }));
-    const body = await obj.Body?.transformToString();
-    return body ? JSON.parse(body) : [];
+    const body = await obj.Body?.transformToString() ?? "";
+    if (!body.trim()) return [];
+    try {
+      return JSON.parse(body);
+    } catch {
+      return [];
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     if (e?.$metadata?.httpStatusCode === 404) return [];
@@ -60,4 +66,15 @@ export async function removeEntry(id: string) {
   const entries = await readStore();
   const out = entries.filter(e => e.id !== id);
   await writeStore(out);
+}
+
+export async function getPresignedAbsenceStoreUrl(
+  expiresInSeconds: number = 600
+): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: KEY,
+  });
+  const url = await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
+  return url;
 }
