@@ -56,7 +56,7 @@ export default function ValidationAbsences() {
     if (!cible) return;
     async function fetchAbsences() {
       try {
-        const res = await fetch("/api/absence/validate");
+        const res = await fetch("/api/absence/validate", { cache: "no-store" });
         const txt = await res.text();
         let arr: AbsenceEntry[] = [];
         try {
@@ -68,6 +68,7 @@ export default function ValidationAbsences() {
           return;
         }
         const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
+        console.log("Absences récupérées :", entries);
         setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
       } catch (e) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,6 +78,7 @@ export default function ValidationAbsences() {
     }
     fetchAbsences();
   }, [cible]);
+
   const handleValidation = async (id: string, statut: "validee" | "refusee") => {
     setLoadingId(id);
     setMsg("");
@@ -97,9 +99,11 @@ export default function ValidationAbsences() {
       setLoadingId(null);
     }
   };
+
   if (!isLoaded) return <div className="pt-[10vh] flex">Chargement utilisateur…</div>;
   if (!user) return <div className="pt-[10vh] flex">Vous devez être connecté(e).</div>;
   if (!cible) return <div className="pt-[10vh] flex">Vous n’avez pas accès à la gestion des absences.<br />Rôle non reconnu.</div>;
+
   return (
     <div className="pt-[10vh] flex flex-col w-full items-center">
       <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>Demandes d’absence à valider ({cible})</h2>

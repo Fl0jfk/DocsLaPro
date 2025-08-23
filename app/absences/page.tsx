@@ -20,7 +20,9 @@ export default function AbsenceDeclarationForm() {
       const prenomClerk = user.firstName || "";
       const nomClerk = user.lastName || "";
       const emailClerk =
-        user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
+        user.primaryEmailAddress?.emailAddress ||
+        user.emailAddresses?.[0]?.emailAddress ||
+        "";
       formData.set("nom", `${prenomClerk} ${nomClerk}`.trim());
       formData.set("email", emailClerk);
       if (fileInput.current?.files && fileInput.current.files.length > 5) {
@@ -51,9 +53,17 @@ export default function AbsenceDeclarationForm() {
   if (!user) return <div>Vous devez être connecté(e).</div>;
   const prenomClerk = user.firstName || "";
   const nomClerk = user.lastName || "";
-  const emailClerk = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
+  const emailClerk =
+    user.primaryEmailAddress?.emailAddress ||
+    user.emailAddresses?.[0]?.emailAddress ||
+    "";
+
   return (
-    <form onSubmit={handleSubmit} encType="multipart/form-data" className="pt-[20vh] flex flex-col items-center gap-4">
+    <form
+      onSubmit={handleSubmit}
+      encType="multipart/form-data"
+      className="pt-[20vh] flex flex-col items-center gap-4"
+    >
       <h2>Déclaration d’absence</h2>
       <label>
         Prénom&nbsp;:
@@ -67,11 +77,8 @@ export default function AbsenceDeclarationForm() {
         Email&nbsp;:
         <input type="email" value={emailClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />
       </label>
-
-      {/* Champs réellement soumis */}
       <input type="hidden" name="nom" value={`${prenomClerk} ${nomClerk}`.trim()} readOnly />
       <input type="hidden" name="email" value={emailClerk} readOnly />
-
       <label>
         Je suis&nbsp;:
         <select name="type" required>
@@ -80,7 +87,6 @@ export default function AbsenceDeclarationForm() {
           <option value="salarie">Personnel/salarié</option>
         </select>
       </label>
-
       <label>
         Établissement concerné&nbsp;:
         <select name="cible" required>
@@ -90,19 +96,16 @@ export default function AbsenceDeclarationForm() {
           <option value="direction_lycee">Lycée</option>
         </select>
       </label>
-
       <label>
         Début&nbsp;: <input type="date" name="date_debut" required />
       </label>
       <label>
         Fin&nbsp;: <input type="date" name="date_fin" required />
       </label>
-
       <label>
         Motif d’absence&nbsp;:
         <input type="text" name="motif" required />
       </label>
-
       <label>
         Justificatifs (5 max)&nbsp;:
         <input
@@ -113,16 +116,13 @@ export default function AbsenceDeclarationForm() {
           accept="image/*,.pdf"
         />
       </label>
-
       <label>
         Commentaire :
         <textarea name="commentaire" />
       </label>
-
       <button type="submit" disabled={loading} style={{ marginTop: 15 }}>
         {loading ? "Envoi..." : "Déclarer mon absence"}
       </button>
-
       {result && <div style={{ marginTop: 12 }}>{result}</div>}
     </form>
   );
