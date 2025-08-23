@@ -82,9 +82,21 @@ console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
       });
       return NextResponse.json({ success: true, message: "Demande enregistrée et mail envoyé à la direction." });
     } catch (errMail) {
-      console.error("Erreur Nodemailer:", errMail);
-      return NextResponse.json({ error: "Erreur lors de l'envoi du mail" }, { status: 500 });
-    }
+  let errorMessage = "Erreur lors de l'envoi du mail";
+  let errorStack = "";
+  if (errMail && typeof errMail === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ('message' in errMail) errorMessage = (errMail as any).message;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ('stack' in errMail) errorStack = (errMail as any).stack;
+  }
+  return NextResponse.json({
+    error: errorMessage,
+    stack: errorStack,
+    details: JSON.stringify(errMail)
+  }, { status: 500 });
+}
+
   } catch (err) {
     console.error("Erreur route API /api/absence/want:", err);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
