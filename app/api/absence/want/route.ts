@@ -9,6 +9,11 @@ const RECIPIENTS: Record<string, string[]> = { direction_ecole: ["florian.hacque
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("SMTP_USER:", process.env.SMTP_USER);
+console.log("SMTP_PASS:", process.env.SMTP_PASS);
+console.log("SMTP_MAIL:", process.env.SMTP_MAIL);
+console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
+
     const data = await req.formData();
     const type = data.get("type") as "prof" | "salarie";
     const rawCible = data.get("cible") as string;
