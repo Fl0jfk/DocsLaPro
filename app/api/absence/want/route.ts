@@ -65,8 +65,8 @@ console.log("NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL);
     const mailText = `Nouvelle demande d'absence de ${nom} (${email}) du ${date_debut} au ${date_fin}.\nMotif: ${motif}\nCliquez pour traiter: ${lien}`;
     const transporter = nodemailer.createTransport({
         host: "email-smtp.eu-west-3.amazonaws.com",
-        port: 465,                
-        secure: true,             
+        port: 587,                
+        secure: false,             
         auth: {
           user: process.env.SMTP_USER,  
           pass: process.env.SMTP_PASS, 
