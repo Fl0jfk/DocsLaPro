@@ -46,34 +46,34 @@ export default function ValidationAbsences() {
   const [choix, setChoix] = useState<Record<string, "validee" | "refusee" | "">>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
+
   function getCibleFromRole(user: UserResource | null | undefined): "direction_lycee" | "direction_college" | "direction_ecole" | null {
     if (!user) return null;
     const role = (user.publicMetadata?.role as string | undefined) || "";
     return (role && CIBLE_MAP[role]) ? CIBLE_MAP[role] : null;
   }
   const cible = getCibleFromRole(user);
+
   useEffect(() => {
     if (!cible) return;
     async function fetchAbsences() {
       try {
-        const res = await fetch("/api/absence/validate", { cache: "no-store" });
+        const urlRes = await fetch("/api/absence/validate");
+        const { url } = await urlRes.json();
+        const res = await fetch(url, { cache: "no-store" });
         const txt = await res.text();
         let arr: AbsenceEntry[] = [];
-        try {
-          arr = txt.trim() ? JSON.parse(txt) : [];
-        } catch (e) {
+        try { arr = txt.trim() ? JSON.parse(txt) : []; }
+        catch (e) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setMsg("Erreur de récupération absences : " + (e as any).message);
-          console.error("Erreur parsing JSON ou fetch, réponse brute :", txt);
           return;
         }
         const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
-        console.log("Absences récupérées :", entries);
         setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
       } catch (e) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setMsg("Erreur de récupération absences : " + (e as any).message);
-        console.error("Erreur parsing JSON ou fetch : ", e);
       }
     }
     fetchAbsences();
@@ -106,7 +106,9 @@ export default function ValidationAbsences() {
 
   return (
     <div className="pt-[10vh] flex flex-col w-full items-center">
-      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>Demandes d’absence à valider ({cible})</h2>
+      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>
+        Demandes d’absence à valider ({cible})
+      </h2>
       {msg && (
         <div style={{
           color: msg.toLowerCase().includes("succès") || msg.toLowerCase().includes("envoyé") ? "green" : "red",

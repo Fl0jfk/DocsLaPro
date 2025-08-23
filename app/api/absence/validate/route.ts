@@ -1,6 +1,5 @@
-// app/api/absence/validate/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { readStore, removeEntry, AbsenceEntry } from "@/app/utils/jsonStore";
+import { readStore, removeEntry, AbsenceEntry, getPresignedAbsenceStoreUrl } from "@/app/utils/jsonStore";
 import { PDFDocument, rgb } from "pdf-lib";
 
 const RECIPIENTS: Record<string, string[]> = {
@@ -22,7 +21,6 @@ const SIGNATURES: Record<"directrice_ecole"|"directrice_college"|"directrice_lyc
   directrice_lycee:   "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
 };
 
-// map par défaut selon la cible si `demande.directrice` n'est pas fourni
 const DEFAULT_DIRECTRICE_BY_CIBLE: Record<AbsenceEntry["cible"], keyof typeof SIGNATURES> = {
   direction_ecole:   "directrice_ecole",
   direction_college: "directrice_college",
@@ -41,6 +39,11 @@ async function fetchSignatureBytes(url: string): Promise<Uint8Array> {
   }
 }
 
+export async function GET() {
+  const url = await getPresignedAbsenceStoreUrl(300);
+  return NextResponse.json({ url });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { id, statut } = await req.json() as { id: string; statut: "validee" | "refusee" };
@@ -54,12 +57,9 @@ export async function POST(req: NextRequest) {
     if (!demande) {
       return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
     }
-
-    // Prépare destinataires et message
     let destinataire: string | string[];
     let mailSujet: string;
     let mailTexte: string;
-
     if ((demande.type === "prof" || demande.type === "salarie") && statut === "validee") {
       destinataire = RECIPIENTS.rh;
       mailSujet = `Déclaration d'absence ${demande.type} validée`;
@@ -71,44 +71,22 @@ Motif: ${demande.motif}`;
       mailSujet = "Votre demande a été refusée";
       mailTexte = "Malheureusement, votre demande d'absence a été refusée par la direction.";
     } else {
-      // fallback
       destinataire = RECIPIENTS.default;
       mailSujet = "Déclaration d'absence traitée";
       mailTexte = `La demande d'absence de ${demande.nom} a été traitée.`;
     }
-
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-    // Génération du PDF si validée
     let pdfBuffer: Buffer | undefined = undefined;
     if (statut === "validee") {
       const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([595, 842]); // A4 portrait
-
-      page.drawText("Déclaration d'absence validée", { x: 50, y: 800, size: 18, color: rgb(0, 0, 0) });
-      page.drawText(`Établissement : ${demande.cible}`, { x: 50, y: 770 });
-      page.drawText(`Nom : ${demande.nom}`, { x: 50, y: 740 });
-      page.drawText(`Email : ${demande.email}`, { x: 50, y: 720 });
-      page.drawText(`Type : ${demande.type}`, { x: 50, y: 700 });
-      page.drawText(`Période : ${demande.date_debut} au ${demande.date_fin}`, { x: 50, y: 680 });
-      page.drawText(`Motif : ${demande.motif}`, { x: 50, y: 660 });
-      if (demande.commentaire) {
-        page.drawText(`Commentaire : ${demande.commentaire}`, { x: 50, y: 640 });
-      }
-      page.drawText(`Absence validée par la direction le ${new Date().toLocaleDateString()}`, {
-        x: 50, y: 600, size: 12, color: rgb(0, 0, 1),
-      });
-
-      // Signature : choisie via `demande.directrice` sinon via cible
+      const page = pdfDoc.addPage([595, 842]);
       const directriceKey =
         demande.directrice ||
         DEFAULT_DIRECTRICE_BY_CIBLE[demande.cible] ||
         "directrice_ecole";
       const sigUrl = SIGNATURES[directriceKey];
       const sigBytes = await fetchSignatureBytes(sigUrl);
-
       if (sigBytes.length > 0) {
-        // PNG vs JPG
         let sigImage;
         if (sigUrl.toLowerCase().endsWith(".png")) {
           sigImage = await pdfDoc.embedPng(sigBytes);
@@ -181,6 +159,7 @@ Motif: ${demande.motif}`;
       });
     }
     await removeEntry(id);
+
     return NextResponse.json({ success: true, message: "Traitement effectué et notification(s) transmise(s)." });
   } catch (err) {
     console.error("Erreur /api/absence/validate:", err);
