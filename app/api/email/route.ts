@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const target = body.target as string;
     const to = target ? RECIPIENTS[target] || RECIPIENTS.default : RECIPIENTS.default;
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const attachments: Attachment[] | undefined = body.attachments?.map((att: any) => ({
       filename: att.filename,
       content: Buffer.from(att.content, "base64"),

@@ -3,8 +3,8 @@ import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3
 export const s3 = new S3Client({
   region: process.env.AWS_REGION || "eu-west-3",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,         // ⚠️ à mettre en env
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!, // ⚠️ à mettre en env
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
 
@@ -32,6 +32,7 @@ export async function readStore(): Promise<AbsenceEntry[]> {
     const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: KEY }));
     const body = await obj.Body?.transformToString();
     return body ? JSON.parse(body) : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     if (e?.$metadata?.httpStatusCode === 404) return [];
     throw e;

@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       attachments.push({
         filename: file.name,
         content: Buffer.from(arrayBuffer),
-        contentType: file.type || "application/octet-stream", // fallback obligatoire
+        contentType: file.type || "application/octet-stream",
       });
     }
 
