@@ -43,15 +43,12 @@ export async function GET(req: NextRequest) {
       Prefix: prefix,
       Delimiter: "/",
     });
-
     const response = await s3.send(command);
-
     const folders = response.CommonPrefixes?.map(p => ({
       type: "folder" as const,
       name: p.Prefix!.split("/").slice(-2, -1)[0],
       path: p.Prefix!,
     })) || [];
-
     const files = await Promise.all(
       (response.Contents || [])
         .filter(file => file.Key && !file.Key.endsWith("/"))
