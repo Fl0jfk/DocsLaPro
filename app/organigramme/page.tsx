@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import staffData from "./organigramme.json";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function StaffBubble({ person, isFlipped, onClick }: any) {
   return (
     <motion.div
