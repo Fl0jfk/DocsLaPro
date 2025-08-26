@@ -16,10 +16,13 @@ export default function DocumentsPage() {
   const [items, setItems] = useState<DocumentNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<string[]>([]);
+
   const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
-  const cacheTTL = 24 * 60 * 60 * 1000;
+  const cacheTTL = 24 * 60 * 60 * 1000; // 24h
+
   useEffect(() => {
     setLoading(true);
+
     const cachedRaw = localStorage.getItem(cacheKey(currentPrefix));
     if (cachedRaw) {
       const cached = JSON.parse(cachedRaw);
@@ -30,7 +33,8 @@ export default function DocumentsPage() {
         return;
       }
     }
-    fetch(`/api/documents/list?prefix=${currentPrefix}`)
+
+    fetch(`/api/documents/list?prefix=${encodeURIComponent(currentPrefix)}`)
       .then(res => res.json())
       .then(data => {
         if (data.error) {
@@ -50,10 +54,12 @@ export default function DocumentsPage() {
         setLoading(false);
       });
   }, [currentPrefix]);
+
   const enterFolder = (path: string) => {
     setHistory(prev => [...prev, currentPrefix]);
-    setCurrentPrefix(path.replace(/^documents\/[^/]+\//, ""));
+    setCurrentPrefix(path);
   };
+
   const goBack = () => {
     const prev = history.pop();
     if (prev !== undefined) {
@@ -61,25 +67,34 @@ export default function DocumentsPage() {
       setCurrentPrefix(prev);
     }
   };
+
   const getFileIcon = (ext?: string) => {
     if (!ext) return "📄";
-    if (ext === "pdf") return "📄";
-    if (ext === "doc" || ext === "docx") return "📝";
-    if (ext === "xls" || ext === "xlsx") return "📊";
-    return "📄";
+    switch (ext.toLowerCase()) {
+      case "pdf": return "📄";
+      case "doc": case "docx": return "📝";
+      case "xls": case "xlsx": return "📊";
+      default: return "📄";
+    }
   };
+
   if (loading) return <div>Chargement...</div>;
+
   return (
     <main className="flex flex-col gap-4 p-4 w-full mx-auto max-w-[1000px] sm:pt-[10vh]">
       <section className="space-y-4 flex flex-col gap-2">
         {history.length > 0 && (
           <button onClick={goBack} className="text-blue-500 hover:underline mb-4">← Retour</button>
         )}
+
         {items.length > 0 ? (
           items.map((item, idx) => (
             <div key={idx} className="p-4 bg-white rounded-lg shadow-md">
               {item.type === "folder" ? (
-                <div className="cursor-pointer font-semibold text-yellow-700" onClick={() => enterFolder(item.path)}>
+                <div
+                  className="cursor-pointer font-semibold text-yellow-700"
+                  onClick={() => enterFolder(item.path)}
+                >
                   📁 {item.name}
                 </div>
               ) : (
@@ -97,3 +112,4 @@ export default function DocumentsPage() {
     </main>
   );
 }
+

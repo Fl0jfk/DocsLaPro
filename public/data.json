@@ -71,6 +71,14 @@
             "link":"/absences",
             "description":"",
             "allowedRoles": ["direction_college", "administratif", "direction_ecole","professeur"]
+        },
+        {
+            "id":10,
+            "name":"Organigramme",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+            "link":"/organigramme",
+            "description":"",
+            "allowedRoles": ["direction_college", "administratif", "direction_ecole","professeur"]
         }
     ]
 }

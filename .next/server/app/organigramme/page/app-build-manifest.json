@@ -1,0 +1,30 @@
+{
+  "pages": {
+    "/organigramme/page": [
+      "static/chunks/node_modules_next_dist_01fcdebf._.js",
+      "static/chunks/app_favicon_ico_mjs_c5600bb8._.js",
+      "static/chunks/8069e_@clerk_nextjs_dist_esm_app-router_client_keyless-creator-reader_9e5e0471.js",
+      "static/chunks/node_modules_next_69601e76._.js",
+      "static/chunks/node_modules_@clerk_shared_dist_18e4a60a._.js",
+      "static/chunks/node_modules_swr_dist_24149bb6._.js",
+      "static/chunks/node_modules_@clerk_clerk-react_dist_7f53666d._.js",
+      "static/chunks/node_modules_framer-motion_dist_es_da962dc0._.js",
+      "static/chunks/node_modules_2ce2e32e._.js",
+      "static/chunks/_d6733dec._.js",
+      "static/chunks/app_0a64d4b2._.css",
+      "static/chunks/app_layout_tsx_68b267f5._.js",
+      "static/chunks/node_modules_next_dist_client_components_builtin_global-error_6b5bb749.js",
+      "static/chunks/app_organigramme_94a3f052._.js",
+      "static/chunks/app_organigramme_page_tsx_6b5bb749._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_6aaa83c7._.js",
+      "static/chunks/node_modules_next_dist_compiled_react-dom_1f56dc06._.js",
+      "static/chunks/node_modules_next_dist_compiled_next-devtools_index_d575f738.js",
+      "static/chunks/node_modules_next_dist_compiled_0f1b9fd4._.js",
+      "static/chunks/node_modules_next_dist_client_20b209c9._.js",
+      "static/chunks/node_modules_next_dist_445d8acf._.js",
+      "static/chunks/node_modules_@swc_helpers_cjs_8e433861._.js",
+      "static/chunks/_e69f0d32._.js",
+      "static/chunks/_01f48b92._.js"
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "direction": [
+    {
+      "name": "Mme Plantec",
+      "role": "Directrice Ecole",
+      "email": "dupont@ecole.fr",
+      "image": "https://docslaproimage.s3.eu-west-3.amazonaws.com/photospers/plantec.jpg",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "Mme Dumouchel",
+      "role": "Directrice collège",
+      "email": "leroy@ecole.fr",
+      "image": "https://docslaproimage.s3.eu-west-3.amazonaws.com/photospers/DUMOUCHEL+Anne-Sophie+001.jpg",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "Mme Dona",
+      "role": "Directrice du lycée et coordinatrice",
+      "email": "moreau@ecole.fr",
+      "image": "https://docslaproimage.s3.eu-west-3.amazonaws.com/photospers/DONA+Anne+marie.PNG",
+      "color": "#3b82f6"
+    }
+  ],
+  "administratif": [
+    {
+      "name": "Mme Leblond",
+      "role": "Secrétaire du primaire",
+      "email": "martin@ecole.fr",
+      "image": "https://docslaproimage.s3.eu-west-3.amazonaws.com/photospers/pauline_page-0001.jpg",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "Mme Villier",
+      "role": "Secrétaire du collège",
+      "email": "martin@ecole.fr",
+      "image": "https://docslaproimage.s3.eu-west-3.amazonaws.com/photospers/BUNO+SARAH.jpg",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "Mr Hacqueville-Mathi",
+      "role": "Secrétaire du lycée",
+      "email": "martin@ecole.fr",
+      "image": "https://docslaproimage.s3.eu-west-3.amazonaws.com/photospers/HACQUEVILLE-MATHI+Florian.png",
+      "color": "#3b82f6"
+    }
+  ],
+  "vie_scolaire": [
+    {
+      "name": "Mme Coriou",
+      "role": "CPE 6ème-5ème",
+      "email": "petit@ecole.fr",
+      "image": "/images/petit.jpg",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "Mr Laquièvre",
+      "role": "CPE 4ème-3ème",
+      "email": "petit@ecole.fr",
+      "image": "/images/petit.jpg",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "Mme Constant",
+      "role": "CPE Lycée",
+      "email": "petit@ecole.fr",
+      "image": "/images/petit.jpg",
+      "color": "#3b82f6"
+    }
+  ],
+  "maintenance": [
+    {
+      "name": "Mr Lainé",
+      "role": "Responsable maintence informatique",
+      "email": "petit@ecole.fr",
+      "image": "/images/petit.jpg",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "Mr Brumachon",
+      "role": "Maintenance",
+      "email": "petit@ecole.fr",
+      "image": "/images/petit.jpg",
+      "color": "#3b82f6"
+    }
+  ]
+}

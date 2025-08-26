@@ -182,8 +182,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$aws$2d$sdk
 const s3 = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["S3Client"]({
     region: "eu-west-3",
     credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+        accessKeyId: process.env.ACCESS_KEY_ID,
+        secretAccessKey: process.env.SECRET_ACCESS_KEY
     }
 });
 const cache = {};
@@ -201,7 +201,7 @@ async function GET(req) {
     if (role === "professeur") folder = "professeurs/";
     else if (role === "administratif") folder = "administratif/";
     else if (role === "direction") folder = "direction/";
-    else if (role === "admin") folder = "admin/";
+    else if (role === "comptabilité") folder = "comptabilité/";
     else return new Response(JSON.stringify({
         error: "Accès refusé"
     }), {
@@ -219,7 +219,7 @@ async function GET(req) {
     const prefix = `documents/${folder}${prefixParam}`;
     try {
         const command = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["ListObjectsV2Command"]({
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Bucket: process.env.BUCKET_NAME,
             Prefix: prefix,
             Delimiter: "/"
         });
@@ -237,7 +237,7 @@ async function GET(req) {
                 ".xlsx"
             ].some((ext)=>file.Key.endsWith(ext))).map(async (file)=>{
             const getObjectCommand = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["GetObjectCommand"]({
-                Bucket: process.env.AWS_S3_BUCKET_NAME,
+                Bucket: process.env.BUCKET_NAME,
                 Key: file.Key
             });
             const url = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$aws$2d$sdk$2f$s3$2d$request$2d$presigner$2f$dist$2d$es$2f$getSignedUrl$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["getSignedUrl"])(s3, getObjectCommand, {

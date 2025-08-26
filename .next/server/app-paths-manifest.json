@@ -1,10 +1,6 @@
 {
-  "/absences/page": "app/absences/page.js",
-  "/api/absence/want/route": "app/api/absence/want/route.js",
-  "/api/documents/list/route": "app/api/documents/list/route.js",
-  "/documents/page": "app/documents/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/page": "app/page.js",
-  "/qrcreator/page": "app/qrcreator/page.js",
-  "/travels/new/page": "app/travels/new/page.js"
+  "/organigramme/page": "app/organigramme/page.js",
+  "/page": "app/page.js"
 }

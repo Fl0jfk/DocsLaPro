@@ -16,9 +16,10 @@ const cache: Record<string, CacheEntry> = {};
 
 export async function GET(req: NextRequest) {
   const { userId } = getAuth(req);
-  if (!userId) return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
-  const clerk = await clerkClient();
-  const user = await clerk.users.getUser(userId);
+  if (!userId)
+    return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
   const role = user.publicMetadata.role as string;
   let folder = "";
   if (role === "professeur") folder = "professeurs/";
@@ -28,28 +29,37 @@ export async function GET(req: NextRequest) {
   else return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403 });
   const url = new URL(req.url);
   const prefixParam = url.searchParams.get("prefix") || "";
-  const cacheKey = `${userId}-${prefixParam}`;
+  const prefix = prefixParam.startsWith("documents/")
+    ? prefixParam
+    : `documents/${folder}${prefixParam}`;
+  const cacheKey = `${userId}-${prefix}`;
   const now = Date.now();
   if (cache[cacheKey] && now - cache[cacheKey].timestamp < 5 * 60 * 1000) {
     return new Response(JSON.stringify(cache[cacheKey].data), { status: 200 });
   }
-  const prefix = `documents/${folder}${prefixParam}`;
   try {
     const command = new ListObjectsV2Command({
       Bucket: process.env.BUCKET_NAME!,
       Prefix: prefix,
       Delimiter: "/",
     });
+
     const response = await s3.send(command);
+
     const folders = response.CommonPrefixes?.map(p => ({
       type: "folder" as const,
       name: p.Prefix!.split("/").slice(-2, -1)[0],
       path: p.Prefix!,
     })) || [];
+
     const files = await Promise.all(
       (response.Contents || [])
         .filter(file => file.Key && !file.Key.endsWith("/"))
-        .filter(file => [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext => file.Key!.endsWith(ext)))
+        .filter(file =>
+          [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext =>
+            file.Key!.toLowerCase().endsWith(ext)
+          )
+        )
         .map(async file => {
           const getObjectCommand = new GetObjectCommand({
             Bucket: process.env.BUCKET_NAME!,
@@ -58,7 +68,7 @@ export async function GET(req: NextRequest) {
           const url = await getSignedUrl(s3, getObjectCommand, { expiresIn: 6000 });
           return {
             type: "file" as const,
-            name: file.Key!.split("/").pop()!.replace(/\.(pdf|docx|xlsx)$/, ""),
+            name: file.Key!.split("/").pop()!.replace(/\.(pdf|docx?|xlsx?|xls)$/, ""),
             url,
             path: file.Key!,
             ext: file.Key!.split(".").pop()?.toLowerCase(),
@@ -68,7 +78,7 @@ export async function GET(req: NextRequest) {
     const items = [...folders, ...files];
     cache[cacheKey] = { data: items, timestamp: now };
     return new Response(JSON.stringify(items), { status: 200 });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error("Erreur S3:", err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
