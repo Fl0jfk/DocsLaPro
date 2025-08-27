@@ -20,13 +20,12 @@ export async function GET(req: NextRequest) {
     return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const role = user.publicMetadata.role as string;
-  let folder = "";
-  if (role === "professeur") folder = "professeurs/";
-  else if (role === "administratif") folder = "administratif/";
-  else if (role === "direction") folder = "direction/";
-  else if (role === "comptabilité") folder = "comptabilité/";
-  else return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403 });
+  const roles = user.publicMetadata.role as string[] || [];
+  const folder: string[] = [];
+  if (roles.includes("professeur")) folder.push("professeurs/");
+  if (roles.includes("administratif")) folder.push("administratif/");
+  if (roles.includes("direction")) folder.push("direction/");
+  if (roles.includes("comptabilité")) folder.push("comptabilité/");;
   const url = new URL(req.url);
   const prefixParam = url.searchParams.get("prefix") || "";
   const prefix = prefixParam.startsWith("documents/")
