@@ -17,17 +17,9 @@ export default function Home() {
     </div>
   );
 }
-  const roles = Array.isArray(user?.publicMetadata?.role)
-    ? user?.publicMetadata?.role as string[]
-    : user?.publicMetadata?.role
-      ? [user?.publicMetadata?.role as string]
-      : [];
-  const filteredCategories = data.categories.filter(category =>
-    category.allowedRoles.some(r => roles.includes(r))
-  );
-  const uniqueCategories = Array.from(
-    new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values()
-  );
+  const roles = Array.isArray(user?.publicMetadata?.role) ? user?.publicMetadata?.role as string[] : user?.publicMetadata?.role ? [user?.publicMetadata?.role as string] : [];
+  const filteredCategories = data.categories.filter(category => category.allowedRoles.some(r => roles.includes(r)));
+  const uniqueCategories = Array.from( new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values());
   return (
     <main className="flex flex-col w-full text-xl sm:pt-[15vh]">
       {uniqueCategories.length > 0 && (
@@ -35,9 +27,7 @@ export default function Home() {
       )}
       <SignedOut>
         <SignInButton>
-          <button className="absolute top-[48%] left-[38%] p-4">
-            Se connecter
-          </button>
+          <button className="absolute top-[48%] left-[38%] p-4">Se connecter</button>
         </SignInButton>
       </SignedOut>
     </main>

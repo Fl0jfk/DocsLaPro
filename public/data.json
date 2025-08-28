@@ -6,7 +6,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
             "link":"/documents",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "professeur"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance"]
         },
         {
             "id":2,
@@ -14,7 +14,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Ecole+direct.png",
             "link":"https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif","professeur"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance"]
         },
         {
             "id":3,
@@ -22,7 +22,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/maintenance.avif",
             "link":"https://providence.dedikam.com/index.php?a=add",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif","professeur"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance"]
         },
         {
             "id":4,
@@ -30,7 +30,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
             "link":"/travels/new",
             "description":"",
-            "allowedRoles": ["direction", "administratif", "direction_ecole","professeur"]
+            "allowedRoles": ["administratif", "direction_ecole","professeur"]
         },
         {
             "id":5,
@@ -46,7 +46,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/qrcreator",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif","professeur"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance"]
         },
         {
             "id":7,
@@ -54,7 +54,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/uploadDocuments",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif"]
+            "allowedRoles": ["administratif"]
         },
         {
             "id":8,
@@ -62,7 +62,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/bdd",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif"]
+            "allowedRoles": ["administratif"]
         },
         {
             "id":9,
@@ -70,7 +70,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/absences",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "direction_ecole","professeur"]
+            "allowedRoles": ["direction_college", "administratif", "direction_ecole", "direction_lycee", "maintenance"]
         },
         {
             "id":10,
@@ -78,7 +78,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/organigramme",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "direction_ecole","professeur"]
+            "allowedRoles": ["administratif"]
         }
     ]
 }
