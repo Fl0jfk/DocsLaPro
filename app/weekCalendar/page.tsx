@@ -55,7 +55,7 @@ export default function AgendaHebdo() {
   }, []);
 
   if (loading) {
-    return <div className="p-6 text-gray-500">Chargement de l'agenda...</div>;
+    return <div className="p-6 text-gray-500">Chargement de l agenda...</div>;
   }
 
   // Regrouper les événements par jour et par personne
