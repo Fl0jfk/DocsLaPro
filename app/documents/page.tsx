@@ -16,13 +16,10 @@ export default function DocumentsPage() {
   const [items, setItems] = useState<DocumentNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<string[]>([]);
-
   const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
   const cacheTTL = 24 * 60 * 60 * 1000; // 24h
-
   useEffect(() => {
     setLoading(true);
-
     const cachedRaw = localStorage.getItem(cacheKey(currentPrefix));
     if (cachedRaw) {
       const cached = JSON.parse(cachedRaw);
@@ -33,7 +30,6 @@ export default function DocumentsPage() {
         return;
       }
     }
-
     fetch(`/api/documents/list?prefix=${encodeURIComponent(currentPrefix)}`)
       .then(res => res.json())
       .then(data => {
@@ -54,12 +50,10 @@ export default function DocumentsPage() {
         setLoading(false);
       });
   }, [currentPrefix]);
-
   const enterFolder = (path: string) => {
     setHistory(prev => [...prev, currentPrefix]);
     setCurrentPrefix(path);
   };
-
   const goBack = () => {
     const prev = history.pop();
     if (prev !== undefined) {
@@ -67,7 +61,6 @@ export default function DocumentsPage() {
       setCurrentPrefix(prev);
     }
   };
-
   const getFileIcon = (ext?: string) => {
     if (!ext) return "📄";
     switch (ext.toLowerCase()) {

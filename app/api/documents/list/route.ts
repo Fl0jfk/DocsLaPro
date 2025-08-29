@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    let allItems: {
+    const allItems: {
       type: "folder" | "file";
       name: string;
       path: string;
