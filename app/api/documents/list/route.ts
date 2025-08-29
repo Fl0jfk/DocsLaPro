@@ -20,40 +20,62 @@ export async function GET(req: NextRequest) {
   if (!userId) {
     return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
   }
+
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const roles = (user.publicMetadata.role as string[]) || [];
+
+  // Déterminer les dossiers accessibles en fonction des rôles
   const baseFolders: string[] = [];
   if (roles.includes("professeur")) baseFolders.push("professeurs/");
   if (roles.includes("administratif")) baseFolders.push("administratif/");
   if (roles.includes("direction")) baseFolders.push("direction/");
   if (roles.includes("comptabilité")) baseFolders.push("comptabilité/");
-  const userFolders = baseFolders.map(f => `documents/${f}`);
+
+  // Supprimer les doublons dans les rôles
+  const userFolders = [...new Set(baseFolders.map(f => `documents/${f}`))];
+
   const url = new URL(req.url);
   const prefixParam = url.searchParams.get("prefix") || "";
   const cacheKey = `${userId}-${prefixParam}`;
   const now = Date.now();
+
+  // Vérifier le cache
   if (cache[cacheKey] && now - cache[cacheKey].timestamp < 5 * 60 * 1000) {
     return new Response(JSON.stringify(cache[cacheKey].data), { status: 200 });
   }
+
   try {
-    const allItems = [];
+    let allItems: {
+      type: "folder" | "file";
+      name: string;
+      path: string;
+      url?: string;
+      ext?: string;
+    }[] = [];
+
     for (const folderPrefix of userFolders) {
       const effectivePrefix = prefixParam.startsWith("documents/")
         ? prefixParam
         : `${folderPrefix}${prefixParam}`;
+
       const command = new ListObjectsV2Command({
         Bucket: process.env.BUCKET_NAME!,
         Prefix: effectivePrefix,
         Delimiter: "/",
       });
+
       const response = await s3.send(command);
+
+      // Récupérer les dossiers
       const folders =
         response.CommonPrefixes?.map(p => ({
           type: "folder" as const,
           name: p.Prefix!.split("/").slice(-2, -1)[0],
           path: p.Prefix!,
         })) || [];
+
+      // Récupérer les fichiers
       const files = await Promise.all(
         (response.Contents || [])
           .filter(file => file.Key && !file.Key.endsWith("/"))
@@ -68,6 +90,7 @@ export async function GET(req: NextRequest) {
               Key: file.Key!,
             });
             const signedUrl = await getSignedUrl(s3, getObjectCommand, { expiresIn: 6000 });
+
             return {
               type: "file" as const,
               name: file.Key!.split("/").pop()!.replace(/\.(pdf|docx?|xlsx?|xls)$/, ""),
@@ -77,10 +100,17 @@ export async function GET(req: NextRequest) {
             };
           })
       );
+
       allItems.push(...folders, ...files);
     }
-    cache[cacheKey] = { data: allItems, timestamp: now };
-    return new Response(JSON.stringify(allItems), { status: 200 });
+
+    // Supprimer les doublons par `path`
+    const uniqueItems = Array.from(new Map(allItems.map(item => [item.path, item])).values());
+
+    // Mettre en cache
+    cache[cacheKey] = { data: uniqueItems, timestamp: now };
+
+    return new Response(JSON.stringify(uniqueItems), { status: 200 });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error("Erreur S3:", err);

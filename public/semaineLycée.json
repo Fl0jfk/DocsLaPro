@@ -1,0 +1,144 @@
+{
+  "Audrey": {
+    "Lundi": [
+      {"17:00-18:30": "surveillance étude interne lycée"}
+    ],
+    "Mardi": [
+      {"17:00-18:30": "surveillance étude interne lycée"}
+    ],
+    "Jeudi": [
+      {"17:00-18:30": "surveillance étude interne lycée"}
+    ]
+  },
+  "Emmanuelle": {
+    "Lundi": [
+      {"09:30-10:20": "surveillance étude lycée"},
+      {"10:20-10:40": "surveillance cour lycée"},
+      {"14:30-15:20": "surveillance étude lycée"},
+      {"15:20-15:40": "surveillance cour lycée"},
+      {"15:40-16:30": "aide cadre éducatif"}
+    ],
+    "Mardi": [
+      {"09:30-10:20": "surveillance étude lycée"},
+      {"10:20-10:40": "surveillance cour lycée"},
+      {"14:30-15:20": "surveillance étude lycée"},
+      {"15:20-15:40": "surveillance cour lycée"},
+      {"15:40-16:30": "aide cadre éducatif"}
+    ],
+    "Mercredi": [
+      {"08:30-12:30": "surveillance devoir surveillé du lycée"},
+      {"13:15-16:00": "surveillance devoir surveillé du lycée"}
+    ],
+    "Jeudi": [
+      {"09:30-10:20": "surveillance étude lycée"},
+      {"10:20-10:40": "surveillance cour lycée"},
+      {"14:30-15:20": "surveillance étude lycée"},
+      {"15:20-15:40": "surveillance cour lycée"},
+      {"15:40-16:30": "aide cadre éducatif"}
+    ],
+    "Vendredi": [
+      {"09:30-10:20": "surveillance étude lycée"},
+      {"10:20-10:40": "surveillance cour lycée"}
+    ]
+  },
+  "Sandrine": {
+    "Lundi": [
+      {"08:30-09:30": "surveillance étude lycée"},
+      {"12:30-13:00": "Passage des élèves au self"},
+      {"13:00-13:30": "Surveillance cour Lycée"},
+      {"13:30-15:20": "surveillance étude lycée"},
+      {"15:20-15:35": "surveillance cour lycée"}
+    ],
+    "Mardi": [
+      {"08:30-09:30": "surveillance étude lycée"},
+      {"12:30-13:00": "Passage des élèves au self"},
+      {"13:00-13:30": "Surveillance cour Lycée"}
+    ],
+    "Mercredi": [
+      {"08:30-10:30": "surveillance devoir surveillé du lycée"},
+      {"13:30-15:20": "surveillance retenue lycée"}
+    ],
+    "Jeudi": [
+      {"08:30-09:30": "surveillance étude lycée"},
+      {"12:30-13:00": "Passage des élèves au self"},
+      {"13:00-13:30": "Surveillance cour Lycée"},
+      {"13:30-15:20": "surveillance étude lycée"},
+      {"15:20-15:35": "surveillance cour lycée"},
+      {"15:35-17:30": "surveillance devoir surveillé du lycée"}
+    ],
+    "Vendredi": [
+      {"08:30-09:30": "surveillance étude lycée"},
+      {"12:30-13:00": "Passage des élèves au self"},
+      {"13:00-13:30": "Surveillance cour Lycée"}
+    ]
+  },
+  "Christelle": {
+    "Lundi": [
+      {"10:40-11:30": "surveillance étude lycée"},
+      {"15:40-16:25": "surveillance étude lycée"}
+    ],
+    "Mardi": [
+      {"10:40-11:30": "surveillance étude lycée"},
+      {"15:40-16:25": "surveillance étude lycée"}
+    ],
+    "Mercredi": [
+      {"10:35-12:45": "surveillance devoir surveillé du lycée"}
+    ],
+    "Jeudi": [
+      {"10:40-11:30": "surveillance étude lycée"},
+      {"15:40-16:25": "surveillance étude lycée"}
+    ],
+    "Vendredi": [
+      {"10:40-11:30": "surveillance étude lycée"},
+      {"15:40-16:25": "surveillance étude lycée"}
+    ]
+  },
+  "Karim": {
+    "Lundi": [
+      {"08:15-11:30": "Aide cadre éducatif lycée"},
+      {"12:15-13:30": "Surveillance cour lycée"},
+      {"13:30-15:20": "Aide cadre éducatif lycée"},
+      {"15:20-15:40": "Surveillance cour lycée"},
+      {"15:40-17:00": "Aide cadre éducatif lycée"},
+      {"17:00-18:00": "Surveillance étude interne lycée"}
+    ],
+    "Mardi": [
+      {"08:15-11:30": "Aide cadre éducatif lycée"},
+      {"12:15-13:30": "Surveillance cour lycée"},
+      {"13:30-15:20": "Aide cadre éducatif lycée"},
+      {"15:20-15:40": "Surveillance cour lycée"},
+      {"15:40-17:00": "Aide cadre éducatif lycée"},
+      {"17:00-18:00": "Surveillance étude interne lycée"}
+    ],
+    "Mercredi": [
+      {"07:30-10:45": "surveillance devoir surveillé du lycée"},
+      {"10:45-11:45": "Aide cadre éducatif lycée"}
+    ],
+    "Jeudi": [
+      {"08:15-11:30": "Aide cadre éducatif lycée"},
+      {"12:15-13:30": "Surveillance cour lycée"},
+      {"13:30-15:20": "Aide cadre éducatif lycée"},
+      {"15:20-15:40": "Surveillance cour lycée"},
+      {"15:40-17:00": "Aide cadre éducatif lycée"},
+      {"17:00-18:00": "Surveillance étude interne lycée"}
+    ],
+    "Vendredi": [
+      {"08:15-11:30": "Aide cadre éducatif lycée"},
+      {"12:15-13:30": "Surveillance cour lycée"},
+      {"13:30-15:20": "Aide cadre éducatif lycée"},
+      {"15:20-15:40": "Surveillance cour lycée"},
+      {"15:40-16:30": "Aide cadre éducatif lycée"},
+      {"16:30-16:45": "ouverture de la bagagerie pour les internes"},
+      {"16:45-17:25": "Aide cadre éducatif lycée"},
+      {"17:25-17:45": "Surveillance aux abords de l’établissement"}
+    ]
+  },
+  "Athéna": {
+    "Jeudi": [
+      {"13:30-14:30": "surveillance étude lycée"}
+    ],
+    "Vendredi": [
+      {"13:30-14:30": "surveillance étude lycée"}
+    ]
+  }
+}

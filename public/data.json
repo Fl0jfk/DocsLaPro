@@ -6,7 +6,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
             "link":"/documents",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie","internat","education"]
         },
         {
             "id":2,
@@ -14,7 +14,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Ecole+direct.png",
             "link":"https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie","internat","education"]
         },
         {
             "id":3,
@@ -22,7 +22,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/maintenance.avif",
             "link":"https://providence.dedikam.com/index.php?a=add",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie","internat","education"]
         },
         {
             "id":4,
@@ -46,7 +46,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/qrcreator",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie"]
+            "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie","internat","education"]
         },
         {
             "id":7,

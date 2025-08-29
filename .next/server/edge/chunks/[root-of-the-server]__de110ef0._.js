@@ -31,17 +31,25 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 const isDev = ("TURBOPACK compile-time value", "development") !== "production";
 const ContentSecurityPolicy = `
   default-src 'self';
-  connect-src 'self' https://docslapro.s3.eu-west-3.amazonaws.com https://clerk-telemetry.com https://*.clerk-telemetry.com https://api.stripe.com https://maps.googleapis.com genuine-wildcat-70.clerk.accounts.dev;
+  connect-src 'self'
+    https://docslapro.s3.eu-west-3.amazonaws.com
+    https://clerk-telemetry.com
+    https://*.clerk-telemetry.com
+    https://api.stripe.com
+    https://maps.googleapis.com
+    https://clerk.docslapro.com
+    https://accounts.docslapro.com
+    genuine-wildcat-70.clerk.accounts.dev;
   worker-src 'self' blob:;
   form-action 'self' https://docslapro.s3.eu-west-3.amazonaws.com;
-  img-src 'self' https://img.clerk.com  https:;
+  img-src 'self' https://img.clerk.com https://clerk.docslapro.com https:;
   script-src 'self' 'unsafe-inline'${("TURBOPACK compile-time truthy", 1) ? " 'unsafe-eval'" : "TURBOPACK unreachable"} https:;
   style-src 'self' 'unsafe-inline' https:;
   font-src 'self' https:;
 `;
 const __TURBOPACK__default__export__ = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$server$2f$clerkMiddleware$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["clerkMiddleware"])(()=>{
     const response = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$spec$2d$extension$2f$response$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"].next();
-    response.headers.set("Content-Security-Policy", ContentSecurityPolicy.replace(/\n/g, ""));
+    response.headers.set("Content-Security-Policy", ContentSecurityPolicy.replace(/\n/g, " "));
     return response;
 });
 const config = {

@@ -206,28 +206,63 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 function Home() {
-    var _user_publicMetadata;
+    var _user_publicMetadata, _user_publicMetadata1, _user_publicMetadata2, _user_publicMetadata3;
     _s();
     const { isLoaded, user } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$shared$2f$dist$2f$react$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useUser"])();
     const data = (0, __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$contexts$2f$data$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
-    if (!isLoaded) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        children: "Chargement..."
-    }, void 0, false, {
-        fileName: "[project]/app/page.tsx",
-        lineNumber: 10,
-        columnNumber: 25
-    }, this);
-    const role = user === null || user === void 0 ? void 0 : (_user_publicMetadata = user.publicMetadata) === null || _user_publicMetadata === void 0 ? void 0 : _user_publicMetadata.role;
-    const filteredCategories = data.categories.filter((category)=>category.allowedRoles.includes(role !== null && role !== void 0 ? role : ""));
+    if (!isLoaded) {
+        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+            className: "flex items-center justify-center h-screen w-full",
+            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "flex flex-col items-center",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+                    }, void 0, false, {
+                        fileName: "[project]/app/page.tsx",
+                        lineNumber: 14,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "mt-4 text-lg font-medium text-gray-600",
+                        children: "Chargement en cours…"
+                    }, void 0, false, {
+                        fileName: "[project]/app/page.tsx",
+                        lineNumber: 15,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 13,
+                columnNumber: 7
+            }, this)
+        }, void 0, false, {
+            fileName: "[project]/app/page.tsx",
+            lineNumber: 12,
+            columnNumber: 5
+        }, this);
+    }
+    const roles = Array.isArray(user === null || user === void 0 ? void 0 : (_user_publicMetadata = user.publicMetadata) === null || _user_publicMetadata === void 0 ? void 0 : _user_publicMetadata.role) ? user === null || user === void 0 ? void 0 : (_user_publicMetadata1 = user.publicMetadata) === null || _user_publicMetadata1 === void 0 ? void 0 : _user_publicMetadata1.role : (user === null || user === void 0 ? void 0 : (_user_publicMetadata2 = user.publicMetadata) === null || _user_publicMetadata2 === void 0 ? void 0 : _user_publicMetadata2.role) ? [
+        user === null || user === void 0 ? void 0 : (_user_publicMetadata3 = user.publicMetadata) === null || _user_publicMetadata3 === void 0 ? void 0 : _user_publicMetadata3.role
+    ] : [];
+    const filteredCategories = data.categories.filter((category)=>category.allowedRoles.some((r)=>roles.includes(r)));
+    const uniqueCategories = Array.from(new Map(filteredCategories.map((cat)=>{
+        var _cat_id;
+        return [
+            (_cat_id = cat.id) !== null && _cat_id !== void 0 ? _cat_id : cat.name,
+            cat
+        ];
+    })).values());
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
         className: "flex flex-col w-full text-xl sm:pt-[15vh]",
         children: [
-            filteredCategories.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Slider$2f$RollingSlider$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
-                categories: filteredCategories
+            uniqueCategories.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Slider$2f$RollingSlider$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                categories: uniqueCategories
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 16,
-                columnNumber: 11
+                lineNumber: 26,
+                columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["SignedOut"], {
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$clerk$2d$react$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["SignInButton"], {
@@ -236,23 +271,23 @@ function Home() {
                         children: "Se connecter"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 20,
-                        columnNumber: 13
+                        lineNumber: 30,
+                        columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 19,
-                    columnNumber: 11
+                    lineNumber: 29,
+                    columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 18,
-                columnNumber: 9
+                lineNumber: 28,
+                columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 14,
+        lineNumber: 24,
         columnNumber: 5
     }, this);
 }
