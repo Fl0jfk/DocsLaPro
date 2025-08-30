@@ -39,12 +39,9 @@ export async function GET(req: NextRequest) {
   const prefixParam = url.searchParams.get("prefix") || "";
   const cacheKey = `${userId}-${prefixParam}`;
   const now = Date.now();
-
-  // Vérifier le cache
   if (cache[cacheKey] && now - cache[cacheKey].timestamp < 5 * 60 * 1000) {
-    return new Response(JSON.stringify(cache[cacheKey].data), { status: 200 });
-  }
-
+  return new Response(JSON.stringify(cache[cacheKey].data), { status: 200 });
+}
   try {
     const allItems: {
       type: "folder" | "file";
@@ -89,8 +86,7 @@ export async function GET(req: NextRequest) {
               Bucket: process.env.BUCKET_NAME!,
               Key: file.Key!,
             });
-            const signedUrl = await getSignedUrl(s3, getObjectCommand, { expiresIn: 6000 });
-
+            const signedUrl = await getSignedUrl(s3, getObjectCommand, { expiresIn: 7 * 24 * 60 * 60});
             return {
               type: "file" as const,
               name: file.Key!.split("/").pop()!.replace(/\.(pdf|docx?|xlsx?|xls)$/, ""),

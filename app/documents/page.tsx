@@ -17,7 +17,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<string[]>([]);
   const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
-  const cacheTTL = 24 * 60 * 60 * 1000; // 24h
+  const cacheTTL = 30 * 60 * 1000;
   useEffect(() => {
     setLoading(true);
     const cachedRaw = localStorage.getItem(cacheKey(currentPrefix));
