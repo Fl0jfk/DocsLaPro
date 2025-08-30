@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
         name: `${p.Prefix!.split("/").slice(-2, -1)[0]} (${folderPrefix.replace("documents/", "")})`,
         path: p.Prefix!,
       })) || [];
-      const files = (response.Contents || []) .filter(file => file.Key && !file.Key.endsWith("/")) .filter(file => [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext => file.Key!.toLowerCase().endsWith(ext)))
-        .map(file => ({ type: "file" as const, name: `${file.Key!.split("/").pop()!.replace(/\.(pdf|docx?|xlsx?|xls)$/, "")} (${folderPrefix.replace("documents/", "")})`, path: file.Key!, ext: file.Key!.split(".").pop()?.toLowerCase()}));
+      const files = (response.Contents || []) .filter(file => file.Key && !file.Key.endsWith("/")).filter(file => [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext => file.Key!.toLowerCase().endsWith(ext)))
+        .map(file => ({type: "file" as const, name: file.Key!.split("/").pop()!.replace(/\.(pdf|docx?|xlsx?|xls)$/, ""), path: file.Key!, ext: file.Key!.split(".").pop()?.toLowerCase()}));
       allItems.push(...folders, ...files);
     }
     const uniqueItems = Array.from(new Map(allItems.map(item => [item.path, item])).values());
