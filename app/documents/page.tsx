@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 
 type DocumentNode = {
   type: "folder" | "file";
   name: string;
-  url?: string;
   path: string;
   ext?: string;
 };
@@ -18,6 +16,7 @@ export default function DocumentsPage() {
   const [history, setHistory] = useState<string[]>([]);
   const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
   const cacheTTL = 30 * 60 * 1000;
+  const [downloading, setDownloading] = useState<string | null>(null);
   useEffect(() => {
     setLoading(true);
     const cachedRaw = localStorage.getItem(cacheKey(currentPrefix));
@@ -50,10 +49,7 @@ export default function DocumentsPage() {
         setLoading(false);
       });
   }, [currentPrefix]);
-  const enterFolder = (path: string) => {
-    setHistory(prev => [...prev, currentPrefix]);
-    setCurrentPrefix(path);
-  };
+  const enterFolder = (path: string) => { setHistory(prev => [...prev, currentPrefix]); setCurrentPrefix(path);};
   const goBack = () => {
     const prev = history.pop();
     if (prev !== undefined) {
@@ -70,30 +66,43 @@ export default function DocumentsPage() {
       default: return "📄";
     }
   };
-
-  if (loading) return <div>Chargement...</div>;
-
+  const handleDownload = async (path: string) => {
+    setDownloading(path);
+    try {
+      const res = await fetch(`/api/documents/get-url?key=${encodeURIComponent(path)}`);
+      const data = await res.json();
+      if (data.url) { window.open(data.url, "_blank");
+      } else { alert("Erreur lors de la génération du lien sécurisé.")}
+    } catch (e) {
+      alert("Erreur téléchargement : " + String(e));
+    }
+    setDownloading(null);
+  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen w-full">
+        <div className="flex flex-col items-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+          <p className="mt-4 text-lg font-medium text-gray-600">Chargement en cours…</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <main className="flex flex-col gap-4 p-4 w-full mx-auto max-w-[1000px] sm:pt-[10vh]">
       <section className="space-y-4 flex flex-col gap-2">
         {history.length > 0 && (
           <button onClick={goBack} className="text-blue-500 hover:underline mb-4">← Retour</button>
         )}
-
         {items.length > 0 ? (
           items.map((item, idx) => (
             <div key={idx} className="p-4 bg-white rounded-lg shadow-md">
               {item.type === "folder" ? (
-                <div
-                  className="cursor-pointer font-semibold text-yellow-700"
-                  onClick={() => enterFolder(item.path)}
-                >
-                  📁 {item.name}
-                </div>
+                <div className="cursor-pointer font-semibold text-yellow-700" onClick={() => enterFolder(item.path)}> 📁 {item.name}</div>
               ) : (
                 <div className="flex justify-between">
                   <h3 className="font-semibold">{getFileIcon(item.ext)} {item.name}</h3>
-                  <Link className="text-blue-500 hover:underline" href={item.url!}>Télécharger</Link>
+                  <button className="text-blue-500 hover:underline" onClick={() => handleDownload(item.path)} disabled={downloading === item.path}>{downloading === item.path ? "Téléchargement..." : "Télécharger"}</button>
                 </div>
               )}
             </div>
@@ -105,4 +114,3 @@ export default function DocumentsPage() {
     </main>
   );
 }
-
