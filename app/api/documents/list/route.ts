@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
   if (roles.includes("professeur")) baseFolders.push("professeurs/");
   if (roles.includes("administratif")) baseFolders.push("administratif/");
   if (roles.includes("direction")) baseFolders.push("direction/");
-  if (roles.includes("comptabilité")) baseFolders.push("comptabilité/");
+  if (roles.includes("comptabilité")) baseFolders.push("Compta RH/");
+  if (roles.includes("education")) baseFolders.push("education/");
   const userFolders = [...new Set(baseFolders.map(f => `documents/${f}`))];
   const url = new URL(req.url);
   const prefixParam = url.searchParams.get("prefix") || "";
@@ -34,13 +35,13 @@ export async function GET(req: NextRequest) {
       const effectivePrefix = prefixParam.startsWith("documents/") ? prefixParam : `${folderPrefix}${prefixParam}`;
       const command = new ListObjectsV2Command({ Bucket: process.env.BUCKET_NAME!, Prefix: effectivePrefix, Delimiter: "/"});
       const response = await s3.send(command);
-      const folders = response.CommonPrefixes?.map(p => ({ type: "folder" as const, name: p.Prefix!.split("/").slice(-2, -1)[0], path: p.Prefix!})) || [];
-      const files =(response.Contents || []).filter(file => file.Key && !file.Key.endsWith("/")).filter(file =>
-            [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext =>
-              file.Key!.toLowerCase().endsWith(ext)
-            )
-          )
-          .map(file => ({ type: "file" as const, name: file.Key!.split("/").pop()!.replace(/\.(pdf|docx?|xlsx?|xls)$/, ""), path: file.Key!, ext: file.Key!.split(".").pop()?.toLowerCase(),}));
+      const folders = response.CommonPrefixes?.map(p => ({
+        type: "folder" as const,
+        name: `${p.Prefix!.split("/").slice(-2, -1)[0]} (${folderPrefix.replace("documents/", "")})`,
+        path: p.Prefix!,
+      })) || [];
+      const files = (response.Contents || []) .filter(file => file.Key && !file.Key.endsWith("/")) .filter(file => [".pdf", ".doc", ".docx", ".xls", ".xlsx"].some(ext => file.Key!.toLowerCase().endsWith(ext)))
+        .map(file => ({ type: "file" as const, name: `${file.Key!.split("/").pop()!.replace(/\.(pdf|docx?|xlsx?|xls)$/, "")} (${folderPrefix.replace("documents/", "")})`, path: file.Key!, ext: file.Key!.split(".").pop()?.toLowerCase()}));
       allItems.push(...folders, ...files);
     }
     const uniqueItems = Array.from(new Map(allItems.map(item => [item.path, item])).values());
