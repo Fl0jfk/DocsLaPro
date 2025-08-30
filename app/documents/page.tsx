@@ -67,17 +67,25 @@ export default function DocumentsPage() {
     }
   };
   const handleDownload = async (path: string) => {
-    setDownloading(path);
-    try {
-      const res = await fetch(`/api/documents/get-url?key=${encodeURIComponent(path)}`);
-      const data = await res.json();
-      if (data.url) { window.open(data.url, "_blank");
-      } else { alert("Erreur lors de la génération du lien sécurisé.")}
-    } catch (e) {
-      alert("Erreur téléchargement : " + String(e));
+  setDownloading(path);
+  try {
+    const res = await fetch(`/api/documents/get-url?key=${encodeURIComponent(path)}`);
+    const data = await res.json();
+    if (data.url) {
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = path.split("/").pop()!;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      alert("Erreur lors de la génération du lien sécurisé.");
     }
-    setDownloading(null);
-  };
+  } catch (e) {
+    alert("Erreur téléchargement : " + String(e));
+  }
+  setDownloading(null);
+};
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen w-full">
