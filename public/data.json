@@ -90,6 +90,15 @@
             "description":"",
             "allowedRoles": ["administratif"],
             "external": false
+        },
+        {
+            "id":11,
+            "name":"ZeenDoc",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
+            "link":"https://armoires.zeendoc.com/_Login/Login.php",
+            "description":"",
+            "allowedRoles": ["administratif","comptabilite","direction_college","direction_ecole","direction_lycee"],
+            "external": true
         }
     ]
 }
