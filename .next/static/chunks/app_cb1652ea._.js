@@ -15,7 +15,54 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 function Slide(param) {
-    let { name, img, link } = param;
+    let { name, img, link, external } = param;
+    if (external) {
+        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
+            href: link,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className: "select-none flex items-end border xl:hover:scale-105 lg:hover:scale-105 h-[600px] md:h-[400px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300",
+            children: name && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex flex-col gap-1",
+                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            className: "md:text-2xl text-4xl font-bold z-[2]",
+                            children: name
+                        }, void 0, false, {
+                            fileName: "[project]/app/components/Slider/Slide.tsx",
+                            lineNumber: 18,
+                            columnNumber: 15
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "[project]/app/components/Slider/Slide.tsx",
+                        lineNumber: 17,
+                        columnNumber: 13
+                    }, this),
+                    img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                        src: img,
+                        fill: true,
+                        alt: name,
+                        style: {
+                            objectFit: "cover"
+                        },
+                        quality: 100,
+                        priority: true,
+                        className: "rounded-3xl select-none pointer-events-none",
+                        sizes: "35vw"
+                    }, void 0, false, {
+                        fileName: "[project]/app/components/Slider/Slide.tsx",
+                        lineNumber: 21,
+                        columnNumber: 15
+                    }, this)
+                ]
+            }, void 0, true)
+        }, void 0, false, {
+            fileName: "[project]/app/components/Slider/Slide.tsx",
+            lineNumber: 14,
+            columnNumber: 7
+        }, this);
+    }
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
         href: link,
         className: "select-none flex items-end border xl:hover:scale-105 lg:hover:scale-105 h-[600px] md:h-[400px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300",
@@ -28,13 +75,13 @@ function Slide(param) {
                         children: name
                     }, void 0, false, {
                         fileName: "[project]/app/components/Slider/Slide.tsx",
-                        lineNumber: 10,
-                        columnNumber: 25
+                        lineNumber: 33,
+                        columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/components/Slider/Slide.tsx",
-                    lineNumber: 9,
-                    columnNumber: 21
+                    lineNumber: 32,
+                    columnNumber: 11
                 }, this),
                 img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                     src: img,
@@ -49,15 +96,15 @@ function Slide(param) {
                     sizes: "35vw"
                 }, void 0, false, {
                     fileName: "[project]/app/components/Slider/Slide.tsx",
-                    lineNumber: 13,
-                    columnNumber: 25
+                    lineNumber: 36,
+                    columnNumber: 13
                 }, this)
             ]
         }, void 0, true)
     }, void 0, false, {
         fileName: "[project]/app/components/Slider/Slide.tsx",
-        lineNumber: 6,
-        columnNumber: 9
+        lineNumber: 29,
+        columnNumber: 5
     }, this);
 }
 _c = Slide;
@@ -118,7 +165,7 @@ function Slider(param) {
                 name: category.name,
                 link: category.link,
                 img: category.img,
-                description: category.description
+                external: category.external
             }, category.id, false, {
                 fileName: "[project]/app/components/Slider/Slider.tsx",
                 lineNumber: 41,
@@ -206,7 +253,7 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 function Home() {
-    var _user_publicMetadata, _user_publicMetadata1, _user_publicMetadata2, _user_publicMetadata3;
+    var _user_publicMetadata;
     _s();
     const { isLoaded, user } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$shared$2f$dist$2f$react$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useUser"])();
     const data = (0, __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$contexts$2f$data$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
@@ -243,10 +290,18 @@ function Home() {
             columnNumber: 5
         }, this);
     }
-    const roles = Array.isArray(user === null || user === void 0 ? void 0 : (_user_publicMetadata = user.publicMetadata) === null || _user_publicMetadata === void 0 ? void 0 : _user_publicMetadata.role) ? user === null || user === void 0 ? void 0 : (_user_publicMetadata1 = user.publicMetadata) === null || _user_publicMetadata1 === void 0 ? void 0 : _user_publicMetadata1.role : (user === null || user === void 0 ? void 0 : (_user_publicMetadata2 = user.publicMetadata) === null || _user_publicMetadata2 === void 0 ? void 0 : _user_publicMetadata2.role) ? [
-        user === null || user === void 0 ? void 0 : (_user_publicMetadata3 = user.publicMetadata) === null || _user_publicMetadata3 === void 0 ? void 0 : _user_publicMetadata3.role
-    ] : [];
-    const filteredCategories = data.categories.filter((category)=>category.allowedRoles.some((r)=>roles.includes(r)));
+    function normalizeRoles(role) {
+        if (Array.isArray(role)) return role;
+        if (typeof role === "string") return [
+            role
+        ];
+        return [];
+    }
+    const roles = normalizeRoles(user === null || user === void 0 ? void 0 : (_user_publicMetadata = user.publicMetadata) === null || _user_publicMetadata === void 0 ? void 0 : _user_publicMetadata.role);
+    const filteredCategories = data.categories.filter((category)=>{
+        var _category_allowedRoles;
+        return ((_category_allowedRoles = category.allowedRoles) !== null && _category_allowedRoles !== void 0 ? _category_allowedRoles : []).some((r)=>roles.includes(r));
+    });
     const uniqueCategories = Array.from(new Map(filteredCategories.map((cat)=>{
         var _cat_id;
         return [
@@ -261,7 +316,7 @@ function Home() {
                 categories: uniqueCategories
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 26,
+                lineNumber: 33,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["SignedOut"], {
@@ -271,23 +326,23 @@ function Home() {
                         children: "Se connecter"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 30,
+                        lineNumber: 37,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 29,
+                    lineNumber: 36,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 28,
+                lineNumber: 35,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 24,
+        lineNumber: 31,
         columnNumber: 5
     }, this);
 }

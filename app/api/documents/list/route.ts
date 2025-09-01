@@ -7,16 +7,13 @@ const s3 = new S3Client({
   credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY!},
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CacheEntry = { data: any; timestamp: number };
-const cache: Record<string, CacheEntry> = {};
-
 export async function GET(req: NextRequest) {
   const { userId } = getAuth(req);
   if (!userId) { return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });}
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const roles = (user.publicMetadata.role as string[]) || [];
+  const rawRole = user.publicMetadata.role ?? [];
+  const roles = Array.isArray(rawRole) ? rawRole : typeof rawRole === "string" ? [rawRole] : [];
   const baseFolders: string[] = [];
   if (roles.includes("professeur")) baseFolders.push("professeurs/");
   if (roles.includes("administratif")) baseFolders.push("administratif/");
@@ -26,9 +23,6 @@ export async function GET(req: NextRequest) {
   const userFolders = [...new Set(baseFolders.map(f => `documents/${f}`))];
   const url = new URL(req.url);
   const prefixParam = url.searchParams.get("prefix") || "";
-  const cacheKey = `${userId}-${prefixParam}`;
-  const now = Date.now();
-  if (cache[cacheKey] && now - cache[cacheKey].timestamp < 5 * 60 * 1000) {return new Response(JSON.stringify(cache[cacheKey].data), { status: 200 });}
   try {
     const allItems: { type: "folder" | "file"; name: string; path: string; ext?: string}[] = [];
     for (const folderPrefix of userFolders) {
@@ -45,7 +39,6 @@ export async function GET(req: NextRequest) {
       allItems.push(...folders, ...files);
     }
     const uniqueItems = Array.from(new Map(allItems.map(item => [item.path, item])).values());
-    cache[cacheKey] = { data: uniqueItems, timestamp: now };
     return new Response(JSON.stringify(uniqueItems), { status: 200 });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {

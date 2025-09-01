@@ -17,8 +17,15 @@ export default function Home() {
     </div>
   );
 }
-  const roles = Array.isArray(user?.publicMetadata?.role) ? user?.publicMetadata?.role as string[] : user?.publicMetadata?.role ? [user?.publicMetadata?.role as string] : [];
-  const filteredCategories = data.categories.filter(category => category.allowedRoles.some(r => roles.includes(r)));
+  function normalizeRoles(role: unknown): string[] {
+    if (Array.isArray(role)) return role as string[];
+    if (typeof role === "string") return [role];
+    return [];
+  }
+  const roles = normalizeRoles(user?.publicMetadata?.role);
+  const filteredCategories = data.categories.filter(category =>
+    (category.allowedRoles ?? []).some(r => roles.includes(r))
+  );
   const uniqueCategories = Array.from( new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values());
   return (
     <main className="flex flex-col w-full text-xl sm:pt-[15vh]">

@@ -15,7 +15,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<string[]>([]);
   const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
-  const cacheTTL = 30 * 60 * 1000;
+  const cacheTTL = 15 * 60 * 1000;
   const [downloading, setDownloading] = useState<string | null>(null);
   useEffect(() => {
     setLoading(true);
