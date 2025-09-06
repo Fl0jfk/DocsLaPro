@@ -11,6 +11,7 @@ const ALLOWED_MIME = new Set([
   "image/jpg",
   "image/webp"
 ]);
+
 const RECIPIENTS: Record<string, string[]> = {
   direction_ecole: ["florian.hacqueville-mathi@ac-normandie.fr"],
   direction_college: ["florian@h-me.fr"],
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     if (!type || !cible || !nom || !email || !date_debut || !date_fin || !motif) {
       return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 });
     }
+
     const filesRaw = data.getAll("attachments");
     const files = filesRaw.filter(f =>
       typeof f === "object" &&
@@ -53,6 +55,7 @@ export async function POST(req: NextRequest) {
     if (files.length > MAX_FILES) {
       return NextResponse.json({ error: `Pas plus de ${MAX_FILES} fichiers.` }, { status: 400 });
     }
+
     const attachments = [];
     for (const file of files) {
       if (!ALLOWED_MIME.has(file.type)) {
@@ -61,10 +64,11 @@ export async function POST(req: NextRequest) {
       const arrayBuffer = await file.arrayBuffer();
       attachments.push({
         filename: file.name,
-        content: Buffer.from(arrayBuffer),
-        contentType: file.type || "application/octet-stream"
+        buffer: Buffer.from(arrayBuffer).toString("base64"),
+        type: file.type || "application/octet-stream"
       });
     }
+
     const absence: AbsenceEntry = {
       id: uuidv4(),
       type,
@@ -75,56 +79,46 @@ export async function POST(req: NextRequest) {
       date_fin,
       motif,
       commentaire,
-      justificatifs: files.length > 0
-        ? attachments.map(a => ({
-            filename: a.filename,
-            buffer: a.content.toString("base64"),
-            type: a.contentType || "application/octet-stream"
-          }))
-        : undefined,
+      justificatifs: attachments.length > 0 ? attachments : undefined,
       etat: "en_attente",
       date_declaration: new Date().toISOString()
     };
+
     await addEntry(absence);
+
     const lien = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/validationAbsences?id=${absence.id}`;
-    const mailTo = RECIPIENTS[cible] || RECIPIENTS.default;
+    const mailTo = RECIPIENTS[cible] || [];
     const mailSubject = `[Absence] Nouvelle demande (${motif})`;
     const mailText = `Nouvelle demande d'absence de ${nom} (${email}) du ${date_debut} au ${date_fin}.\nMotif: ${motif}\nCliquez pour traiter: ${lien}`;
-    const transporter = nodemailer.createTransport({
-      host: "email-smtp.eu-west-3.amazonaws.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
+
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,        // 465 pour SSL/TLS
+  secure: true,     // true pour port 465
+  auth: {
+    user: process.env.GMAIL_USER,      // ton adresse Gmail (ex: flojfk@gmail.com)
+    pass: process.env.GMAIL_APP_PASS,  // mot de passe d'application Gmail
+  },
+});
+
+
+    await transporter.sendMail({
+      from: process.env.SMTP_MAIL,
+      to: mailTo,
+      subject: mailSubject,
+      text: mailText,
+      attachments: attachments.map(a => ({
+        filename: a.filename,
+        content: Buffer.from(a.buffer, "base64"),
+        contentType: a.type,
+      }))
     });
-    try {
-      await transporter.sendMail({
-        from: process.env.SMTP_MAIL,
-        to: mailTo,
-        subject: mailSubject,
-        text: mailText,
-        attachments: attachments
-      });
-      return NextResponse.json({ success: true, message: "Demande enregistrée et mail envoyé à la direction." });
-    } catch (errMail) {
-      let errorMessage = "Erreur lors de l'envoi du mail";
-      let errorStack = "";
-      if (errMail && typeof errMail === "object") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ("message" in errMail) errorMessage = (errMail as any).message;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ("stack" in errMail) errorStack = (errMail as any).stack;
-      }
-      return NextResponse.json({
-        error: errorMessage,
-        stack: errorStack,
-        details: JSON.stringify(errMail),
-      }, { status: 500 });
-    }
+
+    return NextResponse.json({ success: true, message: "Demande enregistrée et mail envoyé à la direction." });
+
   } catch (err) {
-    console.error("Erreur route API /api/absence/want:", err);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    console.error("Erreur /api/absence/want:", err);
+    return NextResponse.json({ error: "Erreur serveur", details: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }
 }

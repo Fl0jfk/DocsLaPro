@@ -12,6 +12,13 @@ export const s3 = new S3Client({
 export const BUCKET = process.env.BUCKET_NAME!;
 export const KEY = "absences_en_attente.json";
 
+export type Justificatif = {
+  filename: string;
+  buffer: string;
+  type: string;
+  s3Key?: string;
+};
+
 export type AbsenceEntry = {
   id: string;
   type: "prof" | "salarie";
@@ -22,7 +29,8 @@ export type AbsenceEntry = {
   date_fin: string;
   motif: string;
   commentaire?: string;
-  justificatifs?: { filename: string; buffer: string; type: string }[];
+  declarerRectorat?: boolean;
+  justificatifs?: Justificatif[];
   etat: "en_attente" | "validee" | "refusee";
   date_declaration: string;
   directrice?: "directrice_ecole" | "directrice_college" | "directrice_lycee";
@@ -68,13 +76,10 @@ export async function removeEntry(id: string) {
   await writeStore(out);
 }
 
-export async function getPresignedAbsenceStoreUrl(
-  expiresInSeconds: number = 600
-): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: BUCKET,
-    Key: KEY,
-  });
-  const url = await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
-  return url;
+export async function getPresignedFileUrl(s3Key: string, expiresInSeconds = 600): Promise<string> {
+  const command = new GetObjectCommand({ Bucket: BUCKET, Key: s3Key });
+  return await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
 }
+
+////////////////////////////////////////
+

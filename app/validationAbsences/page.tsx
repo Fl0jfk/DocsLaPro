@@ -4,27 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import type { UserResource } from "@clerk/types";
 import Image from "next/image";
-
-type Justificatif = {
-  filename: string;
-  buffer: string;
-  type: string;
-};
-
-type AbsenceEntry = {
-  id: string;
-  type: "prof" | "salarie";
-  cible: "direction_ecole" | "direction_college" | "direction_lycee";
-  nom: string;
-  email: string;
-  date_debut: string;
-  date_fin: string;
-  motif: string;
-  commentaire?: string;
-  justificatifs?: Justificatif[];
-  etat: "en_attente" | "validee" | "refusee";
-  date_declaration: string;
-};
+import type { AbsenceEntry } from "@/app/utils/jsonStore";
 
 const CIBLE_MAP: Record<string, "direction_lycee" | "direction_college" | "direction_ecole"> = {
   direction_lycee: "direction_lycee",
@@ -35,7 +15,7 @@ const CIBLE_MAP: Record<string, "direction_lycee" | "direction_college" | "direc
 function Loader() {
   return (
     <svg width={22} height={22} viewBox="0 0 22 22" className="inline mr-2 animate-spin" style={{ verticalAlign: "middle" }}>
-      <circle cx="11" cy="11" r="9" stroke="#888" strokeWidth="4"  fill="none" strokeDasharray="28 60" strokeLinecap="round"/>
+      <circle cx="11" cy="11" r="9" stroke="#888" strokeWidth="4" fill="none" strokeDasharray="28 60" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -46,14 +26,12 @@ export default function ValidationAbsences() {
   const [choix, setChoix] = useState<Record<string, "validee" | "refusee" | "">>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
-
   function getCibleFromRole(user: UserResource | null | undefined): "direction_lycee" | "direction_college" | "direction_ecole" | null {
     if (!user) return null;
     const role = (user.publicMetadata?.role as string | undefined) || "";
     return (role && CIBLE_MAP[role]) ? CIBLE_MAP[role] : null;
   }
   const cible = getCibleFromRole(user);
-
   useEffect(() => {
     if (!cible) return;
     async function fetchAbsences() {
@@ -64,11 +42,8 @@ export default function ValidationAbsences() {
         const txt = await res.text();
         let arr: AbsenceEntry[] = [];
         try { arr = txt.trim() ? JSON.parse(txt) : []; }
-        catch (e) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setMsg("Erreur de récupération absences : " + (e as any).message);
-          return;
-        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        catch (e) { setMsg("Erreur de récupération absences : " + (e as any).message); return; }
         const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
         setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
       } catch (e) {
@@ -78,37 +53,31 @@ export default function ValidationAbsences() {
     }
     fetchAbsences();
   }, [cible]);
-
-  const handleValidation = async (id: string, statut: "validee" | "refusee") => {
+  const handleValidation = async (id: string, statut: "validee" | "refusee", declarerRectorat?: boolean) => {
     setLoadingId(id);
     setMsg("");
-    setChoix((old) => ({ ...old, [id]: statut }));
+    setChoix(old => ({ ...old, [id]: statut }));
     try {
       const res = await fetch("/api/absence/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, statut }),
+        body: JSON.stringify({ id, statut, declarerRectorat }),
       });
       const result = await res.json();
       setMsg(result.message || result.error);
-      setAbsences((old) => old.filter((a) => a.id !== id));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setAbsences(old => old.filter(a => a.id !== id));
     } catch (error: any) {
       setMsg(error?.message || "Erreur lors de la validation.");
     } finally {
       setLoadingId(null);
     }
   };
-
   if (!isLoaded) return <div className="pt-[10vh] flex">Chargement utilisateur…</div>;
   if (!user) return <div className="pt-[10vh] flex">Vous devez être connecté(e).</div>;
   if (!cible) return <div className="pt-[10vh] flex">Vous n’avez pas accès à la gestion des absences.<br />Rôle non reconnu.</div>;
-
   return (
     <div className="pt-[10vh] flex flex-col w-full items-center">
-      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>
-        Demandes d’absence à valider ({cible})
-      </h2>
+      <h2 style={{ fontSize: "1.4rem", marginBottom: 18 }}>Demandes d’absence à valider ({cible})</h2>
       {msg && (
         <div style={{
           color: msg.toLowerCase().includes("succès") || msg.toLowerCase().includes("envoyé") ? "green" : "red",
@@ -120,34 +89,24 @@ export default function ValidationAbsences() {
         {absences.map((a) => (
           <li key={a.id} style={{ border: "1px solid #ececec", borderRadius: 8, marginBottom: 20, padding: 18 }}>
             <strong>{a.nom}</strong> — <em>{a.email}</em>
-            <div>
-              <b>Type :</b> {a.type === "prof" ? "Professeur" : "Personnel / salarié"}
-            </div>
-            <div>
-              <b>Période :</b> {a.date_debut} au {a.date_fin}
-            </div>
-            <div>
-              <b>Motif :</b> {a.motif}
-            </div>
-            {a.commentaire && (
-              <div>
-                <b>Commentaire :</b> {a.commentaire}
-              </div>
-            )}
+            <div><b>Type :</b> {a.type === "prof" ? "Professeur" : "Personnel / salarié"}</div>
+            <div><b>Période :</b> {a.date_debut} au {a.date_fin}</div>
+            <div><b>Motif :</b> {a.motif}</div>
+            {a.commentaire && <div><b>Commentaire :</b> {a.commentaire}</div>}
             {a.justificatifs && a.justificatifs.length > 0 && (
-              <div style={{ marginTop: "12px" }}>
+              <div style={{ marginTop: 12 }}>
                 <b>Justificatifs :</b>
                 <ul style={{ paddingLeft: 18 }}>
                   {a.justificatifs.map((f, idx) => {
                     const viewable = f.type.startsWith("image/");
                     const isPdf = f.type === "application/pdf";
-                    const url = `/api/pj-pdf?id=${encodeURIComponent(a.id)}&idx=${idx}`;
+                    const url = `/api/absence/pj?id=${encodeURIComponent(a.id)}&idx=${idx}`;
                     return (
                       <li key={idx} style={{ marginBottom: 8 }}>
                         {viewable && (
                           <>
                             <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3", marginRight: 8 }}>Voir l’image</a>
-                            <Image src={url} alt={f.filename} width={120} height={80} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc", display:"inline-block", verticalAlign:"middle"}} />
+                            <Image src={url} alt={f.filename} width={120} height={80} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc"}} />
                           </>
                         )}
                         {isPdf && (
@@ -162,9 +121,22 @@ export default function ValidationAbsences() {
                 </ul>
               </div>
             )}
+
+            {a.type === "prof" && (
+              <label style={{ marginTop: 12 }}>
+                Déclarer au rectorat ?
+                <input
+                  type="checkbox"
+                  checked={a.declarerRectorat || false}
+                  onChange={e => a.declarerRectorat = e.target.checked}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+            )}
+
             <div style={{ marginTop: 14 }}>
               <button
-                onClick={() => handleValidation(a.id, "validee")}
+                onClick={() => handleValidation(a.id, "validee", a.declarerRectorat)}
                 disabled={!!loadingId || choix[a.id] === "validee"}
                 style={{
                   marginRight: 10,
@@ -177,8 +149,7 @@ export default function ValidationAbsences() {
                   opacity: loadingId === a.id ? 0.7 : 1,
                 }}
               >
-                {loadingId === a.id && <Loader />}
-                Valider
+                {loadingId === a.id && <Loader />} Valider
               </button>
               <button
                 onClick={() => handleValidation(a.id, "refusee")}
@@ -193,8 +164,7 @@ export default function ValidationAbsences() {
                   opacity: loadingId === a.id ? 0.7 : 1,
                 }}
               >
-                {loadingId === a.id && <Loader />}
-                Refuser
+                {loadingId === a.id && <Loader />} Refuser
               </button>
             </div>
           </li>

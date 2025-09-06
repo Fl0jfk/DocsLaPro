@@ -1,80 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readStore, removeEntry, AbsenceEntry, getPresignedAbsenceStoreUrl } from "@/app/utils/jsonStore";
+import { readStore, removeEntry, AbsenceEntry } from "@/app/utils/jsonStore";
 import { PDFDocument, rgb } from "pdf-lib";
 import nodemailer from "nodemailer";
 
 const RECIPIENTS: Record<string, string[]> = {
-  direction_ecole:   ["florian.hacqueville-mathi@ac-normandie.fr"],
-  direction_college: ["florian@h-me.fr"],
-  direction_lycee:   ["florian.hacqueville-mathi@ac-normandie.fr"],
-  rh:                ["florian@h-me.fr"],
-  default:           ["secretariat@ecole.com"],
-  secretariat: [
-    "florian@h-me.fr",
-  ],
+  direction_ecole:   ["flojfk+direction_ecole@gmail.com"],
+  direction_college: ["flojfk+direction_college@gmail.com"],
+  direction_lycee:   ["flojfk+direction_lycee@gmail.com"],
+  rh:                ["flojfk+rh@gmail.com"],
+  secretariat:       ["flojfk+secretariat@gmail.com"],
 };
 
-const SIGNATURES: Record<"directrice_ecole"|"directrice_college"|"directrice_lycee", string> = {
-  directrice_ecole:   "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
+const SIGNATURES: Record<string, string> = {
+  directrice_ecole: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
   directrice_college: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
-  directrice_lycee:   "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
+  directrice_lycee: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
 };
 
-const DEFAULT_DIRECTRICE_BY_CIBLE: Record<AbsenceEntry["cible"], keyof typeof SIGNATURES> = {
-  direction_ecole:   "directrice_ecole",
+const DEFAULT_DIRECTRICE_BY_CIBLE: Record<AbsenceEntry["cible"], string> = {
+  direction_ecole: "directrice_ecole",
   direction_college: "directrice_college",
-  direction_lycee:   "directrice_lycee",
+  direction_lycee: "directrice_lycee",
 };
 
 async function fetchSignatureBytes(url: string): Promise<Uint8Array> {
-  if (!url) return new Uint8Array();
   try {
-    const res = await fetch(url, { cache: "no-store" });
-    const buffer = await res.arrayBuffer();
-    return new Uint8Array(buffer);
-  } catch (err) {
-    console.error("Erreur récupération signature HTTP:", err);
+    const res = await fetch(url);
+    return new Uint8Array(await res.arrayBuffer());
+  } catch {
     return new Uint8Array();
   }
 }
 
 export async function GET() {
-  const url = await getPresignedAbsenceStoreUrl(300); // 5 min
-  return NextResponse.json({ url });
+  return NextResponse.json({ url: "GET non utilisé pour validation, uniquement POST" });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { id, statut } = await req.json() as { id: string; statut: "validee" | "refusee" };
+    const { id, statut, declarerRectorat } = await req.json() as { id: string; statut: "validee" | "refusee"; declarerRectorat?: boolean };
 
     if (!id || !statut) {
       return NextResponse.json({ error: "Paramètres manquants." }, { status: 400 });
     }
+
     const absences = await readStore();
     const demande = absences.find(a => a.id === id);
-    if (!demande) {
-      return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
-    }
-    let destinataire: string | string[];
-    let mailSujet: string;
-    let mailTexte: string;
-    if ((demande.type === "prof" || demande.type === "salarie") && statut === "validee") {
-      destinataire = RECIPIENTS.rh;
-      mailSujet = `Déclaration d'absence ${demande.type} validée`;
-      mailTexte = `Absence validée de ${demande.nom} (${demande.email})
-Du ${demande.date_debut} au ${demande.date_fin}
-Motif: ${demande.motif}`;
-    } else if (statut === "refusee") {
-      destinataire = demande.email;
-      mailSujet = "Votre demande a été refusée";
-      mailTexte = "Malheureusement, votre demande d'absence a été refusée par la direction.";
-    } else {
-      destinataire = RECIPIENTS.default;
-      mailSujet = "Déclaration d'absence traitée";
-      mailTexte = `La demande d'absence de ${demande.nom} a été traitée.`;
-    }
-    let pdfBuffer: Buffer | undefined = undefined;
+    if (!demande) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
+
+    let destinataire: string[] = [];
+    let mailSujet = "";
+    let mailTexte = "";
+
     if (statut === "validee") {
+      mailSujet = "Absence validée";
+      mailTexte = `Absence validée de ${demande.nom} (${demande.email}) du ${demande.date_debut} au ${demande.date_fin}\nMotif: ${demande.motif}`;
+
+      // PDF attestation
       const pdfDoc = await PDFDocument.create();
       const page = pdfDoc.addPage([595, 842]);
       page.drawText("Déclaration d'absence validée", { x: 50, y: 800, size: 18, color: rgb(0, 0, 0) });
@@ -84,98 +66,83 @@ Motif: ${demande.motif}`;
       page.drawText(`Type : ${demande.type}`, { x: 50, y: 700 });
       page.drawText(`Période : ${demande.date_debut} au ${demande.date_fin}`, { x: 50, y: 680 });
       page.drawText(`Motif : ${demande.motif}`, { x: 50, y: 660 });
-      if (demande.commentaire) {
-        page.drawText(`Commentaire : ${demande.commentaire}`, { x: 50, y: 640 });
-      }
-      page.drawText(`Absence validée par la direction le ${new Date().toLocaleDateString()}`, {
-        x: 50, y: 600, size: 12, color: rgb(0, 0, 1),
-      });
-      const directriceKey = demande.directrice || DEFAULT_DIRECTRICE_BY_CIBLE[demande.cible] || "directrice_ecole";
+      if (demande.commentaire) page.drawText(`Commentaire : ${demande.commentaire}`, { x: 50, y: 640 });
+
+      const directriceKey = DEFAULT_DIRECTRICE_BY_CIBLE[demande.cible];
       const sigUrl = SIGNATURES[directriceKey];
       const sigBytes = await fetchSignatureBytes(sigUrl);
       if (sigBytes.length > 0) {
-        let sigImage;
-        if (sigUrl.toLowerCase().endsWith(".png")) {
-          sigImage = await pdfDoc.embedPng(sigBytes);
-        } else {
-          sigImage = await pdfDoc.embedJpg(sigBytes);
-        }
-        const scale = 0.5;
-        const sigDims = { width: sigImage.width * scale, height: sigImage.height * scale };
-        page.drawImage(sigImage, {
-          x: 595 - 50 - sigDims.width,
-          y: 80,
-          width: sigDims.width,
-          height: sigDims.height,
-        });
+        const sigImage = sigUrl.endsWith(".png") ? await pdfDoc.embedPng(sigBytes) : await pdfDoc.embedJpg(sigBytes);
+        page.drawImage(sigImage, { x: 400, y: 50, width: sigImage.width * 0.5, height: sigImage.height * 0.5 });
       }
+
       const pdfBytes = await pdfDoc.save();
-      pdfBuffer = Buffer.from(pdfBytes);
-    }
-    const pjJustificatifs =
-      (demande.justificatifs || []).slice(0, 5).map(f => ({
-        filename: f.filename,
-        content: Buffer.from(f.buffer, "base64"),
-        encoding: "base64",
-        contentType: f.type,
-      }));
-    const attachments = [
-      ...(pdfBuffer
-        ? [{
-          filename: "attestation-validation.pdf",
-          content: pdfBuffer.toString("base64"),
-          encoding: "base64",
-          contentType: "application/pdf"
-        }]
-        : []),
-      ...pjJustificatifs
-    ];
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "email-smtp.eu-west-3.amazonaws.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
+      const pdfAttachment = {
+        filename: "attestation-validation.pdf",
+        content: Buffer.from(pdfBytes),
+        contentType: "application/pdf"
+      };
+      if (demande.type === "prof") {
+        destinataire = demande.cible === "direction_ecole"
+          ? RECIPIENTS.secretariat_ecole
+          : RECIPIENTS.secretariat_college_lycee;
+        mailTexte += declarerRectorat ? "\nDirection demande déclaration au rectorat" : "";
+      } else {
+        destinataire = RECIPIENTS.rh;
       }
+      const attachments = [
+        pdfAttachment,
+        ...(demande.justificatifs || []).map(f => ({
+          filename: f.filename,
+          content: Buffer.from(f.buffer, "base64"),
+          contentType: f.type,
+        }))
+      ];
+      const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,        // 465 pour SSL/TLS
+      secure: true,     // true pour port 465
+      auth: {
+        user: process.env.GMAIL_USER,      // ton adresse Gmail (ex: flojfk@gmail.com)
+        pass: process.env.GMAIL_APP_PASS,  // mot de passe d'application Gmail
+      },
     });
-    await transporter.sendMail({
-      from: process.env.SMTP_MAIL,
-      to: destinataire,
-      subject: mailSujet,
-      text: mailTexte,
-      attachments,
-    });
-    if (statut === "validee" && demande.email) {
+
+
+      await transporter.sendMail({
+        from: process.env.SMTP_MAIL,
+        to: destinataire,
+        subject: mailSujet,
+        text: mailTexte,
+        attachments,
+      });
       await transporter.sendMail({
         from: process.env.SMTP_MAIL,
         to: demande.email,
-        subject: "Votre déclaration d'absence a bien été validée",
-        text: "Votre demande d'absence a été traitée et validée par la direction.\n\nVous trouverez en pièce jointe l'attestation PDF.",
-        attachments: pdfBuffer
-          ? [{
-            filename: "attestation-validation.pdf",
-            content: pdfBuffer.toString("base64"),
-            encoding: "base64",
-            contentType: "application/pdf"
-          }]
-          : [],
+        subject: "Votre absence a été validée",
+        text: "Votre demande d'absence a été validée par la direction.",
+        attachments: [pdfAttachment],
       });
-    }
-    if (demande.type === "prof" && statut === "validee") {
-      await transporter.sendMail({
-        from: process.env.SMTP_MAIL,
-        to: RECIPIENTS.secretariat,
-        subject: "Déclaration d'absence d'un professeur",
-        text:
-          `L'absence de ${demande.nom} (${demande.email}) a été validée par la direction.\n` +
-          `Du ${demande.date_debut} au ${demande.date_fin}\nMotif: ${demande.motif}\n\n` +
-          `Voir PJ pour impression (PDF attestation + justificatifs).`,
-        attachments,
-      });
+    } else if (statut === "refusee") {
+      destinataire = [demande.email];
+      mailSujet = "Demande refusée";
+      mailTexte = "Votre demande d'absence a été refusée par la direction.";
+      
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,        // 465 pour SSL/TLS
+  secure: true,     // true pour port 465
+  auth: {
+    user: process.env.GMAIL_USER,      // ton adresse Gmail (ex: flojfk@gmail.com)
+    pass: process.env.GMAIL_APP_PASS,  // mot de passe d'application Gmail
+  },
+});
+
+      await transporter.sendMail({ from: process.env.SMTP_MAIL, to: destinataire, subject: mailSujet, text: mailTexte });
     }
     await removeEntry(id);
-    return NextResponse.json({ success: true, message: "Traitement effectué et notification(s) transmise(s)." });
+    return NextResponse.json({ success: true, message: "Traitement effectué et notification envoyée." });
   } catch (err) {
     console.error("Erreur /api/absence/validate:", err);
     return NextResponse.json({ error: "Erreur serveur", details: err instanceof Error ? err.message : String(err) }, { status: 500 });

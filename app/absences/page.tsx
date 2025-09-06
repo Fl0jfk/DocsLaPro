@@ -8,7 +8,6 @@ export default function AbsenceDeclarationForm() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const { user, isLoaded } = useUser();
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
@@ -19,25 +18,21 @@ export default function AbsenceDeclarationForm() {
       const formData = new FormData(form);
       const prenomClerk = user.firstName || "";
       const nomClerk = user.lastName || "";
-      const emailClerk =
-        user.primaryEmailAddress?.emailAddress ||
-        user.emailAddresses?.[0]?.emailAddress ||
-        "";
+      const emailClerk = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
       formData.set("nom", `${prenomClerk} ${nomClerk}`.trim());
       formData.set("email", emailClerk);
+
       if (fileInput.current?.files && fileInput.current.files.length > 5) {
         setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
         setLoading(false);
         return;
       }
-      const res = await fetch("/api/absence/want", {
-        method: "POST",
-        body: formData,
-      });
+
+      const res = await fetch("/api/absence/want", { method: "POST", body: formData });
       const json = await res.json();
-      if (!res.ok) {
-        setResult(json.error || "Erreur lors de l'envoi.");
-      } else {
+
+      if (!res.ok) setResult(json.error || "Erreur lors de l'envoi.");
+      else {
         setResult(json.message || "Demande envoyée.");
         if (fileInput.current) fileInput.current.value = "";
         form.reset();
@@ -49,38 +44,34 @@ export default function AbsenceDeclarationForm() {
       setLoading(false);
     }
   }
+
   if (!isLoaded) return <div>Chargement…</div>;
   if (!user) return <div>Vous devez être connecté(e).</div>;
+
   const prenomClerk = user.firstName || "";
   const nomClerk = user.lastName || "";
   const emailClerk =
-    user.primaryEmailAddress?.emailAddress ||
-    user.emailAddresses?.[0]?.emailAddress ||
-    "";
+    user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      encType="multipart/form-data"
-      className="pt-[20vh] flex flex-col items-center gap-4"
-    >
+    <form onSubmit={handleSubmit} encType="multipart/form-data" className="pt-[20vh] flex flex-col items-center gap-4">
       <h2>Déclaration d’absence</h2>
       <label>
-        Prénom&nbsp;:
+        Prénom :
         <input type="text" value={prenomClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />
       </label>
       <label>
-        Nom&nbsp;:
+        Nom :
         <input type="text" value={nomClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />
       </label>
       <label>
-        Email&nbsp;:
+        Email :
         <input type="email" value={emailClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />
       </label>
       <input type="hidden" name="nom" value={`${prenomClerk} ${nomClerk}`.trim()} readOnly />
       <input type="hidden" name="email" value={emailClerk} readOnly />
       <label>
-        Je suis&nbsp;:
+        Je suis :
         <select name="type" required>
           <option value="">Choisir…</option>
           <option value="prof">Professeur</option>
@@ -88,7 +79,7 @@ export default function AbsenceDeclarationForm() {
         </select>
       </label>
       <label>
-        Établissement concerné&nbsp;:
+        Établissement concerné :
         <select name="cible" required>
           <option value="">Choisir…</option>
           <option value="direction_ecole">École</option>
@@ -97,24 +88,18 @@ export default function AbsenceDeclarationForm() {
         </select>
       </label>
       <label>
-        Début&nbsp;: <input type="date" name="date_debut" required />
+        Début : <input type="date" name="date_debut" required />
       </label>
       <label>
-        Fin&nbsp;: <input type="date" name="date_fin" required />
+        Fin : <input type="date" name="date_fin" required />
       </label>
       <label>
-        Motif d’absence&nbsp;:
+        Motif d’absence :
         <input type="text" name="motif" required />
       </label>
       <label>
-        Justificatifs (5 max)&nbsp;:
-        <input
-          type="file"
-          name="attachments"
-          ref={fileInput}
-          multiple
-          accept="image/*,.pdf"
-        />
+        Justificatifs (5 max) :
+        <input type="file" name="attachments" ref={fileInput} multiple accept="image/*,.pdf" />
       </label>
       <label>
         Commentaire :
