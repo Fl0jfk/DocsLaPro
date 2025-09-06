@@ -36,7 +36,6 @@ export async function POST(req: NextRequest) {
     if (!type || !cible || !nom || !email || !date_debut || !date_fin || !motif) {
       return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 });
     }
-
     const filesRaw = data.getAll("attachments");
     const files = filesRaw.filter(f =>
       typeof f === "object" &&
@@ -51,11 +50,9 @@ export async function POST(req: NextRequest) {
       typeof (f as any).arrayBuffer === "function"
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) as any[];
-
     if (files.length > MAX_FILES) {
       return NextResponse.json({ error: `Pas plus de ${MAX_FILES} fichiers.` }, { status: 400 });
     }
-
     const attachments = [];
     for (const file of files) {
       if (!ALLOWED_MIME.has(file.type)) {
@@ -68,7 +65,6 @@ export async function POST(req: NextRequest) {
         type: file.type || "application/octet-stream"
       });
     }
-
     const absence: AbsenceEntry = {
       id: uuidv4(),
       type,
@@ -83,26 +79,20 @@ export async function POST(req: NextRequest) {
       etat: "en_attente",
       date_declaration: new Date().toISOString()
     };
-
     await addEntry(absence);
-
     const lien = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/validationAbsences?id=${absence.id}`;
     const mailTo = RECIPIENTS[cible] || [];
     const mailSubject = `[Absence] Nouvelle demande (${motif})`;
     const mailText = `Nouvelle demande d'absence de ${nom} (${email}) du ${date_debut} au ${date_fin}.\nMotif: ${motif}\nCliquez pour traiter: ${lien}`;
-
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,        // 465 pour SSL/TLS
-  secure: true,     // true pour port 465
-  auth: {
-    user: process.env.GMAIL_USER,      // ton adresse Gmail (ex: flojfk@gmail.com)
-    pass: process.env.GMAIL_APP_PASS,  // mot de passe d'application Gmail
-  },
-});
-
-
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,      
+      secure: true,  
+      auth: {
+        user: process.env.GMAIL_USER,   
+        pass: process.env.GMAIL_APP_PASS, 
+      },
+    });
     await transporter.sendMail({
       from: process.env.SMTP_MAIL,
       to: mailTo,
@@ -114,9 +104,7 @@ const transporter = nodemailer.createTransport({
         contentType: a.type,
       }))
     });
-
     return NextResponse.json({ success: true, message: "Demande enregistrée et mail envoyé à la direction." });
-
   } catch (err) {
     console.error("Erreur /api/absence/want:", err);
     return NextResponse.json({ error: "Erreur serveur", details: err instanceof Error ? err.message : String(err) }, { status: 500 });

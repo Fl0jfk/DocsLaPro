@@ -21,16 +21,13 @@ export default function AbsenceDeclarationForm() {
       const emailClerk = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
       formData.set("nom", `${prenomClerk} ${nomClerk}`.trim());
       formData.set("email", emailClerk);
-
       if (fileInput.current?.files && fileInput.current.files.length > 5) {
         setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
         setLoading(false);
         return;
       }
-
       const res = await fetch("/api/absence/want", { method: "POST", body: formData });
       const json = await res.json();
-
       if (!res.ok) setResult(json.error || "Erreur lors de l'envoi.");
       else {
         setResult(json.message || "Demande envoyée.");
@@ -44,42 +41,33 @@ export default function AbsenceDeclarationForm() {
       setLoading(false);
     }
   }
-
   if (!isLoaded) return <div>Chargement…</div>;
   if (!user) return <div>Vous devez être connecté(e).</div>;
-
   const prenomClerk = user.firstName || "";
   const nomClerk = user.lastName || "";
-  const emailClerk =
-    user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
-
+  const emailClerk = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
   return (
     <form onSubmit={handleSubmit} encType="multipart/form-data" className="pt-[20vh] flex flex-col items-center gap-4">
       <h2>Déclaration d’absence</h2>
-      <label>
-        Prénom :
+      <label>Prénom :
         <input type="text" value={prenomClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />
       </label>
-      <label>
-        Nom :
+      <label>Nom :
         <input type="text" value={nomClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />
       </label>
-      <label>
-        Email :
+      <label>Email :
         <input type="email" value={emailClerk} readOnly tabIndex={-1} style={{ background: "#f5f5f5" }} />
       </label>
       <input type="hidden" name="nom" value={`${prenomClerk} ${nomClerk}`.trim()} readOnly />
       <input type="hidden" name="email" value={emailClerk} readOnly />
-      <label>
-        Je suis :
+      <label>Je suis :
         <select name="type" required>
           <option value="">Choisir…</option>
           <option value="prof">Professeur</option>
           <option value="salarie">Personnel/salarié</option>
         </select>
       </label>
-      <label>
-        Établissement concerné :
+      <label>Établissement concerné :
         <select name="cible" required>
           <option value="">Choisir…</option>
           <option value="direction_ecole">École</option>
@@ -87,22 +75,17 @@ export default function AbsenceDeclarationForm() {
           <option value="direction_lycee">Lycée</option>
         </select>
       </label>
-      <label>
-        Début : <input type="date" name="date_debut" required />
+      <label>Début : <input type="date" name="date_debut" required />
       </label>
-      <label>
-        Fin : <input type="date" name="date_fin" required />
+      <label>Fin : <input type="date" name="date_fin" required />
       </label>
-      <label>
-        Motif d’absence :
+      <label>Motif d’absence :
         <input type="text" name="motif" required />
       </label>
-      <label>
-        Justificatifs (5 max) :
+      <label>Justificatifs (5 max) :
         <input type="file" name="attachments" ref={fileInput} multiple accept="image/*,.pdf" />
       </label>
-      <label>
-        Commentaire :
+      <label>Commentaire :
         <textarea name="commentaire" />
       </label>
       <button type="submit" disabled={loading} style={{ marginTop: 15 }}>

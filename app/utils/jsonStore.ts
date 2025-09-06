@@ -80,6 +80,3 @@ export async function getPresignedFileUrl(s3Key: string, expiresInSeconds = 600)
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: s3Key });
   return await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
 }
-
-////////////////////////////////////////
-

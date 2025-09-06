@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import type { UserResource } from "@clerk/types";
 import Image from "next/image";
-import type { AbsenceEntry } from "@/app/utils/jsonStore";
-
-const CIBLE_MAP: Record<string, "direction_lycee" | "direction_college" | "direction_ecole"> = {
-  direction_lycee: "direction_lycee",
-  direction_college: "direction_college",
-  direction_ecole: "direction_ecole",
-};
+import type { AbsenceEntry, Justificatif } from "@/app/utils/jsonStore";
 
 function Loader() {
   return (
@@ -28,31 +22,42 @@ export default function ValidationAbsences() {
   const [msg, setMsg] = useState("");
   function getCibleFromRole(user: UserResource | null | undefined): "direction_lycee" | "direction_college" | "direction_ecole" | null {
     if (!user) return null;
-    const role = (user.publicMetadata?.role as string | undefined) || "";
-    return (role && CIBLE_MAP[role]) ? CIBLE_MAP[role] : null;
+    const roleData = user.publicMetadata?.role;
+    if (!roleData) return null;
+    const roles: string[] = Array.isArray(roleData) ? roleData : typeof roleData === "string" ? roleData.split(",").map(r => r.trim()) : [];
+    if (roles.some(r => r === "direction_lycee")) return "direction_lycee";
+    if (roles.some(r => r === "direction_college")) return "direction_college";
+    if (roles.some(r => r === "direction_ecole")) return "direction_ecole";
+    return null;
   }
   const cible = getCibleFromRole(user);
   useEffect(() => {
     if (!cible) return;
     async function fetchAbsences() {
       try {
-        const urlRes = await fetch("/api/absence/validate");
-        const { url } = await urlRes.json();
-        const res = await fetch(url, { cache: "no-store" });
-        const txt = await res.text();
-        let arr: AbsenceEntry[] = [];
-        try { arr = txt.trim() ? JSON.parse(txt) : []; }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        catch (e) { setMsg("Erreur de récupération absences : " + (e as any).message); return; }
-        const entries: AbsenceEntry[] = Array.isArray(arr) ? arr : [];
+        const res = await fetch("/api/absence/list");
+        if (!res.ok) throw new Error("Impossible de récupérer les absences");
+        const entries: AbsenceEntry[] = await res.json();
         setAbsences(entries.filter(a => a.cible === cible && a.etat === "en_attente"));
-      } catch (e) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setMsg("Erreur de récupération absences : " + (e as any).message);
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        setMsg("Erreur de récupération absences : " + e.message);
       }
     }
     fetchAbsences();
   }, [cible]);
+  const handleDownload = (f: Justificatif) => {
+    try {
+      const byteCharacters = atob(f.buffer);
+      const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, i) => byteCharacters.charCodeAt(i));
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: f.type });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Erreur ouverture fichier:", err);
+    }
+  };
   const handleValidation = async (id: string, statut: "validee" | "refusee", declarerRectorat?: boolean) => {
     setLoadingId(id);
     setMsg("");
@@ -66,6 +71,7 @@ export default function ValidationAbsences() {
       const result = await res.json();
       setMsg(result.message || result.error);
       setAbsences(old => old.filter(a => a.id !== id));
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       setMsg(error?.message || "Erreur lors de la validation.");
     } finally {
@@ -100,20 +106,20 @@ export default function ValidationAbsences() {
                   {a.justificatifs.map((f, idx) => {
                     const viewable = f.type.startsWith("image/");
                     const isPdf = f.type === "application/pdf";
-                    const url = `/api/absence/pj?id=${encodeURIComponent(a.id)}&idx=${idx}`;
                     return (
                       <li key={idx} style={{ marginBottom: 8 }}>
+                        <a onClick={() => handleDownload(f)} style={{ color: "#0070f3", cursor: "pointer" }}>
+                          {isPdf ? `Ouvrir PDF: ${f.filename}` : `Voir / Télécharger: ${f.filename}`}
+                        </a>
                         {viewable && (
-                          <>
-                            <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3", marginRight: 8 }}>Voir l’image</a>
-                            <Image src={url} alt={f.filename} width={120} height={80} style={{maxWidth: 120, maxHeight: 80, border: "1px solid #ccc"}} />
-                          </>
-                        )}
-                        {isPdf && (
-                          <a target="_blank" rel="noopener noreferrer" href={url} style={{ color: "#0070f3"}}>Ouvrir PDF : {f.filename}</a>
-                        )}
-                        {!viewable && !isPdf && (
-                          <a href={url} download={f.filename} style={{ color: "#0070f3" }}>Télécharger : {f.filename}</a>
+                          <Image
+                            src={`data:${f.type};base64,${f.buffer}`}
+                            alt={f.filename}
+                            width={120}
+                            height={80}
+                            unoptimized
+                            style={{ maxWidth: 120, maxHeight: 80, border: "1px solid #ccc" }}
+                          />
                         )}
                       </li>
                     );
@@ -121,7 +127,6 @@ export default function ValidationAbsences() {
                 </ul>
               </div>
             )}
-
             {a.type === "prof" && (
               <label style={{ marginTop: 12 }}>
                 Déclarer au rectorat ?
@@ -133,7 +138,6 @@ export default function ValidationAbsences() {
                 />
               </label>
             )}
-
             <div style={{ marginTop: 14 }}>
               <button
                 onClick={() => handleValidation(a.id, "validee", a.declarerRectorat)}
