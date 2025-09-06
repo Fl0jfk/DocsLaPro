@@ -3,6 +3,7 @@ import { readStore, AbsenceEntry } from "@/app/utils/jsonStore";
 import { s3, BUCKET } from "@/app/utils/s3client";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function streamToArrayBuffer(stream: any): Promise<ArrayBuffer> {
   const chunks: Uint8Array[] = [];
   for await (const chunk of stream) {
