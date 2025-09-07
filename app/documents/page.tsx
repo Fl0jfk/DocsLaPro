@@ -98,27 +98,23 @@ export default function DocumentsPage() {
   }
   return (
     <main className="flex flex-col gap-4 p-4 w-full mx-auto max-w-[1000px] sm:pt-[10vh]">
-      <section className="space-y-4 flex flex-col gap-2">
-        {history.length > 0 && (
-          <button onClick={goBack} className="text-blue-500 hover:underline mb-4">← Retour</button>
-        )}
-        {items.length > 0 ? (
-          items.map((item, idx) => (
-            <div key={idx} className="p-4 bg-white rounded-lg shadow-md">
-              {item.type === "folder" ? (
-                <div className="cursor-pointer font-semibold text-yellow-700" onClick={() => enterFolder(item.path)}> 📁 {item.name}</div>
-              ) : (
-                <div className="flex justify-between">
-                  <h3 className="font-semibold">{getFileIcon(item.ext)} {item.name}</h3>
-                  <button className="text-blue-500 hover:underline" onClick={() => handleDownload(item.path)} disabled={downloading === item.path}>{downloading === item.path ? "Téléchargement..." : "Télécharger"}</button>
-                </div>
-              )}
-            </div>
-          ))
-        ) : (
-          <p>Aucun document disponible pour ce dossier.</p>
-        )}
-      </section>
-    </main>
+      {history.length > 0 && (
+        <button onClick={goBack} className="flex items-center space-x-2 text-sm text-blue-500 hover:text-blue-700 transition-colors duration-200">← Retour</button>
+      )}
+      {items.length > 0 ? (
+        <div className="grid grid-cols-6 sm:grid-cols-3 md:grid-cols-4 gap-6">
+      {items.map((item, idx) => (
+        <div key={idx} onClick={() => item.type === "folder" ? enterFolder(item.path) : handleDownload(item.path)} className="cursor-pointer flex flex-col items-center max-h-[150px] max-w-[100px]">
+          <div className="text-5xl mb-2">{item.type === "folder" ? "📁" : getFileIcon(item.ext)}</div>
+          <div className="text-center text-sm font-medium break-words overflow-hidden">{item.name}.{item.ext}</div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p className="text-gray-500 text-center">Aucun document disponible pour ce dossier.</p>
+  )}
+</main>
+
+
   );
 }

@@ -79,7 +79,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/absences",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "direction_ecole", "direction_lycee"],
+            "allowedRoles": ["direction_college", "administratif", "direction_ecole", "direction_lycee", "comptabilite", "infirmerie","education","professeur"],
             "external": false
         },
         {
