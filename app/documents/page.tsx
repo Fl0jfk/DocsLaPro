@@ -17,6 +17,7 @@ export default function DocumentsPage() {
   const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
   const cacheTTL = 15 * 60 * 1000;
   const [downloading, setDownloading] = useState<string | null>(null);
+  console.log(downloading);
   useEffect(() => {
     setLoading(true);
     const cachedRaw = localStorage.getItem(cacheKey(currentPrefix));
@@ -110,11 +111,9 @@ export default function DocumentsPage() {
         </div>
       ))}
     </div>
-  ) : (
-    <p className="text-gray-500 text-center">Aucun document disponible pour ce dossier.</p>
-  )}
-</main>
-
-
+    ) : (
+      <p className="text-gray-500 text-center">Aucun document disponible pour ce dossier.</p>
+    )}
+  </main>
   );
 }
