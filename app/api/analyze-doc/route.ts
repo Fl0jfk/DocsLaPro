@@ -7,11 +7,9 @@ export async function POST(req: Request) {
     const { userId } = getAuth(req as any);
     if (!userId)
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
     const { text } = await req.json();
     if (!text)
       return NextResponse.json({ error: 'text requis' }, { status: 400 });
-
     const prompt = `
       Voici le texte d’un document scolaire. Peux-tu me dire le type de document et à quel élève il appartient (nom/prénom/ID s’il est présent) ?
       ---
@@ -19,8 +17,6 @@ export async function POST(req: Request) {
       ---
       Réponds sous la forme : { "type": "...", "eleve": "..." }
     `;
-
-    // Appel API Mistral AI
     const mistralResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -33,29 +29,20 @@ export async function POST(req: Request) {
         temperature: 0
       })
     });
-
     if (!mistralResponse.ok) {
       const err = await mistralResponse.text();
       return NextResponse.json({ error: `Erreur Mistral: ${err}` }, { status: mistralResponse.status });
     }
-
     const mistralData = await mistralResponse.json();
     const result = mistralData.choices?.[0]?.message?.content || '';
-
-    // Extraction robuste du JSON depuis n'importe où dans la chaîne
-    // - prend le bloc json dans les balises markdown, ou le 1er objet JSON qui traîne
-    const jsonMatch = result.match(/``````/i)    // bloc markdown
-                   || result.match(/({[^}]+})/s);                   // premier objet JSON
-
+    const jsonMatch = result.match(/``````/i)
+                   || result.match(/({[^}]+})/s); 
     let jsonString = '';
-
     if (jsonMatch) {
       jsonString = jsonMatch[1] || jsonMatch[0];
     } else {
-      // fallback old way
       jsonString = result.trim();
     }
-
     try {
       return NextResponse.json(JSON.parse(jsonString));
     } catch {
