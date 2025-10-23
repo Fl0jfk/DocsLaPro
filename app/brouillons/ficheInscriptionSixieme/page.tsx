@@ -10,7 +10,7 @@ export default function Page(){
                 </div>
                 <div className="flex flex-col text-white uppercase text-[23px] justify-center text-center gap-2">
                     <h1>Collège LA PROVIDENCE - NICOLAS BARRE</h1>
-                    <h2>Année 2025 - 2026</h2>
+                    <h2>Année 2026 - 2027</h2>
                 </div>
             </div>
             <div className="bg-blue-400  rounded-xl flex flex-col text-white uppercase text-[18px] justify-center text-center p-4">
@@ -89,31 +89,31 @@ export default function Page(){
             <section>
                 <div className="border-2 border-blue-400 w-full rounded-xl flex flex-col">
                     <div className="w-full bg-blue-400 flex text-center items-center justify-center rounded-t-lg">     
-                        <p className="px-4 py-2 border-r font-bold uppercase w-[55%] text-center">Souhait concernant la classe de 6ème</p>
-                        <p className=" px-4 py-2 font-bold uppercase w-[45%] text-center">Enseignements optionnels</p>
+                        <p className="px-4 py-2 border-r font-bold uppercase w-[70%] text-center">Souhait concernant la classe de 6ème</p>
+                        <p className=" px-2 py-2 font-bold uppercase w-[30%] text-center">Enseignements option.</p>
                     </div>
                 <div className="w-full flex">
-                    <div className="w-[55%] border-r border-blue-400">
+                    <div className="w-[70%] border-r border-blue-400">
                     <div className="align-top text-center">
                         <ul className="list-inside">
                             <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 6ème &quot;Classique&quot; (Anglais LV1)</li>
+                                <li>6ème &quot;Classique&quot; (Anglais LV1)</li>
                             </div>
                         <hr className="border-blue-400" />
                         <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 6ème Bilangue (Anglais + Allemand LV1)</li>
+                                <li>6ème Bilangue (Anglais + Allemand LV1)</li>
                         </div>
                         <hr className="border-blue-400" />
                         <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 6ème EBP (Elève à besoin particulier)</li>
+                                <li>6ème avec accompagnement pour les élèves à besoin particulier</li>
                             </div>
                         </ul>
                     </div>
                     </div>
-                    <div className="w-[45%] h-full">
+                    <div className="w-[30%] h-full">
                         <div className="align-top text-center h-full">
                             <ul className="list-inside">
                             <ul className="list-square ml-6">
@@ -130,18 +130,18 @@ export default function Page(){
                             </ul>
                             <hr className="border-blue-400" />
                             <ul className="list-square ml-6 h-full">
-                                <div className="flex items-center justify-between w-[90%] h-full m-auto p-2">
+                                <div className="flex items-center justify-between w-[90%] h-full m-auto p-2 flex flex-wrap">
                                     <div className="flex gap-2 items-center justify-center">
                                         <input type="checkbox"></input>
-                                        <li>Football</li>
+                                        <li>USMEF Foot</li>
                                     </div>
                                     <div className="flex gap-2 items-center justify-center">
                                         <input type="checkbox"></input>
-                                        <li>Basketball</li>
+                                        <li>BMFB Basket</li>
                                     </div>
                                     <div className="flex gap-2 items-center justify-center">
                                         <input type="checkbox"></input>
-                                        <li>Equitation</li>
+                                        <li>ALISA Equitation</li>
                                     </div>
                                 </div>
                             </ul>                        

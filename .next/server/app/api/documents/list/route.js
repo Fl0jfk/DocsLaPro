@@ -1,11 +1,7 @@
-const CHUNK_PUBLIC_PATH = "server/app/api/documents/list/route.js";
-const runtime = require("../../../../chunks/[turbopack]_runtime.js");
-runtime.loadChunk("server/chunks/node_modules_a786b912._.js");
-runtime.loadChunk("server/chunks/node_modules_next_139bb1f1._.js");
-runtime.loadChunk("server/chunks/node_modules_@clerk_backend_dist_c0b2af82._.js");
-runtime.loadChunk("server/chunks/node_modules_@smithy_core_dist-es_6adb13b2._.js");
-runtime.loadChunk("server/chunks/node_modules_79f1931f._.js");
-runtime.loadChunk("server/chunks/[root-of-the-server]__153167df._.js");
-runtime.getOrInstantiateRuntimeModule("[project]/.next-internal/server/app/api/documents/list/route/actions.js [app-rsc] (server actions loader, ecmascript)", CHUNK_PUBLIC_PATH);
-runtime.getOrInstantiateRuntimeModule("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/documents/list/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)", CHUNK_PUBLIC_PATH);
-module.exports = runtime.getOrInstantiateRuntimeModule("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/documents/list/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)", CHUNK_PUBLIC_PATH).exports;
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/documents/list/route.js")
+R.c("server/chunks/node_modules_48ef6895._.js")
+R.c("server/chunks/node_modules_b75c69ae._.js")
+R.c("server/chunks/[root-of-the-server]__c4e0fad4._.js")
+R.m("[project]/.next-internal/server/app/api/documents/list/route/actions.js [app-rsc] (server actions loader, ecmascript)")
+R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/documents/list/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/documents/list/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

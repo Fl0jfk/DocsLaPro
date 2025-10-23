@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/f.hacqueville/OneDrive%20-%20LYCEE%20LA%20PROVIDENCE%20NICOLAS%20BARRE/Code/docsLaPro/app/travels/%5Bid%5D/edit/page.tsx"],"sourcesContent":["// app/travels/[id]/edit/page.tsx\r\nimport VoyageEditForm from \"./form\";\r\n\r\n"],"names":[],"mappings":"AAAA,iCAAiC","debugId":null}}]
+}

@@ -3,14 +3,14 @@ import logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovi
 
 export default function Page(){
     return (
-        <main className="w-screen max-w-[1000px] flex flex-col mx-auto gap-2 text-sm">
+        <main className="w-screen max-w-[1000px] flex flex-col mx-auto gap-1 text-sm">
             <div className="bg-blue-400 flex gap-14 p-2 rounded-xl">
                 <div>
                     <Image src={logo} alt="logo" width={100} height={100}/>
                 </div>
                 <div className="flex flex-col text-white uppercase text-[23px] justify-center text-center gap-2">
                     <h1>Collège LA PROVIDENCE - NICOLAS BARRE</h1>
-                    <h2>Année 2025 - 2026</h2>
+                    <h2>Année 2026 - 2027</h2>
                 </div>
             </div>
             <div className="bg-blue-400  rounded-xl flex flex-col text-white uppercase text-[18px] justify-center text-center p-4">
@@ -95,14 +95,14 @@ export default function Page(){
                     <div className="w-[50%] border-r border-blue-400">
                     <div className="align-top text-center">
                         <ul className="list-inside">
-                            <div className="flex gap-2 items-center justify-center p-2">
+                            <div className="flex gap-2 items-center justify-center p-2 px-1">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 5ème Anglais LV1 + Espagnol LV2</li>
+                                <li>5ème Anglais LV1 + Espagnol LV2</li>
                             </div>
                         <hr className="border-blue-400" />
-                        <div className="flex gap-2 items-center justify-center p-2">
+                        <div className="flex gap-2 items-center justify-center p-2 px-1">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 5ème Bilangue (Anglais + Allemand LV1)</li>
+                                <li>5ème Bilangue Anglais LV1 + Allemand LV1</li>
                         </div>
                         
                         </ul>
@@ -111,14 +111,14 @@ export default function Page(){
                     <div className="w-[50%] h-full">
                     <div className="align-top text-center">
                         <ul className="list-inside">
-                            <div className="flex gap-2 items-center justify-center p-2">
+                            <div className="flex gap-2 items-center justify-center p-2 px-1">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 5ème Anglais LV1 + Allemand LV2</li>
+                                <li>5ème Anglais LV1 + Allemand LV2</li>
                             </div>
                         <hr className="border-blue-400" />
-                        <div className="flex gap-2 items-center justify-center p-2">
+                        <div className="flex gap-2 items-center justify-center p-2 px-1">
                                 <input type="checkbox"></input>
-                                <li>Entrée en 5ème EBP (Elève à besoin particulier)</li>
+                                <li>5ème avec accompagnement pour les élèves à besoin particulier</li>
                             </div>                        
                         </ul>
                     </div>
@@ -130,7 +130,7 @@ export default function Page(){
                         <p className="px-4 py-2 font-bold uppercase w-[100%] text-center">Enseignements optionnels</p>
                     </div>
                 <div className="w-full flex">
-                    <div className="w-[50%] border-r border-blue-400">
+                    <div className="w-[25%] border-r border-blue-400">
                     <div className="align-top text-center">
                         <ul className="list-inside">
                             <div className="flex gap-4 items-center justify-center p-2">
@@ -140,20 +140,20 @@ export default function Page(){
                         </ul>
                     </div>
                     </div>
-                    <div className="w-[50%] h-full">
+                    <div className="w-[75%] h-full">
                     <div className="align-top text-center">
                         <ul className="list-inside flex items-center w-full mx-auto justify-center">
                             <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
-                                <li>Football</li>
+                                <li>USMEF Foot</li>
                             </div>       
                             <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
-                                <li>Basketball</li>
+                                <li>BMFB Basket</li>
                             </div> 
                             <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
-                                <li>Equitation</li>
+                                <li>ALISA Equitation</li>
                             </div>             
                         </ul>
                     </div>
@@ -255,7 +255,7 @@ export default function Page(){
                 </div>
                 
             </section>
-            <section className="border-2 border-blue-400 rounded-xl p-2 px-4 flex flex-col justify-center gap-2 mt-2">
+            <section className="border-2 border-blue-400 rounded-xl p-2 px-4 flex flex-col justify-center gap-2">
                 <h3 className="text-center underline font-bold text-xl leading-5">Responsable principal</h3>
                 <div className="flex gap-16">
                     <p>Civilité :</p>

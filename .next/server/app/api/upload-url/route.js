@@ -1,0 +1,10 @@
+var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/upload-url/route.js")
+R.c("server/chunks/node_modules_@clerk_nextjs_dist_esm_server_fs_middleware-location_c284a98d.js")
+R.c("server/chunks/node_modules_next_338e79c8._.js")
+R.c("server/chunks/node_modules_@clerk_backend_dist_6ecad9dc._.js")
+R.c("server/chunks/node_modules_@smithy_core_dist-es_e28b91fd._.js")
+R.c("server/chunks/node_modules_d6cc9d27._.js")
+R.c("server/chunks/[root-of-the-server]__41663c4f._.js")
+R.m("[project]/.next-internal/server/app/api/upload-url/route/actions.js [app-rsc] (server actions loader, ecmascript)")
+R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/upload-url/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/upload-url/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

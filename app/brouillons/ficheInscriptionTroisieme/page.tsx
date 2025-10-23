@@ -3,14 +3,14 @@ import logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovi
 
 export default function Page(){
     return (
-        <main className="w-screen max-w-[1000px] flex flex-col mx-auto gap-2 text-sm">
+        <main className="w-screen max-w-[1000px] flex flex-col mx-auto gap-1 text-sm">
             <div className="bg-blue-400 flex gap-14 p-2 rounded-xl">
                 <div>
                     <Image src={logo} alt="logo" width={100} height={100}/>
                 </div>
                 <div className="flex flex-col text-white uppercase text-[23px] justify-center text-center gap-2">
                     <h1>Collège LA PROVIDENCE - NICOLAS BARRE</h1>
-                    <h2>Année 2025 - 2026</h2>
+                    <h2>Année 2026 - 2027</h2>
                 </div>
             </div>
             <div className="bg-blue-400  rounded-xl flex flex-col text-white uppercase text-[18px] justify-center text-center p-4">
@@ -137,15 +137,15 @@ export default function Page(){
                                 <div className="flex items-center justify-between w-[95%] h-full m-auto p-2">
                                     <div className="flex gap-2 items-center justify-center">
                                         <input type="checkbox"></input>
-                                        <li>Football</li>
+                                        <li>USMEF Foot</li>
                                     </div>
                                     <div className="flex gap-2 items-center justify-center">
                                         <input type="checkbox"></input>
-                                        <li>Basketball</li>
+                                        <li>BMFB Basket</li>
                                     </div>
                                     <div className="flex gap-2 items-center justify-center">
                                         <input type="checkbox"></input>
-                                        <li>Equitation</li>
+                                        <li>ALISA Equitation</li>
                                     </div>
                                 </div>
                             </ul>   

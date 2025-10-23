@@ -1,0 +1,10 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/travels/presign/route.js")
+R.c("server/chunks/node_modules_d6ee8716._.js")
+R.c("server/chunks/node_modules_next_b86033c6._.js")
+R.c("server/chunks/node_modules_@smithy_core_dist-es_e28b91fd._.js")
+R.c("server/chunks/node_modules_@clerk_backend_dist_e98a3e56._.js")
+R.c("server/chunks/node_modules_31638cf9._.js")
+R.c("server/chunks/[root-of-the-server]__f836eef1._.js")
+R.m("[project]/.next-internal/server/app/api/travels/presign/route/actions.js [app-rsc] (server actions loader, ecmascript)")
+R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/travels/presign/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/travels/presign/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

@@ -2,74 +2,97 @@
 
 import { useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { v4 as uuidv4 } from "uuid";
 
 export default function VoyageForm() {
-  const fileInput = useRef<HTMLInputElement | null>(null);
-  const progInput = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const { user, isLoaded } = useUser();
+  const progInput = useRef<HTMLInputElement | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
+  if (!isLoaded) return <div>Chargement…</div>;
+  if (!user) return <div>Vous devez être connecté(e).</div>;
+  const prenom = user.firstName || "";
+  const nom = user.lastName || "";
+  const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "";
+  async function uploadToS3(voyageId: string, file: File) {
+    const res = await fetch("/api/travels/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        voyageId,
+        filename: file.name,
+        type: file.type,
+      }),
+    });
+    const { uploadUrl, fileUrl } = await res.json();
+    await fetch(uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type },
+    });
+    return fileUrl;
+  }
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setResult(null);
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-    if (!user) return;
-    const prenom = user.firstName || "";
-    const nom = user.lastName || "";
-    const email =
-      user.primaryEmailAddress?.emailAddress ||
-      user.emailAddresses?.[0]?.emailAddress ||
-      "";
-    formData.set("prenom", prenom);
-    formData.set("nom", nom);
-    formData.set("email", email);
-    if (fileInput.current?.files && fileInput.current.files.length > 5) {
-      setResult("Vous ne pouvez joindre que 5 fichiers maximum.");
-      setLoading(false);
-      return;
+    const voyageId = uuidv4();
+    const programmeFile = progInput.current?.files?.[0] || null;
+    const pjFiles = fileInput.current?.files || [];
+    let programme = null;
+    const pieces_jointes: { filename: string; url: string }[] = [];
+    if (programmeFile) {
+      const url = await uploadToS3(voyageId, programmeFile);
+      programme = { filename: programmeFile.name, url };
     }
-    if (progInput.current?.files && progInput.current.files.length > 1) {
-      setResult("Une seule pièce jointe autorisée pour le programme.");
-      setLoading(false);
-      return;
+    for (const file of pjFiles) {
+      const url = await uploadToS3(voyageId, file);
+      pieces_jointes.push({ filename: file.name, url });
     }
+    const body = {
+      id: voyageId,
+      prenom,
+      nom,
+      email,
+      direction_cible: formData.get("direction_cible"),
+      date_depart: formData.get("date_depart"),
+      date_retour: formData.get("date_retour"),
+      lieu: formData.get("lieu"),
+      activite: formData.get("activite"),
+      classes: formData.get("classes"),
+      effectif_eleves: Number(formData.get("effectif_eleves")),
+      effectif_accompagnateurs: Number(formData.get("effectif_accompagnateurs")),
+      commentaire: formData.get("commentaire") || "",
+      status: "draft",
+      programme,
+      pieces_jointes,
+    };
     const res = await fetch("/api/travels/create", {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-    const reponse = await res.json();
+    const json = await res.json();
+    setResult(json.message || json.error);
     setLoading(false);
-    setResult(reponse.message || reponse.error);
-    if (fileInput.current) fileInput.current.value = "";
-    if (progInput.current) progInput.current.value = "";
     form.reset();
   }
-  if (!isLoaded) return <div>Chargement…</div>;
-  if (!user) return <div>Vous devez être connecté(e).</div>;
-  const prenom = user.firstName || "";
-  const nom = user.lastName || "";
-  const email =
-    user.primaryEmailAddress?.emailAddress ||
-    user.emailAddresses?.[0]?.emailAddress ||
-    "";
   return (
-    <form onSubmit={handleSubmit} className="pt-[15vh] flex flex-col items-center gap-4 max-w-xl mx-auto" encType="multipart/form-data">
+    <form onSubmit={handleSubmit} className="pt-[15vh] flex flex-col items-center gap-4 max-w-xl mx-auto">
       <h2>Demande de sortie / voyage scolaire</h2>
-      <label>Prénom :
-        <input value={prenom} readOnly style={{ background: "#f5f5f5" }} tabIndex={-1} />
+      <label> Prénom :
+        <input value={prenom} readOnly style={{ background: "#f5f5f5" }} />
       </label>
-      <label>Nom :
-        <input value={nom} readOnly style={{ background: "#f5f5f5" }} tabIndex={-1} />
+      <label> Nom :
+        <input value={nom} readOnly style={{ background: "#f5f5f5" }} />
       </label>
-      <label>Email :
-        <input value={email} readOnly style={{ background: "#f5f5f5" }} tabIndex={-1} />
+      <label> Email :
+        <input value={email} readOnly style={{ background: "#f5f5f5" }} />
       </label>
-      <input type="hidden" name="prenom" value={prenom} />
-      <input type="hidden" name="nom" value={nom} />
-      <input type="hidden" name="email" value={email} />
-      <label>Établissement concerné :
+      <label> Établissement concerné :
         <select name="direction_cible" required>
           <option value="">Choisir…</option>
           <option value="direction_ecole">École</option>
@@ -77,34 +100,31 @@ export default function VoyageForm() {
           <option value="direction_lycee">Lycée</option>
         </select>
       </label>
-      <label>Date de départ :
+      <label> Date de départ :
         <input type="date" name="date_depart" required />
       </label>
-      <label>Date de retour :
+      <label> Date de retour :
         <input type="date" name="date_retour" required />
       </label>
-      <label>Lieu / destination :
+      <label> Lieu / destination :
         <input type="text" name="lieu" required />
       </label>
-      <label>Activité / motif :
+      <label> Activité / motif :
         <input type="text" name="activite" required />
       </label>
-      <label>Classes concernées :
-        <input type="text" name="classes" placeholder="Ex: 3A, 3B, ULIS…" required />
+      <label> Classes concernées :
+        <input type="text" name="classes" required />
       </label>
-      <label>Nombre d’élèves :
+      <label> Nombre d’élèves :
         <input type="number" name="effectif_eleves" min={1} required />
       </label>
-      <label>Nombre d’accompagnateurs :
+      <label> Nombre d’accompagnateurs :
         <input type="number" name="effectif_accompagnateurs" min={1} required />
       </label>
-      <label>Programme (itinéraire/jours/destination en détail) :
-        <input ref={progInput} type="file" name="programme" accept=".pdf,.doc,.docx,image/*"/>
+      <label> Pièces jointes :
+        <input ref={fileInput} type="file" multiple accept=".pdf,.doc,.docx,image/*" />
       </label>
-      <label>Autres pièces jointes (5 max) :
-        <input ref={fileInput} type="file" name="pj" multiple accept="image/*,.pdf" max={5}/>
-      </label>
-      <label>Commentaire:
+      <label> Commentaire :
         <textarea name="commentaire" />
       </label>
       <button type="submit" disabled={loading} style={{ marginTop: 15 }}>

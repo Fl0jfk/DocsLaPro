@@ -18,7 +18,7 @@ export default function Header() {
         setIsClient(true);
     }, []);
     useEffect(() => {
-        if (isClient && (pathname === "/documents/affichePartnerAlisa" || pathname === "/documents/carnetDeCorrespondance/organigramme" || pathname === "/documents/carnetDeCorrespondance" || pathname === "/documents/ficheInscriptionTerminaleGenerale" || pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
+        if (isClient && (pathname === "/documents/affichePartnerAlisa" || pathname === "/documents/carnetDeCorrespondance/organigramme" || pathname === "/documents/carnetDeCorrespondance" || pathname === "/brouillons/ficheInscriptionSixieme" ||pathname === "/brouillons/ficheInscriptionCinquieme" || pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
             setHidden(true);
         }
     }, [isClient, pathname]);
@@ -34,7 +34,7 @@ export default function Header() {
         }
     });
     const handleLinkClick: OnLinkClick = ({ clickOnLink }) => { setMenuOpened(clickOnLink)};
-    if (isClient && (pathname === "/documents/affichePartnerAlisa" || pathname === "/documents/carnetDeCorrespondance/organigramme" || pathname === "/documents/carnetDeCorrespondance" || pathname === "/documents/ficheInscriptionTerminaleGenerale" || pathname === "/documents/portesOuvertesSVG" || pathname === "/documents/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
+    if (isClient && (pathname === "/documents/affichePartnerAlisa" || pathname === "/documents/carnetDeCorrespondance/organigramme" || pathname === "/brouillons/ficheInscriptionSixieme"  ||pathname === "/brouillons/ficheInscriptionCinquieme"  || pathname === "/brouillons/ficheInscriptionQuatrieme"  ||pathname === "/brouillons/ficheInscriptionTroisieme"  ||pathname === "/documents/portesOuvertesSVG" || pathname === "/brouillons/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
         return null;
     }
     return (
@@ -42,7 +42,7 @@ export default function Header() {
             <div className="flex items-center h-full w-4/12">
                 {Logo && (
                     <Link href="/">
-                        <Image src={Logo} alt="Mon memoji" style={{width:"auto"}} width={55} height={55} className={`object-cover cursor-pointer z-[8] ${opacityLogo}`} quality={100}  onClick={() => { window.scrollTo({ top: 0, left: 0, behavior: "smooth" }); }}/>
+                        <Image src={Logo} alt="Mon memoji" style={{width:"auto"}} width={55} height={55} priority className={`object-cover cursor-pointer z-[8] ${opacityLogo}`} onClick={() => { window.scrollTo({ top: 0, left: 0, behavior: "smooth" }); }}/>
                     </Link>
                 )}
             </div>

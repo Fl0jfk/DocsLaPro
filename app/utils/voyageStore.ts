@@ -1,32 +1,40 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+// app/utils/voyageStore.ts
+import {
+  S3Client,
+  GetObjectCommand,
+  PutObjectCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { currentUser } from "@clerk/nextjs/server";
+import { v4 as uuidv4 } from "uuid";
 
 export const s3 = new S3Client({
   region: "eu-west-3",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.ACCESS_KEY_ID!,
+    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
   },
 });
-export const BUCKET = process.env.AWS_S3_BUCKET_NAME!;
 
-const KEY = "voyages_en_attente.json";
+export const BUCKET = process.env.BUCKET_NAME!;
 
 export type VoyagePieceJointe = {
   filename: string;
-  buffer: string;  
+  url: string;
   type: string;
 };
 
-export type DevisTransporteur = {
-  filename: string;
-  buffer: string;
-  type: string;
-  date: string;
-  transporteur?: string;
-  message?: string;
-};
+export type VoyageStatus =
+  | "draft"
+  | "direction_validation"
+  | "requests_stage"
+  | "compta_validation"
+  | "final_validation"
+  | "validated"
+  | "rejected";
 
-  export type VoyageEntry = {
+export type VoyageEntry = {
   id: string;
   prenom: string;
   nom: string;
@@ -40,66 +48,57 @@ export type DevisTransporteur = {
   effectif_eleves: number;
   effectif_accompagnateurs: number;
   commentaire?: string;
-  devis?: DevisTransporteur[];
-  pieces_jointes?: VoyagePieceJointe[];
-  etat: "en_attente" | "etape_2_en_attente" | "etape_3_en_attente" | "validation_finale_en_attente" | "validee_definitive" | "validee" | "refusee";
+  pieces_jointes?: VoyagePieceJointe[] | null;
+  etat: string;
   date_declaration: string;
-  programme?: {
-    filename: string;
-    buffer: string;
-    type: string;
-    } | null;
-  etape_2?: {
-    panier_repas: boolean;
-    details_panier_repas?: string;
-    nb_repas?: number;
-    nb_vegetariens?: number;
-    lieu_repas?: string;
-    devis_transporteur: boolean;
-    details_devis_transporteur?: string;
-    commentaire?: string;
-    date?: string;
-  };
-  etape_3?: {
-    circulaire_depart?: VoyagePieceJointe[];        
-    date_reunion_info?: string;          
-    date_envoi_circulaire_parents?: string;
-    participation_famille?: number;
-    cout_total_voyage?: number;
-    liste_eleves?: VoyagePieceJointe[];
-    liste_accompagnateurs?: VoyagePieceJointe[];
-    autres_pieces?: VoyagePieceJointe[];
-    commentaire?: string;
-    date?: string;
-  };
+   status: VoyageStatus;
 };
 
-export async function readVoyages(): Promise<VoyageEntry[]> {
-  try {
-    const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: KEY }));
-    const body = await obj.Body?.transformToString();
-    return body ? JSON.parse(body) : [];
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (e: any) {
-    if (e.$metadata?.httpStatusCode === 404) return [];
-    throw e;
-  }
-}
-
-export async function writeVoyages(entries: VoyageEntry[]) {
+export async function saveVoyage(userId: string, voyage: VoyageEntry) {
+  const key = `travels/${userId}/${voyage.id}/voyage.json`;
   await s3.send(
-    new PutObjectCommand({ Bucket: BUCKET, Key: KEY, Body: JSON.stringify(entries, null, 2), ContentType: "application/json"})
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: JSON.stringify(voyage, null, 2),
+      ContentType: "application/json",
+    })
   );
+  return key;
 }
 
-export async function addVoyage(entry: VoyageEntry) {
-  const entries = await readVoyages();
-  entries.push(entry);
-  await writeVoyages(entries);
+export async function listVoyages(userId: string) {
+  const res = await s3.send(
+    new ListObjectsV2Command({
+      Bucket: BUCKET,
+      Prefix: `travels/${userId}/`,
+    })
+  );
+  return (res.Contents || []).filter((obj) => obj.Key?.endsWith("voyage.json"));
 }
 
-export async function removeVoyage(id: string) {
-  const entries = await readVoyages();
-  const out = entries.filter(e => e.id !== id);
-  await writeVoyages(out);
+export async function getVoyage(userId: string, voyageId: string) {
+  const key = `travels/${userId}/${voyageId}/voyage.json`;
+  const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  const body = await obj.Body?.transformToString();
+  return JSON.parse(body!);
+}
+
+export async function getPresignedUploadUrl(
+  voyageId: string,
+  filename: string,
+  type: string
+): Promise<{ uploadUrl: string; fileUrl: string; key: string }> {
+  const user = await currentUser();
+  if (!user) throw new Error("Utilisateur non authentifié");
+
+  const key = `travels/${user.id}/${voyageId}/${filename}`;
+  const command = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    ContentType: type,
+  });
+  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+  const fileUrl = `https://${BUCKET}.s3.eu-west-3.amazonaws.com/${key}`;
+  return { uploadUrl, fileUrl, key };
 }

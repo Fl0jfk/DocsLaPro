@@ -21,6 +21,7 @@
     "@pnp/nodejs": "^4.16.0",
     "@pnp/odata": "^2.15.0",
     "@pnp/sp": "^4.16.0",
+    "aws-sdk": "^2.1692.0",
     "busboy": "latest",
     "cross-fetch": "^4.1.0",
     "framer-motion": "latest",

@@ -61,9 +61,9 @@ type VoyageEntry = {
 };
 
 function getPJUrl({ type, idx }: { type: "programme" | "pieces_jointes" | "devis"; idx: number }, v: VoyageEntry) {
-  if (type === "programme") return `/api/voyage-pj?id=${encodeURIComponent(v.id)}&prog=1`;
-  if (type === "pieces_jointes") return `/api/voyage-pj?id=${encodeURIComponent(v.id)}&idx=${idx}`;
-  if (type === "devis") return `/api/voyage-pj?id=${encodeURIComponent(v.id)}&devis=${idx}`;
+  if (type === "programme") return `/api/travels/pj?id=${encodeURIComponent(v.id)}&prog=1`;
+  if (type === "pieces_jointes") return `/api/travels/pj?id=${encodeURIComponent(v.id)}&idx=${idx}`;
+  if (type === "devis") return `/api/travels/pj?id=${encodeURIComponent(v.id)}&devis=${idx}`;
   return "#";
 }
 
@@ -205,7 +205,7 @@ export default function ValidationVoyages() {
     <div>
       Circulaire de départ: {v.etape_3.circulaire_depart && (
         <a
-          href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=circulaire`}
+          href={`/api/travels/pj?id=${encodeURIComponent(v.id)}&etape=3&type=circulaire`}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -220,7 +220,7 @@ export default function ValidationVoyages() {
     <div>
       Liste élèves : {v.etape_3.liste_eleves && (
         <a
-          href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=eleves`}
+          href={`/api/travels/pj?id=${encodeURIComponent(v.id)}&etape=3&type=eleves`}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -231,7 +231,7 @@ export default function ValidationVoyages() {
     <div>
       Liste accompagnateurs : {v.etape_3.liste_accompagnateurs && (
         <a
-          href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=accompagnateurs`}
+          href={`/api/travels/pj?id=${encodeURIComponent(v.id)}&etape=3&type=accompagnateurs`}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -245,7 +245,7 @@ export default function ValidationVoyages() {
         {v.etape_3.autres_pieces.map((pj: PieceJointe, i: number) =>
           <a
             key={i}
-            href={`/api/voyage-pj?id=${encodeURIComponent(v.id)}&etape=3&type=autres&idx=${i}`}
+            href={`/api/travels/pj?id=${encodeURIComponent(v.id)}&etape=3&type=autres&idx=${i}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ marginLeft: 10 }}
