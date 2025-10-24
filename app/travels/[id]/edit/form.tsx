@@ -46,6 +46,7 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
   const [success, setSuccess] = useState<string | null>(null);
   const [newAttachments, setNewAttachments] = useState<File[]>([]);
   const [initialAttachments, setInitialAttachments] = useState<FileEntry[]>([]);
+  console.log(initialAttachments)
   const [isModified, setIsModified] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
@@ -71,6 +72,7 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
           commentaire: data.voyage.commentaire || "",
         });
         setInitialAttachments(data.voyage.pieces_jointes || []);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -148,6 +150,7 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
       setInitialAttachments(allAttachments);
       setNewAttachments([]);
       setSuccess("Voyage mis à jour ✅");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -166,6 +169,7 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
       if (!res.ok) throw new Error(data.error || "Erreur de transition");
       setVoyage((prev) => (prev ? { ...prev, status: newStatus } : prev));
       setSuccess(`Statut mis à jour : ${statusLabels[newStatus]}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message);
     }
@@ -285,8 +289,6 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
           {saving ? "Enregistrement…" : "Mettre à jour"}
         </button>
       )}
-
-      {/* --- Mini-formulaire de demande de devis --- */}
       {isCreator && voyage.status === "requests_stage" && (
   <div className="mt-4 border-t pt-4">
     <h3 className="font-bold mb-2">Demande de devis</h3>
@@ -347,6 +349,7 @@ function DevisRequestForm({
       setHeureDepart("");
       setCarSurPlace(false);
       setCommentaire("");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setMsg(err.message);
     } finally {

@@ -32,6 +32,7 @@ function VoyageEditForm({ voyageId }) {
     const [success, setSuccess] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const [newAttachments, setNewAttachments] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
     const [initialAttachments, setInitialAttachments] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    console.log(initialAttachments);
     const [isModified, setIsModified] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const fileInputRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
@@ -57,6 +58,7 @@ function VoyageEditForm({ voyageId }) {
                     commentaire: data.voyage.commentaire || ""
                 });
                 setInitialAttachments(data.voyage.pieces_jointes || []);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (err) {
                 setError(err.message);
             } finally{
@@ -160,6 +162,7 @@ function VoyageEditForm({ voyageId }) {
             setInitialAttachments(allAttachments);
             setNewAttachments([]);
             setSuccess("Voyage mis à jour ✅");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
             setError(err.message);
         } finally{
@@ -185,6 +188,7 @@ function VoyageEditForm({ voyageId }) {
                     status: newStatus
                 } : prev);
             setSuccess(`Statut mis à jour : ${statusLabels[newStatus]}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
             setError(err.message);
         }
@@ -217,28 +221,28 @@ function VoyageEditForm({ voyageId }) {
         children: "Chargement utilisateur…"
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 186,
+        lineNumber: 190,
         columnNumber: 25
     }, this);
     if (!user) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Veuillez vous connecter."
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 187,
+        lineNumber: 191,
         columnNumber: 21
     }, this);
     if (loading) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Chargement du voyage…"
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 188,
+        lineNumber: 192,
         columnNumber: 23
     }, this);
     if (!voyage || !formValues) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Voyage introuvable."
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 189,
+        lineNumber: 193,
         columnNumber: 38
     }, this);
     function normalizeRoles(role) {
@@ -261,7 +265,7 @@ function VoyageEditForm({ voyageId }) {
                 children: "Modifier le voyage"
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 202,
+                lineNumber: 206,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -271,7 +275,7 @@ function VoyageEditForm({ voyageId }) {
                         children: "Statut :"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 205,
+                        lineNumber: 209,
                         columnNumber: 9
                     }, this),
                     " ",
@@ -279,7 +283,7 @@ function VoyageEditForm({ voyageId }) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 204,
+                lineNumber: 208,
                 columnNumber: 7
             }, this),
             error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -287,7 +291,7 @@ function VoyageEditForm({ voyageId }) {
                 children: error
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 207,
+                lineNumber: 211,
                 columnNumber: 17
             }, this),
             success && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -295,7 +299,7 @@ function VoyageEditForm({ voyageId }) {
                 children: success
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 208,
+                lineNumber: 212,
                 columnNumber: 19
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -304,26 +308,6 @@ function VoyageEditForm({ voyageId }) {
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                         name: "lieu",
                         value: formValues.lieu,
-                        onChange: handleChange,
-                        required: true,
-                        disabled: disabled
-                    }, void 0, false, {
-                        fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 212,
-                        columnNumber: 9
-                    }, this)
-                ]
-            }, void 0, true, {
-                fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 210,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                children: [
-                    "Activité :",
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                        name: "activite",
-                        value: formValues.activite,
                         onChange: handleChange,
                         required: true,
                         disabled: disabled
@@ -340,11 +324,10 @@ function VoyageEditForm({ voyageId }) {
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Date de départ :",
+                    "Activité :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                        type: "date",
-                        name: "date_depart",
-                        value: formValues.date_depart,
+                        name: "activite",
+                        value: formValues.activite,
                         onChange: handleChange,
                         required: true,
                         disabled: disabled
@@ -361,11 +344,11 @@ function VoyageEditForm({ voyageId }) {
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Date de retour :",
+                    "Date de départ :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                         type: "date",
-                        name: "date_retour",
-                        value: formValues.date_retour,
+                        name: "date_depart",
+                        value: formValues.date_depart,
                         onChange: handleChange,
                         required: true,
                         disabled: disabled
@@ -382,10 +365,11 @@ function VoyageEditForm({ voyageId }) {
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Classes :",
+                    "Date de retour :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                        name: "classes",
-                        value: formValues.classes,
+                        type: "date",
+                        name: "date_retour",
+                        value: formValues.date_retour,
                         onChange: handleChange,
                         required: true,
                         disabled: disabled
@@ -402,12 +386,10 @@ function VoyageEditForm({ voyageId }) {
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Nombre d’élèves :",
+                    "Classes :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                        type: "number",
-                        name: "effectif_eleves",
-                        min: 1,
-                        value: formValues.effectif_eleves,
+                        name: "classes",
+                        value: formValues.classes,
                         onChange: handleChange,
                         required: true,
                         disabled: disabled
@@ -424,12 +406,12 @@ function VoyageEditForm({ voyageId }) {
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                 children: [
-                    "Nombre d’accompagnateurs :",
+                    "Nombre d’élèves :",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                         type: "number",
-                        name: "effectif_accompagnateurs",
+                        name: "effectif_eleves",
                         min: 1,
-                        value: formValues.effectif_accompagnateurs,
+                        value: formValues.effectif_eleves,
                         onChange: handleChange,
                         required: true,
                         disabled: disabled
@@ -444,13 +426,35 @@ function VoyageEditForm({ voyageId }) {
                 lineNumber: 234,
                 columnNumber: 7
             }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
+                children: [
+                    "Nombre d’accompagnateurs :",
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                        type: "number",
+                        name: "effectif_accompagnateurs",
+                        min: 1,
+                        value: formValues.effectif_accompagnateurs,
+                        onChange: handleChange,
+                        required: true,
+                        disabled: disabled
+                    }, void 0, false, {
+                        fileName: "[project]/app/travels/[id]/edit/form.tsx",
+                        lineNumber: 240,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/app/travels/[id]/edit/form.tsx",
+                lineNumber: 238,
+                columnNumber: 7
+            }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
                         children: "Pièces jointes :"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 240,
+                        lineNumber: 244,
                         columnNumber: 9
                     }, this),
                     voyage.pieces_jointes?.length ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -462,7 +466,7 @@ function VoyageEditForm({ voyageId }) {
                                         children: f.filename
                                     }, void 0, false, {
                                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                        lineNumber: 245,
+                                        lineNumber: 249,
                                         columnNumber: 17
                                     }, this),
                                     !disabled && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -472,30 +476,30 @@ function VoyageEditForm({ voyageId }) {
                                         children: "Supprimer"
                                     }, void 0, false, {
                                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                        lineNumber: 247,
+                                        lineNumber: 251,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, i, true, {
                                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                lineNumber: 244,
+                                lineNumber: 248,
                                 columnNumber: 15
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 242,
+                        lineNumber: 246,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                         children: "Aucune pièce jointe"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 253,
+                        lineNumber: 257,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 239,
+                lineNumber: 243,
                 columnNumber: 7
             }, this),
             !disabled && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -514,13 +518,13 @@ function VoyageEditForm({ voyageId }) {
                         onChange: (e)=>e.target.files && handleFilesChange(Array.from(e.target.files))
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 267,
+                        lineNumber: 271,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 258,
+                lineNumber: 262,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -533,13 +537,13 @@ function VoyageEditForm({ voyageId }) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 280,
+                        lineNumber: 284,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 278,
+                lineNumber: 282,
                 columnNumber: 7
             }, this),
             !disabled && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -549,7 +553,7 @@ function VoyageEditForm({ voyageId }) {
                 children: saving ? "Enregistrement…" : "Mettre à jour"
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 284,
+                lineNumber: 288,
                 columnNumber: 9
             }, this),
             isCreator && voyage.status === "requests_stage" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -560,7 +564,7 @@ function VoyageEditForm({ voyageId }) {
                         children: "Demande de devis"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 292,
+                        lineNumber: 294,
                         columnNumber: 5
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(DevisRequestForm, {
@@ -568,13 +572,13 @@ function VoyageEditForm({ voyageId }) {
                         setVoyage: setVoyage
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 293,
+                        lineNumber: 295,
                         columnNumber: 5
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 291,
+                lineNumber: 293,
                 columnNumber: 3
             }, this),
             isDirectionCible && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -585,7 +589,7 @@ function VoyageEditForm({ voyageId }) {
                         children: "Contrôle de validation (Direction)"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 298,
+                        lineNumber: 300,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -598,7 +602,7 @@ function VoyageEditForm({ voyageId }) {
                                 children: " ← Étape précédente"
                             }, void 0, false, {
                                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                lineNumber: 300,
+                                lineNumber: 302,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -608,25 +612,25 @@ function VoyageEditForm({ voyageId }) {
                                 children: "Étape suivante →"
                             }, void 0, false, {
                                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                lineNumber: 301,
+                                lineNumber: 303,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 299,
+                        lineNumber: 301,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 297,
+                lineNumber: 299,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 201,
+        lineNumber: 205,
         columnNumber: 5
     }, this);
 }
@@ -673,6 +677,7 @@ function DevisRequestForm({ voyage, setVoyage }) {
             setHeureDepart("");
             setCarSurPlace(false);
             setCommentaire("");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
             setMsg(err.message);
         } finally{
@@ -692,13 +697,13 @@ function DevisRequestForm({ voyage, setVoyage }) {
                         required: true
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 360,
+                        lineNumber: 363,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 358,
+                lineNumber: 361,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -710,13 +715,13 @@ function DevisRequestForm({ voyage, setVoyage }) {
                         onChange: (e)=>setCarSurPlace(e.target.checked)
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 364,
+                        lineNumber: 367,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 362,
+                lineNumber: 365,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -727,13 +732,13 @@ function DevisRequestForm({ voyage, setVoyage }) {
                         onChange: (e)=>setCommentaire(e.target.value)
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 368,
+                        lineNumber: 371,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 366,
+                lineNumber: 369,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -744,7 +749,7 @@ function DevisRequestForm({ voyage, setVoyage }) {
                 children: loading ? "Envoi…" : "Envoyer la demande de devis"
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 370,
+                lineNumber: 373,
                 columnNumber: 7
             }, this),
             msg && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -752,13 +757,13 @@ function DevisRequestForm({ voyage, setVoyage }) {
                 children: msg
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 373,
+                lineNumber: 376,
                 columnNumber: 15
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 357,
+        lineNumber: 360,
         columnNumber: 5
     }, this);
 }

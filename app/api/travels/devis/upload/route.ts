@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
     const voyage = JSON.parse(await obj.Body?.transformToString() || "{}");
 
     // Vérification du token
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    
     const demande = voyage.devis_requests?.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (r: any) => r.id === transporteurId && r.token === token
     );
     if (!demande)

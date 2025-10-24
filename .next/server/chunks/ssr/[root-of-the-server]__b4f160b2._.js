@@ -52,7 +52,6 @@ __turbopack_context__.n(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$t
 "[project]/app/travels/[id]/edit/page.tsx [app-rsc] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-// app/travels/[id]/edit/page.tsx
 __turbopack_context__.s([
     "default",
     ()=>VoyageEditPage
@@ -66,7 +65,7 @@ function VoyageEditPage({ params }) {
         voyageId: params.id
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/page.tsx",
-        lineNumber: 6,
+        lineNumber: 4,
         columnNumber: 10
     }, this);
 }

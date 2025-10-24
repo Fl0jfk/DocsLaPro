@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 export default function VoyagesDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [voyages, setVoyages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function VoyagesDashboard() {
     return [];
   };
   const roles = normalizeRoles(user.publicMetadata?.role);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canEdit = (voyage: any) => {
     if (voyage.email === user.primaryEmailAddress?.emailAddress) return true;
     if (roles.includes("comptabilite")) return true;
