@@ -443,24 +443,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/api/ms/chats/route.ts
-{
-  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ms/chats">> = Specific
-  const handler = {} as typeof import("../../app/api/ms/chats/route.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../app/api/ms/messages/route.ts
-{
-  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ms/messages">> = Specific
-  const handler = {} as typeof import("../../app/api/ms/messages/route.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/api/ocr-process/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/ocr-process">> = Specific
