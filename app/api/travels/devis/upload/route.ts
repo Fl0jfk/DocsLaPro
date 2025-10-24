@@ -20,27 +20,19 @@ export async function POST(req: NextRequest) {
     const transporteurId = form.get("transporteurId") as string | null;
     const token = form.get("token") as string | null;
     const devisFile = form.get("devis") as File | null;
-
     if (!voyageId || !transporteurId || !token)
       return NextResponse.json({ error: "Paramètres manquants." }, { status: 400 });
     if (!devisFile)
       return NextResponse.json({ error: "Aucun fichier reçu." }, { status: 400 });
-
-    // Récupération du JSON du voyage
     const key = `travels/${voyageId.split("-")[0]}/${voyageId}/voyage.json`;
     const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
     const voyage = JSON.parse(await obj.Body?.transformToString() || "{}");
-
-    // Vérification du token
-    
     const demande = voyage.devis_requests?.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (r: any) => r.id === transporteurId && r.token === token
     );
     if (!demande)
       return NextResponse.json({ error: "Lien invalide ou expiré." }, { status: 403 });
-
-    // Création du presigned URL PUT
     const fileKey = `travels/${voyageId.split("-")[0]}/${voyageId}/devis/${transporteurId}-${Date.now()}-${devisFile.name}`;
     const putCommand = new PutObjectCommand({
       Bucket: BUCKET,
@@ -48,18 +40,13 @@ export async function POST(req: NextRequest) {
       ContentType: devisFile.type,
     });
     const presignUrl = await getSignedUrl(s3, putCommand, { expiresIn: 3600 });
-
-    // Upload direct sur S3 via presigned URL
     const arrayBuffer = await devisFile.arrayBuffer();
     await fetch(presignUrl, {
       method: "PUT",
       body: arrayBuffer,
       headers: { "Content-Type": devisFile.type },
     });
-
     const fileUrl = `https://${BUCKET}.s3.amazonaws.com/${fileKey}`;
-
-    // Mise à jour du voyage
     const newDevis = {
       id: randomUUID(),
       transporteurId,
@@ -73,7 +60,6 @@ export async function POST(req: NextRequest) {
     voyage.devis_requests = voyage.devis_requests.map((r: any) =>
       r.id === transporteurId ? { ...r, status: "done", fileUrl } : r
     );
-
     await s3.send(
       new PutObjectCommand({
         Bucket: BUCKET,
