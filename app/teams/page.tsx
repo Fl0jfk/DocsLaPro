@@ -4,8 +4,11 @@ import { useSession, signIn, signOut } from "next-auth/react";
 
 export default function TeamsPage() {
   const { data: session } = useSession();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [chats, setChats] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedChat, setSelectedChat] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
 

@@ -49,7 +49,7 @@ export default function DocumentsPage() {
         console.error("Erreur fetch documents:", err);
         setLoading(false);
       });
-  }, [currentPrefix]);
+  }, [currentPrefix, cacheTTL]);
   const enterFolder = (path: string) => { setHistory(prev => [...prev, currentPrefix]); setCurrentPrefix(path);};
   const goBack = () => {
     const prev = history.pop();

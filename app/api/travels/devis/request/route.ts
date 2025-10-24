@@ -104,6 +104,7 @@ L’équipe`,
       message: "Mini-formulaire ajouté et demandes de devis envoyées aux transporteurs.",
       requests,
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error("Erreur demande devis :", err);
     return NextResponse.json({ error: err.message || "Erreur interne" }, { status: 500 });

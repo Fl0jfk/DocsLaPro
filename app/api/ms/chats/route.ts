@@ -1,13 +1,11 @@
-import { Auth } from "@auth/core";
+/*import { Auth } from "@auth/core";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextRequest, NextResponse } from "next/server";
 
-// Type utile pour le retour d'erreur
 type ErrorResponse = {
   error: string;
 };
 
-// Correction principale : typage robuste, gestion d'erreur cohérente
 export async function GET(req: NextRequest) {
   try {
     const session = await Auth(req, authOptions);
@@ -47,3 +45,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+*/

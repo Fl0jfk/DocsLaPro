@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+/*import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import type { JWT as DefaultJWT } from "next-auth/jwt";
 
@@ -16,6 +16,7 @@ export const authOptions = {
     }),
   ],
   callbacks: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async jwt({ token, account }: { token: JWT; account?: any }) {
       if (account) {
         token.accessToken = account.access_token;
@@ -23,6 +24,7 @@ export const authOptions = {
       }
       return token;
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async session({ session, token }: { session: any; token: JWT }) {
       session.accessToken = token.accessToken;
       return session;
@@ -30,4 +32,4 @@ export const authOptions = {
   },
 };
 
-export default NextAuth(authOptions);
+export default NextAuth(authOptions);*/

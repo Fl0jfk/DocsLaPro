@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const getCommand = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: sourceKey });
     const s3Object = await s3.send(getCommand);
     const chunks: Uint8Array[] = [];
-    // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for await (const chunk of s3Object.Body as any) {
       chunks.push(chunk);
     }
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const graphRes = await fetch(graphUrl, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${process.env.GRAPH_ACCESS_TOKEN}`, // <--- À remplacer par ton token valide
+        'Authorization': `Bearer ${process.env.GRAPH_ACCESS_TOKEN}`,
         'Content-Type': 'application/pdf',
       },
       body: fileBuffer,
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     const delCommand = new DeleteObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: sourceKey });
     await s3.send(delCommand);
     return NextResponse.json({ success: true, sharepointFile: uploadedFile });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error('Erreur move-file:', err);
     return NextResponse.json({ error: err.message || 'Erreur inconnue' }, { status: 500 });

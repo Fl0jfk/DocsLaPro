@@ -1,4 +1,4 @@
-import { getSession } from "next-auth/react";
+/*import { getSession } from "next-auth/react";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -14,7 +14,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
     const data = await response.json();
     res.json(data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 }
+*/

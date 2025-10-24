@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     const voyage = JSON.parse(await obj.Body?.transformToString() || "{}");
 
     // Vérification du token
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const demande = voyage.devis_requests?.find(
       (r: any) => r.id === transporteurId && r.token === token
     );
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
       date: new Date().toISOString(),
     };
     voyage.devis = [...(voyage.devis || []), newDevis];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     voyage.devis_requests = voyage.devis_requests.map((r: any) =>
       r.id === transporteurId ? { ...r, status: "done", fileUrl } : r
     );
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
       message: "Devis déposé avec succès et notification envoyée !",
       fileUrl,
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error("Erreur upload devis :", err);
     return NextResponse.json(

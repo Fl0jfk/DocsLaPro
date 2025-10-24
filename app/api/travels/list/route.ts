@@ -4,6 +4,7 @@ import { s3, BUCKET } from "@/app/utils/voyageStore";
 import { currentUser } from "@clerk/nextjs/server";
 
 export async function GET(req: NextRequest) {
+  console.log(req)
   try {
     const user = await currentUser();
     if (!user)
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
         { error: "Non authentifié" },
         { status: 401 }
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const voyages: any[] = [];
     let continuationToken: string | undefined = undefined;
     do {
