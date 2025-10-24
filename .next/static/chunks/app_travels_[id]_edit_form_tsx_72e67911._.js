@@ -236,28 +236,28 @@ function VoyageEditForm(param) {
         children: "Chargement utilisateur…"
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 190,
+        lineNumber: 191,
         columnNumber: 25
     }, this);
     if (!user) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Veuillez vous connecter."
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 191,
+        lineNumber: 192,
         columnNumber: 21
     }, this);
     if (loading) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Chargement du voyage…"
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 192,
+        lineNumber: 193,
         columnNumber: 23
     }, this);
     if (!voyage || !formValues) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "Voyage introuvable."
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 193,
+        lineNumber: 194,
         columnNumber: 38
     }, this);
     function normalizeRoles(role) {
@@ -280,7 +280,7 @@ function VoyageEditForm(param) {
                 children: "Modifier le voyage"
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 206,
+                lineNumber: 207,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -290,7 +290,7 @@ function VoyageEditForm(param) {
                         children: "Statut :"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 209,
+                        lineNumber: 210,
                         columnNumber: 9
                     }, this),
                     " ",
@@ -298,7 +298,7 @@ function VoyageEditForm(param) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 208,
+                lineNumber: 209,
                 columnNumber: 7
             }, this),
             error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -306,7 +306,7 @@ function VoyageEditForm(param) {
                 children: error
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 211,
+                lineNumber: 212,
                 columnNumber: 17
             }, this),
             success && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -314,7 +314,7 @@ function VoyageEditForm(param) {
                 children: success
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 212,
+                lineNumber: 213,
                 columnNumber: 19
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -328,13 +328,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 216,
+                        lineNumber: 217,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 214,
+                lineNumber: 215,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -348,13 +348,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 220,
+                        lineNumber: 221,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 218,
+                lineNumber: 219,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -369,13 +369,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 224,
+                        lineNumber: 225,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 222,
+                lineNumber: 223,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -390,13 +390,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 228,
+                        lineNumber: 229,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 226,
+                lineNumber: 227,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -410,13 +410,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 232,
+                        lineNumber: 233,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 230,
+                lineNumber: 231,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -432,13 +432,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 236,
+                        lineNumber: 237,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 234,
+                lineNumber: 235,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -454,13 +454,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 240,
+                        lineNumber: 241,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 238,
+                lineNumber: 239,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -469,7 +469,7 @@ function VoyageEditForm(param) {
                         children: "Pièces jointes :"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 244,
+                        lineNumber: 245,
                         columnNumber: 9
                     }, this),
                     ((_voyage_pieces_jointes = voyage.pieces_jointes) === null || _voyage_pieces_jointes === void 0 ? void 0 : _voyage_pieces_jointes.length) ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -481,7 +481,7 @@ function VoyageEditForm(param) {
                                         children: f.filename
                                     }, void 0, false, {
                                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                        lineNumber: 249,
+                                        lineNumber: 250,
                                         columnNumber: 17
                                     }, this),
                                     !disabled && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -491,30 +491,30 @@ function VoyageEditForm(param) {
                                         children: "Supprimer"
                                     }, void 0, false, {
                                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                        lineNumber: 251,
+                                        lineNumber: 252,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, i, true, {
                                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                lineNumber: 248,
+                                lineNumber: 249,
                                 columnNumber: 15
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 246,
+                        lineNumber: 247,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                         children: "Aucune pièce jointe"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 257,
+                        lineNumber: 258,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 243,
+                lineNumber: 244,
                 columnNumber: 7
             }, this),
             !disabled && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -536,13 +536,13 @@ function VoyageEditForm(param) {
                         onChange: (e)=>e.target.files && handleFilesChange(Array.from(e.target.files))
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 271,
+                        lineNumber: 272,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 262,
+                lineNumber: 263,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -555,13 +555,13 @@ function VoyageEditForm(param) {
                         disabled: disabled
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 284,
+                        lineNumber: 285,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 282,
+                lineNumber: 283,
                 columnNumber: 7
             }, this),
             !disabled && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -571,7 +571,7 @@ function VoyageEditForm(param) {
                 children: saving ? "Enregistrement…" : "Mettre à jour"
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 288,
+                lineNumber: 289,
                 columnNumber: 9
             }, this),
             isCreator && voyage.status === "requests_stage" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -582,7 +582,7 @@ function VoyageEditForm(param) {
                         children: "Demande de devis"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 294,
+                        lineNumber: 295,
                         columnNumber: 5
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(DevisRequestForm, {
@@ -590,13 +590,13 @@ function VoyageEditForm(param) {
                         setVoyage: setVoyage
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 295,
+                        lineNumber: 296,
                         columnNumber: 5
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 293,
+                lineNumber: 294,
                 columnNumber: 3
             }, this),
             isDirectionCible && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -607,7 +607,7 @@ function VoyageEditForm(param) {
                         children: "Contrôle de validation (Direction)"
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 300,
+                        lineNumber: 301,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -620,7 +620,7 @@ function VoyageEditForm(param) {
                                 children: " ← Étape précédente"
                             }, void 0, false, {
                                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                lineNumber: 302,
+                                lineNumber: 303,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -630,25 +630,25 @@ function VoyageEditForm(param) {
                                 children: "Étape suivante →"
                             }, void 0, false, {
                                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                                lineNumber: 303,
+                                lineNumber: 304,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 301,
+                        lineNumber: 302,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 299,
+                lineNumber: 300,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 205,
+        lineNumber: 206,
         columnNumber: 5
     }, this);
 }
@@ -723,13 +723,13 @@ function DevisRequestForm(param) {
                         required: true
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 363,
+                        lineNumber: 364,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 361,
+                lineNumber: 362,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -741,13 +741,13 @@ function DevisRequestForm(param) {
                         onChange: (e)=>setCarSurPlace(e.target.checked)
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 367,
+                        lineNumber: 368,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 365,
+                lineNumber: 366,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -758,13 +758,13 @@ function DevisRequestForm(param) {
                         onChange: (e)=>setCommentaire(e.target.value)
                     }, void 0, false, {
                         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                        lineNumber: 371,
+                        lineNumber: 372,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 369,
+                lineNumber: 370,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -775,7 +775,7 @@ function DevisRequestForm(param) {
                 children: loading ? "Envoi…" : "Envoyer la demande de devis"
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 373,
+                lineNumber: 374,
                 columnNumber: 7
             }, this),
             msg && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -783,13 +783,13 @@ function DevisRequestForm(param) {
                 children: msg
             }, void 0, false, {
                 fileName: "[project]/app/travels/[id]/edit/form.tsx",
-                lineNumber: 376,
+                lineNumber: 377,
                 columnNumber: 15
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/travels/[id]/edit/form.tsx",
-        lineNumber: 360,
+        lineNumber: 361,
         columnNumber: 5
     }, this);
 }

@@ -21,6 +21,7 @@ type Voyage = {
   pieces_jointes?: FileEntry[];
   status: VoyageStatus;
   direction_cible: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   devis_requests?: any[];
 };
 
