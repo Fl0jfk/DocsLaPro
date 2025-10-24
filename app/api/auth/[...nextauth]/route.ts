@@ -1,4 +1,4 @@
-/*import NextAuth from "next-auth";
+import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import type { JWT as DefaultJWT } from "next-auth/jwt";
 
@@ -32,4 +32,4 @@ export const authOptions = {
   },
 };
 
-export default NextAuth(authOptions);*/
+export default NextAuth(authOptions);
