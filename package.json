@@ -20,6 +20,7 @@
     "framer-motion": "latest",
     "html5-qrcode": "latest",
     "next": "^15.4.1",
+    "node-fetch": "^3.3.2",
     "nodemailer": "latest",
     "pdf-lib": "^1.17.1",
     "qrcode": "latest",
