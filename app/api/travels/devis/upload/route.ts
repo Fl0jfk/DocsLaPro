@@ -82,15 +82,12 @@ export async function POST(req: NextRequest) {
         ContentType: "application/json",
       })
     );
-
-    // Notification email
     await transporter.sendMail({
       from: `"École" <${process.env.SMTP_USER}>`,
       to: voyage.email,
       subject: `[Voyage scolaire] Devis reçu - ${demande.nom}`,
       text: `Le transporteur ${demande.nom} a déposé un devis pour le voyage "${voyage.lieu}".\n\nConsultez le fichier ici : ${fileUrl}`,
     });
-
     return NextResponse.json({
       success: true,
       message: "Devis déposé avec succès et notification envoyée !",

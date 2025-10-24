@@ -1,5 +1,7 @@
 import VoyageEditForm from "./form";
 
-export default function VoyageEditPage({ params }: { params: { id: string } }) {
+interface VoyageEditPageProps { params: { id: string}}
+
+export default function VoyageEditPage({ params }: VoyageEditPageProps) {
   return <VoyageEditForm voyageId={params.id} />;
 }

@@ -65,7 +65,7 @@ function VoyageEditPage({ params }) {
         voyageId: params.id
     }, void 0, false, {
         fileName: "[project]/app/travels/[id]/edit/page.tsx",
-        lineNumber: 4,
+        lineNumber: 6,
         columnNumber: 10
     }, this);
 }
