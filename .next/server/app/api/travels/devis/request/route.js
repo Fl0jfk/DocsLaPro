@@ -1,0 +1,11 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/travels/devis/request/route.js")
+R.c("server/chunks/node_modules_d6ee8716._.js")
+R.c("server/chunks/node_modules_next_b9a2485c._.js")
+R.c("server/chunks/node_modules_nodemailer_f0e2e4c8._.js")
+R.c("server/chunks/node_modules_@smithy_core_dist-es_e28b91fd._.js")
+R.c("server/chunks/node_modules_@clerk_backend_dist_e98a3e56._.js")
+R.c("server/chunks/node_modules_31638cf9._.js")
+R.c("server/chunks/[root-of-the-server]__b587a549._.js")
+R.m("[project]/.next-internal/server/app/api/travels/devis/request/route/actions.js [app-rsc] (server actions loader, ecmascript)")
+R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/travels/devis/request/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/travels/devis/request/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

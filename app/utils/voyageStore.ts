@@ -49,9 +49,8 @@ export type VoyageEntry = {
   effectif_accompagnateurs: number;
   commentaire?: string;
   pieces_jointes?: VoyagePieceJointe[] | null;
-  etat: string;
   date_declaration: string;
-   status: VoyageStatus;
+  status: VoyageStatus;
 };
 
 export async function saveVoyage(userId: string, voyage: VoyageEntry) {

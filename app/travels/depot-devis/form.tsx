@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 
 export default function DepotDevisForm() {
   const sp = useSearchParams();
@@ -9,16 +9,18 @@ export default function DepotDevisForm() {
   const token = sp.get("token") || "";
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const messageInput = useRef<HTMLTextAreaElement>(null);
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+    useEffect(() => {
+    console.log("Query params récupérés côté client :");
+    console.log("voyageId =", voyageId);
+    console.log("transporteurId =", transporteurId);
+    console.log("token =", token);
+  }, [voyageId, transporteurId, token]);
+  const uploadFile = useCallback(async (file: File) => {
     if (!voyageId || !transporteurId || !token) {
       setMsg("Lien invalide ou expiré.");
-      return;
-    }
-    if (!fileInput.current?.files?.[0]) {
-      setMsg("Merci de sélectionner un fichier PDF à déposer.");
       return;
     }
     setLoading(true);
@@ -28,8 +30,9 @@ export default function DepotDevisForm() {
       formData.set("voyageId", voyageId);
       formData.set("transporteurId", transporteurId);
       formData.set("token", token);
-      formData.set("devis", fileInput.current.files[0]);
+      formData.set("devis", file);
       if (messageInput.current?.value) formData.set("message", messageInput.current.value);
+
       const res = await fetch("/api/travels/devis/upload", { method: "POST", body: formData });
       const rep = await res.json();
       if (rep.success) {
@@ -45,40 +48,69 @@ export default function DepotDevisForm() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [voyageId, transporteurId, token]);
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type !== "application/pdf") {
+        setMsg("Merci de déposer un fichier PDF.");
+        return;
+      }
+      uploadFile(file);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0];
+      if (file.type !== "application/pdf") {
+        setMsg("Merci de sélectionner un fichier PDF.");
+        return;
+      }
+      uploadFile(file);
+    }
+  };
+
   if (!voyageId || !transporteurId || !token)
     return <div>Lien invalide ou expiré.</div>;
+
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 400, margin: "5vh auto",  background: "#fff", borderRadius: 8, padding: 32, boxShadow: "0 1px 5px #ddd",}}>
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+      style={{
+        maxWidth: 400,
+        margin: "5vh auto",
+        background: dragOver ? "#f0f8ff" : "#fff",
+        borderRadius: 8,
+        padding: 32,
+        boxShadow: "0 1px 5px #ddd",
+        textAlign: "center",
+        border: dragOver ? "2px dashed #4CAF50" : "2px dashed #ccc",
+      }}
+    >
       <h2>Déposer un devis transporteur</h2>
+      <p style={{ marginBottom: 16 }}>
+        Glissez-déposez votre fichier PDF ici <br />ou cliquez pour sélectionner un fichier.
+      </p>
 
-      <div style={{ marginTop: 16 }}>
-        <label>Attachez ici votre devis (PDF)</label><br />
-        <input
-          type="file"
-          name="devis"
-          ref={fileInput}
-          accept=".pdf"
-          required
-          style={{ margin: "15px 0" }}
-        />
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <label>Votre message (optionnel) :</label><br />
-        <textarea
-          name="message"
-          ref={messageInput}
-          placeholder="Un commentaire sur ce devis ?"
-          style={{ width: "100%" }}
-        />
-      </div>
-
+      <input
+        type="file"
+        accept=".pdf"
+        ref={fileInput}
+        style={{ display: "none" }}
+        onChange={handleChange}
+      />
       <button
-        type="submit"
+        type="button"
+        onClick={() => fileInput.current?.click()}
         disabled={loading}
         style={{
-          marginTop: 16,
+          marginBottom: 16,
           padding: "8px 16px",
           background: "#4CAF50",
           color: "#fff",
@@ -87,8 +119,16 @@ export default function DepotDevisForm() {
           cursor: loading ? "not-allowed" : "pointer",
         }}
       >
-        {loading ? "Envoi..." : "Envoyer"}
+        {loading ? "Envoi..." : "Choisir un fichier"}
       </button>
+
+      <div style={{ marginTop: 16 }}>
+        <textarea
+          ref={messageInput}
+          placeholder="Votre message (optionnel)"
+          style={{ width: "100%" }}
+        />
+      </div>
 
       {msg && (
         <div
@@ -100,6 +140,6 @@ export default function DepotDevisForm() {
           {msg}
         </div>
       )}
-    </form>
+    </div>
   );
 }

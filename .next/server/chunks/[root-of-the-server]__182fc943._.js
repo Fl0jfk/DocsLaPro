@@ -1,5 +1,5 @@
 module.exports = [
-"[project]/.next-internal/server/app/api/travels/create/route/actions.js [app-rsc] (server actions loader, ecmascript)", ((__turbopack_context__, module, exports) => {
+"[project]/.next-internal/server/app/api/travels/updateStatus/route/actions.js [app-rsc] (server actions loader, ecmascript)", ((__turbopack_context__, module, exports) => {
 
 }),
 "[externals]/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js [external] (next/dist/compiled/next-server/app-route-turbo.runtime.dev.js, cjs)", ((__turbopack_context__, module, exports) => {
@@ -50,69 +50,9 @@ const mod = __turbopack_context__.x("next/dist/server/app-render/action-async-st
 
 module.exports = mod;
 }),
-"[externals]/crypto [external] (crypto, cjs)", ((__turbopack_context__, module, exports) => {
+"[externals]/@aws-sdk/client-s3 [external] (@aws-sdk/client-s3, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("crypto", () => require("crypto"));
-
-module.exports = mod;
-}),
-"[externals]/events [external] (events, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("events", () => require("events"));
-
-module.exports = mod;
-}),
-"[externals]/url [external] (url, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("url", () => require("url"));
-
-module.exports = mod;
-}),
-"[externals]/util [external] (util, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("util", () => require("util"));
-
-module.exports = mod;
-}),
-"[externals]/fs [external] (fs, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("fs", () => require("fs"));
-
-module.exports = mod;
-}),
-"[externals]/http [external] (http, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("http", () => require("http"));
-
-module.exports = mod;
-}),
-"[externals]/https [external] (https, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("https", () => require("https"));
-
-module.exports = mod;
-}),
-"[externals]/zlib [external] (zlib, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("zlib", () => require("zlib"));
-
-module.exports = mod;
-}),
-"[externals]/stream [external] (stream, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("stream", () => require("stream"));
-
-module.exports = mod;
-}),
-"[externals]/net [external] (net, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("net", () => require("net"));
-
-module.exports = mod;
-}),
-"[externals]/dns [external] (dns, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("dns", () => require("dns"));
+const mod = __turbopack_context__.x("@aws-sdk/client-s3", () => require("@aws-sdk/client-s3"));
 
 module.exports = mod;
 }),
@@ -128,21 +68,15 @@ const mod = __turbopack_context__.x("path", () => require("path"));
 
 module.exports = mod;
 }),
-"[externals]/tls [external] (tls, cjs)", ((__turbopack_context__, module, exports) => {
+"[externals]/crypto [external] (crypto, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("tls", () => require("tls"));
-
-module.exports = mod;
-}),
-"[externals]/child_process [external] (child_process, cjs)", ((__turbopack_context__, module, exports) => {
-
-const mod = __turbopack_context__.x("child_process", () => require("child_process"));
+const mod = __turbopack_context__.x("crypto", () => require("crypto"));
 
 module.exports = mod;
 }),
-"[externals]/@aws-sdk/client-s3 [external] (@aws-sdk/client-s3, cjs)", ((__turbopack_context__, module, exports) => {
+"[externals]/fs [external] (fs, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("@aws-sdk/client-s3", () => require("@aws-sdk/client-s3"));
+const mod = __turbopack_context__.x("fs", () => require("fs"));
 
 module.exports = mod;
 }),
@@ -152,9 +86,27 @@ const mod = __turbopack_context__.x("buffer", () => require("buffer"));
 
 module.exports = mod;
 }),
+"[externals]/stream [external] (stream, cjs)", ((__turbopack_context__, module, exports) => {
+
+const mod = __turbopack_context__.x("stream", () => require("stream"));
+
+module.exports = mod;
+}),
 "[externals]/node:stream [external] (node:stream, cjs)", ((__turbopack_context__, module, exports) => {
 
 const mod = __turbopack_context__.x("node:stream", () => require("node:stream"));
+
+module.exports = mod;
+}),
+"[externals]/http [external] (http, cjs)", ((__turbopack_context__, module, exports) => {
+
+const mod = __turbopack_context__.x("http", () => require("http"));
+
+module.exports = mod;
+}),
+"[externals]/https [external] (https, cjs)", ((__turbopack_context__, module, exports) => {
+
+const mod = __turbopack_context__.x("https", () => require("https"));
 
 module.exports = mod;
 }),
@@ -255,7 +207,7 @@ async function getPresignedUploadUrl(voyageId, filename, type) {
     };
 }
 }),
-"[project]/app/api/travels/create/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
+"[project]/app/api/travels/updateStatus/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -263,89 +215,131 @@ __turbopack_context__.s([
     ()=>POST
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/server.js [app-route] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__ = __turbopack_context__.i("[project]/node_modules/uuid/dist/esm-node/v4.js [app-route] (ecmascript) <export default as v4>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$nodemailer$2f$lib$2f$nodemailer$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/nodemailer/lib/nodemailer.js [app-route] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/app/utils/voyageStore.ts [app-route] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/@aws-sdk/client-s3 [external] (@aws-sdk/client-s3, cjs)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$app$2d$router$2f$server$2f$currentUser$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server/currentUser.js [app-route] (ecmascript)");
 ;
 ;
 ;
 ;
-;
-const RECIPIENTS = {
+const allowedTransitions = {
+    draft: [
+        "direction_validation"
+    ],
+    direction_validation: [
+        "requests_stage",
+        "rejected"
+    ],
+    requests_stage: [
+        "compta_validation"
+    ],
+    compta_validation: [
+        "final_validation"
+    ],
+    final_validation: [
+        "validated"
+    ],
+    validated: [],
+    rejected: []
+};
+const rolePermissions = {
+    professeur: [
+        "draft",
+        "requests_stage"
+    ],
     direction_ecole: [
-        "flojfk+direction.ecole@gmail.com"
+        "draft",
+        "direction_validation",
+        "final_validation"
     ],
     direction_college: [
-        "flojfk+direction.college@gmail.com"
+        "direction_validation",
+        "final_validation"
     ],
     direction_lycee: [
-        "flojfk+direction.lycee@gmail.com"
+        "direction_validation",
+        "final_validation"
+    ],
+    compta: [
+        "compta_validation"
     ]
 };
 async function POST(req) {
-    const user = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$app$2d$router$2f$server$2f$currentUser$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["currentUser"])();
-    if (!user) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-        error: "Non authentifié"
-    }, {
-        status: 401
-    });
-    const body = await req.json();
-    const voyageId = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__["v4"])();
-    const voyage = {
-        id: voyageId,
-        prenom: body.prenom,
-        nom: body.nom,
-        email: body.email,
-        direction_cible: body.direction_cible,
-        date_depart: body.date_depart,
-        date_retour: body.date_retour,
-        lieu: body.lieu,
-        activite: body.activite,
-        classes: body.classes,
-        effectif_eleves: body.effectif_eleves,
-        effectif_accompagnateurs: body.effectif_accompagnateurs,
-        commentaire: body.commentaire,
-        pieces_jointes: body.pieces_jointes || [],
-        status: body.status,
-        date_declaration: new Date().toISOString()
-    };
-    await (0, __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["saveVoyage"])(user.id, voyage);
-    const to = RECIPIENTS[body.direction_cible] || [];
-    const subject = `[Voyage scolaire] Nouvelle demande - ${voyage.lieu}`;
-    const text = `
-Nouvelle demande de voyage scolaire déposée sur la plateforme.
-
-Établissement : ${voyage.direction_cible}
-Demandeur : ${voyage.prenom} ${voyage.nom} (${voyage.email})
-Dates : du ${voyage.date_depart} au ${voyage.date_retour}
-Lieu / activité : ${voyage.lieu} | ${voyage.activite}
-Classes concernées : ${voyage.classes}
-Élèves : ${voyage.effectif_eleves} | Accompagnateurs : ${voyage.effectif_accompagnateurs}
-
-${voyage.commentaire ? `Commentaire : ${voyage.commentaire}` : ""}
-
-➡️ Connectez-vous sur la plateforme pour consulter et valider cette demande.
-`;
-    const transporter = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$nodemailer$2f$lib$2f$nodemailer$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].createTransport({
-        service: "gmail",
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
+    try {
+        const user = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$app$2d$router$2f$server$2f$currentUser$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["currentUser"])();
+        if (!user) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Non authentifié"
+            }, {
+                status: 401
+            });
         }
-    });
-    await transporter.sendMail({
-        from: `"Voyages scolaires" <${process.env.SMTP_USER}>`,
-        to,
-        subject,
-        text
-    });
-    return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-        success: true,
-        message: "Demande enregistrée et notification envoyée à la direction."
-    });
+        const { voyageId, newStatus } = await req.json();
+        const role = user.publicMetadata?.role;
+        if (!role) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Rôle utilisateur manquant"
+            }, {
+                status: 400
+            });
+        }
+        const key = `travels/${user.id}/${voyageId}/voyage.json`;
+        const obj = await __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["s3"].send(new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["GetObjectCommand"]({
+            Bucket: __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["BUCKET"],
+            Key: key
+        }));
+        const oldBody = await obj.Body?.transformToString();
+        if (!oldBody) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Voyage introuvable"
+            }, {
+                status: 404
+            });
+        }
+        const voyage = JSON.parse(oldBody);
+        console.log(voyage);
+        if (!rolePermissions[role]?.includes(voyage.status)) {
+            console.log("updateStatus call:", {
+                role,
+                voyageStatus: voyage.status,
+                allowed: rolePermissions[role]
+            });
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Accès refusé à cette étape"
+            }, {
+                status: 403
+            });
+        }
+        // 🔄 Vérif : transition valide ?
+        if (!allowedTransitions[voyage.status]?.includes(newStatus)) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Transition non autorisée"
+            }, {
+                status: 400
+            });
+        }
+        // ✅ Mise à jour du statut
+        voyage.status = newStatus;
+        await __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["s3"].send(new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["PutObjectCommand"]({
+            Bucket: __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["BUCKET"],
+            Key: key,
+            Body: JSON.stringify(voyage, null, 2),
+            ContentType: "application/json"
+        }));
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            success: true,
+            newStatus
+        });
+    } catch (err) {
+        console.error("Erreur updateStatus:", err);
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: "Erreur interne"
+        }, {
+            status: 500
+        });
+    }
 }
 }),
 ];
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__b312a990._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__182fc943._.js.map

@@ -5,18 +5,12 @@ import { useUser } from "@clerk/nextjs";
 
 type FileEntry = { filename: string; url: string };
 
-type VoyageStatus =
-  | "draft"
-  | "direction_validation"
-  | "requests_stage"
-  | "compta_validation"
-  | "final_validation"
-  | "validated"
-  | "rejected";
+type VoyageStatus = | "draft" | "direction_validation" | "requests_stage" | "compta_validation" | "final_validation" | "validated" | "rejected";
 
 type Voyage = {
   id: string;
   lieu: string;
+  email:string;
   activite: string;
   date_depart: string;
   date_retour: string;
@@ -26,7 +20,8 @@ type Voyage = {
   commentaire: string;
   pieces_jointes?: FileEntry[];
   status: VoyageStatus;
-  devis_requests?: any[]; // Pour stocker les demandes de devis
+  direction_cible: string;
+  devis_requests?: any[];
 };
 
 type FormValues = Omit<Voyage, "id" | "pieces_jointes" | "status" | "devis_requests">;
@@ -53,9 +48,8 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
   const [initialAttachments, setInitialAttachments] = useState<FileEntry[]>([]);
   const [isModified, setIsModified] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   useEffect(() => {
-    if (!isLoaded || !user || !voyageId) return;
+    if (!isLoaded || !user) return;
     const fetchVoyage = async () => {
       setLoading(true);
       setError(null);
@@ -69,8 +63,10 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
           activite: data.voyage.activite,
           date_depart: data.voyage.date_depart,
           date_retour: data.voyage.date_retour,
+          email:data.voyage.email,
           classes: data.voyage.classes,
           effectif_eleves: data.voyage.effectif_eleves,
+          direction_cible: data.voyage.direction_cible,
           effectif_accompagnateurs: data.voyage.effectif_accompagnateurs,
           commentaire: data.voyage.commentaire || "",
         });
@@ -82,7 +78,7 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
       }
     };
     fetchVoyage();
-  }, [voyageId, isLoaded, user]);
+  }, [voyageId, isLoaded]);
 
   useEffect(() => {
     if (!voyage || !formValues) return;
@@ -101,11 +97,11 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormValues(prev => (prev ? { ...prev, [name]: value } : prev));
+    setFormValues((prev) => (prev ? { ...prev, [name]: value } : prev));
   };
 
   const handleFilesChange = useCallback((files: File[]) => {
-    setNewAttachments(prev => [...prev, ...files]);
+    setNewAttachments((prev) => [...prev, ...files]);
   }, []);
 
   const uploadToS3 = async (file: File) => {
@@ -168,25 +164,43 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur de transition");
-      setVoyage(prev => (prev ? { ...prev, status: newStatus } : prev));
+      setVoyage((prev) => (prev ? { ...prev, status: newStatus } : prev));
       setSuccess(`Statut mis à jour : ${statusLabels[newStatus]}`);
     } catch (err: any) {
       setError(err.message);
     }
   };
 
+  function getNextStatus(current: VoyageStatus): VoyageStatus {
+    const flow: VoyageStatus[] = [ "draft", "direction_validation", "requests_stage", "compta_validation", "final_validation", "validated",];
+    const i = flow.indexOf(current);
+    return i < flow.length - 1 ? flow[i + 1] : current;
+  }
+
+  function getPreviousStatus(current: VoyageStatus): VoyageStatus {
+    const flow: VoyageStatus[] = [ "draft", "direction_validation", "requests_stage", "compta_validation", "final_validation", "validated",];
+    const i = flow.indexOf(current);
+    return i > 0 ? flow[i - 1] : current;
+  }
+
   if (!isLoaded) return <div>Chargement utilisateur…</div>;
   if (!user) return <div>Veuillez vous connecter.</div>;
   if (loading) return <div>Chargement du voyage…</div>;
   if (!voyage || !formValues) return <div>Voyage introuvable.</div>;
 
-  const role = (user.publicMetadata?.role as string) || "prof";
-  const disabled =
-    voyage.status !== "draft" && voyage.status !== "direction_validation" && role === "prof";
-
+  function normalizeRoles(role: unknown): string[] {
+    if (Array.isArray(role)) return role as string[];
+    if (typeof role === "string") return [role];
+    return [];
+  }
+  const userRoles = normalizeRoles(user?.publicMetadata?.role);
+  const isCreator = voyage.email === user.primaryEmailAddress?.emailAddress;
+  const isDirectionCible = !!voyage.direction_cible && userRoles.includes(voyage.direction_cible);
+  const disabled = voyage.status !== "draft" && voyage.status !== "direction_validation" && !isCreator;
   return (
     <form onSubmit={handleSubmit} className="pt-[15vh] flex flex-col gap-4 max-w-xl mx-auto">
       <h2 className="text-xl font-bold mb-2">Modifier le voyage</h2>
+
       <div className="text-sm bg-gray-100 px-3 py-2 rounded border">
         <strong>Statut :</strong> {statusLabels[voyage.status]}
       </div>
@@ -256,7 +270,7 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
             multiple
             accept=".pdf,.doc,.docx,image/*"
             className="hidden"
-            onChange={e => e.target.files && handleFilesChange(Array.from(e.target.files))}
+            onChange={(e) => e.target.files && handleFilesChange(Array.from(e.target.files))}
           />
         </div>
       )}
@@ -273,17 +287,32 @@ export default function VoyageEditForm({ voyageId }: { voyageId: string }) {
       )}
 
       {/* --- Mini-formulaire de demande de devis --- */}
-      {role === "prof" && voyage.status === "requests_stage" && (
-        <div className="mt-4 border-t pt-4">
-          <h3 className="font-bold mb-2">Demande de devis</h3>
-          <DevisRequestForm voyage={voyage} setVoyage={setVoyage} />
+      {isCreator && voyage.status === "requests_stage" && (
+  <div className="mt-4 border-t pt-4">
+    <h3 className="font-bold mb-2">Demande de devis</h3>
+    <DevisRequestForm voyage={voyage} setVoyage={setVoyage} />
+  </div>
+)}
+      {isDirectionCible && (
+        <div className="mt-6 border-t pt-4">
+          <h3 className="font-bold mb-2">Contrôle de validation (Direction)</h3>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => updateStatus(getPreviousStatus(voyage.status))} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"> ← Étape précédente</button>
+            <button type="button" onClick={() => updateStatus(getNextStatus(voyage.status))} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Étape suivante →</button>
+          </div>
         </div>
       )}
     </form>
   );
 }
 
-function DevisRequestForm({ voyage, setVoyage,}: { voyage: Voyage; setVoyage: React.Dispatch<React.SetStateAction<Voyage | null>>}) {
+function DevisRequestForm({
+  voyage,
+  setVoyage,
+}: {
+  voyage: Voyage;
+  setVoyage: React.Dispatch<React.SetStateAction<Voyage | null>>;
+}) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [heureDepart, setHeureDepart] = useState("");
@@ -303,9 +332,17 @@ function DevisRequestForm({ voyage, setVoyage,}: { voyage: Voyage; setVoyage: Re
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur lors de la demande de devis");
-
-      // ---- Mise à jour du JSON global du voyage avec le mini-formulaire ----
-      setVoyage(prev => prev ? { ...prev,  devis_requests: [...(prev.devis_requests || []), { infos, date: new Date().toISOString(), status: "pending" }]} : prev);
+      setVoyage((prev) =>
+        prev
+          ? {
+              ...prev,
+              devis_requests: [
+                ...(prev.devis_requests || []),
+                { infos, date: new Date().toISOString(), status: "pending" },
+              ],
+            }
+          : prev
+      );
       setMsg("Demande de devis envoyée à tous les transporteurs ✅");
       setHeureDepart("");
       setCarSurPlace(false);
@@ -316,25 +353,24 @@ function DevisRequestForm({ voyage, setVoyage,}: { voyage: Voyage; setVoyage: Re
       setLoading(false);
     }
   };
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <label>
         Heure de départ :
-        <input type="time" value={heureDepart} onChange={e => setHeureDepart(e.target.value)} required />
+        <input type="time" value={heureDepart} onChange={(e) => setHeureDepart(e.target.value)} required />
       </label>
       <label>
         Besoin d’un car sur place :
-        <input type="checkbox" checked={carSurPlace} onChange={e => setCarSurPlace(e.target.checked)} />
+        <input type="checkbox" checked={carSurPlace} onChange={(e) => setCarSurPlace(e.target.checked)} />
       </label>
       <label>
         Commentaire (optionnel) :
-        <textarea value={commentaire} onChange={e => setCommentaire(e.target.value)} />
+        <textarea value={commentaire} onChange={(e) => setCommentaire(e.target.value)} />
       </label>
-      <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      <button type="button" onClick={handleSubmit} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
         {loading ? "Envoi…" : "Envoyer la demande de devis"}
       </button>
       {msg && <div className={`mt-2 ${msg.includes("✅") ? "text-green-600" : "text-red-600"}`}>{msg}</div>}
-    </form>
+    </div>
   );
 }

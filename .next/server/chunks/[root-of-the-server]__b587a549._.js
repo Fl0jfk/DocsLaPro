@@ -1,5 +1,5 @@
 module.exports = [
-"[project]/.next-internal/server/app/api/travels/create/route/actions.js [app-rsc] (server actions loader, ecmascript)", ((__turbopack_context__, module, exports) => {
+"[project]/.next-internal/server/app/api/travels/devis/request/route/actions.js [app-rsc] (server actions loader, ecmascript)", ((__turbopack_context__, module, exports) => {
 
 }),
 "[externals]/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js [external] (next/dist/compiled/next-server/app-route-turbo.runtime.dev.js, cjs)", ((__turbopack_context__, module, exports) => {
@@ -255,7 +255,7 @@ async function getPresignedUploadUrl(voyageId, filename, type) {
     };
 }
 }),
-"[project]/app/api/travels/create/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
+"[project]/app/api/travels/devis/request/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -263,8 +263,9 @@ __turbopack_context__.s([
     ()=>POST
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/server.js [app-route] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__ = __turbopack_context__.i("[project]/node_modules/uuid/dist/esm-node/v4.js [app-route] (ecmascript) <export default as v4>");
+var __TURBOPACK__imported__module__$5b$externals$5d2f$crypto__$5b$external$5d$__$28$crypto$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/crypto [external] (crypto, cjs)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$nodemailer$2f$lib$2f$nodemailer$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/nodemailer/lib/nodemailer.js [app-route] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/@aws-sdk/client-s3 [external] (@aws-sdk/client-s3, cjs)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/app/utils/voyageStore.ts [app-route] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$app$2d$router$2f$server$2f$currentUser$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@clerk/nextjs/dist/esm/app-router/server/currentUser.js [app-route] (ecmascript)");
 ;
@@ -272,80 +273,153 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$n
 ;
 ;
 ;
-const RECIPIENTS = {
-    direction_ecole: [
-        "flojfk+direction.ecole@gmail.com"
-    ],
-    direction_college: [
-        "flojfk+direction.college@gmail.com"
-    ],
-    direction_lycee: [
-        "flojfk+direction.lycee@gmail.com"
-    ]
-};
+;
+const TRANSPORTEURS = [
+    {
+        id: "t1",
+        nom: "Voyages Martin",
+        email: "flojfk+transport1@gmail.com"
+    },
+    {
+        id: "t2",
+        nom: "Autocars Dupont",
+        email: "flojfk+transport2@gmail.com"
+    },
+    {
+        id: "t3",
+        nom: "Keolis Nantes",
+        email: "flojfk+transport3@gmail.com"
+    }
+];
+const transporter = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$nodemailer$2f$lib$2f$nodemailer$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].createTransport({
+    service: "gmail",
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    }
+});
 async function POST(req) {
-    const user = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$app$2d$router$2f$server$2f$currentUser$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["currentUser"])();
-    if (!user) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-        error: "Non authentifié"
-    }, {
-        status: 401
-    });
-    const body = await req.json();
-    const voyageId = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__["v4"])();
-    const voyage = {
-        id: voyageId,
-        prenom: body.prenom,
-        nom: body.nom,
-        email: body.email,
-        direction_cible: body.direction_cible,
-        date_depart: body.date_depart,
-        date_retour: body.date_retour,
-        lieu: body.lieu,
-        activite: body.activite,
-        classes: body.classes,
-        effectif_eleves: body.effectif_eleves,
-        effectif_accompagnateurs: body.effectif_accompagnateurs,
-        commentaire: body.commentaire,
-        pieces_jointes: body.pieces_jointes || [],
-        status: body.status,
-        date_declaration: new Date().toISOString()
-    };
-    await (0, __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["saveVoyage"])(user.id, voyage);
-    const to = RECIPIENTS[body.direction_cible] || [];
-    const subject = `[Voyage scolaire] Nouvelle demande - ${voyage.lieu}`;
-    const text = `
-Nouvelle demande de voyage scolaire déposée sur la plateforme.
-
-Établissement : ${voyage.direction_cible}
-Demandeur : ${voyage.prenom} ${voyage.nom} (${voyage.email})
-Dates : du ${voyage.date_depart} au ${voyage.date_retour}
-Lieu / activité : ${voyage.lieu} | ${voyage.activite}
-Classes concernées : ${voyage.classes}
-Élèves : ${voyage.effectif_eleves} | Accompagnateurs : ${voyage.effectif_accompagnateurs}
-
-${voyage.commentaire ? `Commentaire : ${voyage.commentaire}` : ""}
-
-➡️ Connectez-vous sur la plateforme pour consulter et valider cette demande.
-`;
-    const transporter = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$nodemailer$2f$lib$2f$nodemailer$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].createTransport({
-        service: "gmail",
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
+    try {
+        const user = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$app$2d$router$2f$server$2f$currentUser$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["currentUser"])();
+        if (!user) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: "Non authentifié"
+        }, {
+            status: 401
+        });
+        const body = await req.json();
+        const { voyageId, infos, heureDepart, carSurPlace, commentaire } = body;
+        if (!voyageId) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: "voyageId manquant"
+        }, {
+            status: 400
+        });
+        const list = await __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["s3"].send(new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["ListObjectsV2Command"]({
+            Bucket: __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["BUCKET"],
+            Prefix: "travels/"
+        }));
+        let voyageKey = null;
+        for (const obj of list.Contents || []){
+            if (!obj.Key?.endsWith("voyage.json")) continue;
+            const data = await __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["s3"].send(new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["GetObjectCommand"]({
+                Bucket: __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["BUCKET"],
+                Key: obj.Key
+            }));
+            const bodyStr = await data.Body?.transformToString();
+            if (!bodyStr) continue;
+            const voyage = JSON.parse(bodyStr);
+            if (voyage.id === voyageId) {
+                voyageKey = obj.Key;
+                break;
+            }
         }
-    });
-    await transporter.sendMail({
-        from: `"Voyages scolaires" <${process.env.SMTP_USER}>`,
-        to,
-        subject,
-        text
-    });
-    return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-        success: true,
-        message: "Demande enregistrée et notification envoyée à la direction."
-    });
+        if (!voyageKey) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: "Voyage introuvable"
+        }, {
+            status: 404
+        });
+        const obj = await __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["s3"].send(new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["GetObjectCommand"]({
+            Bucket: __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["BUCKET"],
+            Key: voyageKey
+        }));
+        const voyage = JSON.parse(await obj.Body?.transformToString() || "{}");
+        voyage.prof_form = {
+            heureDepart: heureDepart || "",
+            carSurPlace: carSurPlace || false,
+            commentaire: commentaire || "",
+            date: new Date().toISOString()
+        };
+        // On prépare les requests pour chaque transporteur avec token
+        const requests = TRANSPORTEURS.map((t)=>{
+            const token = __TURBOPACK__imported__module__$5b$externals$5d2f$crypto__$5b$external$5d$__$28$crypto$2c$__cjs$29$__["default"].randomBytes(12).toString("hex");
+            const fileKey = `${voyageKey.replace("voyage.json", "")}devis/${t.id}/devis.pdf`;
+            const baseUrl = ("TURBOPACK compile-time value", "https://docslapro.com") || "http://localhost:3000";
+            const frontUrl = `${baseUrl}/travels/depot-devis?voyageId=${voyageId}&transporteurId=${t.id}&token=${token}`;
+            return {
+                transporteur: t,
+                token,
+                fileKey,
+                frontUrl
+            };
+        });
+        voyage.devis_requests = requests.map((r)=>({
+                id: r.transporteur.id,
+                nom: r.transporteur.nom,
+                email: r.transporteur.email,
+                token: r.token,
+                frontUrl: r.frontUrl,
+                fileKey: r.fileKey,
+                status: "pending",
+                infos,
+                date: new Date().toISOString()
+            }));
+        // On sauvegarde le JSON du voyage mis à jour
+        await __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["s3"].send(new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["PutObjectCommand"]({
+            Bucket: __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$voyageStore$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["BUCKET"],
+            Key: voyageKey,
+            Body: JSON.stringify(voyage, null, 2),
+            ContentType: "application/json"
+        }));
+        // Envoi du mail avec lien vers le front (pas presigned URL)
+        for (const r of requests){
+            await transporter.sendMail({
+                from: `"École" <${process.env.SMTP_USER}>`,
+                to: r.transporteur.email,
+                subject: `[Demande de devis bus] Voyage scolaire "${voyage.lieu}"`,
+                text: `Bonjour ${r.transporteur.nom},
+
+L’établissement vous invite à déposer un devis pour le voyage "${voyage.lieu}" (${voyage.date_depart} → ${voyage.date_retour}).
+
+Détails du voyage :
+- Heure de départ : ${voyage.prof_form.heureDepart || "non précisée"}
+- Car sur place : ${voyage.prof_form.carSurPlace ? "Oui" : "Non"}
+- Commentaire prof : ${voyage.prof_form.commentaire || "(aucune précision)"}
+
+Détails supplémentaires :
+${infos || "(aucune précision fournie)"}
+
+➡️ Cliquez sur le lien suivant pour déposer votre devis :
+${r.frontUrl}
+
+Merci de votre retour,
+Cordialement,
+L’équipe`
+            });
+        }
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            success: true,
+            message: "Mini-formulaire ajouté et demandes de devis envoyées aux transporteurs.",
+            requests
+        });
+    } catch (err) {
+        console.error("Erreur demande devis :", err);
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: err.message || "Erreur interne"
+        }, {
+            status: 500
+        });
+    }
 }
 }),
 ];
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__b312a990._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__b587a549._.js.map

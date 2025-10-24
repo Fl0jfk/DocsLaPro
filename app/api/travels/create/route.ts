@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     effectif_accompagnateurs: body.effectif_accompagnateurs,
     commentaire: body.commentaire,
     pieces_jointes: body.pieces_jointes || [],
-    etat: "en_attente",
+    status: body.status,
     date_declaration: new Date().toISOString(),
   };
   await saveVoyage(user.id, voyage);

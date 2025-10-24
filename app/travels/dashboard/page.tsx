@@ -30,7 +30,7 @@ export default function VoyagesDashboard() {
   const roles = normalizeRoles(user.publicMetadata?.role);
   const canEdit = (voyage: any) => {
     if (voyage.email === user.primaryEmailAddress?.emailAddress) return true;
-    if (roles.includes("compta")) return true;
+    if (roles.includes("comptabilite")) return true;
     if (roles.includes(voyage.direction_cible)) return true;
     return false;
   };
@@ -67,17 +67,7 @@ export default function VoyagesDashboard() {
               <p className="text-sm text-gray-500">
                 {voyage.classes} ({voyage.effectif_eleves} élèves)
               </p>
-              <span
-                className={`text-xs font-semibold px-2 py-1 rounded mt-2 inline-block ${
-                  voyage.etat === "validee"
-                    ? "bg-green-100 text-green-700"
-                    : voyage.etat === "refusee"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {voyage.etat}
-              </span>
+              <span className={`text-xs font-semibold px-2 py-1 rounded mt-2 inline-block ${ voyage.status === "validee" ? "bg-green-100 text-green-700" : voyage.status === "refusee"  ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}> {voyage.status}</span>
             </div>
           );
         })}

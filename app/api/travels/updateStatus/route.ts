@@ -1,4 +1,3 @@
-// app/api/travels/updateStatus/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { s3, BUCKET } from "@/app/utils/voyageStore";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -38,8 +37,10 @@ const allowedTransitions: Record<VoyageStatus, VoyageStatus[]> = {
 };
 
 const rolePermissions: Record<string, VoyageStatus[]> = {
-  prof: ["draft", "requests_stage"],
-  direction: ["direction_validation", "final_validation"],
+  professeur: ["draft", "requests_stage"],
+  direction_ecole: ["draft","direction_validation", "final_validation"],
+  direction_college: ["direction_validation", "final_validation"],
+  direction_lycee: ["direction_validation", "final_validation"],
   compta: ["compta_validation"],
 };
 
@@ -49,18 +50,14 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
-
     const { voyageId, newStatus } = (await req.json()) as {
       voyageId: string;
       newStatus: VoyageStatus;
     };
-
     const role = user.publicMetadata?.role as string | undefined;
     if (!role) {
       return NextResponse.json({ error: "Rôle utilisateur manquant" }, { status: 400 });
     }
-
-    // 📦 Lecture du fichier JSON sur S3
     const key = `travels/${user.id}/${voyageId}/voyage.json`;
     const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
     const oldBody = await obj.Body?.transformToString();
@@ -69,9 +66,10 @@ export async function POST(req: NextRequest) {
     }
 
     const voyage: Voyage = JSON.parse(oldBody);
-
-    // 🔒 Vérif : rôle autorisé à agir sur ce statut ?
+    console.log(voyage)
     if (!rolePermissions[role]?.includes(voyage.status)) {
+      console.log("updateStatus call:", { role, voyageStatus: voyage.status, allowed: rolePermissions[role] });
+
       return NextResponse.json(
         { error: "Accès refusé à cette étape" },
         { status: 403 }
