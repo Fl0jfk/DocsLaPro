@@ -32,4 +32,8 @@ export const authOptions = {
   },
 };
 
-export default NextAuth(authOptions);
+// Handler NextAuth
+const handler = NextAuth(authOptions);
+
+// Export pour App Router
+export { handler as GET, handler as POST };
