@@ -1,7 +1,6 @@
 import VoyageEditForm from "./form";
 
-interface VoyageEditPageProps { params: { id: string}}
-
-export default function VoyageEditPage({ params }: VoyageEditPageProps) {
-  return <VoyageEditForm voyageId={params.id} />;
+export default async function VoyageEditPage(props: { params: Promise<{ id: string }> }) {
+  const { id } = await props.params;
+  return <VoyageEditForm voyageId={id} />;
 }
