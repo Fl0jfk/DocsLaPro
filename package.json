@@ -9,28 +9,17 @@
     "lint": "next lint"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "latest",
     "@aws-sdk/client-textract": "latest",
     "@aws-sdk/s3-request-presigner": "latest",
     "@clerk/nextjs": "latest",
-    "@pnp/common": "^2.15.0",
-    "@pnp/logging": "^4.16.0",
-    "@pnp/nodejs": "^4.16.0",
-    "@pnp/odata": "^2.15.0",
-    "@pnp/sp": "^4.16.0",
     "aws-sdk": "^2.1692.0",
-    "busboy": "latest",
-    "cross-fetch": "^4.1.0",
     "framer-motion": "latest",
     "html5-qrcode": "latest",
-    "isomorphic-fetch": "^3.0.0",
-    "lucide-react": "latest",
     "next": "^15.4.1",
-    "next-auth": "^5.0.0-beta.29",
-    "node-fetch": "^3.3.2",
     "nodemailer": "latest",
     "pdf-lib": "^1.17.1",
     "qrcode": "latest",
@@ -41,8 +30,6 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "latest",
-    "@types/busboy": "latest",
-    "@types/next-auth": "^3.15.0",
     "@types/node": "^24.4.0",
     "@types/nodemailer": "latest",
     "@types/qrcode": "latest",
