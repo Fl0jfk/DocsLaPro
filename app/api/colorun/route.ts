@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 })
     await transporter.sendMail({
       from: `"Color-Run 2025" <${process.env.SMTP_USER}>`,
-      to: 'florian@h-me.fr',
+      to: 'p.hebert@ac-normandie.fr',
       subject: `📸 Photos Color-Run`,
       text: `Des photos ont été envoyées via le formulaire Color-Run.`,
       attachments,
