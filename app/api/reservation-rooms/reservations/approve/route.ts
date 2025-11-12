@@ -10,6 +10,7 @@ async function streamToString(stream: Readable | undefined): Promise<string> {
   if (!stream) return "";
 
   return await new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chunks: any[] = [];
     stream.on("data", (chunk) => chunks.push(chunk));
     stream.on("error", reject);
@@ -19,7 +20,6 @@ async function streamToString(stream: Readable | undefined): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    // Auth Clerk
     const { userId } = getAuth(req);
     if (!userId) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
@@ -29,30 +29,23 @@ export async function POST(req: NextRequest) {
     const user = await clerk.users.getUser(userId);
     const roles = (user.publicMetadata?.roles || []) as string[];
     const isAdmin = roles.includes("admin-room");
-
-    // Données de réservation
     const { roomId, startsAt, endsAt, purpose } = await req.json();
     if (!roomId || !startsAt || !endsAt) {
       return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 });
     }
-
     const start = new Date(startsAt);
     const end = new Date(endsAt);
     if (start >= end) {
       return NextResponse.json({ error: "Plage horaire invalide" }, { status: 400 });
     }
-
-    // Récupérer les réservations existantes depuis S3
     const getCmd = new GetObjectCommand({
       Bucket: process.env.BUCKET_NAME,
       Key: process.env.S3_RES_KEY,
     });
-
     const data = await s3.send(getCmd);
     const bodyStr = await streamToString(data.Body as Readable | undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing: any[] = JSON.parse(bodyStr || "[]");
-
-    // Vérification conflit
     const conflict = existing.find(
       (r) =>
         r.roomId === roomId &&
@@ -76,10 +69,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
       status: isAdmin ? "CONFIRMED" : "PENDING",
     };
-
     existing.push(newR);
-
-    // Sauvegarder dans S3
     const putCmd = new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,
       Key: process.env.S3_RES_KEY,
@@ -89,6 +79,7 @@ export async function POST(req: NextRequest) {
     await s3.send(putCmd);
 
     return NextResponse.json({ reservation: newR }, { status: 201 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: err.message || "Erreur serveur" }, { status: 500 });

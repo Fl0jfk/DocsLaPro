@@ -7,6 +7,7 @@ const s3 = new S3Client({ region: process.env.REGION });
 async function streamToString(stream: Readable | undefined): Promise<string> {
   if (!stream) return "";
   return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chunks: any[] = [];
     stream.on("data", (chunk) => chunks.push(chunk));
     stream.on("error", reject);
@@ -26,6 +27,7 @@ export async function GET() {
     const reservations = JSON.parse(bodyStr || "[]");
 
     return NextResponse.json({ reservations });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: err.message || "Erreur serveur" }, { status: 500 });

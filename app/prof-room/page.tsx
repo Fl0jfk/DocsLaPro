@@ -23,10 +23,12 @@ function isWeekend(date: Date) {
 
 export default function ProfRoomPage() {
   const { user, isLoaded } = useUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rooms, setRooms] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reservations, setReservations] = useState<any[]>([]);
   const [form, setForm] = useState({ roomId: "", date: "", hour: "08:00" });
-
+console.log(reservations)
   useEffect(() => {
     async function load() {
       const roomsRes = await fetch("/api/reservation-rooms/rooms");
@@ -39,7 +41,7 @@ export default function ProfRoomPage() {
     }
     load();
   }, []);
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function handleSubmit(e: any) {
     e.preventDefault();
     const { roomId, date, hour } = form;

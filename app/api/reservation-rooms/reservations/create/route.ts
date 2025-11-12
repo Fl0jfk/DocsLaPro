@@ -5,10 +5,10 @@ import { Readable } from "stream";
 
 const s3 = new S3Client({ region: process.env.REGION });
 
-// Convertit le flux S3 en string
 async function streamToString(stream: Readable | undefined): Promise<string> {
   if (!stream) return "";
   return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chunks: any[] = [];
     stream.on("data", (chunk) => chunks.push(chunk));
     stream.on("error", reject);
@@ -34,14 +34,13 @@ export async function POST(req: NextRequest) {
     const start = new Date(startsAt);
     const end = new Date(endsAt);
     if (start >= end) return NextResponse.json({ error: "Plage horaire invalide" }, { status: 400 });
-
-    // Récupérer les réservations existantes depuis S3
     const getCmd = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
       Key: process.env.S3_RES_KEY,
     });
     const data = await s3.send(getCmd);
     const bodyStr = await streamToString(data.Body as Readable | undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing: any[] = JSON.parse(bodyStr || "[]");
 
     // Vérifier conflit
@@ -79,6 +78,7 @@ export async function POST(req: NextRequest) {
     await s3.send(putCmd);
 
     return NextResponse.json({ reservation: newR }, { status: 201 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: err.message || "Erreur serveur" }, { status: 500 });
