@@ -31,34 +31,51 @@ function isWeekend(date) {
     const d = date.getDay();
     return d === 0 || d === 6;
 }
+const HOURS = Array.from({
+    length: 11
+}, (_, i)=>8 + i);
 function ProfRoomPage() {
     _s();
     const { user, isLoaded } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$shared$2f$dist$2f$react$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useUser"])();
     const [rooms, setRooms] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [reservations, setReservations] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
-    const [form, setForm] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
-        roomId: "",
-        date: "",
-        hour: "08:00"
-    });
+    const [selectedRoom, setSelectedRoom] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
+    const [selectedDate, setSelectedDate] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
+    const [selectedHour, setSelectedHour] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "ProfRoomPage.useEffect": ()=>{
             async function load() {
                 const roomsRes = await fetch("/api/reservation-rooms/rooms");
-                const { rooms } = await roomsRes.json();
-                setRooms(rooms);
+                const roomsData = await roomsRes.json();
+                setRooms(roomsData.rooms || []);
                 const resRes = await fetch("/api/reservation-rooms/reservations");
-                const { reservations } = await resRes.json();
-                setReservations(reservations);
+                const resData = await resRes.json();
+                setReservations(resData.reservations || []);
             }
             load();
         }
     }["ProfRoomPage.useEffect"], []);
-    async function handleSubmit(e) {
-        e.preventDefault();
-        const { roomId, date, hour } = form;
-        const start = new Date("".concat(date, "T").concat(hour, ":00"));
-        if (isWeekend(start) || FRENCH_HOLIDAYS_2025.includes(date)) {
+    if (!isLoaded) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+        children: "Chargement..."
+    }, void 0, false, {
+        fileName: "[project]/app/prof-room/page.tsx",
+        lineNumber: 44,
+        columnNumber: 25
+    }, this);
+    if (!user) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+        children: "Veuillez vous connecter"
+    }, void 0, false, {
+        fileName: "[project]/app/prof-room/page.tsx",
+        lineNumber: 45,
+        columnNumber: 21
+    }, this);
+    function getReservation(hour) {
+        return reservations.find((r)=>r.roomId === selectedRoom && r.startsAt.startsWith(selectedDate) && new Date(r.startsAt).getHours() === hour);
+    }
+    async function handleConfirm() {
+        if (selectedHour === null || !selectedRoom || !selectedDate) return;
+        const start = new Date("".concat(selectedDate, "T").concat(selectedHour.toString().padStart(2, "0"), ":00"));
+        if (isWeekend(start) || FRENCH_HOLIDAYS_2025.includes(selectedDate)) {
             alert("⛔️ Impossible de réserver un week-end ou jour férié.");
             return;
         }
@@ -69,182 +86,168 @@ function ProfRoomPage() {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                roomId,
-                startsAt: start,
-                endsAt: end
+                roomId: selectedRoom,
+                startsAt: start.toISOString(),
+                endsAt: end.toISOString(),
+                firstName: user.firstName || "",
+                lastName: user.lastName || ""
             })
         });
         if (res.ok) {
-            alert("✅ Demande envoyée !");
-            setForm({
-                roomId: "",
-                date: "",
-                hour: "08:00"
-            });
+            alert("✅ Réservation confirmée !");
+            setReservations([
+                ...reservations,
+                {
+                    roomId: selectedRoom,
+                    startsAt: start.toISOString(),
+                    firstName: user.firstName || "",
+                    lastName: user.lastName || ""
+                }
+            ]);
+            setSelectedHour(null);
         } else {
             const err = await res.json();
             alert("Erreur : " + (err.error || "inconnue"));
         }
     }
-    if (!isLoaded) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-        children: "Chargement..."
-    }, void 0, false, {
-        fileName: "[project]/app/prof-room/page.tsx",
-        lineNumber: 69,
-        columnNumber: 25
-    }, this);
-    if (!user) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-        children: "Veuillez vous connecter"
-    }, void 0, false, {
-        fileName: "[project]/app/prof-room/page.tsx",
-        lineNumber: 70,
-        columnNumber: 21
-    }, this);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "p-8 max-w-lg mx-auto",
+        className: "p-8 max-w-xl mx-auto",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
                 className: "text-2xl font-bold mb-6",
                 children: "Réserver une salle"
             }, void 0, false, {
                 fileName: "[project]/app/prof-room/page.tsx",
-                lineNumber: 74,
+                lineNumber: 92,
                 columnNumber: 7
             }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
-                onSubmit: handleSubmit,
-                className: "space-y-4 border p-4 rounded bg-gray-50",
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "mb-4",
                 children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                className: "block mb-1 font-medium",
-                                children: "Salle"
-                            }, void 0, false, {
-                                fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 78,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("select", {
-                                value: form.roomId,
-                                onChange: (e)=>setForm({
-                                        ...form,
-                                        roomId: e.target.value
-                                    }),
-                                className: "border rounded w-full p-2",
-                                required: true,
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
-                                        value: "",
-                                        children: "-- Choisir une salle --"
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/prof-room/page.tsx",
-                                        lineNumber: 85,
-                                        columnNumber: 13
-                                    }, this),
-                                    rooms.map((r)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
-                                            value: r.id,
-                                            children: r.name
-                                        }, r.id, false, {
-                                            fileName: "[project]/app/prof-room/page.tsx",
-                                            lineNumber: 87,
-                                            columnNumber: 15
-                                        }, this))
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 79,
-                                columnNumber: 11
-                            }, this)
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 77,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                className: "block mb-1 font-medium",
-                                children: "Date"
-                            }, void 0, false, {
-                                fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 93,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                type: "date",
-                                value: form.date,
-                                onChange: (e)=>setForm({
-                                        ...form,
-                                        date: e.target.value
-                                    }),
-                                className: "border rounded w-full p-2",
-                                required: true
-                            }, void 0, false, {
-                                fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 94,
-                                columnNumber: 11
-                            }, this)
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 92,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                className: "block mb-1 font-medium",
-                                children: "Heure de début"
-                            }, void 0, false, {
-                                fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 104,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                type: "time",
-                                value: form.hour,
-                                onChange: (e)=>setForm({
-                                        ...form,
-                                        hour: e.target.value
-                                    }),
-                                className: "border rounded w-full p-2",
-                                required: true
-                            }, void 0, false, {
-                                fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 105,
-                                columnNumber: 11
-                            }, this)
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 103,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                        type: "submit",
-                        className: "px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700",
-                        children: "Envoyer la demande"
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
+                        className: "block mb-1 font-medium",
+                        children: "Salle"
                     }, void 0, false, {
                         fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 114,
+                        lineNumber: 94,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("select", {
+                        value: selectedRoom,
+                        onChange: (e)=>setSelectedRoom(e.target.value),
+                        className: "border rounded w-full p-2",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
+                                value: "",
+                                children: "-- Choisir une salle --"
+                            }, void 0, false, {
+                                fileName: "[project]/app/prof-room/page.tsx",
+                                lineNumber: 96,
+                                columnNumber: 11
+                            }, this),
+                            rooms.map((r)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
+                                    value: r.id,
+                                    children: r.name
+                                }, r.id, false, {
+                                    fileName: "[project]/app/prof-room/page.tsx",
+                                    lineNumber: 98,
+                                    columnNumber: 13
+                                }, this))
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/app/prof-room/page.tsx",
+                        lineNumber: 95,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/prof-room/page.tsx",
-                lineNumber: 76,
+                lineNumber: 93,
                 columnNumber: 7
-            }, this)
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "mb-6",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
+                        className: "block mb-1 font-medium",
+                        children: "Date"
+                    }, void 0, false, {
+                        fileName: "[project]/app/prof-room/page.tsx",
+                        lineNumber: 105,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                        type: "date",
+                        value: selectedDate,
+                        min: new Date().toISOString().split("T")[0],
+                        onChange: (e)=>setSelectedDate(e.target.value),
+                        className: "border rounded w-full p-2"
+                    }, void 0, false, {
+                        fileName: "[project]/app/prof-room/page.tsx",
+                        lineNumber: 106,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/app/prof-room/page.tsx",
+                lineNumber: 104,
+                columnNumber: 7
+            }, this),
+            selectedRoom && selectedDate && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "grid grid-cols-4 gap-2 mb-4",
+                        children: HOURS.map((hour)=>{
+                            const res = getReservation(hour);
+                            const isBooked = !!res;
+                            const isSelected = selectedHour === hour;
+                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                disabled: isBooked,
+                                onClick: ()=>setSelectedHour(hour),
+                                className: "p-2 rounded text-white ".concat(isBooked ? "bg-gray-400 cursor-not-allowed" : isSelected ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"),
+                                children: [
+                                    hour,
+                                    ":00 - ",
+                                    hour + 1,
+                                    ":00 ",
+                                    isBooked ? "(".concat(res.firstName, " ").concat(res.lastName, ")") : ""
+                                ]
+                            }, hour, true, {
+                                fileName: "[project]/app/prof-room/page.tsx",
+                                lineNumber: 123,
+                                columnNumber: 17
+                            }, this);
+                        })
+                    }, void 0, false, {
+                        fileName: "[project]/app/prof-room/page.tsx",
+                        lineNumber: 117,
+                        columnNumber: 11
+                    }, this),
+                    selectedHour !== null && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                        onClick: handleConfirm,
+                        className: "px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700",
+                        children: [
+                            "Confirmer la réservation (",
+                            selectedHour,
+                            ":00 - ",
+                            selectedHour + 1,
+                            ":00)"
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/app/prof-room/page.tsx",
+                        lineNumber: 142,
+                        columnNumber: 13
+                    }, this)
+                ]
+            }, void 0, true)
         ]
     }, void 0, true, {
         fileName: "[project]/app/prof-room/page.tsx",
-        lineNumber: 73,
+        lineNumber: 91,
         columnNumber: 5
     }, this);
 }
-_s(ProfRoomPage, "lECuNcuzuTrzYNi43lCFw/FrRaA=", false, function() {
+_s(ProfRoomPage, "xK7FLWfekzt5JiTAkcVnWGKw26U=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$shared$2f$dist$2f$react$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useUser"]
     ];

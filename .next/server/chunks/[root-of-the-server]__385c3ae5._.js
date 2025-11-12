@@ -70,10 +70,10 @@ var __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$
 const s3 = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["S3Client"]({
     region: process.env.REGION
 });
-// Fonction robuste pour convertir un flux S3 en string
 async function streamToString(stream) {
     if (!stream) return "";
     return new Promise((resolve, reject)=>{
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const chunks = [];
         stream.on("data", (chunk)=>chunks.push(chunk));
         stream.on("error", reject);
@@ -84,7 +84,7 @@ async function GET() {
     try {
         const cmd = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["GetObjectCommand"]({
             Bucket: process.env.BUCKET_NAME,
-            Key: process.env.S3_ROOMS_KEY
+            Key: "reservation-rooms/rooms.json"
         });
         const data = await s3.send(cmd);
         const bodyStr = await streamToString(data.Body);
@@ -92,6 +92,7 @@ async function GET() {
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             rooms
         });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err) {
         console.error(err);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({

@@ -21,105 +21,133 @@ function isWeekend(date: Date) {
   return d === 0 || d === 6;
 }
 
+const HOURS = Array.from({ length: 11 }, (_, i) => 8 + i);
+
 export default function ProfRoomPage() {
   const { user, isLoaded } = useUser();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rooms, setRooms] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reservations, setReservations] = useState<any[]>([]);
-  const [form, setForm] = useState({ roomId: "", date: "", hour: "08:00" });
-console.log(reservations)
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedHour, setSelectedHour] = useState<number | null>(null);
   useEffect(() => {
     async function load() {
       const roomsRes = await fetch("/api/reservation-rooms/rooms");
-      const { rooms } = await roomsRes.json();
-      setRooms(rooms);
-
+      const roomsData = await roomsRes.json();
+      setRooms(roomsData.rooms || []);
       const resRes = await fetch("/api/reservation-rooms/reservations");
-      const { reservations } = await resRes.json();
-      setReservations(reservations);
+      const resData = await resRes.json();
+      setReservations(resData.reservations || []);
     }
     load();
   }, []);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async function handleSubmit(e: any) {
-    e.preventDefault();
-    const { roomId, date, hour } = form;
-    const start = new Date(`${date}T${hour}:00`);
-
-    if (isWeekend(start) || FRENCH_HOLIDAYS_2025.includes(date)) {
+  if (!isLoaded) return <p>Chargement...</p>;
+  if (!user) return <p>Veuillez vous connecter</p>;
+  function getReservation(hour: number) {
+    return reservations.find(
+      (r) =>
+        r.roomId === selectedRoom &&
+        r.startsAt.startsWith(selectedDate) &&
+        new Date(r.startsAt).getHours() === hour
+    );
+  }
+  async function handleConfirm() {
+    if (selectedHour === null || !selectedRoom || !selectedDate) return;
+    const start = new Date(`${selectedDate}T${selectedHour.toString().padStart(2, "0")}:00`);
+    if (isWeekend(start) || FRENCH_HOLIDAYS_2025.includes(selectedDate)) {
       alert("⛔️ Impossible de réserver un week-end ou jour férié.");
       return;
     }
-
     const end = new Date(start.getTime() + 60 * 60 * 1000);
     const res = await fetch("/api/reservation-rooms/reservations/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomId, startsAt: start, endsAt: end }),
+      body: JSON.stringify({
+        roomId: selectedRoom,
+        startsAt: start.toISOString(),
+        endsAt: end.toISOString(),
+        firstName: user!.firstName || "",
+        lastName: user!.lastName || "",
+      }),
     });
-
     if (res.ok) {
-      alert("✅ Demande envoyée !");
-      setForm({ roomId: "", date: "", hour: "08:00" });
+      alert("✅ Réservation confirmée !");
+      setReservations([
+        ...reservations,
+        {
+          roomId: selectedRoom,
+          startsAt: start.toISOString(),
+          firstName: user!.firstName || "",
+          lastName: user!.lastName || "",
+        },
+      ]);
+      setSelectedHour(null);
     } else {
       const err = await res.json();
       alert("Erreur : " + (err.error || "inconnue"));
     }
   }
-
-  if (!isLoaded) return <p>Chargement...</p>;
-  if (!user) return <p>Veuillez vous connecter</p>;
-
   return (
-    <div className="p-8 max-w-lg mx-auto">
+    <div className="p-8 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Réserver une salle</h1>
+      <div className="mb-4">
+        <label className="block mb-1 font-medium">Salle</label>
+        <select value={selectedRoom}  onChange={(e) => setSelectedRoom(e.target.value)}  className="border rounded w-full p-2">
+          <option value="">-- Choisir une salle --</option>
+          {rooms.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mb-6">
+        <label className="block mb-1 font-medium">Date</label>
+        <input
+          type="date"
+          value={selectedDate}
+          min={new Date().toISOString().split("T")[0]}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="border rounded w-full p-2"
+        />
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 border p-4 rounded bg-gray-50">
-        <div>
-          <label className="block mb-1 font-medium">Salle</label>
-          <select
-            value={form.roomId}
-            onChange={(e) => setForm({ ...form, roomId: e.target.value })}
-            className="border rounded w-full p-2"
-            required
-          >
-            <option value="">-- Choisir une salle --</option>
-            {rooms.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-        </div>
+      {selectedRoom && selectedDate && (
+        <>
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {HOURS.map((hour) => {
+              const res = getReservation(hour);
+              const isBooked = !!res;
+              const isSelected = selectedHour === hour;
+              return (
+                <button
+                  key={hour}
+                  disabled={isBooked}
+                  onClick={() => setSelectedHour(hour)}
+                  className={`p-2 rounded text-white ${
+                    isBooked
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : isSelected
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {hour}:00 - {hour + 1}:00 {isBooked ? `(${res.firstName} ${res.lastName})` : ""}
+                </button>
+              );
+            })}
+          </div>
 
-        <div>
-          <label className="block mb-1 font-medium">Date</label>
-          <input
-            type="date"
-            value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
-            className="border rounded w-full p-2"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1 font-medium">Heure de début</label>
-          <input
-            type="time"
-            value={form.hour}
-            onChange={(e) => setForm({ ...form, hour: e.target.value })}
-            className="border rounded w-full p-2"
-            required
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Envoyer la demande
-        </button>
-      </form>
+          {selectedHour !== null && (
+            <button
+              onClick={handleConfirm}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Confirmer la réservation ({selectedHour}:00 - {selectedHour + 1}:00)
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }
