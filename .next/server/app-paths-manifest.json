@@ -1,15 +1,6 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/travels/create/route": "app/api/travels/create/route.js",
-  "/api/travels/devis/request/route": "app/api/travels/devis/request/route.js",
-  "/api/travels/get/route": "app/api/travels/get/route.js",
-  "/api/travels/list/route": "app/api/travels/list/route.js",
-  "/api/travels/presign/route": "app/api/travels/presign/route.js",
-  "/api/travels/update/route": "app/api/travels/update/route.js",
-  "/api/travels/updateStatus/route": "app/api/travels/updateStatus/route.js",
+  "/api/colorun/route": "app/api/colorun/route.js",
+  "/color-run/page": "app/color-run/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/page": "app/page.js",
-  "/travels/[id]/edit/page": "app/travels/[id]/edit/page.js",
-  "/travels/dashboard/page": "app/travels/dashboard/page.js",
-  "/travels/new/page": "app/travels/new/page.js"
+  "/page": "app/page.js"
 }
