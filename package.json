@@ -17,7 +17,6 @@
     "@aws-sdk/s3-request-presigner": "latest",
     "@clerk/nextjs": "latest",
     "aws-sdk": "^2.1692.0",
-    "date-fns": "^4.1.0",
     "framer-motion": "latest",
     "html5-qrcode": "latest",
     "next": "^15.4.1",
@@ -27,7 +26,6 @@
     "qrcode": "latest",
     "qrcode.react": "latest",
     "react": "latest",
-    "react-datepicker": "^8.9.0",
     "react-dom": "latest",
     "react-hook-form": "latest"
   },

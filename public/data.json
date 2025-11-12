@@ -99,6 +99,15 @@
             "description":"",
             "allowedRoles": ["administratif","comptabilite","direction_college","direction_ecole","direction_lycee"],
             "external": true
+        },
+        {
+            "id":12,
+            "name":"Réservation de salle",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
+            "link":"/prof-room",
+            "description":"",
+            "allowedRoles": ["professeur", "administratif"],
+            "external": true
         }
     ]
 }
