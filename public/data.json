@@ -34,7 +34,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
             "link":"/travels/dashboard",
             "description":"",
-            "allowedRoles": ["administratif", "direction_ecole","direction_college", "direction_lycee"],
+            "allowedRoles": ["test"],
             "external": false
         },
         {
@@ -43,7 +43,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Stocks.jpg",
             "link":"/stocks",
             "description":"",
-            "allowedRoles": ["administratif"],
+            "allowedRoles": ["test"],
             "external": false
         },
         {
@@ -61,7 +61,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/uploadDocuments",
             "description":"",
-            "allowedRoles": ["administratif"],
+            "allowedRoles": ["test"],
             "external": false
         },
         {
@@ -70,7 +70,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/bdd",
             "description":"",
-            "allowedRoles": ["administratif"],
+            "allowedRoles": ["test"],
             "external": false
         },
         {
@@ -79,7 +79,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/absences",
             "description":"",
-            "allowedRoles": ["direction_college", "administratif", "direction_ecole", "direction_lycee", "comptabilite", "infirmerie","education","professeur"],
+            "allowedRoles": ["test"],
             "external": false
         },
         {
@@ -88,7 +88,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/organigramme",
             "description":"",
-            "allowedRoles": ["administratif"],
+            "allowedRoles": ["test"],
             "external": false
         },
         {
@@ -108,6 +108,24 @@
             "description":"",
             "allowedRoles": ["professeur", "administratif"],
             "external": false
+        },
+        {
+            "id":13,
+            "name":"Arena Ac Normandie",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/MIN_Education_Nationale_et_Jeunesse_RVB.jpg",
+            "link":"https://arena.ac-normandie.fr/arena/",
+            "description":"",
+            "allowedRoles": ["administratif","direction_college","direction_ecole","direction_lycee"],
+            "external": true
+        },
+        {
+            "id":14,
+            "name":"Planning des absences",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
+            "link":"https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/ETx1_Apa6ANLj_N8J05vWGEBsog7mkqCltCeB06kyUGcLQ?e=0IeBeq",
+            "description":"",
+            "allowedRoles": ["administratif","direction_college","direction_ecole","direction_lycee","comptabilite","infirmerie","education"],
+            "external": true
         }
     ]
 }

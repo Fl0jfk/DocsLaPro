@@ -18,7 +18,7 @@ export default function Slide({ name, img, link, external }: SliderProps) {
               <p className='md:text-2xl text-4xl font-bold z-[2]'>{name}</p>
             </div>      
             {img && 
-              <Image src={img} fill alt={name} style={{objectFit:"cover"}} quality={100} priority className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
+              <Image src={img} fill alt={name} style={{objectFit:"contain"}} priority className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
             }
           </>    
         }  
@@ -33,7 +33,7 @@ export default function Slide({ name, img, link, external }: SliderProps) {
             <p className='md:text-2xl text-4xl font-bold z-[2]'>{name}</p>
           </div>      
           {img && 
-            <Image src={img} fill alt={name} style={{objectFit:"cover"}} quality={100} priority className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
+            <Image src={img} fill alt={name} style={{objectFit:"contain"}} priority className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
           }
         </>    
       }  

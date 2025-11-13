@@ -139,16 +139,13 @@ const s3 = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f
 });
 async function GET() {
     try {
-        // Crée la commande pour ton fichier S3
         const command = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["GetObjectCommand"]({
             Bucket: process.env.BUCKET_NAME,
             Key: "reservation-rooms/reservations.json"
         });
-        // Génère une URL pré-signée valable 1 heure (3600s)
         const url = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$aws$2d$sdk$2f$s3$2d$request$2d$presigner$2f$dist$2d$es$2f$getSignedUrl$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["getSignedUrl"])(s3, command, {
             expiresIn: 3600
         });
-        // Récupère le JSON via la pré-signed URL
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error("Impossible de récupérer le fichier via l'URL pré-signée");
@@ -157,6 +154,7 @@ async function GET() {
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             reservations
         });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err) {
         console.error(err);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({

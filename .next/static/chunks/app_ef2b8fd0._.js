@@ -42,9 +42,8 @@ function Slide(param) {
                         fill: true,
                         alt: name,
                         style: {
-                            objectFit: "cover"
+                            objectFit: "contain"
                         },
-                        quality: 100,
                         priority: true,
                         className: "rounded-3xl select-none pointer-events-none",
                         sizes: "35vw"
@@ -86,9 +85,8 @@ function Slide(param) {
                     fill: true,
                     alt: name,
                     style: {
-                        objectFit: "cover"
+                        objectFit: "contain"
                     },
-                    quality: 100,
                     priority: true,
                     className: "rounded-3xl select-none pointer-events-none",
                     sizes: "35vw"

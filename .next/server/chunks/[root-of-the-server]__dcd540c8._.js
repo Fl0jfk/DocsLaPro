@@ -151,11 +151,11 @@ async function GET() {
             throw new Error("Impossible de récupérer rooms.json depuis S3");
         }
         const data = await response.json();
-        // 🔧 Gère les 2 cas : tableau direct OU objet avec propriété "rooms"
         const rooms = Array.isArray(data) ? data : data.rooms || [];
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             rooms
         });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err) {
         console.error("Erreur route /rooms:", err);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
