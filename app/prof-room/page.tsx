@@ -95,23 +95,14 @@ export default function ProfRoomPage() {
         <select value={selectedRoom}  onChange={(e) => setSelectedRoom(e.target.value)}  className="border rounded w-full p-2">
           <option value="">-- Choisir une salle --</option>
           {rooms.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
+            <option key={r.id} value={r.id}>{r.name}</option>
           ))}
         </select>
       </div>
       <div className="mb-6">
         <label className="block mb-1 font-medium">Date</label>
-        <input
-          type="date"
-          value={selectedDate}
-          min={new Date().toISOString().split("T")[0]}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="border rounded w-full p-2"
-        />
+        <input type="date" value={selectedDate} min={new Date().toISOString().split("T")[0]} onChange={(e) => setSelectedDate(e.target.value)} className="border rounded w-full p-2"/>
       </div>
-
       {selectedRoom && selectedDate && (
         <>
           <div className="grid grid-cols-4 gap-2 mb-4">
@@ -120,31 +111,14 @@ export default function ProfRoomPage() {
               const isBooked = !!res;
               const isSelected = selectedHour === hour;
               return (
-                <button
-                  key={hour}
-                  disabled={isBooked}
-                  onClick={() => setSelectedHour(hour)}
-                  className={`p-2 rounded text-white ${
-                    isBooked
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : isSelected
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }`}
-                >
+                <button key={hour} disabled={isBooked} onClick={() => setSelectedHour(hour)} className={`p-2 rounded text-white ${ isBooked ? "bg-gray-400 cursor-not-allowed" : isSelected ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
                   {hour}:00 - {hour + 1}:00 {isBooked ? `(${res.firstName} ${res.lastName})` : ""}
                 </button>
               );
             })}
           </div>
-
           {selectedHour !== null && (
-            <button
-              onClick={handleConfirm}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Confirmer la réservation ({selectedHour}:00 - {selectedHour + 1}:00)
-            </button>
+            <button onClick={handleConfirm} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Confirmer la réservation ({selectedHour}:00 - {selectedHour + 1}:00)</button>
           )}
         </>
       )}
