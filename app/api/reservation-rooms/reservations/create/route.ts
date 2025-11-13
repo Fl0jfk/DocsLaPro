@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const res = await fetch(getUrl);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any[] = [];
     if (res.ok) {
       const text = await res.text();

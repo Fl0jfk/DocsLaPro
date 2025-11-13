@@ -25,7 +25,9 @@ const HOURS = Array.from({ length: 11 }, (_, i) => 8 + i);
 
 export default function ProfRoomPage() {
   const { user, isLoaded } = useUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rooms, setRooms] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reservations, setReservations] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
