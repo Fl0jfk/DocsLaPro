@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="fr">
-        <body className="antialiased text-black font-medium bg-white mx-auto">
+        <body className="antialiased text-black font-medium mx-auto bg-[rgb(245,245,247)]">
           <DataProvider>
             <Header />
             {children}

@@ -1314,6 +1314,11 @@ img, video {
   background-color: rgba(234, 179, 8, var(--tw-bg-opacity, 1));
 }
 
+.bg-\[rgb\(245\,245\,247\)\] {
+  --tw-bg-opacity: 1;
+  background-color: rgba(245, 245, 247, var(--tw-bg-opacity, 1));
+}
+
 .object-cover {
   object-fit: cover;
 }
@@ -1850,6 +1855,10 @@ a, button {
 
   .sm\:pt-\[15vh\] {
     padding-top: 15vh;
+  }
+
+  .sm\:pt-\[5vh\] {
+    padding-top: 5vh;
   }
 
   .sm\:active\:cursor-grabbing:active {

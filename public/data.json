@@ -70,7 +70,7 @@
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
             "link":"https://lyceelaprovidencenbarre-my.sharepoint.com/:f:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/El7spw2Xkz5Jhj7mfvCF3GQBF_SXsR3v_8S_7G4lMJMKMQ?e=fI8DPd",
             "description":"",
-            "allowedRoles": ["administratif"],
+            "allowedRoles": ["administratif","direction_ecole","direction_college","direction_lycee"],
             "external": true
         },
         {

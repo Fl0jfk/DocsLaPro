@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import staffData from "./organigramme.json";
+import Image from "next/image";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function StaffBubble({ person, isFlipped, onClick }: any) {
@@ -28,7 +29,8 @@ function StaffBubble({ person, isFlipped, onClick }: any) {
             backfaceVisibility: "hidden",
           }}
         >
-          <img
+          <Image
+            alt="Visage de la personne"
             src={person.image}
             className="w-[150px] h-[150px] object-cover rounded-full mt-2"
           />

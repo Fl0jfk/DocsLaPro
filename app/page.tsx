@@ -28,7 +28,7 @@ export default function Home() {
   );
   const uniqueCategories = Array.from( new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values());
   return (
-    <main className="flex flex-col w-full text-xl sm:pt-[15vh]">
+    <main className="flex flex-col w-full text-xl sm:pt-[5vh]">
       {uniqueCategories.length > 0 && (
         <RollingSlider categories={uniqueCategories} />
       )}
