@@ -103,11 +103,11 @@
         {
             "id":12,
             "name":"Réservation de salle",
-            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
             "link":"/prof-room",
             "description":"",
             "allowedRoles": ["professeur", "administratif"],
-            "external": true
+            "external": false
         }
     ]
 }
