@@ -618,6 +618,14 @@ img, video {
   height: 100vh;
 }
 
+.h-\[500px\] {
+  height: 500px;
+}
+
+.h-\[400px\] {
+  height: 400px;
+}
+
 .max-h-\[150px\] {
   max-height: 150px;
 }
@@ -1856,6 +1864,10 @@ a, button {
 
   .md\:h-\[400px\] {
     height: 400px;
+  }
+
+  .md\:h-\[300px\] {
+    height: 300px;
   }
 
   .md\:min-w-\[120px\] {
