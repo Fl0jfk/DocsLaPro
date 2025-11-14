@@ -1,5 +1,5 @@
 module.exports = [
-"[project]/.next-internal/server/app/api/reservation-rooms/reservations/create/route/actions.js [app-rsc] (server actions loader, ecmascript)", ((__turbopack_context__, module, exports) => {
+"[project]/.next-internal/server/app/api/reservation-rooms/reservations/delete/route/actions.js [app-rsc] (server actions loader, ecmascript)", ((__turbopack_context__, module, exports) => {
 
 }),
 "[externals]/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js [external] (next/dist/compiled/next-server/app-route-turbo.runtime.dev.js, cjs)", ((__turbopack_context__, module, exports) => {
@@ -128,7 +128,7 @@ const mod = __turbopack_context__.x("node:async_hooks", () => require("node:asyn
 
 module.exports = mod;
 }),
-"[project]/app/api/reservation-rooms/reservations/create/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
+"[project]/app/api/reservation-rooms/reservations/delete/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -162,16 +162,22 @@ async function POST(req) {
         });
         const clerk = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$server$2f$clerkClient$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["clerkClient"])();
         const user = await clerk.users.getUser(userId);
-        const { roomId, startsAt, endsAt, purpose, firstName, lastName } = await req.json();
-        if (!roomId || !startsAt || !endsAt) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-            error: "Paramètres manquants"
-        }, {
-            status: 400
-        });
-        const start = new Date(startsAt);
-        const end = new Date(endsAt);
-        if (start >= end) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-            error: "Plage horaire invalide"
+        const ADMIN_LASTNAMES = [
+            "Hacqueville-Mathi",
+            "Dupont",
+            "Martin"
+        ];
+        const lastName = user.lastName ?? "";
+        if (!ADMIN_LASTNAMES.includes(lastName)) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Non autorisé (nom incorrect)"
+            }, {
+                status: 403
+            });
+        }
+        const { startsAt } = await req.json();
+        if (!startsAt) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            error: "startAt manquant"
         }, {
             status: 400
         });
@@ -183,31 +189,24 @@ async function POST(req) {
             expiresIn: 60
         });
         const res = await fetch(getUrl);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let existing = [];
         if (res.ok) {
             const text = await res.text();
             existing = text ? JSON.parse(text) : [];
         }
-        const conflict = existing.find((r)=>r.roomId === roomId && r.status !== "CANCELLED" && new Date(r.startsAt) < end && new Date(r.endsAt) > start);
-        if (conflict) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-            error: "Ce créneau est déjà réservé"
-        }, {
-            status: 409
-        });
-        const newReservation = {
-            id: Date.now().toString(),
-            roomId,
-            userId,
-            firstName: firstName || user.firstName || "",
-            lastName: lastName || user.lastName || "",
-            startsAt,
-            endsAt,
-            purpose: purpose || "",
-            createdAt: new Date().toISOString(),
-            status: "CONFIRMED"
-        };
-        existing.push(newReservation);
+        // 2️⃣ Trouver la réservation
+        const index = existing.findIndex((r)=>r.startsAt === startsAt);
+        if (index === -1) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Réservation introuvable"
+            }, {
+                status: 404
+            });
+        }
+        // 3️⃣ Marquer comme annulé
+        existing[index].status = "CANCELLED";
+        existing[index].cancelledAt = new Date().toISOString();
+        // 4️⃣ Upload du JSON modifié
         const putCmd = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["PutObjectCommand"]({
             Bucket: process.env.BUCKET_NAME,
             Key: "reservation-rooms/reservations.json",
@@ -223,15 +222,15 @@ async function POST(req) {
             },
             body: JSON.stringify(existing, null, 2)
         });
-        if (!putRes.ok) throw new Error("Impossible de sauvegarder la réservation sur S3");
+        if (!putRes.ok) throw new Error("Impossible de sauvegarder la modification sur S3");
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-            reservation: newReservation
+            success: true,
+            message: "Réservation annulée"
         }, {
-            status: 201
+            status: 200
         });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err) {
-        console.error("Erreur POST réservation :", err);
+        console.error("Erreur DELETE réservation :", err);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: err.message || "Erreur serveur"
         }, {
@@ -242,4 +241,4 @@ async function POST(req) {
 }),
 ];
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__972c2a60._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__e45b395e._.js.map

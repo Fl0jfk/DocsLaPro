@@ -42,6 +42,12 @@ function ProfRoomPage() {
     const [selectedRoom, setSelectedRoom] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [selectedDate, setSelectedDate] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [selectedHour, setSelectedHour] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const ADMIN_LASTNAMES = [
+        "Hacqueville-Mathi",
+        "Dupont",
+        "Martin"
+    ];
+    const lastName = user?.lastName ?? "";
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         async function load() {
             const roomsRes = await fetch("/api/reservation-rooms/rooms");
@@ -57,14 +63,14 @@ function ProfRoomPage() {
         children: "Chargement..."
     }, void 0, false, {
         fileName: "[project]/app/prof-room/page.tsx",
-        lineNumber: 46,
+        lineNumber: 48,
         columnNumber: 25
     }, this);
     if (!user) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
         children: "Veuillez vous connecter"
     }, void 0, false, {
         fileName: "[project]/app/prof-room/page.tsx",
-        lineNumber: 47,
+        lineNumber: 49,
         columnNumber: 21
     }, this);
     function getReservation(hour) {
@@ -108,6 +114,40 @@ function ProfRoomPage() {
             alert("Erreur : " + (err.error || "inconnue"));
         }
     }
+    async function handleDeleteReservation(startIso) {
+        if (!confirm("Supprimer cette réservation ?")) return;
+        const res = await fetch("/api/reservation-rooms/reservations/delete", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                startsAt: startIso
+            })
+        });
+        if (res.ok) {
+            alert("🗑️ Réservation annulée");
+            setReservations(reservations.filter((r)=>r.startsAt !== startIso));
+        } else {
+            const err = await res.json();
+            alert("Erreur : " + (err.error || "inconnue"));
+        }
+    }
+    async function downloadJSON() {
+        const res = await fetch("/api/reservation-rooms/reservations");
+        const data = await res.json();
+        const blob = new Blob([
+            JSON.stringify(data, null, 2)
+        ], {
+            type: "application/json"
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "reservations.json";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "p-8 max-w-xl mx-auto",
         children: [
@@ -116,8 +156,17 @@ function ProfRoomPage() {
                 children: "Réserver une salle"
             }, void 0, false, {
                 fileName: "[project]/app/prof-room/page.tsx",
-                lineNumber: 94,
+                lineNumber: 124,
                 columnNumber: 7
+            }, this),
+            ADMIN_LASTNAMES.includes(lastName) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                onClick: downloadJSON,
+                className: "mb-6 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700",
+                children: "Télécharger la base de données des réservations (JSON)"
+            }, void 0, false, {
+                fileName: "[project]/app/prof-room/page.tsx",
+                lineNumber: 126,
+                columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: "mb-4",
@@ -127,7 +176,7 @@ function ProfRoomPage() {
                         children: "Salle"
                     }, void 0, false, {
                         fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 96,
+                        lineNumber: 129,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("select", {
@@ -140,7 +189,7 @@ function ProfRoomPage() {
                                 children: "-- Choisir une salle --"
                             }, void 0, false, {
                                 fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 98,
+                                lineNumber: 131,
                                 columnNumber: 11
                             }, this),
                             rooms.map((r)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -148,19 +197,19 @@ function ProfRoomPage() {
                                     children: r.name
                                 }, r.id, false, {
                                     fileName: "[project]/app/prof-room/page.tsx",
-                                    lineNumber: 100,
+                                    lineNumber: 133,
                                     columnNumber: 13
                                 }, this))
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 97,
+                        lineNumber: 130,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/prof-room/page.tsx",
-                lineNumber: 95,
+                lineNumber: 128,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -171,7 +220,7 @@ function ProfRoomPage() {
                         children: "Date"
                     }, void 0, false, {
                         fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 105,
+                        lineNumber: 138,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -182,13 +231,13 @@ function ProfRoomPage() {
                         className: "border rounded w-full p-2"
                     }, void 0, false, {
                         fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 106,
+                        lineNumber: 139,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/prof-room/page.tsx",
-                lineNumber: 104,
+                lineNumber: 137,
                 columnNumber: 7
             }, this),
             selectedRoom && selectedDate && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -199,26 +248,44 @@ function ProfRoomPage() {
                             const res = getReservation(hour);
                             const isBooked = !!res;
                             const isSelected = selectedHour === hour;
-                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                disabled: isBooked,
-                                onClick: ()=>setSelectedHour(hour),
-                                className: `p-2 rounded text-white ${isBooked ? "bg-gray-400 cursor-not-allowed" : isSelected ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`,
+                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "flex flex-col gap-1",
                                 children: [
-                                    hour,
-                                    ":00 - ",
-                                    hour + 1,
-                                    ":00 ",
-                                    isBooked ? `(${res.firstName} ${res.lastName})` : ""
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                        disabled: isBooked,
+                                        onClick: ()=>setSelectedHour(hour),
+                                        className: `p-2 rounded text-white ${isBooked ? "bg-gray-400 cursor-not-allowed" : isSelected ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`,
+                                        children: [
+                                            hour,
+                                            ":00 - ",
+                                            hour + 1,
+                                            ":00",
+                                            isBooked ? ` (${res.firstName} ${res.lastName})` : ""
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/app/prof-room/page.tsx",
+                                        lineNumber: 150,
+                                        columnNumber: 19
+                                    }, this),
+                                    isBooked && ADMIN_LASTNAMES.includes(lastName) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                        onClick: ()=>handleDeleteReservation(res.startsAt),
+                                        className: "text-xs bg-red-600 text-white p-1 rounded hover:bg-red-700",
+                                        children: "Annuler"
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/prof-room/page.tsx",
+                                        lineNumber: 155,
+                                        columnNumber: 21
+                                    }, this)
                                 ]
                             }, hour, true, {
                                 fileName: "[project]/app/prof-room/page.tsx",
-                                lineNumber: 116,
+                                lineNumber: 149,
                                 columnNumber: 17
                             }, this);
                         })
                     }, void 0, false, {
                         fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 110,
+                        lineNumber: 143,
                         columnNumber: 11
                     }, this),
                     selectedHour !== null && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -233,7 +300,7 @@ function ProfRoomPage() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/prof-room/page.tsx",
-                        lineNumber: 123,
+                        lineNumber: 162,
                         columnNumber: 13
                     }, this)
                 ]
@@ -241,7 +308,7 @@ function ProfRoomPage() {
         ]
     }, void 0, true, {
         fileName: "[project]/app/prof-room/page.tsx",
-        lineNumber: 93,
+        lineNumber: 123,
         columnNumber: 5
     }, this);
 }

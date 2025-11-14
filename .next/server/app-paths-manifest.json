@@ -1,8 +1,12 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/reservation-rooms/reservations/create/route": "app/api/reservation-rooms/reservations/create/route.js",
+  "/api/reservation-rooms/reservations/delete/route": "app/api/reservation-rooms/reservations/delete/route.js",
   "/api/reservation-rooms/reservations/route": "app/api/reservation-rooms/reservations/route.js",
   "/api/reservation-rooms/rooms/route": "app/api/reservation-rooms/rooms/route.js",
   "/color-run/page": "app/color-run/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
   "/page": "app/page.js",
-  "/prof-room/page": "app/prof-room/page.js"
+  "/prof-room/page": "app/prof-room/page.js",
+  "/qrcreator/page": "app/qrcreator/page.js"
 }

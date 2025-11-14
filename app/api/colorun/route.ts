@@ -9,9 +9,7 @@ export async function POST(req: Request) {
     const formData = await req.formData()
     const photos = formData.getAll('photos') as File[]
     const uploadDir = path.join(process.cwd(), 'uploads')
-    if (!fs.existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
-    }
+    if (!fs.existsSync(uploadDir)) { await mkdir(uploadDir, { recursive: true })}
     const attachments = []
     for (const file of photos) {
       const bytes = await file.arrayBuffer()

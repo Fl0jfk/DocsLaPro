@@ -32,6 +32,8 @@ export default function ProfRoomPage() {
   const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
+  const ADMIN_LASTNAMES = ["Hacqueville-Mathi", "Dupont", "Martin"];
+  const lastName = user?.lastName ?? "";
   useEffect(() => {
     async function load() {
       const roomsRes = await fetch("/api/reservation-rooms/rooms");
@@ -89,12 +91,43 @@ export default function ProfRoomPage() {
       alert("Erreur : " + (err.error || "inconnue"));
     }
   }
+  async function handleDeleteReservation(startIso: string) {
+    if (!confirm("Supprimer cette réservation ?")) return;
+    const res = await fetch("/api/reservation-rooms/reservations/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startsAt: startIso }),
+    });
+    if (res.ok) {
+      alert("🗑️ Réservation annulée");
+      setReservations(reservations.filter((r) => r.startsAt !== startIso));
+    } else {
+      const err = await res.json();
+      alert("Erreur : " + (err.error || "inconnue"));
+    }
+  }
+  async function downloadJSON() {
+    const res = await fetch("/api/reservation-rooms/reservations");
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "reservations.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="p-8 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Réserver une salle</h1>
+      {(ADMIN_LASTNAMES.includes(lastName)) && (
+        <button onClick={downloadJSON} className="mb-6 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Télécharger la base de données des réservations (JSON)</button>
+      )}
       <div className="mb-4">
         <label className="block mb-1 font-medium">Salle</label>
-        <select value={selectedRoom}  onChange={(e) => setSelectedRoom(e.target.value)}  className="border rounded w-full p-2">
+        <select  value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="border rounded w-full p-2">
           <option value="">-- Choisir une salle --</option>
           {rooms.map((r) => (
             <option key={r.id} value={r.id}>{r.name}</option>
@@ -113,9 +146,15 @@ export default function ProfRoomPage() {
               const isBooked = !!res;
               const isSelected = selectedHour === hour;
               return (
-                <button key={hour} disabled={isBooked} onClick={() => setSelectedHour(hour)} className={`p-2 rounded text-white ${ isBooked ? "bg-gray-400 cursor-not-allowed" : isSelected ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
-                  {hour}:00 - {hour + 1}:00 {isBooked ? `(${res.firstName} ${res.lastName})` : ""}
-                </button>
+                <div key={hour} className="flex flex-col gap-1">
+                  <button disabled={isBooked}  onClick={() => setSelectedHour(hour)}  className={`p-2 rounded text-white ${ isBooked ? "bg-gray-400 cursor-not-allowed" : isSelected ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
+                    {hour}:00 - {hour + 1}:00
+                    {isBooked ? ` (${res.firstName} ${res.lastName})` : ""}
+                  </button>
+                  {isBooked && (ADMIN_LASTNAMES.includes(lastName)) && (
+                    <button onClick={() => handleDeleteReservation(res.startsAt)} className="text-xs bg-red-600 text-white p-1 rounded hover:bg-red-700">Annuler</button>
+                  )}
+                </div>
               );
             })}
           </div>
