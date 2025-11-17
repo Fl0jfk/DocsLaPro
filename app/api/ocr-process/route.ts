@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     const bucket = process.env.BUCKET_NAME!;
     const command = new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object: { Bucket: bucket, Name: key } },});
     const result = await textract.send(command);
+    console.log(2)
     return NextResponse.json({ jobId: result.JobId, key });
   } catch (error) {
     console.error('Erreur lancement Textract:', error);

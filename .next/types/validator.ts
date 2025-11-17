@@ -56,15 +56,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/bdd/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/bdd">> = Specific
-  const handler = {} as typeof import("../../app/bdd/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/brouillons/affichePartnerAlisa/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/brouillons/affichePartnerAlisa">> = Specific
@@ -222,6 +213,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends AppPageConfig<"/documents">> = Specific
   const handler = {} as typeof import("../../app/documents/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/onedrive/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/onedrive">> = Specific
+  const handler = {} as typeof import("../../app/onedrive/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

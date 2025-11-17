@@ -189,12 +189,12 @@ async function POST(req) {
             expiresIn: 60
         });
         const res = await fetch(getUrl);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let existing = [];
         if (res.ok) {
             const text = await res.text();
             existing = text ? JSON.parse(text) : [];
         }
-        // 2️⃣ Trouver la réservation
         const index = existing.findIndex((r)=>r.startsAt === startsAt);
         if (index === -1) {
             return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
@@ -203,10 +203,8 @@ async function POST(req) {
                 status: 404
             });
         }
-        // 3️⃣ Marquer comme annulé
         existing[index].status = "CANCELLED";
         existing[index].cancelledAt = new Date().toISOString();
-        // 4️⃣ Upload du JSON modifié
         const putCmd = new __TURBOPACK__imported__module__$5b$externals$5d2f40$aws$2d$sdk$2f$client$2d$s3__$5b$external$5d$__$2840$aws$2d$sdk$2f$client$2d$s3$2c$__cjs$29$__["PutObjectCommand"]({
             Bucket: process.env.BUCKET_NAME,
             Key: "reservation-rooms/reservations.json",
@@ -229,6 +227,7 @@ async function POST(req) {
         }, {
             status: 200
         });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err) {
         console.error("Erreur DELETE réservation :", err);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({

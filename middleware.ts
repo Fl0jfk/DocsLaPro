@@ -13,7 +13,9 @@ const ContentSecurityPolicy = `
     https://maps.googleapis.com
     https://clerk.docslapro.com
     https://accounts.docslapro.com
-    genuine-wildcat-70.clerk.accounts.dev;
+    genuine-wildcat-70.clerk.accounts.dev
+    https://login.microsoftonline.com
+    https://graph.microsoft.com;
   worker-src 'self' blob:;
   form-action 'self' https://docslapro.s3.eu-west-3.amazonaws.com;
   img-src 'self' https://img.clerk.com https://clerk.docslapro.com https:;

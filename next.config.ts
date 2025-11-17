@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV !== "production";
 const ContentSecurityPolicy = `
   default-src 'self';
-  connect-src 'self' https://docslapro.s3.eu-west-3.amazonaws.com https://clerk-telemetry.com https://*.clerk-telemetry.com https://api.stripe.com https://maps.googleapis.com genuine-wildcat-70.clerk.accounts.dev;
+  connect-src 'self' https://docslapro.s3.eu-west-3.amazonaws.com https://clerk-telemetry.com https://*.clerk-telemetry.com https://api.stripe.com https://maps.googleapis.com genuine-wildcat-70.clerk.accounts.dev https://login.microsoftonline.com https://graph.microsoft.com;
   worker-src 'self' blob:;
   form-action 'self' https://docslapro.s3.eu-west-3.amazonaws.com;
   img-src 'self' https://img.clerk.com  https:;

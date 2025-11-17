@@ -35,14 +35,19 @@ export async function POST(req: Request) {
     }
     const mistralData = await mistralResponse.json();
     const result = mistralData.choices?.[0]?.message?.content || '';
-    const jsonMatch = result.match(/``````/i)
-                   || result.match(/({[^}]+})/s); 
-    let jsonString = '';
-    if (jsonMatch) {
-      jsonString = jsonMatch[1] || jsonMatch[0];
-    } else {
-      jsonString = result.trim();
+    let cleaned = result.trim();
+    cleaned = cleaned.replace(/```json/i, "")
+                     .replace(/```/g, "")
+                     .trim();
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) {
+      return NextResponse.json({
+        error: "Impossible d'extraire du JSON",
+        brut: result,
+        extrait: cleaned
+      }, { status: 500 });
     }
+    let jsonString = match[0];
     try {
       return NextResponse.json(JSON.parse(jsonString));
     } catch {

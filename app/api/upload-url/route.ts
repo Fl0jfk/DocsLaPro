@@ -26,6 +26,7 @@ export async function POST(req: Request) {
       Key: key,
       ContentType: body.contentType,
     });
+    console.log(1)
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     return NextResponse.json({ url, key });
   } catch (error) {

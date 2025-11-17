@@ -5,7 +5,6 @@ import { useEffect } from 'react';
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import Header from './components/HeaderF/Header';
-import Footer from './components/Footer/Footer';
 import { DataProvider } from './contexts/data';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -36,7 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <DataProvider>
             <Header />
             {children}
-            <Footer />
           </DataProvider>
         </body>
       </html>

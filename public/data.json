@@ -126,6 +126,15 @@
             "description":"",
             "allowedRoles": ["administratif","direction_college","direction_ecole","direction_lycee","comptabilite","infirmerie","education"],
             "external": true
+        },
+        {
+            "id":15,
+            "name":"Ajout de documents",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
+            "link":"/onedrive",
+            "description":"",
+            "allowedRoles": ["administratif","direction_ecole","direction_college","direction_lycee"],
+            "external": false
         }
     ]
 }

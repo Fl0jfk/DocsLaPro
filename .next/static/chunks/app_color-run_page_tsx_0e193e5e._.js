@@ -39,7 +39,7 @@ function ColorOnForm() {
                 children: "✅ Merci ! Tes fichiers ont bien été envoyés."
             }, void 0, false, {
                 fileName: "[project]/app/color-run/page.tsx",
-                lineNumber: 31,
+                lineNumber: 26,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -51,7 +51,7 @@ function ColorOnForm() {
                         children: "Color-Run 2025"
                     }, void 0, false, {
                         fileName: "[project]/app/color-run/page.tsx",
-                        lineNumber: 36,
+                        lineNumber: 28,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -59,7 +59,7 @@ function ColorOnForm() {
                         children: "Partage tes photos si tu veux, c’est facultatif !"
                     }, void 0, false, {
                         fileName: "[project]/app/color-run/page.tsx",
-                        lineNumber: 37,
+                        lineNumber: 29,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -71,7 +71,7 @@ function ColorOnForm() {
                         className: "border rounded p-2"
                     }, void 0, false, {
                         fileName: "[project]/app/color-run/page.tsx",
-                        lineNumber: 39,
+                        lineNumber: 30,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -81,13 +81,13 @@ function ColorOnForm() {
                         children: loading ? 'Envoi en cours...' : 'Envoyer'
                     }, void 0, false, {
                         fileName: "[project]/app/color-run/page.tsx",
-                        lineNumber: 48,
+                        lineNumber: 31,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/color-run/page.tsx",
-                lineNumber: 35,
+                lineNumber: 27,
                 columnNumber: 9
             }, this)
         ]
@@ -101,7 +101,7 @@ function ColorOnForm() {
                 children: "Color-Run 2025"
             }, void 0, false, {
                 fileName: "[project]/app/color-run/page.tsx",
-                lineNumber: 61,
+                lineNumber: 37,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -109,7 +109,7 @@ function ColorOnForm() {
                 children: "Partage tes photos si tu veux, c’est facultatif !"
             }, void 0, false, {
                 fileName: "[project]/app/color-run/page.tsx",
-                lineNumber: 62,
+                lineNumber: 38,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -121,7 +121,7 @@ function ColorOnForm() {
                 className: "border rounded p-2"
             }, void 0, false, {
                 fileName: "[project]/app/color-run/page.tsx",
-                lineNumber: 64,
+                lineNumber: 39,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -131,13 +131,13 @@ function ColorOnForm() {
                 children: loading ? 'Envoi en cours...' : 'Envoyer'
             }, void 0, false, {
                 fileName: "[project]/app/color-run/page.tsx",
-                lineNumber: 73,
+                lineNumber: 40,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/color-run/page.tsx",
-        lineNumber: 60,
+        lineNumber: 36,
         columnNumber: 5
     }, this);
 }

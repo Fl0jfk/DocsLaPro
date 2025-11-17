@@ -34,7 +34,7 @@ export default function Header() {
         }
     });
     const handleLinkClick: OnLinkClick = ({ clickOnLink }) => { setMenuOpened(clickOnLink)};
-    if (isClient && (pathname === "/documents/affichePartnerAlisa" || pathname === "/documents/carnetDeCorrespondance/organigramme" || pathname === "/brouillons/ficheInscriptionSixieme"  ||pathname === "/brouillons/ficheInscriptionCinquieme"  || pathname === "/brouillons/ficheInscriptionQuatrieme"  ||pathname === "/brouillons/ficheInscriptionTroisieme"  ||pathname === "/documents/portesOuvertesSVG" || pathname === "/brouillons/devisTransport" || pathname === "/documents/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
+    if (isClient && (pathname === "/documents/affichePartnerAlisa" || pathname === "/documents/carnetDeCorrespondance/organigramme" || pathname === "/brouillons/ficheInscriptionSixieme"  ||pathname === "/brouillons/ficheInscriptionCinquieme"  || pathname === "/brouillons/ficheInscriptionQuatrieme"  ||pathname === "/brouillons/ficheInscriptionTroisieme"  ||pathname === "/documents/portesOuvertesSVG" || pathname === "/brouillons/devisTransport" || pathname === "/brouillons/autorisationSortie" || pathname === "/documents/cartePoliceMesnil")) {
         return null;
     }
     return (
