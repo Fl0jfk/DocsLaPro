@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         extrait: cleaned
       }, { status: 500 });
     }
-    let jsonString = match[0];
+    const jsonString = match[0];
     try {
       return NextResponse.json(JSON.parse(jsonString));
     } catch {

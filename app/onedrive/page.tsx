@@ -92,6 +92,7 @@ export default function OneDriveTest() {
       setFiles(data.value || []);
       setCurrentFolder(folderId);
       setCurrentFolderPath(folderPath);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError("Erreur Graph API: " + err.message);
     }
