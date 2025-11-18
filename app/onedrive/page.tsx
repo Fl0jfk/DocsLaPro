@@ -6,7 +6,7 @@ const msalConfig: msal.Configuration = {
   auth: {
     clientId: process.env.NEXT_PUBLIC_CLIENT_ID!,
     authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_TENANT_ID}`,
-    redirectUri: "http://localhost:3000/onedrive",
+    redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}onedrive`,
   },
 };
 

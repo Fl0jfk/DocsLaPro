@@ -57,15 +57,6 @@
         },
         {
             "id":7,
-            "name":"Upload Docs",
-            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
-            "link":"/uploadDocuments",
-            "description":"",
-            "allowedRoles": ["test"],
-            "external": false
-        },
-        {
-            "id":8,
             "name":"Base de données Elèves",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
             "link":"https://lyceelaprovidencenbarre-my.sharepoint.com/:f:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/El7spw2Xkz5Jhj7mfvCF3GQBF_SXsR3v_8S_7G4lMJMKMQ?e=fI8DPd",
@@ -74,7 +65,7 @@
             "external": true
         },
         {
-            "id":9,
+            "id":8,
             "name":"Demande d'absence",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/absences",
@@ -83,7 +74,7 @@
             "external": false
         },
         {
-            "id":10,
+            "id":9,
             "name":"Organigramme",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
             "link":"/organigramme",
@@ -92,7 +83,7 @@
             "external": false
         },
         {
-            "id":11,
+            "id":10,
             "name":"ZeenDoc",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
             "link":"https://armoires.zeendoc.com/_Login/Login.php",
@@ -101,7 +92,7 @@
             "external": true
         },
         {
-            "id":12,
+            "id":11,
             "name":"Réservation de salle",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
             "link":"/prof-room",
@@ -110,7 +101,7 @@
             "external": false
         },
         {
-            "id":13,
+            "id":12,
             "name":"Arena Ac Normandie",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/MIN_Education_Nationale_et_Jeunesse_RVB.jpg",
             "link":"https://arena.ac-normandie.fr/arena/",
@@ -119,7 +110,7 @@
             "external": true
         },
         {
-            "id":14,
+            "id":13,
             "name":"Planning des absences",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
             "link":"https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/ETx1_Apa6ANLj_N8J05vWGEBsog7mkqCltCeB06kyUGcLQ?e=0IeBeq",
@@ -128,7 +119,7 @@
             "external": true
         },
         {
-            "id":15,
+            "id":14,
             "name":"Ajout de documents",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
             "link":"/onedrive",
