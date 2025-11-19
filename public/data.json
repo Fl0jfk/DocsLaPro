@@ -120,8 +120,8 @@
         },
         {
             "id":14,
-            "name":"Ajout de documents",
-            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
+            "name":"Ajout de documents IA",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
             "link":"/onedrive",
             "description":"",
             "allowedRoles": ["administratif","direction_ecole","direction_college","direction_lycee"],
