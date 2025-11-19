@@ -59,7 +59,8 @@ function DocumentsPage() {
             }["DocumentsPage.useEffect"]);
         }
     }["DocumentsPage.useEffect"], [
-        currentPrefix
+        currentPrefix,
+        cacheTTL
     ]);
     const enterFolder = (path)=>{
         setHistory((prev)=>[

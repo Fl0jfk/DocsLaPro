@@ -49,7 +49,8 @@ function DocumentsPage() {
             setLoading(false);
         });
     }, [
-        currentPrefix
+        currentPrefix,
+        cacheTTL
     ]);
     const enterFolder = (path)=>{
         setHistory((prev)=>[

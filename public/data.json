@@ -126,6 +126,16 @@
             "description":"",
             "allowedRoles": ["administratif","direction_ecole","direction_college","direction_lycee"],
             "external": false
+        },
+        {
+            "id":15,
+            "name":"Portes ouvertes",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Portes+ouvertes.jpg",
+            "link":"https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/IQC50xx-JtAFQr6iU6GdgepSAW5mUuNX_aARV_kdxUnJyTc?e=4gvKbw",
+            "description":"",
+            "allowedRoles": ["administratif","direction_ecole","direction_college","direction_lycee"],
+            "external": true
         }
     ]
 }
+

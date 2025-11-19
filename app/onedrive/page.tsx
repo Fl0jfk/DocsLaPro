@@ -219,9 +219,7 @@ export default function OneDriveTest() {
       <h2 className="text-2xl font-bold mb-4">Mon OneDrive</h2>
       {error && <p className="text-red-500 mb-2">{error}</p>}
       {!account ? (
-        <button onClick={login} className="p-2 bg-blue-600 text-white rounded mt-2">
-          Se connecter à OneDrive
-        </button>
+        <button onClick={login} className="p-2 bg-blue-600 text-white rounded mt-2">Se connecter à OneDrive</button>
       ) : (
         <>
           <div className="flex gap-2 mb-4">
@@ -246,35 +244,21 @@ export default function OneDriveTest() {
             </label>
             {ocrProcessing && <span className="ml-2">Traitement en cours…</span>}
           </div>
-
           {ocrResult && (
             <pre className="text-sm bg-gray-100 p-2 rounded mt-2">
               {JSON.stringify(ocrResult, null, 2)}
             </pre>
           )}
-
           {currentFolderPath && (
-            <button
-              onClick={async () => {
-                const token = await getAccessToken();
-                const parentPath = currentFolderPath.split("/").slice(0, -1).join("");
-                fetchFiles(token, null, parentPath);
-              }}
+            <button onClick={async () => { const token = await getAccessToken(); const parentPath = currentFolderPath.split("/").slice(0, -1).join(""); fetchFiles(token, null, parentPath)}}
               className="mb-2 text-blue-500 underline"
             >
               ← Revenir à la racine
             </button>
           )}
-
           <ul className="border rounded p-2 space-y-1 bg-gray-50">
             {files.map((f) => (
-              <li
-                key={f.id || f.name}
-                className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer rounded"
-                onClick={() => openFile(f)}
-              >
-                {f.folder ? "📁" : "📄"} {f.name}
-              </li>
+              <li key={f.id || f.name} className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer rounded" onClick={() => openFile(f)}>{f.folder ? "📁" : "📄"} {f.name}</li>
             ))}
           </ul>
         </>

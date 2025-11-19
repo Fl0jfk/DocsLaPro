@@ -1,11 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/analyze-doc/route": "app/api/analyze-doc/route.js",
-  "/api/ocr-process/route": "app/api/ocr-process/route.js",
-  "/api/ocr-result/route": "app/api/ocr-result/route.js",
+  "/api/documents/list/route": "app/api/documents/list/route.js",
   "/api/reservation-rooms/reservations/route": "app/api/reservation-rooms/reservations/route.js",
   "/api/reservation-rooms/rooms/route": "app/api/reservation-rooms/rooms/route.js",
-  "/api/upload-url/route": "app/api/upload-url/route.js",
+  "/documents/page": "app/documents/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
   "/onedrive/page": "app/onedrive/page.js",
   "/page": "app/page.js",

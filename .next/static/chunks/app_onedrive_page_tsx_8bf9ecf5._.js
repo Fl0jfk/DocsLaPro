@@ -19,7 +19,7 @@ const msalConfig = {
     auth: {
         clientId: ("TURBOPACK compile-time value", "671a25ff-77d0-4b2d-98c6-d10e43ec6d20"),
         authority: "https://login.microsoftonline.com/".concat(("TURBOPACK compile-time value", "adca1e7f-3a06-4ba4-8e5b-f18580c0e9ae")),
-        redirectUri: "http://localhost:3000/onedrive"
+        redirectUri: "".concat(("TURBOPACK compile-time value", "http://localhost:3000/"), "onedrive")
     }
 };
 const msalInstance = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$azure$2f$msal$2d$browser$2f$dist$2f$app$2f$PublicClientApplication$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PublicClientApplication"](msalConfig);
@@ -302,18 +302,18 @@ function OneDriveTest() {
                                     }
                                 }, void 0, false, {
                                     fileName: "[project]/app/onedrive/page.tsx",
-                                    lineNumber: 230,
+                                    lineNumber: 228,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/onedrive/page.tsx",
-                            lineNumber: 228,
+                            lineNumber: 226,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 227,
+                        lineNumber: 225,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -333,13 +333,13 @@ function OneDriveTest() {
                                         disabled: ocrProcessing
                                     }, void 0, false, {
                                         fileName: "[project]/app/onedrive/page.tsx",
-                                        lineNumber: 240,
+                                        lineNumber: 238,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 238,
+                                lineNumber: 236,
                                 columnNumber: 13
                             }, this),
                             ocrProcessing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -347,13 +347,13 @@ function OneDriveTest() {
                                 children: "Traitement en cours…"
                             }, void 0, false, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 247,
+                                lineNumber: 245,
                                 columnNumber: 31
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 237,
+                        lineNumber: 235,
                         columnNumber: 11
                     }, this),
                     ocrResult && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
@@ -361,7 +361,7 @@ function OneDriveTest() {
                         children: JSON.stringify(ocrResult, null, 2)
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 251,
+                        lineNumber: 248,
                         columnNumber: 13
                     }, this),
                     currentFolderPath && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -374,7 +374,7 @@ function OneDriveTest() {
                         children: "← Revenir à la racine"
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 257,
+                        lineNumber: 253,
                         columnNumber: 13
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -389,12 +389,12 @@ function OneDriveTest() {
                                 ]
                             }, f.id || f.name, true, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 271,
+                                lineNumber: 261,
                                 columnNumber: 15
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 269,
+                        lineNumber: 259,
                         columnNumber: 11
                     }, this)
                 ]
