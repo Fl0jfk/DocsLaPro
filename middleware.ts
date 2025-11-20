@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 const isDev = process.env.NODE_ENV !== "production";
 
 const ContentSecurityPolicy = `
-  default-src 'self';
+  default-src 'self'
+  https://login.microsoftonline.com/;
   connect-src 'self'
     https://docslapro.s3.eu-west-3.amazonaws.com
     https://clerk-telemetry.com
