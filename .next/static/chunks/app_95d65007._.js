@@ -269,6 +269,7 @@ function GoogleAgenda() {
     var _modalEvent_start_dateTime, _modalEvent_end_dateTime;
     _s();
     const { isLoaded, user } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$shared$2f$dist$2f$react$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useUser"])();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [tokens, setTokens] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [calendars, setCalendars] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [selectedCalendar, setSelectedCalendar] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
@@ -459,7 +460,7 @@ function GoogleAgenda() {
         children: "Connecter mon agenda Google"
     }, void 0, false, {
         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-        lineNumber: 167,
+        lineNumber: 168,
         columnNumber: 23
     }, this);
     const days = getWeekDates(weekStart);
@@ -472,7 +473,7 @@ function GoogleAgenda() {
                 children: "Google Agenda"
             }, void 0, false, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 171,
+                lineNumber: 172,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -487,7 +488,7 @@ function GoogleAgenda() {
                         children: "<"
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 173,
+                        lineNumber: 174,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -495,7 +496,7 @@ function GoogleAgenda() {
                         children: "Aujourd'hui"
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 174,
+                        lineNumber: 175,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -503,7 +504,7 @@ function GoogleAgenda() {
                         children: ">"
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 175,
+                        lineNumber: 176,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("select", {
@@ -519,25 +520,25 @@ function GoogleAgenda() {
                                 ]
                             }, cal.id, true, {
                                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                                lineNumber: 179,
+                                lineNumber: 180,
                                 columnNumber: 13
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 177,
+                        lineNumber: 178,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 172,
+                lineNumber: 173,
                 columnNumber: 7
             }, this),
             loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                 children: "Chargement..."
             }, void 0, false, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 184,
+                lineNumber: 185,
                 columnNumber: 19
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -573,7 +574,7 @@ function GoogleAgenda() {
                         lineNumber: 188,
                         columnNumber: 9
                     }, this),
-                    days.map((day, dayIdx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    days.map((day)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             style: {
                                 flex: 1,
                                 borderLeft: "1px solid #ccc",
@@ -605,7 +606,7 @@ function GoogleAgenda() {
                                         ev.summary,
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("br", {}, void 0, false, {
                                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                                            lineNumber: 214,
+                                            lineNumber: 213,
                                             columnNumber: 31
                                         }, this),
                                         formatTime(ev.start.dateTime),
@@ -619,25 +620,25 @@ function GoogleAgenda() {
                                             children: "🗑️"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                                            lineNumber: 216,
+                                            lineNumber: 215,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, ev.id, true, {
                                     fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                                    lineNumber: 207,
+                                    lineNumber: 206,
                                     columnNumber: 17
                                 }, this);
                             })
                         }, day.toDateString(), false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 197,
+                            lineNumber: 196,
                             columnNumber: 11
                         }, this))
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 186,
+                lineNumber: 187,
                 columnNumber: 7
             }, this),
             modalEvent && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -673,7 +674,7 @@ function GoogleAgenda() {
                             required: true
                         }, void 0, false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 233,
+                            lineNumber: 230,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -688,7 +689,7 @@ function GoogleAgenda() {
                             required: true
                         }, void 0, false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 234,
+                            lineNumber: 231,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -703,7 +704,7 @@ function GoogleAgenda() {
                             required: true
                         }, void 0, false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 235,
+                            lineNumber: 232,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -711,7 +712,7 @@ function GoogleAgenda() {
                             children: "Enregistrer"
                         }, void 0, false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 236,
+                            lineNumber: 233,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -720,24 +721,24 @@ function GoogleAgenda() {
                             children: "Annuler"
                         }, void 0, false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 237,
+                            lineNumber: 234,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                    lineNumber: 229,
+                    lineNumber: 226,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 226,
+                lineNumber: 223,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-        lineNumber: 170,
+        lineNumber: 171,
         columnNumber: 5
     }, this);
 }

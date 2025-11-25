@@ -272,19 +272,12 @@ export default function OneDriveUpDocsOCRAI() {
       ) : (
         <>
           <div className="flex gap-2 mb-4">
-            <label className="p-2 bg-green-500 text-white rounded cursor-pointer">
-              Choisir un fichier
-              <input
-                type="file"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
-              />
+            <label className="p-2 bg-green-500 text-white rounded cursor-pointer">Choisir un fichier
+              <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}/>
             </label>
           </div>
-
           <div className="flex gap-2 mb-4">
-            <label className="p-2 bg-purple-500 text-white rounded cursor-pointer">
-              Envoyer plusieurs fichiers pour OCR + Analyse
+            <label className="p-2 bg-purple-500 text-white rounded cursor-pointer">Envoyer plusieurs fichiers pour OCR + Analyse
               <input
                 type="file"
                 className="hidden"
@@ -343,13 +336,7 @@ export default function OneDriveUpDocsOCRAI() {
 
           <ul className="border rounded p-2 space-y-1 bg-gray-50">
             {files.map((f) => (
-              <li 
-                key={f.id || f.name} 
-                className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer rounded" 
-                onClick={() => openFile(f)}
-              >
-                {f.folder ? "📁" : "📄"} {f.name}
-              </li>
+              <li  key={f.id || f.name}  className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer rounded"  onClick={() => openFile(f)}>{f.folder ? "📁" : "📄"} {f.name}</li>
             ))}
           </ul>
         </>

@@ -35,6 +35,7 @@ function formatTime(dateStr: string) {
 
 export default function GoogleAgenda() {
   const { isLoaded, user } = useUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [tokens, setTokens] = useState<any>(null);
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string>("");
@@ -171,7 +172,7 @@ export default function GoogleAgenda() {
       <h2>Google Agenda</h2>
       <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
         <button onClick={prevWeek}>{"<"}</button>
-        <button onClick={today}>Aujourd'hui</button>
+        <button onClick={today}>Aujourd&apos;hui</button>
         <button onClick={nextWeek}>{">"}</button>
 
         <select value={selectedCalendar} onChange={e => setSelectedCalendar(e.target.value)}>
@@ -184,7 +185,6 @@ export default function GoogleAgenda() {
       {loading && <p>Chargement...</p>}
 
       <div ref={calendarRef} style={{ display: "flex", border: "1px solid #ccc", height: "600px", position: "relative" }}>
-        {/* Headers */}
         <div style={{ flex: 1 }}>
           {days.map(day => (
             <div key={day.toDateString()} style={{ textAlign: "center", borderBottom: "1px solid #ccc" }}>
@@ -192,8 +192,7 @@ export default function GoogleAgenda() {
             </div>
           ))}
         </div>
-        {/* Body */}
-        {days.map((day, dayIdx) => (
+        {days.map((day) => (
           <div key={day.toDateString()} style={{ flex: 1, borderLeft: "1px solid #ccc", position: "relative" }}>
             {events.filter(ev => {
               const evDate = ev.start.dateTime ? new Date(ev.start.dateTime) : null;
@@ -220,8 +219,6 @@ export default function GoogleAgenda() {
           </div>
         ))}
       </div>
-
-      {/* Modal */}
       {modalEvent && (
         <div style={{
           position: "fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.5)", display:"flex", justifyContent:"center", alignItems:"center"
