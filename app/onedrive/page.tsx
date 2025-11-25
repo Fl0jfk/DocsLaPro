@@ -14,19 +14,20 @@ const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 export default function OneDriveUpDocsOCRAI() {
   const [account, setAccount] = useState<msal.AccountInfo | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [files, setFiles] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [msalReady, setMsalReady] = useState(false);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [currentFolderPath, setCurrentFolderPath] = useState<string>("");
   const [ocrProcessing, setOcrProcessing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [ocrResults, setOcrResults] = useState<any[]>([]);
   const [processingStatus, setProcessingStatus] = useState<{total: number, completed: number, failed: number}>({
     total: 0,
     completed: 0,
     failed: 0
   });
-
   useEffect(() => {
     const init = async () => {
       try {
@@ -38,13 +39,13 @@ export default function OneDriveUpDocsOCRAI() {
           const token = await getAccessToken(accounts[0]);
           fetchFiles(token, null, "");
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError("Erreur init MSAL: " + err.message);
       }
     };
     init();
   }, []);
-
   useEffect(() => {
     if (!msalReady) return;
     const handleRedirect = async () => {
@@ -55,13 +56,13 @@ export default function OneDriveUpDocsOCRAI() {
           const token = await getAccessToken(result.account);
           fetchFiles(token, null, "");
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError("Erreur login redirect: " + err.message);
       }
     };
     handleRedirect();
   }, [msalReady]);
-
   const login = async () => {
     if (!msalReady) {
       setError("MSAL n'est pas encore initialisé.");
@@ -71,11 +72,11 @@ export default function OneDriveUpDocsOCRAI() {
       await msalInstance.loginRedirect({
         scopes: ["Files.ReadWrite", "User.Read"],
       });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError("Erreur login: " + err.message);
     }
   };
-
   const getAccessToken = async (acc?: msal.AccountInfo) => {
     const usedAccount = acc || account;
     if (!usedAccount) throw new Error("Aucun compte connecté");
@@ -85,15 +86,9 @@ export default function OneDriveUpDocsOCRAI() {
     });
     return tokenResponse.accessToken;
   };
-
   const fetchFiles = async (accessToken: string, folderId: string | null, folderPath: string) => {
     try {
-      const url = folderId 
-        ? `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children` 
-        : folderPath 
-        ? `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}:/children` 
-        : "https://graph.microsoft.com/v1.0/me/drive/root/children";
-      
+      const url = folderId  ? `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children` : folderPath  ? `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}:/children`  : "https://graph.microsoft.com/v1.0/me/drive/root/children"; 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -102,11 +97,11 @@ export default function OneDriveUpDocsOCRAI() {
       setFiles(data.value || []);
       setCurrentFolder(folderId);
       setCurrentFolderPath(folderPath);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError("Erreur Graph API: " + err.message);
     }
   };
-
   const handleUpload = async (file: File) => {
     if (!file || !account) return;
     try {
@@ -126,11 +121,12 @@ export default function OneDriveUpDocsOCRAI() {
       if (!res.ok) throw new Error(await res.text());
       await fetchFiles(accessToken, currentFolder, currentFolderPath);
       alert("Upload terminé !");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError("Erreur upload: " + err.message);
     }
   };
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const openFile = async (file: any) => {
     if (file.folder) {
       const token = await getAccessToken();
@@ -140,42 +136,34 @@ export default function OneDriveUpDocsOCRAI() {
       window.open(file.webUrl, "_blank");
     }
   };
-
-  // Fonction helper pour traiter par lots
   async function processInBatches<T, R>(
     items: T[],
     batchSize: number,
     processFn: (item: T) => Promise<R>
   ): Promise<R[]> {
     const results: R[] = [];
-    
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
       const batchResults = await Promise.all(batch.map(processFn));
       results.push(...batchResults);
-      
-      // Mettre à jour le statut après chaque lot
-      const currentCompleted = results.filter((r: any) => r.success).length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const currentCompleted = results.filter((r: any) => r.success).length; 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const currentFailed = results.filter((r: any) => !r.success).length;
       setProcessingStatus(prev => ({ 
         total: prev.total, 
         completed: currentCompleted, 
         failed: currentFailed 
       }));
-      
-      // Petit délai entre les lots pour éviter le rate limiting
       if (i + batchSize < items.length) {
         await new Promise(r => setTimeout(r, 2000));
       }
     }
-    
     return results;
   }
-
-  // Fonction pour traiter un seul fichier
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const processSingleFile = async (file: File): Promise<{success: boolean, result?: any, error?: string, fileName: string}> => {
     try {
-      // 1. Upload vers S3
       const r1 = await fetch("/api/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -183,15 +171,12 @@ export default function OneDriveUpDocsOCRAI() {
       });
       if (!r1.ok) throw new Error(await r1.text());
       const { url, key } = await r1.json();
-
       const upload = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": file.type },
         body: file,
       });
       if (!upload.ok) throw new Error("Échec upload S3 : " + (await upload.text()));
-
-      // 2. Lancer OCR Textract
       const r2 = await fetch("/api/ocr-process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -200,8 +185,6 @@ export default function OneDriveUpDocsOCRAI() {
       if (!r2.ok) throw new Error(await r2.text());
       const { jobId } = await r2.json();
       if (!jobId) throw new Error("Impossible de lancer Textract");
-
-      // 3. Attendre le résultat OCR
       let extractedText = "";
       for (let i = 0; i < 30; i++) {
         const r3 = await fetch("/api/ocr-result", {
@@ -222,74 +205,57 @@ export default function OneDriveUpDocsOCRAI() {
         }
       }
       if (!extractedText) throw new Error("Timeout OCR : aucun texte retourné");
-
-      // 4. Analyse IA
       const r4 = await fetch("/api/analyze-doc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: extractedText }),
       });
       if (!r4.ok) throw new Error(await r4.text());
-      // Dans processSingleFile, après l'appel à /api/analyze-doc
-const ai = await r4.json();
-
-// Utiliser le fileName généré par Mistral
-if (ai?.fileName && ai?.eleve?.nom && ai?.eleve?.prénom) {
-  const newFileName = `${ai.fileName}.pdf`;
-  
-  const accessToken = await getAccessToken();
-  const uploadPath = currentFolderPath ? `${currentFolderPath}/${newFileName}` : newFileName;
-  
-  const fileRes = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${uploadPath}:/content`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": file.type || "application/pdf",
-      },
-      body: file,
-    }
-  );
-  if (!fileRes.ok) throw new Error("Erreur upload OneDrive : " + (await fileRes.text()));
-}
+      const ai = await r4.json();
+      if (ai?.fileName && ai?.eleve?.nom && ai?.eleve?.prénom) {
+        const newFileName = `${ai.fileName}.pdf`;
+        const accessToken = await getAccessToken();
+        const uploadPath = currentFolderPath ? `${currentFolderPath}/${newFileName}` : newFileName;
+        const fileRes = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${uploadPath}:/content`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": file.type || "application/pdf",
+            },
+            body: file,
+          }
+        );
+        if (!fileRes.ok) throw new Error("Erreur upload OneDrive : " + (await fileRes.text()));
+      }
       return { success: true, result: ai, fileName: file.name };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(`Erreur pour ${file.name}:`, err);
       return { success: false, error: err.message, fileName: file.name };
     }
   };
-
-  // Fonction pour gérer plusieurs fichiers
   const handleMultipleOcrUploadAndAnalyse = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-
     const filesArray = Array.from(fileList);
-    
     try {
       setOcrProcessing(true);
       setError("");
       setOcrResults([]);
       setProcessingStatus({ total: filesArray.length, completed: 0, failed: 0 });
-
-      // Traiter par lots de 2 documents à la fois pour AWS Textract
       const results = await processInBatches(
         filesArray,
         2,
         processSingleFile
       );
-
-      // Compter les succès et échecs
       const completed = results.filter(r => r.success).length;
       const failed = results.filter(r => !r.success).length;
-      
       setProcessingStatus({ total: filesArray.length, completed, failed });
       setOcrResults(results);
-
-      // Rafraîchir la liste des fichiers OneDrive
       const accessToken = await getAccessToken();
       await fetchFiles(accessToken, currentFolder, currentFolderPath);
-
       alert(`Traitement terminé!\n✅ Réussis: ${completed}\n❌ Échecs: ${failed}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       setError("Erreur globale OCR / Analyse: " + err.message);
@@ -297,16 +263,12 @@ if (ai?.fileName && ai?.eleve?.nom && ai?.eleve?.prénom) {
       setOcrProcessing(false);
     }
   };
-
   return (
     <div className="p-4 max-w-[80%] mx-auto">
       <h2 className="text-2xl font-bold mb-4">Mon OneDrive</h2>
       {error && <p className="text-red-500 mb-2">{error}</p>}
-      
       {!account ? (
-        <button onClick={login} className="p-2 bg-blue-600 text-white rounded mt-2">
-          Se connecter à OneDrive
-        </button>
+        <button onClick={login} className="p-2 bg-blue-600 text-white rounded mt-2">Se connecter à OneDrive</button>
       ) : (
         <>
           <div className="flex gap-2 mb-4">
