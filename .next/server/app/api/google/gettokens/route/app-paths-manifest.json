@@ -1,0 +1,3 @@
+{
+  "/api/google/gettokens/route": "app/api/google/gettokens/route.js"
+}

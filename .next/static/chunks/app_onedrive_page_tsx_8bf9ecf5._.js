@@ -4,7 +4,7 @@
 
 __turbopack_context__.s([
     "default",
-    ()=>OneDriveTest
+    ()=>OneDriveUpDocsOCRAI
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = /*#__PURE__*/ __turbopack_context__.i("[project]/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
@@ -23,22 +23,25 @@ const msalConfig = {
     }
 };
 const msalInstance = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$azure$2f$msal$2d$browser$2f$dist$2f$app$2f$PublicClientApplication$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PublicClientApplication"](msalConfig);
-function OneDriveTest() {
+function OneDriveUpDocsOCRAI() {
     _s();
     const [account, setAccount] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [files, setFiles] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [error, setError] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
     const [msalReady, setMsalReady] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [currentFolder, setCurrentFolder] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [currentFolderPath, setCurrentFolderPath] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
     const [ocrProcessing, setOcrProcessing] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [ocrResult, setOcrResult] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [ocrResults, setOcrResults] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [processingStatus, setProcessingStatus] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
+        total: 0,
+        completed: 0,
+        failed: 0
+    });
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
-        "OneDriveTest.useEffect": ()=>{
+        "OneDriveUpDocsOCRAI.useEffect": ()=>{
             const init = {
-                "OneDriveTest.useEffect.init": async ()=>{
+                "OneDriveUpDocsOCRAI.useEffect.init": async ()=>{
                     try {
                         await msalInstance.initialize();
                         setMsalReady(true);
@@ -48,20 +51,19 @@ function OneDriveTest() {
                             const token = await getAccessToken(accounts[0]);
                             fetchFiles(token, null, "");
                         }
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } catch (err) {
                         setError("Erreur init MSAL: " + err.message);
                     }
                 }
-            }["OneDriveTest.useEffect.init"];
+            }["OneDriveUpDocsOCRAI.useEffect.init"];
             init();
         }
-    }["OneDriveTest.useEffect"], []);
+    }["OneDriveUpDocsOCRAI.useEffect"], []);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
-        "OneDriveTest.useEffect": ()=>{
+        "OneDriveUpDocsOCRAI.useEffect": ()=>{
             if (!msalReady) return;
             const handleRedirect = {
-                "OneDriveTest.useEffect.handleRedirect": async ()=>{
+                "OneDriveUpDocsOCRAI.useEffect.handleRedirect": async ()=>{
                     try {
                         const result = await msalInstance.handleRedirectPromise();
                         if (result === null || result === void 0 ? void 0 : result.account) {
@@ -69,15 +71,14 @@ function OneDriveTest() {
                             const token = await getAccessToken(result.account);
                             fetchFiles(token, null, "");
                         }
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } catch (err) {
                         setError("Erreur login redirect: " + err.message);
                     }
                 }
-            }["OneDriveTest.useEffect.handleRedirect"];
+            }["OneDriveUpDocsOCRAI.useEffect.handleRedirect"];
             handleRedirect();
         }
-    }["OneDriveTest.useEffect"], [
+    }["OneDriveUpDocsOCRAI.useEffect"], [
         msalReady
     ]);
     const login = async ()=>{
@@ -92,7 +93,6 @@ function OneDriveTest() {
                     "User.Read"
                 ]
             });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
             setError("Erreur login: " + err.message);
         }
@@ -122,7 +122,6 @@ function OneDriveTest() {
             setFiles(data.value || []);
             setCurrentFolder(folderId);
             setCurrentFolderPath(folderPath);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
             setError("Erreur Graph API: " + err.message);
         }
@@ -143,12 +142,10 @@ function OneDriveTest() {
             if (!res.ok) throw new Error(await res.text());
             await fetchFiles(accessToken, currentFolder, currentFolderPath);
             alert("Upload terminé !");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
             setError("Erreur upload: " + err.message);
         }
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const openFile = async (file)=>{
         if (file.folder) {
             const token = await getAccessToken();
@@ -158,12 +155,33 @@ function OneDriveTest() {
             window.open(file.webUrl, "_blank");
         }
     };
-    const handleOcrUploadAndAnalyse = async (file)=>{
-        if (!file) return;
+    // Fonction helper pour traiter par lots
+    async function processInBatches(items, batchSize, processFn) {
+        const results = [];
+        for(let i = 0; i < items.length; i += batchSize){
+            const batch = items.slice(i, i + batchSize);
+            const batchResults = await Promise.all(batch.map(processFn));
+            results.push(...batchResults);
+            // Mettre à jour le statut après chaque lot
+            const currentCompleted = results.filter((r)=>r.success).length;
+            const currentFailed = results.filter((r)=>!r.success).length;
+            setProcessingStatus((prev)=>({
+                    total: prev.total,
+                    completed: currentCompleted,
+                    failed: currentFailed
+                }));
+            // Petit délai entre les lots pour éviter le rate limiting
+            if (i + batchSize < items.length) {
+                await new Promise((r)=>setTimeout(r, 2000));
+            }
+        }
+        return results;
+    }
+    // Fonction pour traiter un seul fichier
+    const processSingleFile = async (file)=>{
         try {
             var _ai_eleve, _ai_eleve1;
-            setOcrProcessing(true);
-            setError("");
+            // 1. Upload vers S3
             const r1 = await fetch("/api/upload-url", {
                 method: "POST",
                 headers: {
@@ -184,6 +202,7 @@ function OneDriveTest() {
                 body: file
             });
             if (!upload.ok) throw new Error("Échec upload S3 : " + await upload.text());
+            // 2. Lancer OCR Textract
             const r2 = await fetch("/api/ocr-process", {
                 method: "POST",
                 headers: {
@@ -196,6 +215,7 @@ function OneDriveTest() {
             if (!r2.ok) throw new Error(await r2.text());
             const { jobId } = await r2.json();
             if (!jobId) throw new Error("Impossible de lancer Textract");
+            // 3. Attendre le résultat OCR
             let extractedText = "";
             for(let i = 0; i < 30; i++){
                 const r3 = await fetch("/api/ocr-result", {
@@ -213,10 +233,14 @@ function OneDriveTest() {
                     extractedText = data.text;
                     break;
                 }
-                if (data.status === "IN_PROGRESS") await new Promise((r)=>setTimeout(r, 5000));
-                else throw new Error("OCR Textract a échoué : " + JSON.stringify(data));
+                if (data.status === "IN_PROGRESS") {
+                    await new Promise((r)=>setTimeout(r, 5000));
+                } else {
+                    throw new Error("OCR Textract a échoué : " + JSON.stringify(data));
+                }
             }
             if (!extractedText) throw new Error("Timeout OCR : aucun texte retourné");
+            // 4. Analyse IA
             const r4 = await fetch("/api/analyze-doc", {
                 method: "POST",
                 headers: {
@@ -227,13 +251,11 @@ function OneDriveTest() {
                 })
             });
             if (!r4.ok) throw new Error(await r4.text());
+            // Dans processSingleFile, après l'appel à /api/analyze-doc
             const ai = await r4.json();
-            setOcrResult(ai);
-            if ((ai === null || ai === void 0 ? void 0 : ai.type) && (ai === null || ai === void 0 ? void 0 : (_ai_eleve = ai.eleve) === null || _ai_eleve === void 0 ? void 0 : _ai_eleve.nom) && (ai === null || ai === void 0 ? void 0 : (_ai_eleve1 = ai.eleve) === null || _ai_eleve1 === void 0 ? void 0 : _ai_eleve1.prénom)) {
-                const safeType = ai.type.replace(/[^a-zA-Z0-9_]/g, "_");
-                const safeNom = ai.eleve.nom.replace(/[^a-zA-Z0-9_]/g, "_");
-                const safePrenom = ai.eleve.prénom.replace(/[^a-zA-Z0-9_]/g, "_");
-                const newFileName = "".concat(safeType, "_").concat(safeNom, "_").concat(safePrenom, ".pdf");
+            // Utiliser le fileName généré par Mistral
+            if ((ai === null || ai === void 0 ? void 0 : ai.fileName) && (ai === null || ai === void 0 ? void 0 : (_ai_eleve = ai.eleve) === null || _ai_eleve === void 0 ? void 0 : _ai_eleve.nom) && (ai === null || ai === void 0 ? void 0 : (_ai_eleve1 = ai.eleve) === null || _ai_eleve1 === void 0 ? void 0 : _ai_eleve1.prénom)) {
+                const newFileName = "".concat(ai.fileName, ".pdf");
                 const accessToken = await getAccessToken();
                 const uploadPath = currentFolderPath ? "".concat(currentFolderPath, "/").concat(newFileName) : newFileName;
                 const fileRes = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/".concat(uploadPath, ":/content"), {
@@ -245,15 +267,52 @@ function OneDriveTest() {
                     body: file
                 });
                 if (!fileRes.ok) throw new Error("Erreur upload OneDrive : " + await fileRes.text());
-                await fetchFiles(accessToken, currentFolder, currentFolderPath);
-                alert("Analyse terminée et fichier renommé uploadé !");
-            } else {
-                alert("Analyse terminée, mais impossible de récupérer type/nom/prénom pour le renommage.");
             }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return {
+                success: true,
+                result: ai,
+                fileName: file.name
+            };
+        } catch (err) {
+            console.error("Erreur pour ".concat(file.name, ":"), err);
+            return {
+                success: false,
+                error: err.message,
+                fileName: file.name
+            };
+        }
+    };
+    // Fonction pour gérer plusieurs fichiers
+    const handleMultipleOcrUploadAndAnalyse = async (fileList)=>{
+        if (!fileList || fileList.length === 0) return;
+        const filesArray = Array.from(fileList);
+        try {
+            setOcrProcessing(true);
+            setError("");
+            setOcrResults([]);
+            setProcessingStatus({
+                total: filesArray.length,
+                completed: 0,
+                failed: 0
+            });
+            // Traiter par lots de 2 documents à la fois pour AWS Textract
+            const results = await processInBatches(filesArray, 2, processSingleFile);
+            // Compter les succès et échecs
+            const completed = results.filter((r)=>r.success).length;
+            const failed = results.filter((r)=>!r.success).length;
+            setProcessingStatus({
+                total: filesArray.length,
+                completed,
+                failed
+            });
+            setOcrResults(results);
+            // Rafraîchir la liste des fichiers OneDrive
+            const accessToken = await getAccessToken();
+            await fetchFiles(accessToken, currentFolder, currentFolderPath);
+            alert("Traitement terminé!\n✅ Réussis: ".concat(completed, "\n❌ Échecs: ").concat(failed));
         } catch (err) {
             console.error(err);
-            setError("Erreur OCR / Analyse: " + err.message);
+            setError("Erreur globale OCR / Analyse: " + err.message);
         } finally{
             setOcrProcessing(false);
         }
@@ -266,7 +325,7 @@ function OneDriveTest() {
                 children: "Mon OneDrive"
             }, void 0, false, {
                 fileName: "[project]/app/onedrive/page.tsx",
-                lineNumber: 219,
+                lineNumber: 303,
                 columnNumber: 7
             }, this),
             error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -274,7 +333,7 @@ function OneDriveTest() {
                 children: error
             }, void 0, false, {
                 fileName: "[project]/app/onedrive/page.tsx",
-                lineNumber: 220,
+                lineNumber: 304,
                 columnNumber: 17
             }, this),
             !account ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -283,7 +342,7 @@ function OneDriveTest() {
                 children: "Se connecter à OneDrive"
             }, void 0, false, {
                 fileName: "[project]/app/onedrive/page.tsx",
-                lineNumber: 222,
+                lineNumber: 307,
                 columnNumber: 9
             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                 children: [
@@ -302,18 +361,18 @@ function OneDriveTest() {
                                     }
                                 }, void 0, false, {
                                     fileName: "[project]/app/onedrive/page.tsx",
-                                    lineNumber: 228,
+                                    lineNumber: 315,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/onedrive/page.tsx",
-                            lineNumber: 226,
+                            lineNumber: 313,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 225,
+                        lineNumber: 312,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -322,46 +381,118 @@ function OneDriveTest() {
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                                 className: "p-2 bg-purple-500 text-white rounded cursor-pointer",
                                 children: [
-                                    "Envoyer pour OCR + Analyse",
+                                    "Envoyer plusieurs fichiers pour OCR + Analyse",
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                                         type: "file",
                                         className: "hidden",
-                                        onChange: (e)=>{
-                                            var _e_target_files;
-                                            return ((_e_target_files = e.target.files) === null || _e_target_files === void 0 ? void 0 : _e_target_files[0]) && handleOcrUploadAndAnalyse(e.target.files[0]);
-                                        },
+                                        multiple: true,
+                                        onChange: (e)=>handleMultipleOcrUploadAndAnalyse(e.target.files),
                                         disabled: ocrProcessing
                                     }, void 0, false, {
                                         fileName: "[project]/app/onedrive/page.tsx",
-                                        lineNumber: 238,
+                                        lineNumber: 326,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 236,
+                                lineNumber: 324,
                                 columnNumber: 13
                             }, this),
-                            ocrProcessing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                className: "ml-2",
-                                children: "Traitement en cours…"
-                            }, void 0, false, {
+                            ocrProcessing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "ml-2 flex items-center gap-2",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        children: "Traitement en cours…"
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/onedrive/page.tsx",
+                                        lineNumber: 336,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "text-sm text-gray-600",
+                                        children: [
+                                            "(",
+                                            processingStatus.completed + processingStatus.failed,
+                                            "/",
+                                            processingStatus.total,
+                                            ")"
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/app/onedrive/page.tsx",
+                                        lineNumber: 337,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, void 0, true, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 245,
-                                columnNumber: 31
+                                lineNumber: 335,
+                                columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 235,
+                        lineNumber: 323,
                         columnNumber: 11
                     }, this),
-                    ocrResult && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
-                        className: "text-sm bg-gray-100 p-2 rounded mt-2",
-                        children: JSON.stringify(ocrResult, null, 2)
-                    }, void 0, false, {
+                    ocrResults.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "mb-4",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
+                                className: "font-bold mb-2",
+                                children: "Résultats du traitement:"
+                            }, void 0, false, {
+                                fileName: "[project]/app/onedrive/page.tsx",
+                                lineNumber: 346,
+                                columnNumber: 15
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "space-y-2 max-h-96 overflow-y-auto",
+                                children: ocrResults.map((result, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        className: "p-3 rounded ".concat(result.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'),
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: "font-semibold flex items-center gap-2",
+                                                children: [
+                                                    result.success ? '✅' : '❌',
+                                                    " ",
+                                                    result.fileName
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/app/onedrive/page.tsx",
+                                                lineNumber: 353,
+                                                columnNumber: 21
+                                            }, this),
+                                            result.success ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
+                                                className: "text-xs bg-white p-2 rounded mt-2 overflow-x-auto",
+                                                children: JSON.stringify(result.result, null, 2)
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/onedrive/page.tsx",
+                                                lineNumber: 357,
+                                                columnNumber: 23
+                                            }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                className: "text-red-600 text-sm mt-1",
+                                                children: result.error
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/onedrive/page.tsx",
+                                                lineNumber: 361,
+                                                columnNumber: 23
+                                            }, this)
+                                        ]
+                                    }, index, true, {
+                                        fileName: "[project]/app/onedrive/page.tsx",
+                                        lineNumber: 349,
+                                        columnNumber: 19
+                                    }, this))
+                            }, void 0, false, {
+                                fileName: "[project]/app/onedrive/page.tsx",
+                                lineNumber: 347,
+                                columnNumber: 15
+                            }, this)
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 248,
+                        lineNumber: 345,
                         columnNumber: 13
                     }, this),
                     currentFolderPath && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -374,7 +505,7 @@ function OneDriveTest() {
                         children: "← Revenir à la racine"
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 253,
+                        lineNumber: 370,
                         columnNumber: 13
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -389,12 +520,12 @@ function OneDriveTest() {
                                 ]
                             }, f.id || f.name, true, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 261,
+                                lineNumber: 384,
                                 columnNumber: 15
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 259,
+                        lineNumber: 382,
                         columnNumber: 11
                     }, this)
                 ]
@@ -402,14 +533,14 @@ function OneDriveTest() {
         ]
     }, void 0, true, {
         fileName: "[project]/app/onedrive/page.tsx",
-        lineNumber: 218,
+        lineNumber: 302,
         columnNumber: 5
     }, this);
 }
-_s(OneDriveTest, "tHfmFqnEWhScpEJyB9F6GypAGSc=");
-_c = OneDriveTest;
+_s(OneDriveUpDocsOCRAI, "OWf9f05EcjInGiW1c2T12S/X7U0=");
+_c = OneDriveUpDocsOCRAI;
 var _c;
-__turbopack_context__.k.register(_c, "OneDriveTest");
+__turbopack_context__.k.register(_c, "OneDriveUpDocsOCRAI");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }

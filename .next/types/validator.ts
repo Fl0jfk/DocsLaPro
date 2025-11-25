@@ -434,6 +434,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/google/callback/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/google/callback">> = Specific
+  const handler = {} as typeof import("../../app/api/google/callback/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/google/gettokens/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/google/gettokens">> = Specific
+  const handler = {} as typeof import("../../app/api/google/gettokens/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/google/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/google">> = Specific
+  const handler = {} as typeof import("../../app/api/google/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/inventory/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/inventory">> = Specific

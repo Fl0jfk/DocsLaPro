@@ -3,6 +3,7 @@
 import RollingSlider from "./components/Slider/RollingSlider";
 import { useData } from "@/app/contexts/data";
 import { useUser, SignedOut, SignInButton } from "@clerk/nextjs";
+import GoogleAgenda from "./components/GoogleAgenda/GoogleAgenda";
 
 export default function Home() {
   const { isLoaded, user } = useUser();
@@ -29,6 +30,7 @@ export default function Home() {
   const uniqueCategories = Array.from( new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values());
   return (
     <main className="flex flex-col w-full text-xl sm:pt-[5vh]">
+      <GoogleAgenda/>
       {uniqueCategories.length > 0 && (
         <RollingSlider categories={uniqueCategories} />
       )}

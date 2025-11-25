@@ -27,7 +27,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 const isDev = ("TURBOPACK compile-time value", "development") !== "production";
 const ContentSecurityPolicy = `
-  default-src 'self';
+  default-src 'self'
+  https://login.microsoftonline.com/;
   connect-src 'self'
     https://docslapro.s3.eu-west-3.amazonaws.com
     https://clerk-telemetry.com
@@ -35,6 +36,7 @@ const ContentSecurityPolicy = `
     https://api.stripe.com
     https://maps.googleapis.com
     https://clerk.docslapro.com
+    https://www.googleapis.com
     https://accounts.docslapro.com
     genuine-wildcat-70.clerk.accounts.dev
     https://login.microsoftonline.com

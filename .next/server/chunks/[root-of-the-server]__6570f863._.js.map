@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"","debugId":null}},
+    {"offset": {"line": 55, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/f.hacqueville/OneDrive%20-%20LYCEE%20LA%20PROVIDENCE%20NICOLAS%20BARRE/Code/docsLaPro/app/api/google/route.ts"],"sourcesContent":["import { NextResponse } from \"next/server\";\r\n\r\nexport async function GET() {\r\n  const redirectUri = encodeURIComponent(process.env.GOOGLE_REDIRECT_URI!);\r\n  const clientId = process.env.GOOGLE_CLIENT_ID!;\r\n  const scope = encodeURIComponent(process.env.GOOGLE_SCOPES!);\r\n\r\n  const url =\r\n    `https://accounts.google.com/o/oauth2/v2/auth?` +\r\n    `client_id=${clientId}` +\r\n    `&redirect_uri=${redirectUri}` +\r\n    `&response_type=code` +\r\n    `&access_type=offline` + \r\n    `&prompt=consent` +     \r\n    `&scope=${scope}`;\r\n\r\n  return NextResponse.redirect(url);\r\n}\r\n"],"names":[],"mappings":";;;;AAAA;;AAEO,eAAe;IACpB,MAAM,cAAc,mBAAmB,QAAQ,GAAG,CAAC,mBAAmB;IACtE,MAAM,WAAW,QAAQ,GAAG,CAAC,gBAAgB;IAC7C,MAAM,QAAQ,mBAAmB,QAAQ,GAAG,CAAC,aAAa;IAE1D,MAAM,MACJ,CAAC,6CAA6C,CAAC,GAC/C,CAAC,UAAU,EAAE,UAAU,GACvB,CAAC,cAAc,EAAE,aAAa,GAC9B,CAAC,mBAAmB,CAAC,GACrB,CAAC,oBAAoB,CAAC,GACtB,CAAC,eAAe,CAAC,GACjB,CAAC,OAAO,EAAE,OAAO;IAEnB,OAAO,gJAAY,CAAC,QAAQ,CAAC;AAC/B","debugId":null}}]
+}

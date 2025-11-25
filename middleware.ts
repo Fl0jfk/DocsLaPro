@@ -13,6 +13,7 @@ const ContentSecurityPolicy = `
     https://api.stripe.com
     https://maps.googleapis.com
     https://clerk.docslapro.com
+    https://www.googleapis.com
     https://accounts.docslapro.com
     genuine-wildcat-70.clerk.accounts.dev
     https://login.microsoftonline.com
