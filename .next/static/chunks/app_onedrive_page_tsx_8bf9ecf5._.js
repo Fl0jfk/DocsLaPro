@@ -26,6 +26,7 @@ const msalInstance = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
 function OneDriveUpDocsOCRAI() {
     _s();
     const [account, setAccount] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [accessToken, setAccessToken] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [files, setFiles] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [error, setError] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
@@ -40,6 +41,9 @@ function OneDriveUpDocsOCRAI() {
         completed: 0,
         failed: 0
     });
+    const [pendingFiles, setPendingFiles] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [isDragging, setIsDragging] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const multiInputRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "OneDriveUpDocsOCRAI.useEffect": ()=>{
             const init = {
@@ -50,8 +54,15 @@ function OneDriveUpDocsOCRAI() {
                         const accounts = msalInstance.getAllAccounts();
                         if (accounts.length > 0) {
                             setAccount(accounts[0]);
-                            const token = await getAccessToken(accounts[0]);
-                            fetchFiles(token, null, "");
+                            const tokenResponse = await msalInstance.acquireTokenSilent({
+                                account: accounts[0],
+                                scopes: [
+                                    "Files.ReadWrite",
+                                    "User.Read"
+                                ]
+                            });
+                            setAccessToken(tokenResponse.accessToken);
+                            await fetchFiles(tokenResponse.accessToken, null, "");
                         }
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } catch (err) {
@@ -71,8 +82,15 @@ function OneDriveUpDocsOCRAI() {
                         const result = await msalInstance.handleRedirectPromise();
                         if (result === null || result === void 0 ? void 0 : result.account) {
                             setAccount(result.account);
-                            const token = await getAccessToken(result.account);
-                            fetchFiles(token, null, "");
+                            const tokenResponse = await msalInstance.acquireTokenSilent({
+                                account: result.account,
+                                scopes: [
+                                    "Files.ReadWrite",
+                                    "User.Read"
+                                ]
+                            });
+                            setAccessToken(tokenResponse.accessToken);
+                            await fetchFiles(tokenResponse.accessToken, null, "");
                         }
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } catch (err) {
@@ -102,24 +120,12 @@ function OneDriveUpDocsOCRAI() {
             setError("Erreur login: " + err.message);
         }
     };
-    const getAccessToken = async (acc)=>{
-        const usedAccount = acc || account;
-        if (!usedAccount) throw new Error("Aucun compte connecté");
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-            account: usedAccount,
-            scopes: [
-                "Files.ReadWrite",
-                "User.Read"
-            ]
-        });
-        return tokenResponse.accessToken;
-    };
-    const fetchFiles = async (accessToken, folderId, folderPath)=>{
+    const fetchFiles = async (token, folderId, folderPath)=>{
         try {
             const url = folderId ? "https://graph.microsoft.com/v1.0/me/drive/items/".concat(folderId, "/children") : folderPath ? "https://graph.microsoft.com/v1.0/me/drive/root:/".concat(folderPath, ":/children") : "https://graph.microsoft.com/v1.0/me/drive/root/children";
             const res = await fetch(url, {
                 headers: {
-                    Authorization: "Bearer ".concat(accessToken)
+                    Authorization: "Bearer ".concat(token)
                 }
             });
             if (!res.ok) throw new Error(await res.text());
@@ -133,9 +139,8 @@ function OneDriveUpDocsOCRAI() {
         }
     };
     const handleUpload = async (file)=>{
-        if (!file || !account) return;
+        if (!file || !account || !msalReady || !accessToken) return;
         try {
-            const accessToken = await getAccessToken();
             const uploadPath = currentFolderPath ? "".concat(currentFolderPath, "/").concat(file.name) : file.name;
             const res = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/".concat(uploadPath, ":/content"), {
                 method: "PUT",
@@ -155,11 +160,10 @@ function OneDriveUpDocsOCRAI() {
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const openFile = async (file)=>{
-        if (file.folder) {
-            const token = await getAccessToken();
+        if (file.folder && accessToken) {
             const newPath = currentFolderPath ? "".concat(currentFolderPath, "/").concat(file.name) : file.name;
-            fetchFiles(token, file.id, newPath);
-        } else {
+            await fetchFiles(accessToken, file.id, newPath);
+        } else if (!file.folder) {
             window.open(file.webUrl, "_blank");
         }
     };
@@ -187,7 +191,9 @@ function OneDriveUpDocsOCRAI() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const processSingleFile = async (file)=>{
         try {
-            var _ai_eleve, _ai_eleve1;
+            if (!accessToken) {
+                throw new Error("Pas de token OneDrive disponible");
+            }
             const r1 = await fetch("/api/upload-url", {
                 method: "POST",
                 headers: {
@@ -203,11 +209,23 @@ function OneDriveUpDocsOCRAI() {
             const upload = await fetch(url, {
                 method: "PUT",
                 headers: {
-                    "Content-Type": file.type
+                    "Content-Type": file.type || "application/pdf"
                 },
                 body: file
             });
             if (!upload.ok) throw new Error("Échec upload S3 : " + await upload.text());
+            const tempPath = "Temp/".concat(file.name);
+            const odRes = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/".concat(tempPath, ":/content"), {
+                method: "PUT",
+                headers: {
+                    Authorization: "Bearer ".concat(accessToken),
+                    "Content-Type": file.type || "application/pdf"
+                },
+                body: file
+            });
+            if (!odRes.ok) {
+                throw new Error("Échec upload OneDrive Temp : " + await odRes.text());
+            }
             const r2 = await fetch("/api/ocr-process", {
                 method: "POST",
                 headers: {
@@ -255,19 +273,33 @@ function OneDriveUpDocsOCRAI() {
             });
             if (!r4.ok) throw new Error(await r4.text());
             const ai = await r4.json();
-            if ((ai === null || ai === void 0 ? void 0 : ai.fileName) && (ai === null || ai === void 0 ? void 0 : (_ai_eleve = ai.eleve) === null || _ai_eleve === void 0 ? void 0 : _ai_eleve.nom) && (ai === null || ai === void 0 ? void 0 : (_ai_eleve1 = ai.eleve) === null || _ai_eleve1 === void 0 ? void 0 : _ai_eleve1.prénom)) {
+            if (ai === null || ai === void 0 ? void 0 : ai.fileName) {
                 const newFileName = "".concat(ai.fileName, ".pdf");
-                const accessToken = await getAccessToken();
-                const uploadPath = currentFolderPath ? "".concat(currentFolderPath, "/").concat(newFileName) : newFileName;
-                const fileRes = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/".concat(uploadPath, ":/content"), {
-                    method: "PUT",
+                const sourcePath = "Temp/".concat(file.name);
+                const targetFolderPath = ai.oneDriveFolderPath || null;
+                if (!targetFolderPath) {
+                    return {
+                        success: false,
+                        error: "Aucun élève trouvé de manière fiable, veuillez ranger ce document manuellement.",
+                        fileName: file.name,
+                        result: ai
+                    };
+                }
+                const moveRes = await fetch("/api/move-file", {
+                    method: "POST",
                     headers: {
-                        Authorization: "Bearer ".concat(accessToken),
-                        "Content-Type": file.type || "application/pdf"
+                        "Content-Type": "application/json"
                     },
-                    body: file
+                    body: JSON.stringify({
+                        accessToken,
+                        sourcePath,
+                        targetFolderPath,
+                        newFileName
+                    })
                 });
-                if (!fileRes.ok) throw new Error("Erreur upload OneDrive : " + await fileRes.text());
+                if (!moveRes.ok) {
+                    throw new Error("Erreur le fichier n'a pas pu être déplacé, aucun dossier élèves ne correspond.: " + await moveRes.text());
+                }
             }
             return {
                 success: true,
@@ -276,7 +308,6 @@ function OneDriveUpDocsOCRAI() {
             };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
-            console.error("Erreur pour ".concat(file.name, ":"), err);
             return {
                 success: false,
                 error: err.message,
@@ -284,38 +315,111 @@ function OneDriveUpDocsOCRAI() {
             };
         }
     };
-    const handleMultipleOcrUploadAndAnalyse = async (fileList)=>{
-        if (!fileList || fileList.length === 0) return;
-        const filesArray = Array.from(fileList);
+    const enqueueFiles = (fileList)=>{
+        if (!msalReady || !account || !accessToken) {
+            setError("Vous devez être connecté à OneDrive avant d'envoyer des fichiers.");
+            return;
+        }
+        const arr = Array.from(fileList);
+        setPendingFiles((prev)=>[
+                ...prev,
+                ...arr
+            ]);
+    };
+    const processQueue = async ()=>{
+        if (ocrProcessing) return;
+        if (pendingFiles.length === 0) return;
+        if (!msalReady || !account || !accessToken) return;
+        const filesToProcess = pendingFiles;
+        setPendingFiles([]);
+        setOcrProcessing(true);
+        setError("");
+        setOcrResults([]);
+        setProcessingStatus({
+            total: filesToProcess.length,
+            completed: 0,
+            failed: 0
+        });
         try {
-            setOcrProcessing(true);
-            setError("");
-            setOcrResults([]);
-            setProcessingStatus({
-                total: filesArray.length,
-                completed: 0,
-                failed: 0
-            });
-            const results = await processInBatches(filesArray, 2, processSingleFile);
+            const results = await processInBatches(filesToProcess, 2, processSingleFile);
             const completed = results.filter((r)=>r.success).length;
             const failed = results.filter((r)=>!r.success).length;
             setProcessingStatus({
-                total: filesArray.length,
+                total: filesToProcess.length,
                 completed,
                 failed
             });
             setOcrResults(results);
-            const accessToken = await getAccessToken();
             await fetchFiles(accessToken, currentFolder, currentFolderPath);
             alert("Traitement terminé!\n✅ Réussis: ".concat(completed, "\n❌ Échecs: ").concat(failed));
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err) {
-            console.error(err);
             setError("Erreur globale OCR / Analyse: " + err.message);
         } finally{
             setOcrProcessing(false);
+            if (multiInputRef.current) {
+                multiInputRef.current.value = "";
+            }
         }
     };
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "OneDriveUpDocsOCRAI.useEffect": ()=>{
+            if (!ocrProcessing && pendingFiles.length > 0 && msalReady && account && accessToken) {
+                processQueue();
+            }
+        }
+    }["OneDriveUpDocsOCRAI.useEffect"], [
+        pendingFiles,
+        ocrProcessing,
+        msalReady,
+        account,
+        accessToken
+    ]);
+    const handleDrop = (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            enqueueFiles(e.dataTransfer.files);
+        }
+    };
+    const handleDragOver = (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+    const handleDragLeave = (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+    if (!msalReady) {
+        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+            className: "p-4 max-w-[80%] mx-auto",
+            children: [
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                    className: "text-2xl font-bold mb-4",
+                    children: "Mon OneDrive"
+                }, void 0, false, {
+                    fileName: "[project]/app/onedrive/page.tsx",
+                    lineNumber: 308,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                    children: "Initialisation de MSAL…"
+                }, void 0, false, {
+                    fileName: "[project]/app/onedrive/page.tsx",
+                    lineNumber: 309,
+                    columnNumber: 9
+                }, this)
+            ]
+        }, void 0, true, {
+            fileName: "[project]/app/onedrive/page.tsx",
+            lineNumber: 307,
+            columnNumber: 7
+        }, this);
+    }
+    const dropDisabled = !account || !accessToken || ocrProcessing;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "p-4 max-w-[80%] mx-auto",
         children: [
@@ -324,7 +428,7 @@ function OneDriveUpDocsOCRAI() {
                 children: "Mon OneDrive"
             }, void 0, false, {
                 fileName: "[project]/app/onedrive/page.tsx",
-                lineNumber: 268,
+                lineNumber: 316,
                 columnNumber: 7
             }, this),
             error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -332,17 +436,17 @@ function OneDriveUpDocsOCRAI() {
                 children: error
             }, void 0, false, {
                 fileName: "[project]/app/onedrive/page.tsx",
-                lineNumber: 269,
+                lineNumber: 317,
                 columnNumber: 17
             }, this),
             !account ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                 onClick: login,
                 className: "p-2 bg-blue-600 text-white rounded mt-2",
-                children: "Se connecter à OneDrive"
+                children: " Se connecter à OneDrive"
             }, void 0, false, {
                 fileName: "[project]/app/onedrive/page.tsx",
-                lineNumber: 271,
-                columnNumber: 9
+                lineNumber: 318,
+                columnNumber: 21
             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -360,78 +464,114 @@ function OneDriveUpDocsOCRAI() {
                                     }
                                 }, void 0, false, {
                                     fileName: "[project]/app/onedrive/page.tsx",
-                                    lineNumber: 276,
+                                    lineNumber: 323,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/onedrive/page.tsx",
-                            lineNumber: 275,
+                            lineNumber: 322,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 274,
+                        lineNumber: 321,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "flex gap-2 mb-4",
+                        className: "mb-4",
                         children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                className: "p-2 bg-purple-500 text-white rounded cursor-pointer",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: " border-2 border-dashed rounded p-4 text-center cursor-pointer transition".concat(isDragging ? "border-purple-600 bg-purple-50" : "border-purple-300 bg-white").concat(dropDisabled ? "opacity-50 cursor-not-allowed" : ""),
+                                onDragOver: dropDisabled ? undefined : handleDragOver,
+                                onDragLeave: dropDisabled ? undefined : handleDragLeave,
+                                onDrop: dropDisabled ? undefined : handleDrop,
+                                onClick: ()=>{
+                                    var _multiInputRef_current;
+                                    return !dropDisabled && ((_multiInputRef_current = multiInputRef.current) === null || _multiInputRef_current === void 0 ? void 0 : _multiInputRef_current.click());
+                                },
                                 children: [
-                                    "Envoyer plusieurs fichiers pour OCR + Analyse",
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                        type: "file",
-                                        className: "hidden",
-                                        multiple: true,
-                                        onChange: (e)=>handleMultipleOcrUploadAndAnalyse(e.target.files),
-                                        disabled: ocrProcessing
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        className: "font-semibold text-purple-700",
+                                        children: "  Glissez-déposez vos PDF ici"
                                     }, void 0, false, {
                                         fileName: "[project]/app/onedrive/page.tsx",
-                                        lineNumber: 281,
+                                        lineNumber: 333,
                                         columnNumber: 15
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 280,
-                                columnNumber: 13
-                            }, this),
-                            ocrProcessing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "ml-2 flex items-center gap-2",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        children: "Traitement en cours…"
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        className: "text-xs text-gray-500",
+                                        children: "ou cliquez pour sélectionner des fichiers (OCR + Analyse)"
                                     }, void 0, false, {
                                         fileName: "[project]/app/onedrive/page.tsx",
-                                        lineNumber: 291,
+                                        lineNumber: 334,
+                                        columnNumber: 15
+                                    }, this),
+                                    dropDisabled && !ocrProcessing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        className: "mt-2 text-sm text-red-500",
+                                        children: "Connectez-vous à OneDrive pour activer l'envoi."
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/onedrive/page.tsx",
+                                        lineNumber: 336,
                                         columnNumber: 17
                                     }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "text-sm text-gray-600",
+                                    ocrProcessing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        className: "mt-2 text-sm text-gray-600",
                                         children: [
-                                            "(",
+                                            "Traitement en cours… (",
                                             processingStatus.completed + processingStatus.failed,
                                             "/",
                                             processingStatus.total,
-                                            ")"
+                                            ")",
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("br", {}, void 0, false, {
+                                                fileName: "[project]/app/onedrive/page.tsx",
+                                                lineNumber: 340,
+                                                columnNumber: 19
+                                            }, this),
+                                            "Vous pourrez ajouter d'autres fichiers une fois ce batch terminé."
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/onedrive/page.tsx",
-                                        lineNumber: 292,
+                                        lineNumber: 339,
+                                        columnNumber: 17
+                                    }, this),
+                                    pendingFiles.length > 0 && !ocrProcessing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        className: "mt-2 text-sm text-gray-600",
+                                        children: [
+                                            pendingFiles.length,
+                                            " fichier(s) en attente de traitement"
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/app/onedrive/page.tsx",
+                                        lineNumber: 344,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 290,
-                                columnNumber: 15
+                                lineNumber: 327,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                ref: multiInputRef,
+                                type: "file",
+                                className: "hidden",
+                                multiple: true,
+                                onChange: (e)=>{
+                                    if (e.target.files) {
+                                        enqueueFiles(e.target.files);
+                                        e.target.value = "";
+                                    }
+                                }
+                            }, void 0, false, {
+                                fileName: "[project]/app/onedrive/page.tsx",
+                                lineNumber: 347,
+                                columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 279,
+                        lineNumber: 326,
                         columnNumber: 11
                     }, this),
                     ocrResults.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -442,24 +582,24 @@ function OneDriveUpDocsOCRAI() {
                                 children: "Résultats du traitement:"
                             }, void 0, false, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 301,
+                                lineNumber: 351,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 className: "space-y-2 max-h-96 overflow-y-auto",
                                 children: ocrResults.map((result, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "p-3 rounded ".concat(result.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'),
+                                        className: "p-3 rounded ".concat(result.success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"),
                                         children: [
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "font-semibold flex items-center gap-2",
                                                 children: [
-                                                    result.success ? '✅' : '❌',
+                                                    result.success ? "✅" : "❌",
                                                     " ",
                                                     result.fileName
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/onedrive/page.tsx",
-                                                lineNumber: 308,
+                                                lineNumber: 355,
                                                 columnNumber: 21
                                             }, this),
                                             result.success ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
@@ -467,44 +607,43 @@ function OneDriveUpDocsOCRAI() {
                                                 children: JSON.stringify(result.result, null, 2)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/onedrive/page.tsx",
-                                                lineNumber: 312,
+                                                lineNumber: 357,
                                                 columnNumber: 23
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-red-600 text-sm mt-1",
                                                 children: result.error
                                             }, void 0, false, {
                                                 fileName: "[project]/app/onedrive/page.tsx",
-                                                lineNumber: 316,
+                                                lineNumber: 359,
                                                 columnNumber: 23
                                             }, this)
                                         ]
                                     }, index, true, {
                                         fileName: "[project]/app/onedrive/page.tsx",
-                                        lineNumber: 304,
+                                        lineNumber: 354,
                                         columnNumber: 19
                                     }, this))
                             }, void 0, false, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 302,
+                                lineNumber: 352,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 300,
+                        lineNumber: 350,
                         columnNumber: 13
                     }, this),
-                    currentFolderPath && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                    currentFolderPath && accessToken && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                         onClick: async ()=>{
-                            const token = await getAccessToken();
-                            const parentPath = currentFolderPath.split("/").slice(0, -1).join("");
-                            fetchFiles(token, null, parentPath);
+                            const parentPath = currentFolderPath.split("/").slice(0, -1).join("/");
+                            await fetchFiles(accessToken, null, parentPath);
                         },
                         className: "mb-2 text-blue-500 underline",
                         children: "← Revenir à la racine"
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 325,
+                        lineNumber: 367,
                         columnNumber: 13
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -519,12 +658,12 @@ function OneDriveUpDocsOCRAI() {
                                 ]
                             }, f.id || f.name, true, {
                                 fileName: "[project]/app/onedrive/page.tsx",
-                                lineNumber: 339,
+                                lineNumber: 371,
                                 columnNumber: 15
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/app/onedrive/page.tsx",
-                        lineNumber: 337,
+                        lineNumber: 369,
                         columnNumber: 11
                     }, this)
                 ]
@@ -532,11 +671,11 @@ function OneDriveUpDocsOCRAI() {
         ]
     }, void 0, true, {
         fileName: "[project]/app/onedrive/page.tsx",
-        lineNumber: 267,
+        lineNumber: 315,
         columnNumber: 5
     }, this);
 }
-_s(OneDriveUpDocsOCRAI, "OWf9f05EcjInGiW1c2T12S/X7U0=");
+_s(OneDriveUpDocsOCRAI, "OG9g6iO+HJEW5adYlF1B5CZeSbs=");
 _c = OneDriveUpDocsOCRAI;
 var _c;
 __turbopack_context__.k.register(_c, "OneDriveUpDocsOCRAI");

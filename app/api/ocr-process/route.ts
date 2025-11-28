@@ -7,7 +7,7 @@ const textract = new TextractClient({
   credentials: {
     accessKeyId: process.env.ACCESS_KEY_ID!,
     secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
+  }
 });
 
 export async function POST(req: Request) {
@@ -18,11 +18,10 @@ export async function POST(req: Request) {
     const { key } = await req.json();
     if (!key) return NextResponse.json({ error: 'key requis' }, { status: 400 });
     const bucket = process.env.BUCKET_NAME!;
-    const command = new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object: { Bucket: bucket, Name: key } },});
+    const command = new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object: { Bucket: bucket, Name: key } }});
     const result = await textract.send(command);
     return NextResponse.json({ jobId: result.JobId, key });
   } catch (error) {
-    console.error('Erreur lancement Textract:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

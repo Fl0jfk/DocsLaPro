@@ -1,6 +1,8 @@
 {
   "/api/analyze-doc/route": "app/api/analyze-doc/route.js",
   "/api/google/gettokens/route": "app/api/google/gettokens/route.js",
+  "/api/match-eleve/route": "app/api/match-eleve/route.js",
+  "/api/move-file/route": "app/api/move-file/route.js",
   "/api/ocr-process/route": "app/api/ocr-process/route.js",
   "/api/ocr-result/route": "app/api/ocr-result/route.js",
   "/api/upload-url/route": "app/api/upload-url/route.js",

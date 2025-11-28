@@ -1,36 +1,47 @@
 import { NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { getAuth, currentUser } from '@clerk/nextjs/server';
+
+const USER_ONEDRIVE_BASES: Record<string, string> = {"HACQUEVILLE-MATHI": "Dossier élèves/Lycée","VILLIER": "Dossier élèves/Collège","LEBLOND": "Dossier élèves/École"};
 
 export async function POST(req: Request) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
-    if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    if (!userId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+    const user = await currentUser();
+    const lastName = (user?.lastName || "").toUpperCase();
     const { text } = await req.json();
-    if (!text) return NextResponse.json({ error: 'text requis' }, { status: 400 });
+    if (!text) { return NextResponse.json({ error: 'text requis' }, { status: 400 })}
     const extractionPrompt = `
 Analyse ce document scolaire et extrais UNIQUEMENT les informations suivantes si elles sont clairement présentes dans le texte :
 - Type de document (bulletin, relevé de notes, certificat de scolarité, diplôme, bac, etc.)
 - Nom de famille de l'élève
 - Prénom de l'élève
+- INE de l'élève (identifiant national élève), si présent
+- Date de naissance de l'élève (si présente)
 - Classe ou niveau (si mentionné)
 - Période (trimestre 1/2/3, semestre 1/2, année scolaire, etc.)
-
 Si une information n'est PAS présente dans le document, écris exactement "non_trouvé" pour ce champ.
 Ne devine JAMAIS, n'invente JAMAIS.
-
 IMPORTANT : Réponds UNIQUEMENT avec du JSON valide, sans aucun commentaire, remarque, note explicative, ou texte supplémentaire.
 Pas de markdown, pas de \`\`\`json, pas de notes entre parenthèses, pas de remarques après les valeurs.
-
 Texte du document :
 ---
 ${text}
 ---
-
 Format de réponse (JSON uniquement) :
-{"type":"...","nom":"...","prénom":"...","classe":"...","période":"..."}
+{
+  "type": "...",
+  "nom": "...",
+  "prénom": "...",
+  "ine": "...",
+  "date_naissance": "...",
+  "classe": "...",
+  "période": "..."
+}
     `;
-    
     const extractionResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -55,19 +66,24 @@ Format de réponse (JSON uniquement) :
     extractionResult = extractionResult.replace(/`{3}/g, '');
     extractionResult = extractionResult.replace(/\n/g, ' ');
     extractionResult = extractionResult.trim();
-    extractionResult = extractionResult.replace(/\/\*[\s\S]*?\*\//g, "")
-                                      .replace(/\/\/.*/g, "")
-                                      .replace(/,\s*\*\(.*?\)\*/g, "");
+    extractionResult = extractionResult
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*/g, '')
+      .replace(/,\s*\*\(.*?\)\*/g, '');
     const jsonStartIndex = extractionResult.indexOf('{');
     const jsonEndIndex = extractionResult.lastIndexOf('}');
     if (jsonStartIndex === -1 || jsonEndIndex === -1) {
-      return NextResponse.json({
-        error: "Aucun JSON trouvé dans la réponse",
-        brut: extractionResult
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: "Aucun JSON trouvé dans la réponse",
+          brut: extractionResult
+        },
+        { status: 500 }
+      );
     }
     const cleanJson = extractionResult.substring(jsonStartIndex, jsonEndIndex + 1);
-    let extracted;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let extracted: any;
     try {
       extracted = JSON.parse(cleanJson);
     } catch (parseError) {
@@ -78,20 +94,55 @@ Format de réponse (JSON uniquement) :
       try {
         extracted = JSON.parse(superCleanJson);
       } catch {
-        return NextResponse.json({ 
-          error: "JSON invalide après extraction", 
-          brut: extractionResult,
-          cleaned: cleanJson,
-          parseError: String(parseError)
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "JSON invalide après extraction",
+            brut: extractionResult,
+            cleaned: cleanJson,
+            parseError: String(parseError)
+          },
+          { status: 500 }
+        );
       }
+    }
+    let oneDriveFolderPath: string | null = null;
+    let matchedEleve: { ine: string; nom: string; prenom: string; folderName: string } | null = null;
+    try {
+      const matchRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}api/match-eleve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clerkUserId: userId,
+          ine: extracted.ine,
+          nom: extracted.nom,
+          prénom: extracted.prénom,
+          texteDocument: text,
+        }),
+      });
+      if (matchRes.ok) {
+        const matchData = await matchRes.json();
+        matchedEleve = matchData.eleve || null;
+        if (matchedEleve?.folderName) {
+          const userBase =
+            (lastName && USER_ONEDRIVE_BASES[lastName]) || "Dossier élèves/Lycée";
+          oneDriveFolderPath = `${userBase}/${matchedEleve.folderName}`;
+        }
+      } else {
+        const errText = await matchRes.text();
+        console.error("Erreur /api/match-eleve:", errText);
+      }
+    } catch (e) {
+      console.error("Erreur appel /api/match-eleve:", e);
     }
     const namingPrompt = `
 Tu es un système de nommage de fichiers pour une école.
+
 Voici les informations extraites d'un document :
 - Type : ${extracted.type || "non_trouvé"}
 - Nom : ${extracted.nom || "non_trouvé"}
 - Prénom : ${extracted.prénom || "non_trouvé"}
+- INE : ${extracted.ine || "non_trouvé"}
+- Date de naissance : ${extracted.date_naissance || "non_trouvé"}
 - Classe : ${extracted.classe || "non_trouvé"}
 - Période : ${extracted.période || "non_trouvé"}
 Génère un nom de fichier selon ces règles :
@@ -123,18 +174,23 @@ Réponds UNIQUEMENT avec le nom de fichier (sans extension), rien d'autre. Pas d
     }
     const namingData = await namingResponse.json();
     let fileName = namingData.choices?.[0]?.message?.content?.trim() || '';
-    fileName = fileName.replace(/[<>:"/\\|?*]/g, '_')
-                      .replace(/_+/g, '_')
-                      .replace(/^_|_$/g, '');
+    fileName = fileName
+      .replace(/[<>:"/\\|?*]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
     return NextResponse.json({
       ...extracted,
       eleve: {
         nom: extracted.nom !== "non_trouvé" ? extracted.nom : null,
         prénom: extracted.prénom !== "non_trouvé" ? extracted.prénom : null,
-        classe: extracted.classe !== "non_trouvé" ? extracted.classe : null
+        classe: extracted.classe !== "non_trouvé" ? extracted.classe : null,
+        ine: extracted.ine !== "non_trouvé" ? extracted.ine : null,
+        date_naissance: extracted.date_naissance !== "non_trouvé" ? extracted.date_naissance : null
       },
-      fileName: fileName,
-      rawExtraction: extracted
+      fileName,
+      rawExtraction: extracted,
+      oneDriveFolderPath,
+      matchedEleve,
     });
   } catch (error) {
     console.error('Erreur analyse Mistral:', error);
