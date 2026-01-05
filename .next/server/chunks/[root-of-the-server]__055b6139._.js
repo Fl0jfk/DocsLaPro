@@ -174,6 +174,7 @@ async function readTokens() {
         return {};
     }
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function writeTokens(tokens) {
     try {
         const url = await getSignedUrlForWrite();
@@ -195,13 +196,11 @@ async function GET(req) {
     try {
         const url = new URL(req.url);
         const code = url.searchParams.get("code");
-        console.log("Code reçu :", code);
         if (!code) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: "Missing code"
         }, {
             status: 400
         });
-        // Échanger le code contre token Google
         const params = new URLSearchParams({
             code,
             client_id: process.env.GOOGLE_CLIENT_ID,
@@ -209,7 +208,6 @@ async function GET(req) {
             redirect_uri: process.env.GOOGLE_REDIRECT_URI,
             grant_type: "authorization_code"
         });
-        console.log("Envoi requête token à Google...");
         const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
             headers: {
@@ -218,7 +216,6 @@ async function GET(req) {
             body: params.toString()
         });
         const tokenData = await tokenRes.json();
-        console.log("Réponse token Google :", tokenData);
         const { access_token, refresh_token, expires_in, scope } = tokenData;
         if (!access_token) {
             console.error("Access token manquant :", tokenData);
@@ -228,15 +225,12 @@ async function GET(req) {
                 status: 400
             });
         }
-        // Récupérer l'email depuis Google API
-        console.log("Récupération email via /userinfo...");
         const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
             headers: {
                 Authorization: `Bearer ${access_token}`
             }
         });
         const userData = await userRes.json();
-        console.log("Données user récupérées :", userData);
         const googleEmail = userData.email;
         if (!googleEmail) {
             console.error("Email introuvable dans userData :", userData);
@@ -246,18 +240,14 @@ async function GET(req) {
                 status: 400
             });
         }
-        // Lire le JSON existant depuis S3
         const tokens = await readTokens();
-        // Ajouter / mettre à jour le token de cet utilisateur
         tokens[googleEmail] = {
             accessToken: access_token,
             refreshToken: refresh_token,
             scope,
             expiresAt: new Date(Date.now() + expires_in * 1000).toISOString()
         };
-        // Écrire le JSON mis à jour dans S3
         await writeTokens(tokens);
-        // Redirection vers la page agenda de ton SaaS
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
         console.log("Redirection vers /agenda pour l'utilisateur :", googleEmail);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].redirect(`${baseUrl}`);

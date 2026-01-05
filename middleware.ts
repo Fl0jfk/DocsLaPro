@@ -28,13 +28,8 @@ const ContentSecurityPolicy = `
 
 export default clerkMiddleware(() => {
   const response = NextResponse.next();
-  response.headers.set(
-    "Content-Security-Policy",
-    ContentSecurityPolicy.replace(/\n/g, " ")
-  );
+  response.headers.set("Content-Security-Policy", ContentSecurityPolicy.replace(/\n/g, " "));
   return response;
 });
 
-export const config = {
-  matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico).*)'],
-};
+export const config = { matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico).*)']};

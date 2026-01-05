@@ -11,9 +11,7 @@ export type Category = {
   external?: boolean;
 };
 
-export type SliderProps = {
-  items: Category[];
-};
+export type SliderProps = { items: Category[]};
 
 export default function Slider({ items }: SliderProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);

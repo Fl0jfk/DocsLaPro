@@ -26,14 +26,11 @@ async function getSignedUrlForWrite() {
 async function readTokens() {
   try {
     const url = await getSignedUrlForRead();
-    console.log("Lecture S3 URL :", url);
     const res = await fetch(url);
     if (!res.ok) {
-      console.log("JSON S3 vide ou inaccessible, statut :", res.status);
       return {};
     }
     const data = await res.json();
-    console.log("Tokens lus depuis S3 :", data);
     return data;
   } catch (err) {
     console.error("Erreur lecture JSON S3 :", err);
@@ -44,15 +41,12 @@ async function readTokens() {
 async function writeTokens(tokens: any) {
   try {
     const url = await getSignedUrlForWrite();
-    console.log("Écriture S3 URL :", url);
     await fetch(url, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(tokens),
     });
-    console.log("Tokens écrits dans S3 :", tokens);
   } catch (err) {
-    console.error("Erreur écriture JSON S3 :", err);
     throw err;
   }
 }
@@ -98,7 +92,6 @@ export async function GET(req: Request) {
     };
     await writeTokens(tokens);
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    console.log("Redirection vers /agenda pour l'utilisateur :", googleEmail);
     return NextResponse.redirect(`${baseUrl}`);
   } catch (err) {
     console.error("Erreur callback Google :", err);

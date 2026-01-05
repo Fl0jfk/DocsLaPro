@@ -12,10 +12,7 @@ export default function ColorOnForm() {
     if (files) {
       Array.from(files).forEach((file) => formData.append('photos', file))
     }
-    const res = await fetch('/api/colorun', {
-      method: 'POST',
-      body: formData,
-    })
+    const res = await fetch('/api/colorun', { method: 'POST', body: formData,})
     setLoading(false)
     if (res.ok) setSent(true)
   }

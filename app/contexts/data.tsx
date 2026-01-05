@@ -1,11 +1,6 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  PropsWithChildren,
-} from "react";
+"use client"
+
+import { createContext, useCallback, useContext, useEffect, useState, PropsWithChildren} from "react";
 
 type Categories = {
   id: number;
@@ -57,7 +52,6 @@ const DataContext = createContext<Data | undefined>(undefined);
 export const DataProvider = ({ children }: PropsWithChildren<object>) => {
   const [error, setError] = useState<Error | null>(null);
   const [data, setData] = useState<Data | undefined>(undefined);
-
   const fetchData = useCallback(async () => {
     try {
       const response = await fetch("/data.json");
@@ -70,11 +64,9 @@ export const DataProvider = ({ children }: PropsWithChildren<object>) => {
       setError(err instanceof Error ? err : new Error("An error occurred"));
     }
   }, []);
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
   return (
     <DataContext.Provider value={data || initialData}>
       {error && <p className="error">{error.message}</p>}
@@ -85,8 +77,6 @@ export const DataProvider = ({ children }: PropsWithChildren<object>) => {
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (!context) {
-    throw new Error("useData must be used within a DataProvider");
-  }
+  if (!context) { throw new Error("useData must be used within a DataProvider");}
   return context;
 };

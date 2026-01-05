@@ -163,12 +163,12 @@ function Slider(param) {
                 external: category.external
             }, category.id, false, {
                 fileName: "[project]/app/components/Slider/Slider.tsx",
-                lineNumber: 41,
+                lineNumber: 39,
                 columnNumber: 9
             }, this))
     }, void 0, false, {
         fileName: "[project]/app/components/Slider/Slider.tsx",
-        lineNumber: 39,
+        lineNumber: 37,
         columnNumber: 5
     }, this);
 }
@@ -305,11 +305,16 @@ function Home() {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
         className: "flex flex-col w-full text-xl sm:pt-[5vh]",
         children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(CalendarProvider, {}, void 0, false, {
+                fileName: "[project]/app/page.tsx",
+                lineNumber: 31,
+                columnNumber: 7
+            }, this),
             uniqueCategories.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Slider$2f$RollingSlider$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                 categories: uniqueCategories
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 35,
+                lineNumber: 33,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["SignedOut"], {
@@ -319,23 +324,23 @@ function Home() {
                         children: "Se connecter"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 39,
+                        lineNumber: 37,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 38,
+                    lineNumber: 36,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 37,
+                lineNumber: 35,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 32,
+        lineNumber: 30,
         columnNumber: 5
     }, this);
 }

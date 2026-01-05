@@ -24,9 +24,7 @@ export default function Home() {
     return [];
   }
   const roles = normalizeRoles(user?.publicMetadata?.role);
-  const filteredCategories = data.categories.filter(category =>
-    (category.allowedRoles ?? []).some(r => roles.includes(r))
-  );
+  const filteredCategories = data.categories.filter(category => (category.allowedRoles ?? []).some(r => roles.includes(r)));
   const uniqueCategories = Array.from( new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values());
   return (
     <main className="flex flex-col w-full text-xl sm:pt-[5vh]">

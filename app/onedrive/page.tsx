@@ -7,7 +7,7 @@ const msalConfig: msal.Configuration = {
     clientId: process.env.NEXT_PUBLIC_CLIENT_ID!,
     authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_TENANT_ID}`,
     redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}onedrive`,
-  },
+  }
 };
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
@@ -54,7 +54,7 @@ export default function OneDriveUpDocsOCRAI() {
         const result = await msalInstance.handleRedirectPromise();
         if (result?.account) {
           setAccount(result.account);
-          const tokenResponse = await msalInstance.acquireTokenSilent({ account: result.account, scopes: ["Files.ReadWrite", "User.Read"],});
+          const tokenResponse = await msalInstance.acquireTokenSilent({ account: result.account, scopes: ["Files.ReadWrite", "User.Read"]});
           setAccessToken(tokenResponse.accessToken);
           await fetchFiles(tokenResponse.accessToken, null, "");
         }
@@ -136,11 +136,7 @@ export default function OneDriveUpDocsOCRAI() {
       const currentCompleted = results.filter((r: any) => r.success).length;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const currentFailed = results.filter((r: any) => !r.success).length;
-      setProcessingStatus((prev) => ({
-        total: prev.total,
-        completed: currentCompleted,
-        failed: currentFailed,
-      }));
+      setProcessingStatus((prev) => ({ total: prev.total, completed: currentCompleted, failed: currentFailed}));
       if (i + batchSize < items.length) {
         await new Promise((r) => setTimeout(r, 2000));
       }
@@ -220,9 +216,7 @@ export default function OneDriveUpDocsOCRAI() {
         const newFileName = `${ai.fileName}.pdf`;
         const sourcePath = `Temp/${file.name}`;
         const targetFolderPath = ai.oneDriveFolderPath || null;
-        if (!targetFolderPath) {
-          return { success: false, error:"Aucun élève trouvé de manière fiable, veuillez ranger ce document manuellement.", fileName: file.name, result: ai};
-        }
+        if (!targetFolderPath) { return { success: false, error:"Aucun élève trouvé de manière fiable, veuillez ranger ce document manuellement.", fileName: file.name, result: ai}}
         const moveRes = await fetch("/api/move-file", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -234,9 +228,7 @@ export default function OneDriveUpDocsOCRAI() {
           }),
         });
         if (!moveRes.ok) {
-          throw new Error(
-            "Erreur le fichier n'a pas pu être déplacé, aucun dossier élèves ne correspond.: " + (await moveRes.text())
-          );
+          throw new Error("Erreur le fichier n'a pas pu être déplacé, aucun dossier élèves ne correspond.: " + (await moveRes.text()));
         }
       }
       return { success: true, result: ai, fileName: file.name };
@@ -288,9 +280,7 @@ export default function OneDriveUpDocsOCRAI() {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      enqueueFiles(e.dataTransfer.files);
-    }
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {enqueueFiles(e.dataTransfer.files);}
   };
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();

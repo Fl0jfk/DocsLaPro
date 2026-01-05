@@ -1,12 +1,9 @@
 {
-  "/api/analyze-doc/route": "app/api/analyze-doc/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/google/events/route": "app/api/google/events/route.js",
   "/api/google/gettokens/route": "app/api/google/gettokens/route.js",
-  "/api/match-eleve/route": "app/api/match-eleve/route.js",
-  "/api/move-file/route": "app/api/move-file/route.js",
-  "/api/ocr-process/route": "app/api/ocr-process/route.js",
-  "/api/ocr-result/route": "app/api/ocr-result/route.js",
-  "/api/upload-url/route": "app/api/upload-url/route.js",
+  "/api/google/status/route": "app/api/google/status/route.js",
+  "/brouillons/carteReseau/page": "app/brouillons/carteReseau/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/onedrive/page": "app/onedrive/page.js",
   "/page": "app/page.js"
 }

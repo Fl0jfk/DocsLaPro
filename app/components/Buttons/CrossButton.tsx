@@ -8,9 +8,7 @@ export default function CrossButton({menuOpened}: CrossButton ){
     const clickOnButton = () => { setButtonGo(!buttonGo)}
     const hambOrCross = (buttonGo ? "menu ": "menu opened fixed z-[10]");
     useEffect(() => {
-        if(menuOpened === false){
-            setButtonGo(true);
-        }
+        if(menuOpened === false){setButtonGo(true);}
     }, [menuOpened])
     return (
         <button className={`${hambOrCross} flex`} onClick={clickOnButton} type="button" aria-label="Aria Cross or Hamburger">

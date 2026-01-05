@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/f.hacqueville/OneDrive%20-%20LYCEE%20LA%20PROVIDENCE%20NICOLAS%20BARRE/Code/docsLaPro/app/brouillons/afficheProvidence/page.tsx"],"sourcesContent":["import Image from 'next/image';\r\n\r\nexport default function AfficheProvidence() {\r\n  return (\r\n    <main className=\"relative w-screen h-screen overflow-hidden bg-[rgba(207, 207, 216, 1)]\">\r\n      <Image src=\"/Plan_La_Pro.png\" alt=\"Plan\" fill className=\"object-cover\"/>\r\n      <div className=\"absolute top-4 left-4 z-10\">\r\n        <Image src=\"/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp\" alt=\"Logo La Providence\" width={120} height={60}/>\r\n      </div>\r\n      <div className=\"flex flex-col items-center justify-center text-center space-y-6 z-10 px-4\">\r\n        \r\n      </div>\r\n    </main>\r\n  );\r\n}\r\n\r\n"],"names":[],"mappings":";;;;;AAAA;;;AAEe,SAAS;IACtB,qBACE,8OAAC;QAAK,WAAU;;0BACd,8OAAC,wIAAK;gBAAC,KAAI;gBAAmB,KAAI;gBAAO,IAAI;gBAAC,WAAU;;;;;;0BACxD,8OAAC;gBAAI,WAAU;0BACb,cAAA,8OAAC,wIAAK;oBAAC,KAAI;oBAAkE,KAAI;oBAAqB,OAAO;oBAAK,QAAQ;;;;;;;;;;;0BAE5H,8OAAC;gBAAI,WAAU;;;;;;;;;;;;AAKrB","debugId":null}}]
+}

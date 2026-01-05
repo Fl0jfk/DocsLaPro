@@ -64,6 +64,7 @@ export default function TransportRequestPage() {
                     <option value="McDonald's Laser Game">McDonald&apos;s + Laser Game de Rouen</option>
                     <option value="Pique Nique Laser Game">Pique-Nique + Laser Game de Rouen</option>
                     <option value="McDo Cinéma">McDonald&apos;s + Cinéma de Rouen</option>
+                     <option value="Nachos Cinéma">Nachos + Cinéma de Rouen</option>
                     <option value="McDo Bowling">McDonald&apos;s + Bowling</option>
                     <option value="Restaurant La Pasta Tinto">Restaurant La Pasta Tinto</option>
                     <option value="Bowling Amfreville La Mi-Voie">Bowling Amfreville La Mi-Voie</option>

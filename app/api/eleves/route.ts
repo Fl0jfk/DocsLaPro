@@ -16,10 +16,7 @@ const KEY = "eleves.json";
 
 async function getElevesFromS3() {
   const res = await s3.send(
-    new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: KEY,
-    })
+    new GetObjectCommand({ Bucket: BUCKET, Key: KEY})
   );
   const body = await res.Body?.transformToString("utf-8");
   if (!body) return [];
@@ -34,7 +31,6 @@ export async function GET(req: NextRequest) {
     const eleves = await getElevesFromS3();
     return NextResponse.json(eleves);
   } catch (error) {
-    console.error("Erreur GET /api/eleves:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

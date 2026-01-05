@@ -34,7 +34,6 @@ export default function DocumentsPage() {
       .then(res => res.json())
       .then(data => {
         if (data.error) {
-          console.error("Erreur API documents:", data.error);
           setItems([]);
         } else {
           setItems(data);
@@ -46,7 +45,6 @@ export default function DocumentsPage() {
         setLoading(false);
       })
       .catch(err => {
-        console.error("Erreur fetch documents:", err);
         setLoading(false);
       });
   }, [currentPrefix, cacheTTL]);

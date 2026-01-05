@@ -65,10 +65,28 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/brouillons/afficheProvidence/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/brouillons/afficheProvidence">> = Specific
+  const handler = {} as typeof import("../../app/brouillons/afficheProvidence/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/brouillons/autorisationSortie/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/brouillons/autorisationSortie">> = Specific
   const handler = {} as typeof import("../../app/brouillons/autorisationSortie/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/brouillons/carteReseau/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/brouillons/carteReseau">> = Specific
+  const handler = {} as typeof import("../../app/brouillons/carteReseau/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -326,15 +344,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/weekCalendar/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/weekCalendar">> = Specific
-  const handler = {} as typeof import("../../app/weekCalendar/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/api/absence/list/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/absence/list">> = Specific
@@ -434,6 +443,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/google/events/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/google/events">> = Specific
+  const handler = {} as typeof import("../../app/api/google/events/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/google/gettokens/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/google/gettokens">> = Specific
@@ -443,10 +461,28 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/google/gmailPoll/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/google/gmailPoll">> = Specific
+  const handler = {} as typeof import("../../app/api/google/gmailPoll/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/google/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/google">> = Specific
   const handler = {} as typeof import("../../app/api/google/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/google/status/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/google/status">> = Specific
+  const handler = {} as typeof import("../../app/api/google/status/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

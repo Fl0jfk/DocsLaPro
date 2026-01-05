@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"","debugId":null}},
+    {"offset": {"line": 55, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/f.hacqueville/OneDrive%20-%20LYCEE%20LA%20PROVIDENCE%20NICOLAS%20BARRE/Code/docsLaPro/app/api/google/status/route.ts"],"sourcesContent":["// app/api/google/status/route.ts\r\nimport { NextResponse } from \"next/server\";\r\n\r\nconst INTERNAL_TOKENS_URL =process.env.NEXT_PUBLIC_APP_URL+\"/api/google/gettokens\";\r\n\r\nexport async function GET() {\r\n  try {\r\n    const res = await fetch(INTERNAL_TOKENS_URL!, { cache: \"no-store\" });\r\n    const tokens = await res.json();\r\n    const email = process.env.GOOGLE_ACCOUNT_EMAIL!;\r\n    const userTokens = tokens[email];\r\n    const hasToken = !!userTokens?.refreshToken;\r\n    return NextResponse.json({ hasToken });\r\n  } catch (e) {\r\n    console.error(\"Erreur /api/google/status\", e);\r\n    return NextResponse.json({ hasToken: false });\r\n  }\r\n}\r\n"],"names":[],"mappings":"AAAA,iCAAiC;;;;;AACjC;;AAEA,MAAM,sBAAqB,6DAAgC;AAEpD,eAAe;IACpB,IAAI;QACF,MAAM,MAAM,MAAM,MAAM,qBAAsB;YAAE,OAAO;QAAW;QAClE,MAAM,SAAS,MAAM,IAAI,IAAI;QAC7B,MAAM,QAAQ,QAAQ,GAAG,CAAC,oBAAoB;QAC9C,MAAM,aAAa,MAAM,CAAC,MAAM;QAChC,MAAM,WAAW,CAAC,CAAC,YAAY;QAC/B,OAAO,gJAAY,CAAC,IAAI,CAAC;YAAE;QAAS;IACtC,EAAE,OAAO,GAAG;QACV,QAAQ,KAAK,CAAC,6BAA6B;QAC3C,OAAO,gJAAY,CAAC,IAAI,CAAC;YAAE,UAAU;QAAM;IAC7C;AACF","debugId":null}}]
+}
