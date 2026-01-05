@@ -1,3 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server';
+export async function GET(req: NextRequest) {
+  return NextResponse.json({ status: 'ok' });
+}
+
 /*
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
