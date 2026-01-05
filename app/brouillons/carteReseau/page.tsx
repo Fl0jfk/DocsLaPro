@@ -41,7 +41,7 @@ export default function CarteRéseau() {
                   <p>Ecole-collège St Hildevert (Gournay en Bray)</p>
                   <p>Ecole ND, collège St Louis (Louviers)</p>
                   <p>Ecole Ste Marie (Doudeville)</p>
-                  <p>Ecole Jeanne d'Arc (Aumale)</p>
+                  <p>Ecole Jeanne d Arc (Aumale)</p>
                   <p>Ecole-collège Providence-Nazareth (Eu)</p>
                 </div>
               </div>   

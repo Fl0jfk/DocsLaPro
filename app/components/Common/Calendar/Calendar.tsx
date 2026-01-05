@@ -2,7 +2,6 @@
 
 import {
   addMonths,
-  addWeeks,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -123,7 +122,7 @@ export default function Calendar({
     }
 
     // filtrage pour supprimer une éventuelle 7e ligne complètement "mois suivant"
-    const filteredWeeks = weeks.filter((week, index) => {
+    const filteredWeeks = weeks.filter((week) => {
       const hasCurrentMonthDay = week.some(
         d => getMonth(d) === targetMonth && getYear(d) === targetYear,
       )

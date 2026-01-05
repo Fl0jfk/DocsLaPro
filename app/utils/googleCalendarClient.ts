@@ -2,12 +2,8 @@
 import { google } from 'googleapis'
 import { readTokens } from './googleTokenStore'
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar']
-
 export async function getGoogleCalendarClient() {
   const tokens = await readTokens()
-
-  // Email “technique” utilisé pour l’agenda (met-le en .env)
   const email = process.env.SMTP_USER!
   const stored = tokens[email]
 

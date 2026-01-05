@@ -22,6 +22,7 @@ async function getGoogleCalendarClient() {
   return calendar
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapGoogleEventToUiEvent(googleEvent: any) {
   const start = googleEvent.start?.dateTime ?? googleEvent.start?.date
   const end = googleEvent.end?.dateTime ?? googleEvent.end?.date
@@ -46,6 +47,7 @@ function mapGoogleEventToUiEvent(googleEvent: any) {
       colorId,
       htmlLink: googleEvent.htmlLink ?? null,
       creatorName,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       attendees: (googleEvent.attendees ?? []).map((a: any) => ({
         email: a.email,
         displayName: a.displayName ?? null,
@@ -114,6 +116,7 @@ export async function POST(req: NextRequest) {
       colorId?: string | null
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const event: any = {
       summary: title,
       description,
@@ -139,6 +142,7 @@ export async function POST(req: NextRequest) {
     })
     const created = mapGoogleEventToUiEvent(resInsert.data)
     return NextResponse.json(created)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     console.error(
       'Erreur POST /api/google/events',

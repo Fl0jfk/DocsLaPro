@@ -45,6 +45,7 @@ export default function DocumentsPage() {
         setLoading(false);
       })
       .catch(err => {
+        console.error(err)
         setLoading(false);
       });
   }, [currentPrefix, cacheTTL]);

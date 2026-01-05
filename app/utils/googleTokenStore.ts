@@ -13,12 +13,14 @@ const s3 = new S3Client({
 const BUCKET = process.env.BUCKET_NAME!
 const FILE_KEY = 'tokensGoogle.json'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function readTokens(): Promise<Record<string, any>> {
   try {
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: FILE_KEY })
     const url = await getSignedUrl(s3, command, { expiresIn: 60 })
     const res = await fetch(url)
     if (!res.ok) return {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (await res.json()) as Record<string, any>
   } catch (err) {
     console.error('Erreur lecture JSON S3 :', err)

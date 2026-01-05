@@ -28,7 +28,6 @@ import {
 } from '../../utils/types'
 import { UiEvent, SelectedEventState } from '../GoogleAgenda/GoogleAgenda'
 
-/* ---------- Types ---------- */
 
 export interface TimelineBlockEvent {
   eventUid: string
@@ -57,8 +56,6 @@ type DayEventsByHour = Record<
   Record<number, TimelineBlockEvent[]>
 >
 
-/* ---------- Couleur depuis colorId Google ---------- */
-
 function googleColorIdToClasses(colorId: string | null | undefined): string {
   switch (colorId) {
     case '1':  return 'bg-blue-500 text-white'
@@ -75,8 +72,6 @@ function googleColorIdToClasses(colorId: string | null | undefined): string {
     default:   return 'bg-sky-500 text-white'
   }
 }
-
-/* ---------- Block (un event dans la grille) ---------- */
 
 function TimelineBlock({
   index,
@@ -343,6 +338,7 @@ export default function TimelineFull({
     Record<number, DayEventsByHour>
   >({})
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onClickTimelineBlock = (payload: any) => {
     onSelectEvent(payload)
   }

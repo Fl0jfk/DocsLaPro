@@ -44,6 +44,7 @@ export const isValidTime = (strValue: string): [boolean, number, number] => {
   return [true, hour, minutes]
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const sortEventBlocks = <T extends Record<string, any>>(
   events: T[],
   key: keyof T,
@@ -57,7 +58,9 @@ export const sortEventBlocks = <T extends Record<string, any>>(
     .sort((a, b) => {
       if (key === 'startDate' || key === 'endDate' || key === 'createdAt') {
         return compFunc(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           new Date(a[key] as any),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           new Date(b[key] as any),
           isAscending,
         )
@@ -65,17 +68,20 @@ export const sortEventBlocks = <T extends Record<string, any>>(
 
       if (a[key] === b[key]) {
         return compFunc(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           new Date(a['startDate'] as any),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           new Date(b['startDate'] as any),
           isAscending,
         )
       }
-
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return compFunc(a[key] as any, b[key] as any, isAscending)
     })
 }
 
 export interface DayViewHourSegment {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   events: any[]
   startColIndex: number
   colCount: number
@@ -123,6 +129,7 @@ export const getBaseDayViewEvents = () => {
     }, {} as DayViewHours)
 
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     wholeDayEvents: [] as any[],
     hours,
   }
@@ -166,9 +173,11 @@ export const getBaseWeekViewEvents = () => {
 }
 
 export const getUpdatedEventBlocksWithPlacement = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   events: any[],
   incomingRowsMatrix: Record<number, number>,
 ) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const list: any[] = []
   let eventIndex = 0
   let matrixIndex = 0
@@ -193,6 +202,7 @@ export const calculateIncomingRowMatrix = (
   eventsByDay: Record<
     number,
     {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       events: any[]
       incomingRowsMatrix: Record<number, number>
     }
@@ -200,13 +210,10 @@ export const calculateIncomingRowMatrix = (
   isWeek = false,
 ) => {
   const container: typeof eventsByDay = { ...eventsByDay }
-
   let baseIncomingRowsMatrix: Record<number, number> = {}
   let count = 0
   let rowIndex = 0
-
   let keys = Object.keys(container).map(Number)
-
   if (isWeek) {
     const updated = keys.slice()
     const temp = updated.shift()
@@ -224,9 +231,7 @@ export const calculateIncomingRowMatrix = (
       ...container[day],
       events: sortEventBlocks(container[day].events, 'duration', false),
     }
-
     const deletedKeys: number[] = []
-
     Object.keys(baseIncomingRowsMatrix).forEach(v => {
       const keyNum = Number(v)
       if (baseIncomingRowsMatrix[keyNum] === 0) {

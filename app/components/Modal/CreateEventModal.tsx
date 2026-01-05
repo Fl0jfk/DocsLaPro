@@ -90,7 +90,6 @@ export default function CreateEventModal({
   initialStartDate,
   initialEndDate,
   defaultColorId = '1',
-  isEdit = false,
 }: CreateEventModalProps) {
   const startDateInputRef = useRef<HTMLInputElement | null>(null)
   const endDateInputRef = useRef<HTMLInputElement | null>(null)
@@ -104,19 +103,14 @@ export default function CreateEventModal({
   )
   const [startDateInputValue, setStartDateInputValue] = useState('')
   const [showStartDateInput, setShowStartDateInput] = useState(false)
-
   const [endDate, setEndDate] = useState<string>(
     initialEndDate ?? new Date().toISOString(),
   )
   const [endDateInputValue, setEndDateInputValue] = useState('')
   const [showEndDateInput, setShowEndDateInput] = useState(false)
-
   const [isAllDay, setIsAllDay] = useState(false)
   const [repeatType, setRepeatType] = useState<-1 | EventRepeatType>(-1)
-
-  // colorId Google direct
   const [colorId, setColorId] = useState<string | null>(defaultColorId)
-
   const [isRepeatTypeDropdownOpen, setIsRepeatTypeDropdownOpen] =
     useState(false)
   const [isStartDateCalendarOpen, setIsStartDateCalendarOpen] = useState(false)

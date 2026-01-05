@@ -107,6 +107,7 @@ export default function GoogleAgenda() {
     startDate: string
     endDate: string
   }) => {
+    console.log(basis)
     setIsCreateEventModalOpen(true)
   }
 
