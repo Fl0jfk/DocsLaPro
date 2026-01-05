@@ -155,6 +155,7 @@ export const getBaseWeekViewEvents = () => {
       number,
       {
         incomingRowsMatrix: Record<number, number>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         events: any[]
       }
     >

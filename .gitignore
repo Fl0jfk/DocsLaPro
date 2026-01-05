@@ -5,3 +5,5 @@ node_modules
 
 # environnement local (ne jamais pousser de secrets)
 .env.local
+.next/
+
