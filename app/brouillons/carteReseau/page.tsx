@@ -210,7 +210,7 @@ export default function CarteRéseau() {
         </svg>
         <p className="absolute top-[185px] z-50 left-[335px] bg-gray-100 rounded-xl">Echanger</p>
         <p className="absolute top-[181px] z-50 left-[435px] bg-gray-100 rounded-xl">Mutualiser les compétences</p>
-        <p className="absolute top-[182px] z-50 left-[590px] bg-gray-100 rounded-xl">S'ouvrir</p>
+        <p className="absolute top-[182px] z-50 left-[590px] bg-gray-100 rounded-xl">S&apos;ouvrir</p>
         <p className="absolute top-[180px] z-50 left-[720px] bg-gray-100 rounded-xl">Créer des partenariats</p>
         <p className="absolute top-[305px] z-50 left-[790px] bg-gray-100 rounded-xl">Missionner</p>
         <p className="absolute top-[320px] z-50 left-[790px] bg-gray-100 rounded-xl">Accompagner</p>
@@ -222,12 +222,12 @@ export default function CarteRéseau() {
         <p className="absolute top-[395px] z-50 left-[193px] bg-gray-100 rounded-xl">Donner</p>
         <p className="absolute top-[407px] z-50 left-[175px] bg-gray-100 rounded-xl">les moyens</p>
         <p className="absolute top-[467px] z-50 left-[188px] bg-gray-100 rounded-xl">Sécuriser</p>
-        <p className="absolute top-[595px] z-50 left-[270px] bg-gray-100 rounded-xl">Favoriser l'intégration</p>
+        <p className="absolute top-[595px] z-50 left-[270px] bg-gray-100 rounded-xl">Favoriser l&apos;intégration</p>
         <p className="absolute top-[595px] z-50 left-[455px] bg-gray-100 rounded-xl">Eduquer</p>
         <p className="absolute top-[595px] z-50 left-[605px] bg-gray-100 rounded-xl">Faire grandir</p>
         <p className="absolute top-[595px] z-50 left-[765px] bg-gray-100 p-1 rounded-xl">Faciliter</p>
         <p className="absolute top-[258px] border border-red-500 z-50 left-[803px] bg-red-100 rounded-xl  text-red-500 font-bold text-[14px] p-1">CA</p>
-        <p className="absolute top-[476px] z-50 left-[443px] bg-gray-100 rounded-xl p-1 text-[10px]">Des partenaires dans l'établissement</p>
+        <p className="absolute top-[476px] z-50 left-[443px] bg-gray-100 rounded-xl p-1 text-[10px]">Des partenaires dans l&apos;établissement</p>
       <section className="flex gap-10 mx-auto items-center max-h-[21%] h-full">
         <Image src={Logo} alt="" className="w-[140px] h-[140px]"/>
         <div className="flex flex-col w-full mx-auto h-full">
@@ -332,11 +332,11 @@ export default function CarteRéseau() {
           </div>
         </div>
         <div className="flex flex-col items-center bg-gray-200 rounded-xl p-2 h-full max-w-[24%] w-full">
-          <p className="font-bold text-lg absolute top-[203px] underline italic w-[350px]">Partenaires institutionnels de l'église</p>
+          <p className="font-bold text-lg absolute top-[203px] underline italic w-[350px]">Partenaires institutionnels de l&apos;église</p>
           <div className="w-full flex flex-col gap-2 justify-center h-full">
             <div className="flex gap-2 w-full">
               <div className="p-2 bg-white rounded-xl">
-                <p className="font-bold">Soeurs de l'enfant Jésus, Providence de Rouen, Soeur Angèle-Marie</p>
+                <p className="font-bold">Soeurs de l&apos;enfant Jésus, Providence de Rouen, Soeur Angèle-Marie</p>
               </div>
             </div>
             <div className="flex flex-col rounded-xl bg-white p-2 w-full">
@@ -354,7 +354,7 @@ export default function CarteRéseau() {
                 <p>Père Masset, Père Parfait</p>
               </div>
               <div className="flex flex-col rounded-xl bg-white p-2 w-full">
-                <p className="font-bold">Partenaires de l'EC</p>
+                <p className="font-bold">Partenaires de l&apos;EC</p>
                 <p>SNEC, SREC, UGSEL</p>
               </div>
             </div>
@@ -385,7 +385,7 @@ export default function CarteRéseau() {
             <p className="font-bold">Partenaires culturels et sportifs</p>
             <p>USMEF, BMFB, ALISA</p>
             <p>Pagaies en Seine</p>
-            <p>O'CAPE</p>
+            <p>O&apos;CAPE</p>
             <p>Aeroclub de BOOS-Vallée en Seine</p>
             <p>Opéra de Rouen</p>
             <p>AFOCAL (formation BAFA Normandie)</p>
@@ -395,14 +395,14 @@ export default function CarteRéseau() {
           <div className="flex flex-col bg-white p-2 rounded-xl">
             <p className="font-bold">Associations pour les valeurs humaines</p>
             <p>Eau de Coco</p>
-            <p>Mad'Action</p>
+            <p>Mad&apos;Action</p>
           </div>
           <div className="flex flex-col bg-white p-2 rounded-xl">
             <p className="font-bold">Entreprises partenaires</p>
-            <p>Banques : Caisse d'épargne/ Crédit Mutuel</p>
+            <p>Banques : Caisse d&apos;épargne/ Crédit Mutuel</p>
             <p>KPMG expertise comptable</p>
             <p>Toshiba photocopieurs</p>
-            <p>Agence d'architectes Gourdin Samy-Ropers</p>
+            <p>Agence d&apos;architectes Gourdin Samy-Ropers</p>
             <p>AFL électricité</p>
             <p>Dalkia</p>
             <p>We Connect</p>
