@@ -12,93 +12,58 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
-function Slide({ name, img, link, external }) {
-    if (external) {
-        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
-            href: link,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "bg-white select-none flex items-end xl:hover:scale-105 lg:hover:scale-105 h-[400px] md:h-[300px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300",
-            children: name && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
-                children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "flex flex-col gap-1",
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                            className: "md:text-2xl text-4xl font-bold z-[2]",
-                            children: name
-                        }, void 0, false, {
-                            fileName: "[project]/app/components/Slider/Slide.tsx",
-                            lineNumber: 18,
-                            columnNumber: 15
-                        }, this)
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/Slider/Slide.tsx",
-                        lineNumber: 17,
-                        columnNumber: 13
-                    }, this),
-                    img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                        src: img,
-                        fill: true,
-                        alt: name,
-                        style: {
-                            objectFit: "contain"
-                        },
-                        priority: true,
-                        className: "rounded-3xl select-none pointer-events-none",
-                        sizes: "35vw"
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/Slider/Slide.tsx",
-                        lineNumber: 21,
-                        columnNumber: 15
-                    }, this)
-                ]
-            }, void 0, true)
-        }, void 0, false, {
-            fileName: "[project]/app/components/Slider/Slide.tsx",
-            lineNumber: 14,
-            columnNumber: 7
-        }, this);
-    }
-    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-        href: link,
-        className: "select-none bg-white flex items-end xl:hover:scale-105 lg:hover:scale-105 h-[400px] md:h-[300px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300",
-        children: name && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
-            children: [
-                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    className: "flex flex-col gap-1",
-                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "md:text-2xl text-4xl font-bold z-[2]",
-                        children: name
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/Slider/Slide.tsx",
-                        lineNumber: 33,
-                        columnNumber: 13
-                    }, this)
-                }, void 0, false, {
-                    fileName: "[project]/app/components/Slider/Slide.tsx",
-                    lineNumber: 32,
-                    columnNumber: 11
-                }, this),
-                img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                    src: img,
-                    fill: true,
-                    alt: name,
-                    style: {
-                        objectFit: "contain"
-                    },
-                    priority: true,
-                    className: "rounded-3xl select-none pointer-events-none",
-                    sizes: "35vw"
-                }, void 0, false, {
-                    fileName: "[project]/app/components/Slider/Slide.tsx",
-                    lineNumber: 36,
-                    columnNumber: 13
-                }, this)
-            ]
-        }, void 0, true)
+function Slide({ name, img, link, external, priority = false }) {
+    const ImageBlock = img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+        src: img,
+        fill: true,
+        alt: name,
+        sizes: "35vw",
+        priority: priority,
+        fetchPriority: priority ? "high" : "auto",
+        className: "rounded-3xl select-none pointer-events-none object-contain"
     }, void 0, false, {
         fileName: "[project]/app/components/Slider/Slide.tsx",
-        lineNumber: 29,
+        lineNumber: 15,
+        columnNumber: 7
+    }, this);
+    const content = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "flex flex-col gap-1 z-[2]",
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                    className: "md:text-2xl text-4xl font-bold",
+                    children: name
+                }, void 0, false, {
+                    fileName: "[project]/app/components/Slider/Slide.tsx",
+                    lineNumber: 21,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/app/components/Slider/Slide.tsx",
+                lineNumber: 20,
+                columnNumber: 7
+            }, this),
+            ImageBlock
+        ]
+    }, void 0, true);
+    const baseClass = "bg-white select-none flex items-end h-[400px] md:h-[300px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
+    return external ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
+        href: link,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        className: baseClass,
+        children: content
+    }, void 0, false, {
+        fileName: "[project]/app/components/Slider/Slide.tsx",
+        lineNumber: 28,
+        columnNumber: 5
+    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+        href: link,
+        className: baseClass,
+        children: content
+    }, void 0, false, {
+        fileName: "[project]/app/components/Slider/Slide.tsx",
+        lineNumber: 32,
         columnNumber: 5
     }, this);
 }
@@ -146,11 +111,12 @@ function Slider({ items }) {
         onMouseUp: handleMouseUp,
         onMouseLeave: handleMouseUp,
         onMouseMove: handleMouseMove,
-        children: items.map((category)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Slider$2f$Slide$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+        children: items.map((category, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Slider$2f$Slide$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
                 name: category.name,
                 link: category.link,
                 img: category.img,
-                external: category.external
+                external: category.external,
+                priority: index === 0
             }, category.id, false, {
                 fileName: "[project]/app/components/Slider/Slider.tsx",
                 lineNumber: 39,
@@ -233,7 +199,7 @@ function Home() {
                         className: "h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 15,
+                        lineNumber: 14,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -241,18 +207,18 @@ function Home() {
                         children: "Chargement en cours…"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 16,
+                        lineNumber: 15,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 14,
+                lineNumber: 13,
                 columnNumber: 7
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/page.tsx",
-            lineNumber: 13,
+            lineNumber: 12,
             columnNumber: 5
         }, this);
     }
@@ -272,16 +238,11 @@ function Home() {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
         className: "flex flex-col w-full text-xl sm:pt-[5vh]",
         children: [
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(CalendarProvider, {}, void 0, false, {
-                fileName: "[project]/app/page.tsx",
-                lineNumber: 31,
-                columnNumber: 7
-            }, this),
             uniqueCategories.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Slider$2f$RollingSlider$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
                 categories: uniqueCategories
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 33,
+                lineNumber: 31,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["SignedOut"], {
@@ -291,23 +252,23 @@ function Home() {
                         children: "Se connecter"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 37,
+                        lineNumber: 35,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 36,
+                    lineNumber: 34,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 35,
+                lineNumber: 33,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 30,
+        lineNumber: 29,
         columnNumber: 5
     }, this);
 }

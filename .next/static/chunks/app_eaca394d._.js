@@ -13,93 +13,58 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 function Slide(param) {
-    let { name, img, link, external } = param;
-    if (external) {
-        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
-            href: link,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "bg-white select-none flex items-end xl:hover:scale-105 lg:hover:scale-105 h-[400px] md:h-[300px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300",
-            children: name && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
-                children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "flex flex-col gap-1",
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                            className: "md:text-2xl text-4xl font-bold z-[2]",
-                            children: name
-                        }, void 0, false, {
-                            fileName: "[project]/app/components/Slider/Slide.tsx",
-                            lineNumber: 18,
-                            columnNumber: 15
-                        }, this)
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/Slider/Slide.tsx",
-                        lineNumber: 17,
-                        columnNumber: 13
-                    }, this),
-                    img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
-                        src: img,
-                        fill: true,
-                        alt: name,
-                        style: {
-                            objectFit: "contain"
-                        },
-                        priority: true,
-                        className: "rounded-3xl select-none pointer-events-none",
-                        sizes: "35vw"
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/Slider/Slide.tsx",
-                        lineNumber: 21,
-                        columnNumber: 15
-                    }, this)
-                ]
-            }, void 0, true)
-        }, void 0, false, {
-            fileName: "[project]/app/components/Slider/Slide.tsx",
-            lineNumber: 14,
-            columnNumber: 7
-        }, this);
-    }
-    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
-        href: link,
-        className: "select-none bg-white flex items-end xl:hover:scale-105 lg:hover:scale-105 h-[400px] md:h-[300px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300",
-        children: name && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
-            children: [
-                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    className: "flex flex-col gap-1",
-                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "md:text-2xl text-4xl font-bold z-[2]",
-                        children: name
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/Slider/Slide.tsx",
-                        lineNumber: 33,
-                        columnNumber: 13
-                    }, this)
-                }, void 0, false, {
-                    fileName: "[project]/app/components/Slider/Slide.tsx",
-                    lineNumber: 32,
-                    columnNumber: 11
-                }, this),
-                img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
-                    src: img,
-                    fill: true,
-                    alt: name,
-                    style: {
-                        objectFit: "contain"
-                    },
-                    priority: true,
-                    className: "rounded-3xl select-none pointer-events-none",
-                    sizes: "35vw"
-                }, void 0, false, {
-                    fileName: "[project]/app/components/Slider/Slide.tsx",
-                    lineNumber: 36,
-                    columnNumber: 13
-                }, this)
-            ]
-        }, void 0, true)
+    let { name, img, link, external, priority = false } = param;
+    const ImageBlock = img && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+        src: img,
+        fill: true,
+        alt: name,
+        sizes: "35vw",
+        priority: priority,
+        fetchPriority: priority ? "high" : "auto",
+        className: "rounded-3xl select-none pointer-events-none object-contain"
     }, void 0, false, {
         fileName: "[project]/app/components/Slider/Slide.tsx",
-        lineNumber: 29,
+        lineNumber: 22,
+        columnNumber: 7
+    }, this);
+    const content = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "flex flex-col gap-1 z-[2]",
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                    className: "md:text-2xl text-4xl font-bold",
+                    children: name
+                }, void 0, false, {
+                    fileName: "[project]/app/components/Slider/Slide.tsx",
+                    lineNumber: 37,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/app/components/Slider/Slide.tsx",
+                lineNumber: 36,
+                columnNumber: 7
+            }, this),
+            ImageBlock
+        ]
+    }, void 0, true);
+    const baseClass = "bg-white select-none flex items-end h-[400px] md:h-[300px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
+    return external ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
+        href: link,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        className: baseClass,
+        children: content
+    }, void 0, false, {
+        fileName: "[project]/app/components/Slider/Slide.tsx",
+        lineNumber: 47,
+        columnNumber: 5
+    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+        href: link,
+        className: baseClass,
+        children: content
+    }, void 0, false, {
+        fileName: "[project]/app/components/Slider/Slide.tsx",
+        lineNumber: 51,
         columnNumber: 5
     }, this);
 }
@@ -446,7 +411,7 @@ function Calendar(param) {
             children: d
         }, i, false, {
             fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-            lineNumber: 88,
+            lineNumber: 87,
             columnNumber: 5
         }, this));
     const gridDates = function() {
@@ -472,7 +437,7 @@ function Calendar(param) {
             weeks.push(allDays.slice(i, i + 7));
         }
         // filtrage pour supprimer une éventuelle 7e ligne complètement "mois suivant"
-        const filteredWeeks = weeks.filter((week, index)=>{
+        const filteredWeeks = weeks.filter((week)=>{
             const hasCurrentMonthDay = week.some((d)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getMonth"])(d) === targetMonth && (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getYear$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getYear"])(d) === targetYear);
             if (hasCurrentMonthDay) return true;
             // garder la semaine qui contient la targetDate (si tu veux voir une semaine entamée)
@@ -509,12 +474,12 @@ function Calendar(param) {
                     children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDate"])(date)
                 }, void 0, false, {
                     fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                    lineNumber: 176,
+                    lineNumber: 175,
                     columnNumber: 11
                 }, _this)
             }, i, false, {
                 fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                lineNumber: 171,
+                lineNumber: 170,
                 columnNumber: 9
             }, _this);
         });
@@ -533,7 +498,7 @@ function Calendar(param) {
                         })
                     }, void 0, false, {
                         fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                        lineNumber: 200,
+                        lineNumber: 199,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -548,13 +513,13 @@ function Calendar(param) {
                                     color: "rgba(95, 105, 119)"
                                 }, void 0, false, {
                                     fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                                    lineNumber: 211,
+                                    lineNumber: 210,
                                     columnNumber: 15
                                 }, void 0),
                                 onClickHandler: ()=>onClickMoveMonth('prev')
                             }, void 0, false, {
                                 fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                                lineNumber: 206,
+                                lineNumber: 205,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Common$2f$Button$2f$IconButton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -566,25 +531,25 @@ function Calendar(param) {
                                     color: "rgba(80, 80, 60)"
                                 }, void 0, false, {
                                     fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                                    lineNumber: 223,
+                                    lineNumber: 222,
                                     columnNumber: 15
                                 }, void 0),
                                 onClickHandler: ()=>onClickMoveMonth('next')
                             }, void 0, false, {
                                 fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                                lineNumber: 218,
+                                lineNumber: 217,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                        lineNumber: 205,
+                        lineNumber: 204,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                lineNumber: 199,
+                lineNumber: 198,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -595,13 +560,13 @@ function Calendar(param) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-                lineNumber: 232,
+                lineNumber: 231,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/components/Common/Calendar/Calendar.tsx",
-        lineNumber: 195,
+        lineNumber: 194,
         columnNumber: 5
     }, this);
 }
@@ -867,11 +832,16 @@ const sortEventBlocks = function(events, key) {
     const compFunc = (a, b, asc)=>asc ? a < b ? -1 : a > b ? 1 : 0 : a < b ? 1 : a > b ? -1 : 0;
     return events.slice().sort((a, b)=>{
         if (key === 'startDate' || key === 'endDate' || key === 'createdAt') {
-            return compFunc(new Date(a[key]), new Date(b[key]), isAscending);
+            return compFunc(// eslint-disable-next-line @typescript-eslint/no-explicit-any
+            new Date(a[key]), // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            new Date(b[key]), isAscending);
         }
         if (a[key] === b[key]) {
-            return compFunc(new Date(a['startDate']), new Date(b['startDate']), isAscending);
+            return compFunc(// eslint-disable-next-line @typescript-eslint/no-explicit-any
+            new Date(a['startDate']), // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            new Date(b['startDate']), isAscending);
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return compFunc(a[key], b[key], isAscending);
     });
 };
@@ -907,6 +877,7 @@ const getBaseDayViewEvents = ()=>{
         return acc;
     }, {});
     return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         wholeDayEvents: [],
         hours
     };
@@ -932,7 +903,9 @@ const getBaseWeekViewEvents = ()=>{
         days
     };
 };
-const getUpdatedEventBlocksWithPlacement = (events, incomingRowsMatrix)=>{
+const getUpdatedEventBlocksWithPlacement = (// eslint-disable-next-line @typescript-eslint/no-explicit-any
+events, incomingRowsMatrix)=>{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const list = [];
     let eventIndex = 0;
     let matrixIndex = 0;
@@ -1353,7 +1326,7 @@ function getColorClass(colorId) {
     return (_found_className = found === null || found === void 0 ? void 0 : found.className) !== null && _found_className !== void 0 ? _found_className : 'bg-sky-500 text-white';
 }
 function CreateEventModal(param) {
-    let { isOpen, onClose, onSave, initialStartDate, initialEndDate, defaultColorId = '1', isEdit = false } = param;
+    let { isOpen, onClose, onSave, initialStartDate, initialEndDate, defaultColorId = '1' } = param;
     _s();
     const startDateInputRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
     const endDateInputRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
@@ -1368,7 +1341,6 @@ function CreateEventModal(param) {
     const [showEndDateInput, setShowEndDateInput] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [isAllDay, setIsAllDay] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [repeatType, setRepeatType] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(-1);
-    // colorId Google direct
     const [colorId, setColorId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(defaultColorId);
     const [isRepeatTypeDropdownOpen, setIsRepeatTypeDropdownOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [isStartDateCalendarOpen, setIsStartDateCalendarOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
@@ -1550,7 +1522,7 @@ function CreateEventModal(param) {
                 onClick: onClose
             }, void 0, false, {
                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                lineNumber: 293,
+                lineNumber: 287,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1567,18 +1539,18 @@ function CreateEventModal(param) {
                                 color: "rgba(75, 85, 99)"
                             }, void 0, false, {
                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                lineNumber: 315,
+                                lineNumber: 309,
                                 columnNumber: 15
                             }, void 0),
                             onClickHandler: onClose
                         }, void 0, false, {
                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                            lineNumber: 310,
+                            lineNumber: 304,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                        lineNumber: 304,
+                        lineNumber: 298,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1594,12 +1566,12 @@ function CreateEventModal(param) {
                                     className: "w-full text-2xl antialiased font-normal border-b outline-none"
                                 }, void 0, false, {
                                     fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                    lineNumber: 324,
+                                    lineNumber: 318,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                lineNumber: 323,
+                                lineNumber: 317,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1612,12 +1584,12 @@ function CreateEventModal(param) {
                                             color: "rgba(75, 85, 99)"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                            lineNumber: 336,
+                                            lineNumber: 330,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 335,
+                                        lineNumber: 329,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1637,7 +1609,7 @@ function CreateEventModal(param) {
                                                                 })
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 342,
+                                                                lineNumber: 336,
                                                                 columnNumber: 19
                                                             }, this),
                                                             isStartDateCalendarOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1649,18 +1621,18 @@ function CreateEventModal(param) {
                                                                     onClose: ()=>setIsStartDateCalendarOpen(false)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                    lineNumber: 352,
+                                                                    lineNumber: 346,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 351,
+                                                                lineNumber: 345,
                                                                 columnNumber: 21
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 341,
+                                                        lineNumber: 335,
                                                         columnNumber: 17
                                                     }, this),
                                                     !isAllDay && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1673,7 +1645,7 @@ function CreateEventModal(param) {
                                                             onBlur: (e)=>onBlurInput('start', e.target.value)
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                            lineNumber: 368,
+                                                            lineNumber: 362,
                                                             columnNumber: 23
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                             className: "px-1 transition rounded-sm cursor-pointer hover:bg-gray-100",
@@ -1683,12 +1655,12 @@ function CreateEventModal(param) {
                                                             })
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                            lineNumber: 381,
+                                                            lineNumber: 375,
                                                             columnNumber: 23
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 366,
+                                                        lineNumber: 360,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1696,7 +1668,7 @@ function CreateEventModal(param) {
                                                         children: "-"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 393,
+                                                        lineNumber: 387,
                                                         columnNumber: 17
                                                     }, this),
                                                     !isAllDay && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1709,7 +1681,7 @@ function CreateEventModal(param) {
                                                             onBlur: (e)=>onBlurInput('end', e.target.value)
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                            lineNumber: 399,
+                                                            lineNumber: 393,
                                                             columnNumber: 23
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                             className: "px-1 transition rounded-sm cursor-pointer hover:bg-gray-100",
@@ -1719,12 +1691,12 @@ function CreateEventModal(param) {
                                                             })
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                            lineNumber: 412,
+                                                            lineNumber: 406,
                                                             columnNumber: 23
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 397,
+                                                        lineNumber: 391,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1738,7 +1710,7 @@ function CreateEventModal(param) {
                                                                 })
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 426,
+                                                                lineNumber: 420,
                                                                 columnNumber: 19
                                                             }, this),
                                                             isEndDateCalendarOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1750,24 +1722,24 @@ function CreateEventModal(param) {
                                                                     onClose: ()=>setIsEndDateCalendarOpen(false)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                    lineNumber: 436,
+                                                                    lineNumber: 430,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 435,
+                                                                lineNumber: 429,
                                                                 columnNumber: 21
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 425,
+                                                        lineNumber: 419,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                lineNumber: 339,
+                                                lineNumber: 333,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1784,38 +1756,38 @@ function CreateEventModal(param) {
                                                                 color: "gray"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 458,
+                                                                lineNumber: 452,
                                                                 columnNumber: 25
                                                             }, void 0) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$icons$2f$md$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MdCheckBoxOutlineBlank"], {
                                                                 size: "24px",
                                                                 color: "gray"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 460,
+                                                                lineNumber: 454,
                                                                 columnNumber: 25
                                                             }, void 0),
                                                             onClickHandler: ()=>onToggleAllDay(!isAllDay)
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                            lineNumber: 452,
+                                                            lineNumber: 446,
                                                             columnNumber: 19
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 451,
+                                                        lineNumber: 445,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         children: "Toute la journée"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 469,
+                                                        lineNumber: 463,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                lineNumber: 450,
+                                                lineNumber: 444,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1830,7 +1802,7 @@ function CreateEventModal(param) {
                                                                 children: __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$utils$2f$helpers$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["repeatTypeStringLookup"][repeatType]
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 478,
+                                                                lineNumber: 472,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$icons$2f$md$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MdArrowDropDown"], {
@@ -1838,13 +1810,13 @@ function CreateEventModal(param) {
                                                                 color: "rgba(75, 85, 99)"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                                lineNumber: 483,
+                                                                lineNumber: 477,
                                                                 columnNumber: 19
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 474,
+                                                        lineNumber: 468,
                                                         columnNumber: 17
                                                     }, this),
                                                     isRepeatTypeDropdownOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Common$2f$Dropdown$2f$Dropdown$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1852,25 +1824,25 @@ function CreateEventModal(param) {
                                                         onCloseDropdown: ()=>setIsRepeatTypeDropdownOpen(false)
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 489,
+                                                        lineNumber: 483,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                lineNumber: 473,
+                                                lineNumber: 467,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 338,
+                                        lineNumber: 332,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                lineNumber: 334,
+                                lineNumber: 328,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1882,12 +1854,12 @@ function CreateEventModal(param) {
                                             color: "rgba(75, 85, 99)"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                            lineNumber: 503,
+                                            lineNumber: 497,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 502,
+                                        lineNumber: 496,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1900,18 +1872,18 @@ function CreateEventModal(param) {
                                             className: "w-full px-2 py-1 text-sm bg-gray-100 border-b outline-none"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                            lineNumber: 506,
+                                            lineNumber: 500,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 505,
+                                        lineNumber: 499,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                lineNumber: 501,
+                                lineNumber: 495,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1923,12 +1895,12 @@ function CreateEventModal(param) {
                                             color: "rgba(75, 85, 99)"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                            lineNumber: 519,
+                                            lineNumber: 513,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 518,
+                                        lineNumber: 512,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1940,18 +1912,18 @@ function CreateEventModal(param) {
                                             className: "w-full px-2 py-1 text-sm bg-gray-100 border-b outline-none resize-none"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                            lineNumber: 522,
+                                            lineNumber: 516,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 521,
+                                        lineNumber: 515,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                lineNumber: 517,
+                                lineNumber: 511,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1963,12 +1935,12 @@ function CreateEventModal(param) {
                                             color: "rgba(75, 85, 99)"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                            lineNumber: 534,
+                                            lineNumber: 528,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 533,
+                                        lineNumber: 527,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1983,37 +1955,37 @@ function CreateEventModal(param) {
                                                         children: c.label
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 548,
+                                                        lineNumber: 542,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: "\n                      w-4 h-4 rounded-full\n                      ".concat(c.className, "\n                    ")
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                        lineNumber: 551,
+                                                        lineNumber: 545,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, c.id, true, {
                                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                                lineNumber: 538,
+                                                lineNumber: 532,
                                                 columnNumber: 17
                                             }, this))
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                        lineNumber: 536,
+                                        lineNumber: 530,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                                lineNumber: 532,
+                                lineNumber: 526,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                        lineNumber: 321,
+                        lineNumber: 315,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2024,24 +1996,24 @@ function CreateEventModal(param) {
                             children: "Enregistrer"
                         }, void 0, false, {
                             fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                            lineNumber: 565,
+                            lineNumber: 559,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                        lineNumber: 564,
+                        lineNumber: 558,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-                lineNumber: 298,
+                lineNumber: 292,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/components/Modal/CreateEventModal.tsx",
-        lineNumber: 292,
+        lineNumber: 286,
         columnNumber: 5
     }, this);
 }
@@ -2081,7 +2053,7 @@ var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.sign
 ;
 ;
 ;
-/* ---------- Couleur depuis colorId Google ---------- */ function googleColorIdToClasses(colorId) {
+function googleColorIdToClasses(colorId) {
     switch(colorId){
         case '1':
             return 'bg-blue-500 text-white';
@@ -2109,7 +2081,7 @@ var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.sign
             return 'bg-sky-500 text-white';
     }
 }
-/* ---------- Block (un event dans la grille) ---------- */ function TimelineBlock(param) {
+function TimelineBlock(param) {
     let { index, event, onClickTimelineBlock } = param;
     _s();
     const timelineBlockRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
@@ -2144,7 +2116,7 @@ var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.sign
                 children: "".concat(startTime, " - ").concat(endTime)
             }, void 0, false, {
                 fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                lineNumber: 122,
+                lineNumber: 117,
                 columnNumber: 9
             }, this);
         }
@@ -2192,12 +2164,12 @@ var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.sign
             ]
         }, void 0, true, {
             fileName: "[project]/app/components/Timeline/Timeline.tsx",
-            lineNumber: 173,
+            lineNumber: 168,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-        lineNumber: 160,
+        lineNumber: 155,
         columnNumber: 5
     }, this);
 }
@@ -2325,6 +2297,7 @@ function TimelineFull(param) {
     const [targetDateRange, setTargetDateRange] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [timelineMaxHeight, setTimelineMaxHeight] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])('calc(100vh - (65px + 43px))');
     const [weekEventsByDay, setWeekEventsByDay] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({});
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onClickTimelineBlock = (payload)=>{
         onSelectEvent(payload);
     };
@@ -2414,7 +2387,7 @@ function TimelineFull(param) {
                                         }).toUpperCase()
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                        lineNumber: 440,
+                                        lineNumber: 436,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2424,31 +2397,31 @@ function TimelineFull(param) {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                        lineNumber: 443,
+                                        lineNumber: 439,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, i, true, {
                                 fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                lineNumber: 432,
+                                lineNumber: 428,
                                 columnNumber: 13
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                        lineNumber: 430,
+                        lineNumber: 426,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "w-full border-b border-l"
                     }, void 0, false, {
                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                        lineNumber: 449,
+                        lineNumber: 445,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                lineNumber: 429,
+                lineNumber: 425,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2474,26 +2447,26 @@ function TimelineFull(param) {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                        lineNumber: 468,
+                                        lineNumber: 464,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "w-2 h-12"
                                     }, void 0, false, {
                                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                        lineNumber: 471,
+                                        lineNumber: 467,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, hour, true, {
                                 fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                lineNumber: 464,
+                                lineNumber: 460,
                                 columnNumber: 15
                             }, this);
                         })
                     }, void 0, false, {
                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                        lineNumber: 459,
+                        lineNumber: 455,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2519,37 +2492,37 @@ function TimelineFull(param) {
                                                     onClickTimelineBlock: onClickTimelineBlock
                                                 }, "".concat(hour, "-").concat(segKey, "-").concat(idx2), false, {
                                                     fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                                    lineNumber: 499,
+                                                    lineNumber: 495,
                                                     columnNumber: 27
                                                 }, this));
                                         })
                                     }, hour, false, {
                                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                        lineNumber: 492,
+                                        lineNumber: 488,
                                         columnNumber: 21
                                     }, this);
                                 })
                             }, dayIndex, false, {
                                 fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                                lineNumber: 482,
+                                lineNumber: 478,
                                 columnNumber: 15
                             }, this);
                         })
                     }, void 0, false, {
                         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                        lineNumber: 478,
+                        lineNumber: 474,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/Timeline/Timeline.tsx",
-                lineNumber: 453,
+                lineNumber: 449,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/components/Timeline/Timeline.tsx",
-        lineNumber: 427,
+        lineNumber: 423,
         columnNumber: 5
     }, this);
 }
@@ -3730,6 +3703,7 @@ function GoogleAgenda() {
         hasToken
     ]);
     const handleOpenCreateModal = (basis)=>{
+        console.log(basis);
         setIsCreateEventModalOpen(true);
     };
     const handleSaveEvent = async (payload)=>{
@@ -3808,7 +3782,7 @@ function GoogleAgenda() {
             children: "Vérification de la connexion Google…"
         }, void 0, false, {
             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-            lineNumber: 186,
+            lineNumber: 187,
             columnNumber: 12
         }, this);
     }
@@ -3821,7 +3795,7 @@ function GoogleAgenda() {
                     children: "Connecte ton compte Google pour afficher l’agenda et analyser les mails."
                 }, void 0, false, {
                     fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                    lineNumber: 192,
+                    lineNumber: 193,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
@@ -3830,19 +3804,19 @@ function GoogleAgenda() {
                     children: "Se connecter avec Google"
                 }, void 0, false, {
                     fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                    lineNumber: 195,
+                    lineNumber: 196,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-            lineNumber: 191,
+            lineNumber: 192,
             columnNumber: 7
         }, this);
     }
     var _selectedEventData_colorId, _selectedEventData_google_creatorName;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "flex flex-col w-full max-w-[1500px] mx-auto",
+        className: "flex flex-col w-full max-w-[1500px] mx-auto hidden",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: "flex gap-4",
@@ -3853,7 +3827,7 @@ function GoogleAgenda() {
                         onClickNewEvent: handleOpenCreateModal
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 208,
+                        lineNumber: 209,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3863,7 +3837,7 @@ function GoogleAgenda() {
                             children: "Chargement des événements…"
                         }, void 0, false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 215,
+                            lineNumber: 216,
                             columnNumber: 13
                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Timeline$2f$Timeline$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                             calendarViewType: calendarViewType,
@@ -3874,18 +3848,18 @@ function GoogleAgenda() {
                             onClickNewEvent: handleOpenCreateModal
                         }, void 0, false, {
                             fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                            lineNumber: 217,
+                            lineNumber: 218,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 213,
+                        lineNumber: 214,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 207,
+                lineNumber: 208,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Modal$2f$CreateEventModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -3894,7 +3868,7 @@ function GoogleAgenda() {
                 onSave: handleSaveEvent
             }, void 0, false, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 229,
+                lineNumber: 230,
                 columnNumber: 7
             }, this),
             selectedEventData && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -3903,7 +3877,7 @@ function GoogleAgenda() {
                         className: "absolute top-0 left-0 w-full h-full z-1"
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 237,
+                        lineNumber: 238,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$components$2f$Modal$2f$EventDetailModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -3927,7 +3901,7 @@ function GoogleAgenda() {
                         onEditEvent: handleEditEvent
                     }, void 0, false, {
                         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                        lineNumber: 238,
+                        lineNumber: 239,
                         columnNumber: 11
                     }, this)
                 ]
@@ -3939,13 +3913,13 @@ function GoogleAgenda() {
                 onUpdated: handleEventUpdated
             }, void 0, false, {
                 fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-                lineNumber: 263,
+                lineNumber: 264,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/components/GoogleAgenda/GoogleAgenda.tsx",
-        lineNumber: 206,
+        lineNumber: 207,
         columnNumber: 5
     }, this);
 }

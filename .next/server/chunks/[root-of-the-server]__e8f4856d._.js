@@ -191,6 +191,7 @@ async function readTokens() {
         });
         const res = await fetch(url);
         if (!res.ok) return {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return await res.json();
     } catch (err) {
         console.error('Erreur lecture JSON S3 :', err);
@@ -230,6 +231,7 @@ async function getGoogleCalendarClient() {
     });
     return calendar;
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapGoogleEventToUiEvent(googleEvent) {
     const start = googleEvent.start?.dateTime ?? googleEvent.start?.date;
     const end = googleEvent.end?.dateTime ?? googleEvent.end?.date;
@@ -248,6 +250,7 @@ function mapGoogleEventToUiEvent(googleEvent) {
             colorId,
             htmlLink: googleEvent.htmlLink ?? null,
             creatorName,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             attendees: (googleEvent.attendees ?? []).map((a)=>({
                     email: a.email,
                     displayName: a.displayName ?? null,
@@ -288,6 +291,7 @@ async function POST(req) {
         const calendar = await getGoogleCalendarClient();
         const calendarId = process.env.GOOGLE_CALENDAR_ID ?? 'primary';
         const { title, description, location, startDate, endDate, isAllDay, colorId } = body;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const event = {
             summary: title,
             description,
@@ -311,6 +315,7 @@ async function POST(req) {
         });
         const created = mapGoogleEventToUiEvent(resInsert.data);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json(created);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e) {
         console.error('Erreur POST /api/google/events', JSON.stringify(e, null, 2));
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({

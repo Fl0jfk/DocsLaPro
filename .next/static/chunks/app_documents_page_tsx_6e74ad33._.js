@@ -52,6 +52,7 @@ function DocumentsPage() {
                 }
             }["DocumentsPage.useEffect"]).catch({
                 "DocumentsPage.useEffect": (err)=>{
+                    console.error(err);
                     setLoading(false);
                 }
             }["DocumentsPage.useEffect"]);
@@ -121,7 +122,7 @@ function DocumentsPage() {
                         className: "h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
                     }, void 0, false, {
                         fileName: "[project]/app/documents/page.tsx",
-                        lineNumber: 92,
+                        lineNumber: 93,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -129,18 +130,18 @@ function DocumentsPage() {
                         children: "Chargement en cours…"
                     }, void 0, false, {
                         fileName: "[project]/app/documents/page.tsx",
-                        lineNumber: 93,
+                        lineNumber: 94,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/documents/page.tsx",
-                lineNumber: 91,
+                lineNumber: 92,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/documents/page.tsx",
-            lineNumber: 90,
+            lineNumber: 91,
             columnNumber: 7
         }, this);
     }
@@ -153,7 +154,7 @@ function DocumentsPage() {
                 children: "← Retour"
             }, void 0, false, {
                 fileName: "[project]/app/documents/page.tsx",
-                lineNumber: 101,
+                lineNumber: 102,
                 columnNumber: 9
             }, this),
             items.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -167,7 +168,7 @@ function DocumentsPage() {
                                 children: item.type === "folder" ? "📁" : getFileIcon(item.ext)
                             }, void 0, false, {
                                 fileName: "[project]/app/documents/page.tsx",
-                                lineNumber: 107,
+                                lineNumber: 108,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -179,31 +180,31 @@ function DocumentsPage() {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/documents/page.tsx",
-                                lineNumber: 108,
+                                lineNumber: 109,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, idx, true, {
                         fileName: "[project]/app/documents/page.tsx",
-                        lineNumber: 106,
+                        lineNumber: 107,
                         columnNumber: 9
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/app/documents/page.tsx",
-                lineNumber: 104,
+                lineNumber: 105,
                 columnNumber: 9
             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                 className: "text-gray-500 text-center",
                 children: "Aucun document disponible pour ce dossier."
             }, void 0, false, {
                 fileName: "[project]/app/documents/page.tsx",
-                lineNumber: 113,
+                lineNumber: 114,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/documents/page.tsx",
-        lineNumber: 99,
+        lineNumber: 100,
         columnNumber: 5
     }, this);
 }

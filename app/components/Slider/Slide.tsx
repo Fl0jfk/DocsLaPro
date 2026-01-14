@@ -1,42 +1,36 @@
-import Image from 'next/image';
-import Link from 'next/link';
+import Image from "next/image";
+import Link from "next/link";
 
 type SliderProps = {
   name: string;
   img: string;
   link: string;
   external?: boolean;
+  priority?: boolean;
 };
 
-export default function Slide({ name, img, link, external }: SliderProps) {
-  if (external) {
-    return (
-      <a href={link} target="_blank" rel="noopener noreferrer" className='bg-white select-none flex items-end xl:hover:scale-105 lg:hover:scale-105 h-[400px] md:h-[300px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300'>
-        {name && 
-          <>
-            <div className='flex flex-col gap-1'>
-              <p className='md:text-2xl text-4xl font-bold z-[2]'>{name}</p>
-            </div>      
-            {img && 
-              <Image src={img} fill alt={name} style={{objectFit:"contain"}} priority className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
-            }
-          </>    
-        }  
-      </a>
-    );
-  }
-  return (
-    <Link href={link} className='select-none bg-white flex items-end xl:hover:scale-105 lg:hover:scale-105 h-[400px] md:h-[300px] md:min-w-[120px] min-w-[250px] sm:h-[500px] sm:min-w-[280px] rounded-3xl m-3 p-4 sm:cursor-grab sm:active:cursor-grabbing relative overflow-hidden transition ease-in-out duration-300'>
-      {name && 
-        <>
-          <div className='flex flex-col gap-1'>
-            <p className='md:text-2xl text-4xl font-bold z-[2]'>{name}</p>
-          </div>      
-          {img && 
-            <Image src={img} fill alt={name} style={{objectFit:"contain"}} priority className='rounded-3xl select-none pointer-events-none' sizes='35vw'/>
-          }
-        </>    
-      }  
+export default function Slide({ name, img, link, external, priority = false,}: SliderProps) {
+  const ImageBlock = (
+    img && (
+      <Image src={img} fill alt={name} sizes="35vw" priority={priority} fetchPriority={priority ? "high" : "auto"} className="rounded-3xl select-none pointer-events-none object-contain"/>
+    )
+  );
+  const content = (
+    <>
+      <div className="flex flex-col gap-1 z-[2]">
+        <p className="md:text-2xl text-4xl font-bold">{name}</p>
+      </div>
+      {ImageBlock}
+    </>
+  );
+  const baseClass ="bg-white select-none flex items-end h-[400px] md:h-[300px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
+  return external ? (
+    <a href={link} target="_blank" rel="noopener noreferrer" className={baseClass}>
+      {content}
+    </a>
+  ) : (
+    <Link href={link} className={baseClass}>
+      {content}
     </Link>
   );
 }

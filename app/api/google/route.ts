@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const redirectUri = encodeURIComponent(process.env.GOOGLE_REDIRECT_URI!);
+ /* const redirectUri = encodeURIComponent(process.env.GOOGLE_REDIRECT_URI!);
   const clientId = process.env.GOOGLE_CLIENT_ID!;
   const scope = encodeURIComponent(process.env.GOOGLE_SCOPES!);
 
@@ -14,5 +14,6 @@ export async function GET() {
     `&prompt=consent` +     
     `&scope=${scope}`;
 
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(url);*/
+  return NextResponse
 }

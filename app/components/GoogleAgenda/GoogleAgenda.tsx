@@ -204,7 +204,7 @@ export default function GoogleAgenda() {
   }
 
   return (
-    <div className="flex flex-col w-full max-w-[1500px] mx-auto">
+    <div className="flex flex-col w-full max-w-[1500px] mx-auto hidden">
       <div className="flex gap-4">
         <PanelLeft
           targetDate={targetDate}
