@@ -1,10 +1,6 @@
 {
-  "/api/documents/list/route": "app/api/documents/list/route.js",
-  "/api/google/events/route": "app/api/google/events/route.js",
-  "/api/google/gettokens/route": "app/api/google/gettokens/route.js",
-  "/api/google/status/route": "app/api/google/status/route.js",
-  "/brouillons/afficheProvidence/page": "app/brouillons/afficheProvidence/page.js",
-  "/documents/page": "app/documents/page.js",
+  "/api/portes-ouvertes/route": "app/api/portes-ouvertes/route.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/portesouvertes/page": "app/portesouvertes/page.js"
 }

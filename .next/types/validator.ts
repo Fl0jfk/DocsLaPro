@@ -263,6 +263,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/portesouvertes/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/portesouvertes">> = Specific
+  const handler = {} as typeof import("../../app/portesouvertes/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/prof-room/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/prof-room">> = Specific
@@ -537,6 +546,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/pj-pdf">> = Specific
   const handler = {} as typeof import("../../app/api/pj-pdf/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/portes-ouvertes/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/portes-ouvertes">> = Specific
+  const handler = {} as typeof import("../../app/api/portes-ouvertes/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
