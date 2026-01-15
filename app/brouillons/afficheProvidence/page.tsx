@@ -18,7 +18,7 @@ export default function AfficheProvidence() {
         <section className="relative z-10 mt-10 ml-10 max-w-md">
           <h2 className="text-5xl font-extrabold leading-tight text-white italic">Ecole - Collège - Lycée</h2>
           <p className="mt-6 text-5xl font-extrabold leading-tight italic">La Providence Nicolas Barré</p>
-          <p className="mt-6 text-5xl font-extrabold leading-tight text-white w-[70%] italic">Un passeport pour l'avenir</p>
+          <p className="mt-6 text-5xl font-extrabold leading-tight text-white w-[70%] italic">Un passeport pour l&apos;avenir</p>
         </section>
         <Image src="/Photos affiche 1.jpg" width={200} height={200} alt="" className="absolute left-[460px] rounded-xl top-[40px] shadow-[0_10px_25px_rgba(0,0,0,0.12)] z-10 rotate-3"/>
         <Image src="/Photos affiche 2.webp" width={280} height={150} alt="" className="absolute left-[400px] rounded-xl top-[450px] shadow-[0_10px_25px_rgba(0,0,0,0.12)] z-50 rotate-3"/>
@@ -73,7 +73,7 @@ export default function AfficheProvidence() {
         <section className="absolute top-[950px] flex w-full p-4 px-8 justify-between items-center">
           <div className="flex flex-col gap-2">
             <p className="text-3xl font-bold">Portes Ouvertes 14 mars 2026</p>
-            <p className="text-2xl">Inscrivez-vous en flashant le Qr-code</p>
+            <p className="text-2xl">Inscrivez-vous en flashant le QR-CODE</p>
           </div>          
           <Image src="/QR Code Portes Ouvertes.png" width={150} height={150} alt="QR" className="rounded-xl"/>
         </section>
