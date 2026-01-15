@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
             protocol: 'https',
             hostname: 'docslaproimage.s3.eu-west-3.amazonaws.com',
             pathname: '/**',
+        },
+        {
+            protocol: 'https',
+            hostname: 'flagcdn.com',
+            pathname: '/**',
         }
     ]
   },

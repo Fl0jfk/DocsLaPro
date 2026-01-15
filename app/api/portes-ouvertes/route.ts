@@ -19,8 +19,8 @@ export async function POST(req: Request) {
       subject: "Nouvelle inscription – Portes ouvertes",
       html: `
         <h2>Nouvelle demande d’inscription aux portes ouvertes</h2>
-        <p><strong>Établissement :</strong> ${etablissement}</p>
-        <p><strong>Classe de l’enfant :</strong> ${classe}</p>
+        <p><strong>Établissement qui intéresse la famille :</strong> ${etablissement}</p>
+        <p><strong>Classe qui intéresse la famille :</strong> ${classe}</p>
         <p><strong>Horaire choisi :</strong> ${horaire}</p>
         <p><strong>Pré-inscription déjà faite :</strong> ${preinscription}</p>
         <hr />

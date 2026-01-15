@@ -36,14 +36,13 @@ export default function PortesOuvertesPage() {
       <input name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl"/>
       <input name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl"/>
       <select name="etablissement" required className="p-2 rounded-xl">
-        <option value="">Établissement concerné</option>
+        <option value="">Établissement qui vous intéresse</option>
         <option value="Ecole">École</option>
         <option value="Collège">Collège</option>
         <option value="Lycée">Lycée</option>
       </select>
       <select name="classe" required className="p-2 rounded-xl">
         <option value="">Classe qui vous intéresse pour votre enfant </option>
-        <option value="Très petite section">Très petite section</option>
         <option value="Petite section">Petite section</option>
         <option value="Moyenne section">Moyenne section</option>
         <option value="Grande section">Grande section</option>
