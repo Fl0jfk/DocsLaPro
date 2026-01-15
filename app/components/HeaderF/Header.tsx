@@ -32,6 +32,7 @@ export default function Header() {
         pathname === "/documents/autorisationSortie" ||
         pathname === "/documents/afficheProvidence" ||
         pathname === "/brouillons/carteReseau" ||
+        pathname === "/portesouvertes" ||
         pathname === "/documents/cartePoliceMesnil")
     ) {
       setHidden(true);
@@ -75,6 +76,7 @@ export default function Header() {
       pathname === "/brouillons/devisTransport" ||
       pathname === "/brouillons/autorisationSortie" ||
       pathname === "/brouillons/afficheProvidence" ||
+      pathname === "/portesouvertes" ||
       pathname === "/brouillons/carteReseau" ||
       pathname === "/documents/cartePoliceMesnil")
   ) {
