@@ -1,40 +1,76 @@
-"use client";
+"use client"
 
 import { useState } from "react";
 
 export default function PortesOuvertesPage() {
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [submittedData, setSubmittedData] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const downloadICS = (data: any) => {
+    const [hours, minutes] = data.horaire.split(':');
+    const startDate = new Date(2026, 0, 17);
+    startDate.setHours(parseInt(hours), parseInt(minutes), 0);
+    const endDate = new Date(startDate.getTime() + 90 * 60000);
+    const formatDate = (date: Date) => date.toISOString().replace(/-|:|\.\d+/g, "");
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      `DTSTART:${formatDate(startDate)}`,
+      `DTEND:${formatDate(endDate)}`,
+      "SUMMARY:✨ Portes Ouvertes - La Providence",
+      `DESCRIPTION:Bonjour ! Nous sommes ravis de vous accueillir pour la visite de l'établissement concernant l'inscription de ${data.enfantPrenom}.\\n\\nAu programme : rencontre avec l'équipe éducative, visite des locaux et échanges sur votre projet.\\n\\nÀ très vite !`,
+      "LOCATION:La Providence Nicolas Barré - 6 Rue de Neuvillette, 76240 Le Mesnil-Esnard",
+      "BEGIN:VALARM",
+      "TRIGGER:-PT1H",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Rappel : Portes Ouvertes La Providence",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "rendez-vous-providence.ics");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData);
     const res = await fetch("/api/portes-ouvertes", {
       method: "POST",
-      body: JSON.stringify(Object.fromEntries(formData)),
+      body: JSON.stringify(data),
       headers: { "Content-Type": "application/json" },
     });
     setLoading(false);
-    if (res.ok) setSuccess(true);
+    if (res.ok) setSubmittedData(data);
   }
-  if (success) {
+  if (submittedData) {
     return (
-      <div className="max-w-xl mx-auto p-8 text-center">
+      <div className="max-w-xl mx-auto p-8 text-center flex flex-col gap-4 mt-4">
         <h1 className="text-2xl font-bold">Merci 🙏</h1>
         <p>Votre demande d’inscription aux portes ouvertes a bien été envoyée.</p>
-        <p>Vous pouvez venir le jour des portes ouvertes au créneau que vous avez réservé.</p>
+        <p>Vous pouvez venir le jour des portes ouvertes au créneau que vous avez réservé ({submittedData.horaire}).</p>
+        <button  onClick={() => downloadICS(submittedData)} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-xl">Ajouter à mon calendrier</button>
       </div>
     );
   }
   return (
-    <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-8 flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-8 flex flex-col gap-4 mt-4">
       <h1 className="text-3xl font-bold">Inscription aux portes ouvertes</h1>
-      <input name="Nom" placeholder="Nom du responsable" required className="p-2 rounded-xl"/>
-      <input name="Prenom" placeholder="Prénom du responsable" required className="p-2 rounded-xl"/>
+      <input autoComplete="family-name" type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl"/>
+      <input autoComplete="given-name" type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl"/>
       <input name="email" type="email" placeholder="Email" required className="p-2 rounded-xl"/>
-      <input name="telephone" placeholder="Téléphone" required className="p-2 rounded-xl"/>
-      <input name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl"/>
-      <input name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl"/>
+      <input name="telephone" type="tel" placeholder="Téléphone" required className="p-2 rounded-xl"/>
+      <input autoComplete="family-name" type="text" name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl"/>
+      <input autoComplete="off" type="text" name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl"/>
       <select name="etablissement" required className="p-2 rounded-xl">
         <option value="">Établissement qui vous intéresse</option>
         <option value="Ecole">École</option>
@@ -80,7 +116,9 @@ export default function PortesOuvertesPage() {
           <input type="radio" name="preinscription" value="non" /> Non
         </label>
       </div>
-      <button type="submit" disabled={loading} className="bg-black text-white px-6 py-3 rounded-xl">{loading ? "Envoi…" : "S’inscrire"}</button>
+      <button type="submit" disabled={loading} className="bg-black text-white px-6 py-3 rounded-xl">
+        {loading ? "Envoi…" : "S’inscrire"}
+      </button>
     </form>
   );
 }

@@ -14,11 +14,7 @@ export default function Header() {
   const [menuOpened, setMenuOpened] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
+  useEffect(() => { setIsClient(true);}, []);
   useEffect(() => {
     if (
       isClient &&
@@ -38,19 +34,9 @@ export default function Header() {
       setHidden(true);
     }
   }, [isClient, pathname]);
-
-  const opacityMenu = !menuOpened
-    ? "opacity-95 h-[10vh] ease-linear duration-300"
-    : "h-[100vh] ease-linear duration-300";
-
-  const opacityLogo = !menuOpened
-    ? "ease-linear delay-100 duration-200 scale-1"
-    : "ease-linear delay-150 duration-300 scale-0";
-
-  const handleClick = () => {
-    setMenuOpened(!menuOpened);
-  };
-
+  const opacityMenu = !menuOpened ? "opacity-95 h-[10vh] ease-linear duration-300" : "h-[100vh] ease-linear duration-300";
+  const opacityLogo = !menuOpened ? "ease-linear delay-100 duration-200 scale-1" : "ease-linear delay-150 duration-300 scale-0";
+  const handleClick = () => { setMenuOpened(!menuOpened)};
   useMotionValueEvent(scrollY, "change", (latest: number) => {
     const previous = scrollY.getPrevious() ?? 0;
     if (latest > previous && latest > 150) {
@@ -59,11 +45,7 @@ export default function Header() {
       setHidden(false);
     }
   });
-
-  const handleLinkClick: OnLinkClick = ({ clickOnLink }) => {
-    setMenuOpened(clickOnLink);
-  };
-
+  const handleLinkClick: OnLinkClick = ({ clickOnLink }) => { setMenuOpened(clickOnLink)};
   if (
     isClient &&
     (pathname === "/documents/affichePartnerAlisa" ||
@@ -82,7 +64,6 @@ export default function Header() {
   ) {
     return null;
   }
-
   return (
     <motion.header
       variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
@@ -120,10 +101,7 @@ export default function Header() {
           )}
         </div>
         <Navbar menuOpened={menuOpened} onLinkClick={handleLinkClick} />
-        <div
-          className="flex justify-end w-[40] items-center h-full"
-          onClick={handleClick}
-        >
+        <div className="flex justify-end w-[40] items-center h-full" onClick={handleClick}>
           <CrossButton menuOpened={menuOpened} />
         </div>
       </div>

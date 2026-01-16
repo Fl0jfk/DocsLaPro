@@ -1,4 +1,6 @@
 {
-  "/brouillons/afficheProvidence/page": "app/brouillons/afficheProvidence/page.js",
-  "/favicon.ico/route": "app/favicon.ico/route.js"
+  "/api/portes-ouvertes/route": "app/api/portes-ouvertes/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/page": "app/page.js",
+  "/portesouvertes/page": "app/portesouvertes/page.js"
 }
