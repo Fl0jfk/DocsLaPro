@@ -42,7 +42,7 @@ export default function ProfRoomPage() {
   const isAdmin = ADMIN_LASTNAMES.includes(lastName);
   const today = new Date();
   const minDate = today.toISOString().split("T")[0];
-  let maxDate = isAdmin ? "" : new Date(today.getTime() + 56 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const maxDate = isAdmin ? "" : new Date(today.getTime() + 56 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   useEffect(() => {
     async function load() {
       try {
@@ -179,7 +179,7 @@ export default function ProfRoomPage() {
           </div>
           {recurrence !== "none" && (
             <div className="animate-in fade-in duration-300">
-              <label className="block mb-1 text-sm font-bold text-orange-600">Jusqu'au (date de fin)</label>
+              <label className="block mb-1 text-sm font-bold text-orange-600">Jusqu&apos;au (date de fin)</label>
               <input type="date" value={untilDate} min={selectedDate} max={maxDate} onChange={(e) => setUntilDate(e.target.value)} className="border-orange-200 rounded-lg w-full p-2.5 bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm" />
             </div>
           )}

@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
     const limitDate = new Date();
     limitDate.setDate(limitDate.getDate() + 56); 
     for (const hour of selectedHours) {
-      let currentStart = new Date(`${date}T${hour.toString().padStart(2, "0")}:30:00`);
-      let currentEnd = new Date(currentStart.getTime() + 60 * 60 * 1000);
+      const currentStart = new Date(`${date}T${hour.toString().padStart(2, "0")}:30:00`);
+      const currentEnd = new Date(currentStart.getTime() + 60 * 60 * 1000);
       let stopDate = new Date(currentStart);
       if (recurrence !== "none" && untilDate) {
         stopDate = new Date(untilDate);
