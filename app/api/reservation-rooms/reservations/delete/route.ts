@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     const clerk = await clerkClient();
     const user = await clerk.users.getUser(userId);
-    const ADMIN_LASTNAMES = ["Hacqueville-Mathi", "Dupont", "Martin"];
+    const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "Martin"];
     const lastName = user.lastName ?? "";
     if (!ADMIN_LASTNAMES.includes(lastName)) {
       return NextResponse.json(
