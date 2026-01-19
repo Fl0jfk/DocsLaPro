@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     const clerk = await clerkClient();
     const user = await clerk.users.getUser(userId);
-    const { roomId, startsAt, endsAt, purpose, firstName, lastName } = await req.json();
+    const { roomId, startsAt, endsAt, purpose, firstName, lastName, email } = await req.json();
     if (!roomId || !startsAt || !endsAt)
       return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 });
     const start = new Date(startsAt);
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       userId,
       firstName: firstName || user.firstName || "",
       lastName: lastName || user.lastName || "",
+      email: email || user.primaryEmailAddress?.emailAddress || "",
       startsAt,
       endsAt,
       purpose: purpose || "",

@@ -162,7 +162,7 @@ async function POST(req) {
         });
         const clerk = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$clerk$2f$nextjs$2f$dist$2f$esm$2f$server$2f$clerkClient$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["clerkClient"])();
         const user = await clerk.users.getUser(userId);
-        const { roomId, startsAt, endsAt, purpose, firstName, lastName } = await req.json();
+        const { roomId, startsAt, endsAt, purpose, firstName, lastName, email } = await req.json();
         if (!roomId || !startsAt || !endsAt) return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: "Paramètres manquants"
         }, {
@@ -201,6 +201,7 @@ async function POST(req) {
             userId,
             firstName: firstName || user.firstName || "",
             lastName: lastName || user.lastName || "",
+            email: email || user.primaryEmailAddress?.emailAddress || "",
             startsAt,
             endsAt,
             purpose: purpose || "",
