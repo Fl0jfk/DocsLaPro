@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const clerk = await clerkClient();
     const user = await clerk.users.getUser(userId);
     const lastNameAdmin = (user.lastName ?? "").toUpperCase();
-    const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "MARTIN"];
+    const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI","FORTINEAU","DONA","DUMOUCHEL","PLANTEC","GUEDIN","LAINE"];
     const firstNameAdmin = user.firstName ?? "";
     if (!ADMIN_LASTNAMES.includes(lastNameAdmin)) {  return NextResponse.json({ error: "Non autorisé" }, { status: 403 })}
     const { startsAt, reason, userEmail } = await req.json();
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const res = await fetch(getUrl);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any[] = [];
     if (res.ok) {
       const text = await res.text();
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json({ success: true, message: "Annulation effectuée et mail envoyé" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error("Erreur API :", err);
     return NextResponse.json({ error: err.message || "Erreur serveur" }, { status: 500 });
