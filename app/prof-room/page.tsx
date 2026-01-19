@@ -128,7 +128,7 @@ export default function ProfRoomPage() {
                 <div key={res.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-purple-200 transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-800">
-                      {new Date(res.startsAt).toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric', month: 'short' })} à {new Date(res.startsAt).getHours()}h30
+                      {new Date(res.startsAt).toLocaleDateString("fr-FR", {timeZone: "Europe/Paris", weekday: 'short', day: 'numeric', month: 'short' })} à {new Date(res.startsAt).getHours()}h30
                     </p>
                     <p className="text-xs text-gray-500 truncate">
                       📍 {rooms.find(r => r.id === res.roomId)?.name || res.roomId} — 👤 {res.firstName} {res.lastName}

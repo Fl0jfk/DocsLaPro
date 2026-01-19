@@ -67,9 +67,7 @@ export async function POST(req: NextRequest) {
     if (!putRes.ok) throw new Error("Erreur S3");
     const targetEmail = userEmail || reservationToCancel.email;
     if (targetEmail) {
-      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", {
-        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-      });
+      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", {timeZone: "Europe/Paris", weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'});
       await transporter.sendMail({
         from: `"Gestion Salles - La Providence" <${process.env.SMTP_USER}>`,
         to: targetEmail,
