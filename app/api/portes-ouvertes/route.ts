@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     });
     await transporter.sendMail({
       from: `"Portes ouvertes" <${process.env.SMTP_USER}>`,
-      to: "florian.hacqueville-mathi@ac-normandie.fr",
+      to: "accueil.laprovidence.nb@gmail.com",
       replyTo: email,
       subject: "Nouvelle inscription – Portes ouvertes",
       html: `

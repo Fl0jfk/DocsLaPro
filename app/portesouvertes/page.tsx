@@ -10,7 +10,7 @@ export default function PortesOuvertesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const downloadICS = (data: any) => {
     const [hours, minutes] = data.horaire.split(':');
-    const startDate = new Date(2026, 2, 17);
+    const startDate = new Date(2026, 2, 14);
     startDate.setHours(parseInt(hours), parseInt(minutes), 0);
     const endDate = new Date(startDate.getTime() + 90 * 60000);
     const formatDate = (date: Date) => date.toISOString().replace(/-|:|\.\d+/g, "");
@@ -66,7 +66,7 @@ export default function PortesOuvertesPage() {
   return (
     <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-8 flex flex-col gap-4 mt-4">
       <Image src="/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp" width={150} height={150} alt="logo" className="self-center"/>
-      <h1 className="text-3xl font-bold">Inscription aux portes ouvertes du 17 mars 2026</h1>
+      <h1 className="text-3xl font-bold">Inscription aux portes ouvertes du 14 mars 2026</h1>
       <input autoComplete="family-name" type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl"/>
       <input autoComplete="given-name" type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl"/>
       <input name="email" type="email" placeholder="Email" required className="p-2 rounded-xl"/>
