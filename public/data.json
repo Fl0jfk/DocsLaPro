@@ -86,7 +86,7 @@
             "name":"Réservation de salle",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
             "link":"/prof-room",
-            "allowedRoles": ["professeur", "administratif"],
+            "allowedRoles": ["professeur", "administratif","direction_college","direction_ecole","direction_lycee","maintenance"],
             "external": false
         },
         {
