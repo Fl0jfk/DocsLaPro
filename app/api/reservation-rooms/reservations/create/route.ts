@@ -1,116 +1,94 @@
 import { NextResponse, NextRequest } from "next/server";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getAuth, clerkClient } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs/server";
 import nodemailer from "nodemailer";
 
 const s3 = new S3Client({
   region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
+  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY! },
 });
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
+
+const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
 
 export async function POST(req: NextRequest) {
   try {
     const { userId } = getAuth(req);
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    const clerk = await clerkClient();
-    const user = await clerk.users.getUser(userId);
-    const { roomId, startsAt, endsAt, purpose, firstName, lastName, email } = await req.json();
-    if (!roomId || !startsAt || !endsAt) return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 });
-    const start = new Date(startsAt);
-    const end = new Date(endsAt);
-    if (start >= end) return NextResponse.json({ error: "Plage horaire invalide" }, { status: 400 });
-    const getCmd = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME!,
-      Key: "reservation-rooms/reservations.json",
-    });
+    const body = await req.json();
+    const { roomId, selectedHours, date, subject, className, recurrence, untilDate, firstName, lastName, email } = body;
+    const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
-    const res = await fetch(getUrl);
+    const resS3 = await fetch(getUrl);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any[] = [];
-    if (res.ok) {
-      const text = await res.text();
+    if (resS3.ok) {
+      const text = await resS3.text();
       existing = text ? JSON.parse(text) : [];
     }
-    const conflict = existing.find(
-      (r) =>
-        r.roomId === roomId &&
-        r.status !== "CANCELLED" &&
-        new Date(r.startsAt) < end &&
-        new Date(r.endsAt) > start
-    );
-    if (conflict) return NextResponse.json({ error: "Ce créneau est déjà réservé" }, { status: 409 });
-    const newReservation = {
-      id: Date.now().toString(),
-      roomId,
-      userId,
-      firstName: firstName || user.firstName || "",
-      lastName: lastName || user.lastName || "",
-      email: email || user.primaryEmailAddress?.emailAddress || "",
-      startsAt,
-      endsAt,
-      purpose: purpose || "",
-      createdAt: new Date().toISOString(),
-      status: "CONFIRMED",
-    };
-    existing.push(newReservation);
-    const putCmd = new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME!,
-      Key: "reservation-rooms/reservations.json",
-      ContentType: "application/json",
-    });
-    const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
-    const putRes = await fetch(putUrl, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(existing, null, 2),
-    });
-    if (!putRes.ok) throw new Error("Impossible de sauvegarder sur S3");
-    const targetEmail = newReservation.email;
-    if (targetEmail) {
-      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", {timeZone: "Europe/Paris", weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'});
-      try {
-        await transporter.sendMail({
-          from: `"Gestion Salles - La Providence" <${process.env.SMTP_USER}>`,
-          to: targetEmail,
-          subject: "✅ Confirmation de votre réservation de salle",
-          html: `
-            <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-              <h2 style="color: #2e7d32;">Réservation confirmée !</h2>
-              <p>Bonjour <strong>${newReservation.firstName}</strong>,</p>
-              <p>Nous vous confirmons la réservation de la salle suivante :</p>
-              <ul style="list-style: none; padding: 0;">
-                <li><strong>📍 Salle :</strong> ${roomId}</li>
-                <li><strong>📅 Date :</strong> ${dateFormatted}</li>
-              </ul>
-              <p style="margin-top: 20px;">Merci d'utiliser notre plateforme de gestion.</p>
-              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-              <p style="font-size: 0.8em; color: #888;">Ceci est un message automatique de l'Institution La Providence.</p>
-            </div>
-          `,
-        });
-      } catch (mailErr) {
-        console.error("Erreur lors de l'envoi du mail de confirmation:", mailErr);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newReservationsAdded: any[] = [];
+    const isAdmin = ADMIN_LASTNAMES.includes((lastName || "").toUpperCase());
+    const limitDate = new Date();
+    limitDate.setDate(limitDate.getDate() + 56); 
+    for (const hour of selectedHours) {
+      let currentStart = new Date(`${date}T${hour.toString().padStart(2, "0")}:30:00`);
+      let currentEnd = new Date(currentStart.getTime() + 60 * 60 * 1000);
+      let stopDate = new Date(currentStart);
+      if (recurrence !== "none" && untilDate) {
+        stopDate = new Date(untilDate);
+        stopDate.setHours(23, 59, 59, 999); 
+      }
+      while (currentStart <= stopDate) {
+        if (!isAdmin && currentStart > limitDate) break;
+        const hasConflict = existing.some(r => 
+          r.roomId === roomId && r.status !== "CANCELLED" &&
+          new Date(r.startsAt) < currentEnd && new Date(r.endsAt) > currentStart
+        );
+        if (!hasConflict) {
+          const resObj = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            roomId, userId, firstName, lastName, email, subject, className,
+            startsAt: currentStart.toISOString(),
+            endsAt: currentEnd.toISOString(),
+            createdAt: new Date().toISOString(),
+            status: "CONFIRMED",
+          };
+          newReservationsAdded.push(resObj);
+          existing.push(resObj);
+        }
+        if (recurrence === "weekly") {
+          currentStart.setDate(currentStart.getDate() + 7);
+          currentEnd.setDate(currentEnd.getDate() + 7);
+        } else if (recurrence === "biweekly") {
+          currentStart.setDate(currentStart.getDate() + 14);
+          currentEnd.setDate(currentEnd.getDate() + 14);
+        } else break;
       }
     }
-    return NextResponse.json({ reservation: newReservation }, { status: 201 });
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (newReservationsAdded.length === 0) { return NextResponse.json({ error: "Aucun créneau disponible." }, { status: 409 })}
+    const putCmd = new PutObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json", ContentType: "application/json" });
+    const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
+    await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
+    if (email) {
+      const datesList = newReservationsAdded.map(r => 
+        `<li>Le ${new Date(r.startsAt).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' })} à ${new Date(r.startsAt).getHours()}h30</li>`
+      ).join("");
+      await transporter.sendMail({
+        from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: "✅ Confirmation de réservation",
+        html: `<p>Bonjour,</p><p>Réservations confirmées pour <b>${roomId}</b> (${subject} - ${className}) :</p><ul>${datesList}</ul>`
+      });
+    }
+    return NextResponse.json({ success: true, count: newReservationsAdded.length }, { status: 201 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
-    console.error("Erreur POST réservation :", err);
-    return NextResponse.json(
-      { error: err.message || "Erreur serveur" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
