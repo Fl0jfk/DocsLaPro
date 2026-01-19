@@ -59,7 +59,7 @@ export default function ProfRoomPage() {
   }
   async function handleConfirm() {
     if (selectedHour === null || !selectedRoom || !selectedDate) return;
-    const start = new Date(`${selectedDate}T${selectedHour.toString().padStart(2, "0")}:30`);
+    const start = new Date(`${selectedDate}T${selectedHour.toString().padStart(2, "0")}:30:00`);
     if (isWeekend(start) || FRENCH_HOLIDAYS_2025.includes(selectedDate)) {
       alert("⛔️ Impossible de réserver un week-end ou jour férié.");
       return;
@@ -141,7 +141,7 @@ export default function ProfRoomPage() {
           </div>
         </div>
       )}
-      <div className="bg-white border rounded-2xl shadow-sm p-6">
+      <div className="bg-white border rounded-2xl shadow-sm p-6 sm:px-2">
         <h1 className="text-2xl font-bold mb-6 text-gray-800">Réserver une salle</h1>
         <div className="space-y-4 bg-gray-50 p-4 rounded-xl border mb-6">
           <div>

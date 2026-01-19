@@ -44,10 +44,9 @@ export async function POST(req: NextRequest) {
       const text = await res.text();
       existing = text ? JSON.parse(text) : [];
     }
-    const index = existing.findIndex((r) => r.startsAt === startsAt);
-    if (index === -1) {
-      return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 });
-    }
+    const index = existing.findIndex((r) => new Date(r.startsAt).getTime() === new Date(startsAt).getTime());
+
+    if (index === -1) { return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 })}
     const reservationToCancel = existing[index];
     existing[index].status = "CANCELLED";
     existing[index].cancelledAt = new Date().toISOString();

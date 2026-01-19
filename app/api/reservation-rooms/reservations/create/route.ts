@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     if (!putRes.ok) throw new Error("Impossible de sauvegarder sur S3");
     const targetEmail = newReservation.email;
     if (targetEmail) {
-      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", {timeZone: "Europe/Paris",weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'});
+      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", {timeZone: "Europe/Paris", weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'});
       try {
         await transporter.sendMail({
           from: `"Gestion Salles - La Providence" <${process.env.SMTP_USER}>`,
