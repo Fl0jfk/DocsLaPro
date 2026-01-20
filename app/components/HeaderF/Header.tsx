@@ -15,25 +15,6 @@ export default function Header() {
   const [hidden, setHidden] = useState(false);
   const [isClient, setIsClient] = useState(false);
   useEffect(() => { setIsClient(true);}, []);
-  useEffect(() => {
-    if (
-      isClient &&
-      (pathname === "/documents/affichePartnerAlisa" ||
-        pathname === "/documents/carnetDeCorrespondance/organigramme" ||
-        pathname === "/documents/carnetDeCorrespondance" ||
-        pathname === "/brouillons/ficheInscriptionSixieme" ||
-        pathname === "/brouillons/ficheInscriptionCinquieme" ||
-        pathname === "/documents/portesOuvertesSVG" ||
-        pathname === "/documents/devisTransport" ||
-        pathname === "/documents/autorisationSortie" ||
-        pathname === "/documents/afficheProvidence" ||
-        pathname === "/brouillons/carteReseau" ||
-        pathname === "/portesouvertes" ||
-        pathname === "/documents/cartePoliceMesnil")
-    ) {
-      setHidden(true);
-    }
-  }, [isClient, pathname]);
   const opacityMenu = !menuOpened ? "opacity-95 h-[10vh] ease-linear duration-300" : "h-[100vh] ease-linear duration-300";
   const opacityLogo = !menuOpened ? "ease-linear delay-100 duration-200 scale-1" : "ease-linear delay-150 duration-300 scale-0";
   const handleClick = () => { setMenuOpened(!menuOpened)};
@@ -46,46 +27,17 @@ export default function Header() {
     }
   });
   const handleLinkClick: OnLinkClick = ({ clickOnLink }) => { setMenuOpened(clickOnLink)};
-  if (
-    isClient &&
-    (pathname === "/documents/affichePartnerAlisa" ||
-      pathname === "/documents/carnetDeCorrespondance/organigramme" ||
-      pathname === "/brouillons/ficheInscriptionSixieme" ||
-      pathname === "/brouillons/ficheInscriptionCinquieme" ||
-      pathname === "/brouillons/ficheInscriptionQuatrieme" ||
-      pathname === "/brouillons/ficheInscriptionTroisieme" ||
-      pathname === "/documents/portesOuvertesSVG" ||
-      pathname === "/brouillons/devisTransport" ||
-      pathname === "/brouillons/autorisationSortie" ||
-      pathname === "/brouillons/afficheProvidence" ||
-      pathname === "/portesouvertes" ||
-      pathname === "/brouillons/carteReseau" ||
-      pathname === "/documents/cartePoliceMesnil")
-  ) {
-    return null;
-  }
+  const isBrouillon = pathname.startsWith("/brouillons");
+  const otherPagesToHide = ["/portesouvertes"];
+  if (isClient && (isBrouillon || otherPagesToHide.includes(pathname))) {
+      return null;
+    }
   return (
-    <motion.header
-      variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }}
-      animate={hidden ? "hidden" : "visible"}
-      transition={{ duration: 0.35, ease: "easeInOut" }}
-      className={`bg-[rgb(245,245,247)] max-w-[1500px] mx-auto flex p-4 justify-between items-center w-fullfixed z-[12] md:mb-[100px] ${opacityMenu} self-center text-2xl overflow-hidden bg-[#fff]`}
-    >
+    <motion.header variants={{ visible: { y: 0 }, hidden: { y: "-100%" } }} animate={hidden ? "hidden" : "visible"} transition={{ duration: 0.35, ease: "easeInOut" }} className={`bg-[rgb(245,245,247)] max-w-[1500px] mx-auto flex p-4 justify-between items-center w-fullfixed z-[12] md:mb-[100px] ${opacityMenu} self-center text-2xl overflow-hidden bg-[#fff]`}>
       <div className="flex items-center h-full w-4/12">
         {Logo && (
           <Link href="/">
-            <Image
-              src={Logo}
-              alt="Mon memoji"
-              style={{ width: "auto" }}
-              width={55}
-              height={55}
-              priority
-              className={`object-cover cursor-pointer z-[8] ${opacityLogo}`}
-              onClick={() => {
-                window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-              }}
-            />
+            <Image src={Logo} alt="Mon memoji" style={{ width: "auto" }} width={55} height={55} priority className={`object-cover cursor-pointer z-[8] ${opacityLogo}`} onClick={() => { window.scrollTo({ top: 0, left: 0, behavior: "smooth" })}}/>
           </Link>
         )}
       </div>

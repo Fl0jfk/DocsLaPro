@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+@media print {
+  /* 1. On cache tout ce qui n'est pas l'affiche */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 2. On affiche uniquement l'élément principal de ton flyer et ses enfants */
+  #mon-flyer-a-imprimer, #mon-flyer-a-imprimer * {
+    visibility: visible;
+  }
+
+  /* 3. On force le flyer à se coller en haut à gauche sans marges */
+  #mon-flyer-a-imprimer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    padding: 0;
+    width: 297mm; /* Force le format paysage */
+    height: 210mm;
+    box-shadow: none; /* On enlève l'ombre portée pour l'encre */
+  }
+
+  /* 4. On règle les paramètres de la page */
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

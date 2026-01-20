@@ -55,11 +55,24 @@ export default function PortesOuvertesPage() {
   }
   if (submittedData) {
     return (
-      <div className="max-w-xl mx-auto p-8 text-center flex flex-col gap-4 mt-4">
-        <h1 className="text-2xl font-bold">Merci 🙏</h1>
-        <p>Votre demande d’inscription aux portes ouvertes a bien été envoyée.</p>
-        <p>Vous pouvez venir le jour des portes ouvertes au créneau que vous avez réservé ({submittedData.horaire}).</p>
-        <button  onClick={() => downloadICS(submittedData)} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-xl">Ajouter à mon calendrier</button>
+      <div className="max-w-xl mx-auto p-8 text-center flex flex-col gap-6 mt-4 bg-white rounded-3xl shadow-sm border border-gray-100">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-gray-900">Merci 🙏</h1>
+          <p className="text-gray-600">Votre demande d’inscription aux portes ouvertes a bien été envoyée.</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+          <p className="text-blue-900 font-medium">Nous vous attendons le jour des portes ouvertes au créneau réservé : 
+            <span className="block text-xl font-bold mt-1 underline">{submittedData.horaire}</span>
+          </p>
+          <button  onClick={() => downloadICS(submittedData)}  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl transition-all shadow-md flex items-center gap-2 mx-auto">
+            <span>📅</span> Ajouter à mon calendrier
+          </button>
+        </div>
+        <div className="mt-4 pt-6 border-t border-gray-100">
+          <p className="text-sm text-gray-500 mb-4">Vous souhaitez gagner du temps ?</p>
+          <a  href="https://preinscriptions.ecoledirecte.com/?RNE=0761713Z"  target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-[#e94f8a] hover:bg-[#c83e72] text-white px-8 py-3 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg">📝 Faire une demande de préinscription</a>
+          <p className="text-[11px] text-gray-400 mt-3 italic">(Ouverture du dossier de candidature via ÉcoleDirecte)</p>
+        </div>
       </div>
     );
   }
