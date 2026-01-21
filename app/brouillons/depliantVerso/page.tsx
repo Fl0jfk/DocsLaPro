@@ -93,7 +93,7 @@ export default function DepliantProvidenceVerso() {
               </div>
               
               <p className="text-[12px] leading-relaxed">
-                Dès la classe de 6ème, nous proposons un parcours bilingue unique : l&apos;Anglais et l&apos;Allemand sont enseignés avec le même niveau d'exigence (double LV1).
+                Dès la classe de 6ème, nous proposons un parcours bilingue unique : l&apos;Anglais et l&apos;Allemand sont enseignés avec le même niveau d&apos;exigence (double LV1).
               </p>
             </section>
 
