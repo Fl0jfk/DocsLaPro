@@ -1,70 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
-import { s3, BUCKET, VoyageEntry } from "@/app/utils/voyageStore";
-import { currentUser } from "@clerk/nextjs/server";
+import { NextResponse } from 'next/server';
+import { auth } from "@clerk/nextjs/server";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 
-function normalizeRoles(role: unknown): string[] {
-  if (Array.isArray(role)) return role as string[];
-  if (typeof role === "string") return [role];
-  return [];
-}
+export async function GET(req: Request) {
+  // 1. Vérification de l'utilisateur
+  const { userId } = await auth();
+  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
 
-export async function GET(req: NextRequest) {
+  // 2. Récupération de l'ID dans l'URL (?id=...)
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+
+  if (!id) return new NextResponse("ID manquant", { status: 400 });
+
   try {
-    const user = await currentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    // 3. Config AWS
+    const s3Client = new S3Client({
+      region: process.env.REGION,
+      credentials: {
+        accessKeyId: process.env.ACCESS_KEY_ID!,
+        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
+      },
+    });
+
+    // 4. Commande pour récupérer l'objet
+    const command = new GetObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: `travels/${id}.json`,
+    });
+
+    const response = await s3Client.send(command);
+    
+    // 5. Transformation du flux S3 en texte JSON
+    const tripData = await response.Body?.transformToString();
+
+    if (!tripData) {
+      return NextResponse.json({ error: "Fichier vide" }, { status: 404 });
     }
 
-    const url = new URL(req.url);
-    const voyageId = url.searchParams.get("voyageId");
-    if (!voyageId) {
-      return NextResponse.json({ error: "voyageId manquant" }, { status: 400 });
-    }
-    const list = await s3.send(
-      new ListObjectsV2Command({
-        Bucket: BUCKET,
-        Prefix: "travels/",
-      })
-    );
-    const normalizedRoles = normalizeRoles(user.publicMetadata?.role);
-    let foundVoyage: VoyageEntry | null = null;
-    for (const obj of list.Contents || []) {
-      if (!obj.Key?.endsWith("voyage.json")) continue;
-      const data = await s3.send(
-        new GetObjectCommand({ Bucket: BUCKET, Key: obj.Key })
-      );
-      const body = await data.Body?.transformToString();
-      if (!body) continue;
-      const voyage: VoyageEntry = JSON.parse(body);
-      if (voyage.id === voyageId) {
-        const isCreator = voyage.email === user.primaryEmailAddress?.emailAddress;
-        const canAccess =
-          isCreator ||
-          normalizedRoles.includes("compta") ||
-          normalizedRoles.includes(voyage.direction_cible);
-        if (!canAccess) {
-          return NextResponse.json(
-            { error: "Accès refusé à ce voyage" },
-            { status: 403 }
-          );
-        }
-        foundVoyage = voyage;
-        break;
-      }
-    }
-    if (!foundVoyage) {
-      return NextResponse.json(
-        { error: "Voyage introuvable" },
-        { status: 404 }
-      );
-    }
-    return NextResponse.json({ voyage: foundVoyage });
-  } catch (err) {
-    console.error("Erreur GET /api/travels/get:", err);
-    return NextResponse.json(
-      { error: "Impossible de récupérer le voyage" },
-      { status: 500 }
-    );
+    return NextResponse.json(JSON.parse(tripData));
+
+  } catch (error) {
+    console.error("Erreur S3 Get:", error);
+    return NextResponse.json({ error: "Impossible de récupérer le dossier" }, { status: 500 });
   }
 }

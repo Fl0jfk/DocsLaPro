@@ -1,53 +1,50 @@
-import { NextRequest, NextResponse } from "next/server";
-import {  ListObjectsV2Command,  ListObjectsV2CommandOutput, GetObjectCommand } from "@aws-sdk/client-s3";
-import { s3, BUCKET } from "@/app/utils/voyageStore";
-import { currentUser } from "@clerk/nextjs/server";
+import { NextResponse } from 'next/server';
+import { auth } from "@clerk/nextjs/server";
+import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 
-export async function GET(req: NextRequest) {
-  console.log(req)
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+
+  const s3Client = new S3Client({
+    region: process.env.REGION,
+    credentials: {
+      accessKeyId: process.env.ACCESS_KEY_ID!,
+      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
+    },
+  });
+
   try {
-    const user = await currentUser();
-    if (!user)
-      return NextResponse.json(
-        { error: "Non authentifié" },
-        { status: 401 }
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const voyages: any[] = [];
-    let continuationToken: string | undefined = undefined;
-    do {
-      const list: ListObjectsV2CommandOutput = await s3.send(
-        new ListObjectsV2Command({
-          Bucket: BUCKET,
-          Prefix: "travels/",
-          ContinuationToken: continuationToken,
-          MaxKeys: 1000,
-        })
-      );
-      for (const obj of list.Contents || []) {
-        if (!obj.Key) continue;
-        if (!obj.Key.endsWith("voyage.json")) continue;
-        try {
-          const data = await s3.send(
-            new GetObjectCommand({ Bucket: BUCKET, Key: obj.Key })
-          );
-          const body = await data.Body?.transformToString();
-          if (!body) continue;
-          const voyage = JSON.parse(body);
-          voyages.push(voyage);
-        } catch (err) {
-          console.error(`Impossible de lire ${obj.Key}:`, err);
-        }
-      }
-      continuationToken = list.IsTruncated ? list.NextContinuationToken : undefined;
-    } while (continuationToken);
+    // 1. Lister les fichiers dans le dossier trips/
+    const listCommand = new ListObjectsV2Command({
+      Bucket: process.env.BUCKET_NAME,
+      Prefix: 'travels/',
+    });
 
-    return NextResponse.json({ voyages });
-  } catch (err) {
-    console.error("Erreur GET /api/travels/list:", err);
-    return NextResponse.json(
-      { error: "Impossible de lister les voyages" },
-      { status: 500 }
+    const listResponse = await s3Client.send(listCommand);
+    
+    if (!listResponse.Contents) return NextResponse.json([]);
+
+    // 2. Pour chaque fichier, on va lire son contenu
+    const trips = await Promise.all(
+      listResponse.Contents.map(async (file) => {
+        const getCommand = new GetObjectCommand({
+          Bucket: process.env.BUCKET_NAME,
+          Key: file.Key,
+        });
+        const tripRes = await s3Client.send(getCommand);
+        const body = await tripRes.Body?.transformToString();
+        return body ? JSON.parse(body) : null;
+      })
     );
+
+    // Filtrer les nuls et trier par date
+    const validTrips = trips.filter(t => t !== null);
+    
+    return NextResponse.json(validTrips);
+
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Erreur S3" }, { status: 500 });
   }
 }
