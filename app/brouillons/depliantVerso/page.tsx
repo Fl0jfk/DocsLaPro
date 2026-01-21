@@ -13,8 +13,8 @@ export default function DepliantProvidenceVerso() {
             <section className="bg-white/20 p-5 rounded-2xl border border-white/40 shadow-inner">
               <h4 className="font-bold text-lg mb-2 uppercase tracking-tighter">🌱 Éveil & Autonomie</h4>
               <p className="text-[11px] leading-relaxed">
-                Lieu de vie à taille humaine, notre école favorise l'autonomie. 
-                <strong> L'initiation à l'anglais dès la maternelle </strong> et la pédagogie de projet stimulent la curiosité naturelle de chaque enfant.
+                Lieu de vie à taille humaine, notre école favorise l&apos;autonomie. 
+                <strong> L&apos;initiation à l&apos;anglais dès la maternelle </strong> et la pédagogie de projet stimulent la curiosité naturelle de chaque enfant.
               </p>
             </section>
 
@@ -31,7 +31,7 @@ export default function DepliantProvidenceVerso() {
                   • <strong>Ouverture au Monde : </strong>Journées à thème sur les pays et cultures étrangères.
                 </li>
                 <li className="flex items-start gap-2">
-                  • <strong>Esprit d'Équipe : </strong>Participation aux Olympiades sportives avec les écoles du plateau.
+                  • <strong>Esprit d&apos;Équipe : </strong>Participation aux Olympiades sportives avec les écoles du plateau.
                 </li>
               </ul>
             </section>
@@ -60,7 +60,7 @@ export default function DepliantProvidenceVerso() {
   {/* SOLIDARITÉ (Pousse le contenu vers le bas) */}
         <div className="mt-6 pt-6 border-t border-white/30">
           <p className="text-[11px] font-medium leading-tight">
-            <strong>L'accueil de tous :</strong> Solidarité familiale via une grille tarifaire différenciée (5 catégories de revenus).
+            <strong>L&apos;accueil de tous :</strong> Solidarité familiale via une grille tarifaire différenciée (5 catégories de revenus).
           </p>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function DepliantProvidenceVerso() {
               </div>
               
               <p className="text-[12px] leading-relaxed">
-                Dès la classe de 6ème, nous proposons un parcours bilingue unique : l'Anglais et l'Allemand sont enseignés avec le même niveau d'exigence (double LV1).
+                Dès la classe de 6ème, nous proposons un parcours bilingue unique : l&apos;Anglais et l&apos;Allemand sont enseignés avec le même niveau d'exigence (double LV1).
               </p>
             </section>
 
@@ -135,7 +135,7 @@ export default function DepliantProvidenceVerso() {
                 <ul className="text-[11px] space-y-1 font-semibold">
                   <li>• Dual Diploma USA</li>
                   <li>• Certifications Cambridge et Voltaire</li>
-                  <li>• Brevet d'Initiation Aéronautique (BIA)</li>
+                  <li>• Brevet d&apos;Initiation Aéronautique (BIA)</li>
                   <li>• Option LLCE Anglais & Section Euro</li>
                 </ul>
               </div>
@@ -145,7 +145,7 @@ export default function DepliantProvidenceVerso() {
             <section className="bg-[#b52a5d] p-5 rounded-2xl border-2 border-white/30 shadow-lg relative">
               <h4 className="font-black text-lg uppercase tracking-tighter mb-1">🏥 Bac ST2S</h4>
               <p className="text-[11px] leading-relaxed opacity-95 italic">
-                L'expertise paramédicale et sociale. Un accompagnement ciblé pour réussir vos concours et l'accès aux études supérieures.
+                L&apos;expertise paramédicale et sociale. Un accompagnement ciblé pour réussir vos concours et l&apos;accès aux études supérieures.
               </p>
             </section>
 
@@ -153,7 +153,7 @@ export default function DepliantProvidenceVerso() {
             <section className="bg-white text-gray-800 p-6 rounded-2xl shadow-xl">
               <h4 className="font-black text-sm uppercase text-[#e94f8a] mb-3">🚀 Réussite & Avenir</h4>
               <p className="text-[11px] leading-relaxed mb-3 font-medium">
-                Nous préparons nos élèves à l'intégration des <strong>Grandes Écoles</strong> et des filières sélectives.
+                Nous préparons nos élèves à l&apos;intégration des <strong>Grandes Écoles</strong> et des filières sélectives.
               </p>
               <ul className="text-[11px] space-y-1">
                 <li className="flex items-center gap-2">🎓 Suivi Parcoursup : Accompagnement individualisé pour chaque lycéen.</li>

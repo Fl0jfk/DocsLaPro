@@ -35,7 +35,7 @@ export default function DepliantProvidenceRecto() {
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#fbb800] text-white flex items-center justify-center text-xs font-bold">3</span>
                 <div>
                   <p className="text-sm font-bold leading-tight">Rencontre</p>
-                  <p className="text-[11px] text-gray-500">Un entretien avec la direction pour valider le projet de l'enfant</p>
+                  <p className="text-[11px] text-gray-500">Un entretien avec la direction pour valider le projet de l&apos;enfant</p>
                 </div>
               </div>
             </div>
@@ -87,7 +87,7 @@ export default function DepliantProvidenceRecto() {
               <div className="text-[#18aae2] text-4xl font-serif opacity-30 mb-2 leading-none">“</div>
               <h2 className="text-2xl font-black text-gray-800 italic uppercase leading-tight tracking-tighter">
                 Un passeport <br />
-                <span className="text-[#e94f8a]">pour l'avenir</span>
+                <span className="text-[#e94f8a]">pour l&apos;avenir</span>
               </h2>
               <p className="mt-4 text-[13px] text-gray-500 font-medium italic leading-tight max-w-[220px] mx-auto">Exigence, respect, bienveillance : La Providence Nicolas Barré, un cadre qui élève.</p>
               <div className="w-12 h-1 bg-[#fbb800] mx-auto mt-6 rounded-full"></div>
@@ -107,11 +107,11 @@ export default function DepliantProvidenceRecto() {
               </div>
               <div className="text-center p-4">
                 <p className="text-gray-400 font-black text-2xl">90</p>
-                <p className="text-[10px] uppercase text-gray-600 font-bold leading-tight">Années <br/>d'excellence</p>
+                <p className="text-[10px] uppercase text-gray-600 font-bold leading-tight">Années <br/>d&apos;excellence</p>
               </div>
             </div>
             <div className="w-full mt-auto">
-              <p className="text-[8px] text-center text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold">Établissement sous contrat d'association</p>
+              <p className="text-[8px] text-center text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold">Établissement sous contrat d&apos;association</p>
               <div className="flex justify-around items-center opacity-70 grayscale">
                 <div className="w-16 h-16 rounded flex items-center justify-center text-[7px] text-center p-1">
                   <Image src="/Logo Académie.png" width={130} height={130} alt="Logo"/>
