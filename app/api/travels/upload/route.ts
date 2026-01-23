@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     return NextResponse.json({  uploadUrl,  fileUrl: `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`});
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Erreur upload" }, { status: 500 });
   }
 }

@@ -21,7 +21,7 @@ export default function DepliantProvidenceVerso() {
               <div className="space-y-4">
                 <section className="bg-white/20 p-4 rounded-xl border border-white/40 shadow-inner">
                   <h4 className="font-bold text-[15px] mb-1 uppercase tracking-tighter">🌱 ÉVEIL & AUTONOMIE</h4>
-                  <p className="text-[12px] leading-relaxed">Lieu de vie à taille humaine, notre école favorise l'autonomie. La pédagogie de projet stimulent la curiosité naturelle de chaque enfant.</p>
+                  <p className="text-[12px] leading-relaxed">Lieu de vie à taille humaine, notre école favorise l&apos;autonomie. La pédagogie de projet stimulent la curiosité naturelle de chaque enfant.</p>
                 </section>
                 <section className="bg-[#d9a600] p-5 rounded-2xl border border-white/20">
                   <h4 className="font-bold text-[15px] mb-3 uppercase flex items-center gap-2">
@@ -38,7 +38,7 @@ export default function DepliantProvidenceVerso() {
                   <div className="text-[12px] space-y-1 font-medium">
                     <p className="flex justify-between"><span>Accueil :</span> <span>07h30</span></p>
                     <p className="flex justify-between"><span>Classe :</span> <span>08h30-16h30</span></p>
-                    <p className="flex justify-between text-[#fbb800]"><span>Étude/Garderie :</span> <span>jusqu'à 18h30</span></p>
+                    <p className="flex justify-between text-[#fbb800]"><span>Étude/Garderie :</span> <span>jusqu&apos;à 18h30</span></p>
                   </div>
                 </section>
               </div>
@@ -83,7 +83,7 @@ export default function DepliantProvidenceVerso() {
                   <h4 className="font-black text-[15px] uppercase text-[#e94f8a] mb-1">🎓 Bac Général</h4>
                   <p className="text-[14px] font-bold leading-tight mb-1">8 Spécialités au choix</p>
                   <p className="text-[12px] leading-tight text-gray-600">
-                    Une offre large incluant les <span className="text-[#e94f8a] font-bold underline decoration-1">Sciences de l'Ingénieur</span>, pour préparer les futurs profils scientifiques et technologiques.
+                    Une offre large incluant les <span className="text-[#e94f8a] font-bold underline decoration-1">Sciences de l&apos;Ingénieur</span>, pour préparer les futurs profils scientifiques et technologiques.
                   </p>
                 </section>
                 <section className="bg-[#b52a5d] p-4 rounded-xl border-2 border-white/30 shadow-md">
@@ -91,7 +91,7 @@ export default function DepliantProvidenceVerso() {
                     <span>🏥</span> Bac ST2S
                   </h4>
                   <p className="text-[12px] opacity-90 leading-tight italic">
-                    Filière d&apos;expertise paramédicale et sociale pour réussir les concours et l'accès au supérieur.
+                    Filière d&apos;expertise paramédicale et sociale pour réussir les concours et l&apos;accès au supérieur.
                   </p>
                 </section>
                 <section className="bg-white text-gray-800 p-6 rounded-2xl shadow-xl">
