@@ -258,7 +258,7 @@ function SimpleTripFormContent() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">Noms des collègues</label>
+          <label className="block text-sm font-semibold mb-2">Noms des accompagnateurs</label>
           <input 
             value={formData.nomsAccompagnateurs}
             className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"

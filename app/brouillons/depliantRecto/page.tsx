@@ -18,7 +18,7 @@ export default function DepliantProvidenceRecto() {
             <h3 className="text-[#18aae2] font-extrabold text-xl italic mb-6 uppercase tracking-wider">Envie de nous rejoindre ?</h3>
             <div className="space-y-4 mb-8">
               <div className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#e94f8a] text-white flex items-center justify-center text-xs font-bold">1</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#fbb800] text-white flex items-center justify-center text-xs font-bold">1</span>
                 <div>
                   <p className="text-sm font-bold leading-tight">Pré-inscription en ligne</p>
                   <p className="text-[11px] text-gray-500">Rendez-vous sur notre site web (rubrique Inscriptions)</p>
@@ -32,7 +32,7 @@ export default function DepliantProvidenceRecto() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#fbb800] text-white flex items-center justify-center text-xs font-bold">3</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#e94f8a] text-white flex items-center justify-center text-xs font-bold">3</span>
                 <div>
                   <p className="text-sm font-bold leading-tight">Rencontre</p>
                   <p className="text-[11px] text-gray-500">Un entretien avec la direction pour valider le projet de l&apos;enfant</p>
@@ -85,11 +85,11 @@ export default function DepliantProvidenceRecto() {
           <div className="relative z-10 w-full flex flex-col items-center flex-grow justify-between">
             <div className="text-center mt-4">
               <div className="text-[#18aae2] text-4xl font-serif opacity-30 mb-2 leading-none">“</div>
-              <h2 className="text-2xl font-black text-gray-800 italic uppercase leading-tight tracking-tighter">
+              <h2 className="text-3xl font-black text-gray-800 italic uppercase leading-tight tracking-tighter">
                 Un passeport <br />
                 <span className="text-[#e94f8a]">pour l&apos;avenir</span>
               </h2>
-              <p className="mt-4 text-[13px] text-gray-500 font-medium italic leading-tight max-w-[220px] mx-auto">Exigence, respect, bienveillance : La Providence Nicolas Barré, un cadre qui élève.</p>
+              <p className="mt-4 text-[14px] text-gray-500 font-medium italic leading-tight max-w-[220px] mx-auto">Exigence, respect, bienveillance : La Providence Nicolas Barré, un cadre qui élève.</p>
               <div className="w-12 h-1 bg-[#fbb800] mx-auto mt-6 rounded-full"></div>
             </div>
             <div className="w-full grid grid-cols-2 gap-2 mt-[120px] my-6">
@@ -102,8 +102,8 @@ export default function DepliantProvidenceRecto() {
                 <p className="text-[10px] uppercase text-gray-600 font-bold leading-tight">Réussite <br/>au Bac</p>
               </div>
               <div className="text-center p-4 border-r border-gray-100">
-                <p className="text-[#fbb800] font-black text-2xl">7000</p>
-                <p className="text-[10px] uppercase text-gray-600 font-bold leading-tight">Élèves <br/>accompagnés</p>
+                <p className="text-[#fbb800] font-black text-2xl">80%</p>
+                <p className="text-[10px] uppercase text-gray-600 font-bold leading-tight">De mentions au Brevet et au Bac</p>
               </div>
               <div className="text-center p-4">
                 <p className="text-gray-400 font-black text-2xl">90</p>
@@ -117,7 +117,7 @@ export default function DepliantProvidenceRecto() {
                   <Image src="/Logo Académie.png" width={130} height={130} alt="Logo"/>
                 </div>
                 <div className="w-16 h-16 rounded flex items-center justify-center text-[7px] text-center p-1">
-                  <Image src="/Logo ECHN.jpg" width={130} height={130} alt="Logo"/>
+                  <Image src="/Logo_EC_vertical_fond_clair.png" width={130} height={130} alt="Logo"/>
                 </div>
                 <div className="w-16 h-16 rounded flex items-center justify-center text-[7px] text-center p-1">
                   <Image src="/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp" width={130} height={130} alt="Logo"/>
