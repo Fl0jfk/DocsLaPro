@@ -30,7 +30,7 @@
             "name":"Sortie scolaire",
             "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
             "link":"/travels",
-            "allowedRoles": ["administratif"],
+            "allowedRoles": ["administratif", "comptabilite"],
             "external": false
         },
         {

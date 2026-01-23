@@ -3,6 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function TripDashboard() {
   const { isLoaded, isSignedIn} = useUser();
@@ -91,10 +92,12 @@ export default function TripDashboard() {
                 {/* ZONE IMAGE / BANNIÈRE */}
                 <div className="h-44 w-full relative bg-slate-100 overflow-hidden">
                   {imageUrl ? (
-                    <img 
+                    <Image 
                       src={imageUrl} 
                       alt={trip.data?.title}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      width={300}
+                      height={200}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-5xl bg-gradient-to-br from-slate-50 to-slate-100">
