@@ -43,6 +43,7 @@ export default function DocumentsPage() {
       const data = await res.json();
       setItems(data.error ? [] : data);
     } catch (err) {
+      console.error(err)
       setItems([]);
     } finally {
       setLoading(false);
@@ -68,8 +69,6 @@ export default function DocumentsPage() {
       setCurrentPrefix(prev);
     }
   };
-
-  // Icônes plus visuelles (Emoji ou SVG si tu préfères)
   const getFileIcon = (ext?: string) => {
     switch (ext?.toLowerCase()) {
       case "pdf": return "📕";
@@ -78,7 +77,6 @@ export default function DocumentsPage() {
       default: return "📄";
     }
   };
-
   const handleDownload = async (path: string) => {
     setDownloading(path);
     try {
@@ -86,11 +84,11 @@ export default function DocumentsPage() {
       const data = await res.json();
       if (data.url) window.open(data.url, '_blank');
     } catch (e) {
+      console.error(e)
       alert("Erreur de connexion");
     }
     setDownloading(null);
   };
-
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedDest) return;
@@ -108,19 +106,14 @@ export default function DocumentsPage() {
       setUploading(false);
     }
   };
-
   if (!isLoaded) return null;
-
   return (
     <main className="flex flex-col gap-6 p-6 w-full mx-auto max-w-[1100px] sm:pt-[8vh]">
-      
-      {/* HEADER / UPLOAD SECTION */}
       <section className="bg-white border border-gray-200 shadow-sm p-5 rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-between">
         <div className="flex flex-col gap-1 w-full md:w-auto">
           <h1 className="text-xl font-bold text-gray-800">Mes Documents</h1>
           <p className="text-sm text-gray-500">Gérez et partagez vos ressources</p>
         </div>
-
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <select 
             className="p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -139,8 +132,6 @@ export default function DocumentsPage() {
           </label>
         </div>
       </section>
-
-      {/* NAVIGATION / BREADCRUMB */}
       <div className="flex items-center gap-3">
         {history.length > 0 && (
           <button 
@@ -159,8 +150,6 @@ export default function DocumentsPage() {
           </span>
         </div>
       </div>
-
-      {/* EXPLORER GRID */}
       <div className="relative min-h-[400px] bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 p-8">
         {loading && (
           <div className="absolute top-4 right-4">
