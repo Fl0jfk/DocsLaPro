@@ -102,7 +102,7 @@ export default function DepliantProvidenceRecto() {
                 <p className="text-[10px] uppercase text-gray-600 font-bold leading-tight">Réussite <br/>au Bac</p>
               </div>
               <div className="text-center p-4 border-r border-gray-100">
-                <p className="text-[#fbb800] font-black text-2xl">80%</p>
+                <p className="text-[#fbb800] font-black text-2xl">≃80%</p>
                 <p className="text-[10px] uppercase text-gray-600 font-bold leading-tight">De mentions au Brevet et au Bac</p>
               </div>
               <div className="text-center p-4">

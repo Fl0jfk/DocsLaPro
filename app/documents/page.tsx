@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
 
 type DocumentNode = {
   type: "folder" | "file";
@@ -10,55 +11,56 @@ type DocumentNode = {
 };
 
 export default function DocumentsPage() {
+  const { user, isLoaded } = useUser();
   const [currentPrefix, setCurrentPrefix] = useState("");
   const [items, setItems] = useState<DocumentNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<string[]>([]);
-  const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
-  const cacheTTL = 15 * 60 * 1000;
   const [downloading, setDownloading] = useState<string | null>(null);
-  console.log(downloading)
   const [uploading, setUploading] = useState(false);
   const [selectedDest, setSelectedDest] = useState("");
-  const fetchDocuments = async (prefix: string, forceRefresh = false) => {
-    setLoading(true);
-    if (!forceRefresh) {
-      const cachedRaw = localStorage.getItem(cacheKey(prefix));
-      if (cachedRaw) {
-        const cached = JSON.parse(cachedRaw);
-        if (Date.now() - cached.timestamp < cacheTTL) {
-          setItems(cached.data);
-          setLoading(false);
-          return;
-        }
-      }
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      const roles = (user.publicMetadata.role as string[]) || [];
+      let defaultPath = "";
+      if (roles.includes("professeur")) defaultPath = "documents/professeurs/";
+      else if (roles.includes("comptabilité")) defaultPath = "documents/Compta RH/";
+      else if (roles.includes("administratif")) defaultPath = "documents/administratif/";
+      else if (roles.includes("direction")) defaultPath = "documents/direction/";
+      else if (roles.includes("education")) defaultPath = "documents/education/";
+
+      setCurrentPrefix(defaultPath);
+      setSelectedDest(defaultPath);
     }
+  }, [isLoaded, user]);
+
+  const fetchDocuments = async (prefix: string) => {
+    if (!prefix && isLoaded) return;
+    setLoading(true);
     try {
       const res = await fetch(`/api/documents/list?prefix=${encodeURIComponent(prefix)}`);
       const data = await res.json();
-      if (data.error) {
-        setItems([]);
-      } else {
-        setItems(data);
-        localStorage.setItem(cacheKey(prefix), JSON.stringify({
-          data,
-          timestamp: Date.now(),
-        }));
-      }
+      setItems(data.error ? [] : data);
     } catch (err) {
-      console.error(err);
+      setItems([]);
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
-    fetchDocuments(currentPrefix);
-  }, [currentPrefix]);
+    if (currentPrefix || isLoaded) {
+      fetchDocuments(currentPrefix);
+      setSelectedDest(currentPrefix);
+    }
+  }, [currentPrefix, isLoaded]);
+
   const enterFolder = (path: string) => { 
     setHistory(prev => [...prev, currentPrefix]); 
     setCurrentPrefix(path);
-    setSelectedDest(""); 
   };
+
   const goBack = () => {
     const prev = history.pop();
     if (prev !== undefined) {
@@ -66,35 +68,29 @@ export default function DocumentsPage() {
       setCurrentPrefix(prev);
     }
   };
+
+  // Icônes plus visuelles (Emoji ou SVG si tu préfères)
   const getFileIcon = (ext?: string) => {
-    if (!ext) return "📄";
-    switch (ext.toLowerCase()) {
-      case "pdf": return "📄";
-      case "doc": case "docx": return "📝";
-      case "xls": case "xlsx": return "📊";
+    switch (ext?.toLowerCase()) {
+      case "pdf": return "📕";
+      case "doc": case "docx": return "📘";
+      case "xls": case "xlsx": return "📗";
       default: return "📄";
     }
   };
+
   const handleDownload = async (path: string) => {
     setDownloading(path);
     try {
       const res = await fetch(`/api/documents/get-url?key=${encodeURIComponent(path)}`);
       const data = await res.json();
-      if (data.url) {
-        const a = document.createElement("a");
-        a.href = data.url;
-        a.download = path.split("/").pop()!;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        alert("Erreur lors de la génération du lien sécurisé.");
-      }
+      if (data.url) window.open(data.url, '_blank');
     } catch (e) {
-      alert("Erreur téléchargement : " + String(e));
+      alert("Erreur de connexion");
     }
     setDownloading(null);
   };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedDest) return;
@@ -103,75 +99,103 @@ export default function DocumentsPage() {
     formData.append("file", file);
     formData.append("path", selectedDest);
     try {
-      const res = await fetch("/api/documents/upload", { 
-        method: "POST", 
-        body: formData 
-      }); 
+      const res = await fetch("/api/documents/upload", { method: "POST", body: formData }); 
       if (res.ok) {
-        localStorage.removeItem(cacheKey(currentPrefix));
-        localStorage.removeItem(cacheKey(selectedDest));
-        alert("Fichier chargé avec succès !");
-        fetchDocuments(currentPrefix, true);
+        fetchDocuments(currentPrefix);
         e.target.value = "";
-      } else {
-        const errorData = await res.json();
-        alert("Erreur : " + (errorData.error || "Impossible d'uploader"));
       }
-    } catch (err) {
-      console.error(err);
-      alert("Erreur réseau lors de l'envoi.");
     } finally {
       setUploading(false);
     }
   };
-  if (loading && items.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-screen w-full">
-        <div className="flex flex-col items-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-          <p className="mt-4 text-lg font-medium text-gray-600">Chargement en cours…</p>
-        </div>
-      </div>
-    );
-  }
+
+  if (!isLoaded) return null;
+
   return (
-    <main className="flex flex-col gap-4 p-4 w-full mx-auto max-w-[1000px] sm:pt-[10vh]">
-      <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl mb-4 flex flex-col sm:flex-row gap-4 items-end">
-        <div className="flex flex-col gap-1 w-full sm:w-1/2">
-          <label className="text-xs font-bold text-gray-500 uppercase px-1">Dossier de destination</label>
-          <select  className="p-2 border rounded-lg bg-white text-sm" value={selectedDest} onChange={(e) => setSelectedDest(e.target.value)}>
-            <option value="">-- Choisir où uploader --</option>
-            {items.filter(i => i.type === "folder").map((folder) => (
-              <option key={folder.path} value={folder.path}>
-                {folder.name}
-              </option>
+    <main className="flex flex-col gap-6 p-6 w-full mx-auto max-w-[1100px] sm:pt-[8vh]">
+      
+      {/* HEADER / UPLOAD SECTION */}
+      <section className="bg-white border border-gray-200 shadow-sm p-5 rounded-2xl flex flex-col md:flex-row gap-6 items-center justify-between">
+        <div className="flex flex-col gap-1 w-full md:w-auto">
+          <h1 className="text-xl font-bold text-gray-800">Mes Documents</h1>
+          <p className="text-sm text-gray-500">Gérez et partagez vos ressources</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <select 
+            className="p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            value={selectedDest} 
+            onChange={(e) => setSelectedDest(e.target.value)}
+          >
+            <option value={currentPrefix}>📂 Dossier actuel</option>
+            {items.filter(i => i.type === "folder").map((f) => (
+              <option key={f.path} value={f.path}>↳ {f.name}</option>
             ))}
           </select>
+
+          <label className={`relative flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${uploading ? 'bg-gray-100 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'}`}>
+            {uploading ? "Envoi en cours..." : "＋ Ajouter un fichier"}
+            <input type="file" onChange={handleUpload} disabled={uploading} className="hidden" />
+          </label>
         </div>
-        <div className="flex flex-col gap-1 w-full sm:w-1/2">
-          <label className="text-xs font-bold text-gray-500 uppercase px-1">Sélectionner un document</label>
-          <input  type="file"  onChange={handleUpload} disabled={!selectedDest || uploading} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 cursor-pointer"/>
-        </div>
-        {uploading && <div className="text-blue-500 text-xs font-medium animate-pulse mb-2 text-center w-full sm:w-auto">Envoi...</div>}
-      </div>
-      <div className="flex items-center justify-between h-8">
+      </section>
+
+      {/* NAVIGATION / BREADCRUMB */}
+      <div className="flex items-center gap-3">
         {history.length > 0 && (
-          <button onClick={goBack} className="flex items-center space-x-2 text-sm text-blue-500 hover:text-blue-700 transition-colors duration-200">← Retour</button>
+          <button 
+            onClick={goBack} 
+            className="p-2 hover:bg-gray-100 rounded-full text-blue-600 transition-colors"
+            title="Retour"
+          >
+            <span className="text-xl">⬅️</span>
+          </button>
+        )}
+        <div className="flex items-center text-sm font-medium text-gray-400 overflow-hidden">
+          <span className="hover:text-gray-600 cursor-default">Cloud</span>
+          <span className="mx-2">/</span>
+          <span className="text-gray-800 truncate italic">
+            {currentPrefix.split('/').filter(Boolean).pop() || "Racine"}
+          </span>
+        </div>
+      </div>
+
+      {/* EXPLORER GRID */}
+      <div className="relative min-h-[400px] bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 p-8">
+        {loading && (
+          <div className="absolute top-4 right-4">
+            <div className="h-5 w-5 border-2 border-blue-600 border-t-transparent animate-spin rounded-full"></div>
+          </div>
+        )}
+
+        {items.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-8">
+            {items.map((item, idx) => (
+              <div 
+                key={idx} 
+                onClick={() => item.type === "folder" ? enterFolder(item.path) : handleDownload(item.path)} 
+                className="group flex flex-col items-center p-4 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300 cursor-pointer border border-transparent hover:border-gray-100"
+              >
+                <div className="text-6xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                  {item.type === "folder" ? "📁" : getFileIcon(item.ext)}
+                </div>
+                <span className="text-center text-xs font-semibold text-gray-700 break-words w-full line-clamp-2 px-1">
+                  {item.name}
+                  {item.ext && <span className="text-gray-400 uppercase text-[9px] block">.{item.ext}</span>}
+                </span>
+                {downloading === item.path && (
+                  <div className="mt-2 text-[10px] text-blue-500 font-bold animate-pulse">Ouverture...</div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-[300px] text-gray-400">
+            <span className="text-5xl mb-4">📭</span>
+            <p className="italic">Ce dossier ne contient aucun document.</p>
+          </div>
         )}
       </div>
-      {items.length > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-6 relative">
-          {loading && <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center">Actualisation...</div>}
-          {items.map((item, idx) => (
-            <div key={idx} onClick={() => item.type === "folder" ? enterFolder(item.path) : handleDownload(item.path)} className="cursor-pointer flex flex-col items-center max-h-[150px]">
-              <div className="text-5xl mb-2">{item.type === "folder" ? "📁" : getFileIcon(item.ext)}</div>
-              <div className="text-center text-xs font-medium break-words w-full px-1 line-clamp-2">{item.name}{item.ext ? `.${item.ext}` : ""}</div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500 text-center py-10">Aucun document disponible pour ce dossier.</p>
-      )}
     </main>
   );
 }

@@ -267,7 +267,7 @@ function SimpleTripFormContent() {
 
         {/* NOUVELLE SECTION : PIÈCES JOINTES */}
         <div className="md:col-span-2 space-y-4 border-t pt-8 mt-4">
-          <label className="block text-sm font-bold text-slate-700">Pièces jointes (Devis, Programme...)</label>
+          <label className="block text-sm font-bold text-slate-700">Pièces jointes (Devis, Programme, liste des élèves...)</label>
           
           <div className="flex flex-wrap gap-4">
             {/* CORRECTION : Optionnel chaining pour éviter l'erreur sur les anciens dossiers */}
@@ -277,7 +277,7 @@ function SimpleTripFormContent() {
                 <button type="button" onClick={() => removeFile(idx)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
               </div>
             ))}
-
+           
             <label className="cursor-pointer flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-6 hover:bg-slate-50 transition-all w-full md:w-auto min-w-[200px]">
               <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
               <span className="text-slate-500 text-sm font-medium text-center">
@@ -286,7 +286,7 @@ function SimpleTripFormContent() {
             </label>
           </div>
         </div>
-
+        <p className="self-center text-red-500 text-center font-bold">Tout dossier non complet sera refusé !</p>
         <div className="md:col-span-2 mt-8">
           <button 
             type="submit"
