@@ -9,12 +9,9 @@ function SimpleTripFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
-
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  // État initial du formulaire avec le champ attachments
   const [formData, setFormData] = useState({
     title: "",
     destination: "",
@@ -30,8 +27,6 @@ function SimpleTripFormContent() {
     description: "",
     attachments: [] as { name: string; url: string }[]
   });
-
-  // 1. Mode édition : récupération des données
   useEffect(() => {
     if (editId && isLoaded) {
       setFetching(true);
@@ -39,7 +34,6 @@ function SimpleTripFormContent() {
         .then((res) => res.json())
         .then((trip) => {
           if (trip && trip.data) {
-            // CORRECTION : On s'assure que attachments est au moins un tableau vide
             setFormData({
               ...trip.data,
               attachments: trip.data.attachments || []
@@ -53,31 +47,22 @@ function SimpleTripFormContent() {
         });
     }
   }, [editId, isLoaded]);
-
-  // 2. Logique d'upload de pièce jointe
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploading(true);
     try {
-      // Demander l'URL présignée à l'API
       const res = await fetch('/api/travels/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName: file.name, fileType: file.type })
       });
-      
       const { uploadUrl, fileUrl } = await res.json();
-
-      // Upload direct sur S3
       await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
         headers: { 'Content-Type': file.type }
       });
-
-      // Mise à jour de l'état (avec sécurité sur le spread)
       setFormData(prev => ({
         ...prev,
         attachments: [...(prev.attachments || []), { name: file.name, url: fileUrl }]
@@ -151,8 +136,6 @@ function SimpleTripFormContent() {
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 border rounded-3xl shadow-sm">
-        
-        {/* Section Générale */}
         <div className="md:col-span-2 space-y-4 border-b pb-4 text-slate-400 uppercase text-xs font-bold tracking-widest">
           Informations Générales
         </div>
@@ -238,7 +221,7 @@ function SimpleTripFormContent() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">Nombre d'élèves total</label>
+          <label className="block text-sm font-semibold mb-2">Nombre d&apos;élèves total</label>
           <input 
             type="number"
             value={formData.nbEleves}
@@ -248,7 +231,7 @@ function SimpleTripFormContent() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">Nombre d'accompagnateurs</label>
+          <label className="block text-sm font-semibold mb-2">Nombre d&apos;accompagnateurs</label>
           <input 
             type="number"
             value={formData.nbAccompagnateurs}

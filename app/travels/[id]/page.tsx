@@ -8,26 +8,15 @@ export default function TripDetails() {
   const { id } = useParams();
   const router = useRouter();
   const { user, isLoaded: isUserLoaded } = useUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [trip, setTrip] = useState<any>(null);
   const [loadingAction, setLoadingAction] = useState(false);
-
-  // --- LOGIQUE DE RÔLES SÉCURISÉE ---
+  console.log(loadingAction)
   const rawRoles = user?.publicMetadata?.role;
-  
-  const userRoles = Array.isArray(rawRoles) 
-    ? rawRoles 
-    : rawRoles 
-      ? [rawRoles] 
-      : [];
-
-  const isDirection = userRoles.some(r => 
-    ['direction école', 'direction collège', 'direction_lycee'].includes(r)
-  );
-  
+  const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles  ? [rawRoles] : [];
+  const isDirection = userRoles.some(r => ['direction école', 'direction collège', 'direction_lycee'].includes(r));
   const isCompta = userRoles.includes('comptabilité');
-  // ----------------------------------
-
-  useEffect(() => {
+   useEffect(() => {
     const fetchTrip = async () => {
       try {
         const res = await fetch(`/api/travels/get?id=${id}`);
@@ -39,11 +28,8 @@ export default function TripDetails() {
         console.error("Erreur lors de la récupération du dossier:", err);
       }
     };
-
     if (id) fetchTrip();
   }, [id]);
-
-  // LOGIQUE DE TÉLÉCHARGEMENT SÉCURISÉ (PRESIGN)
   const openSecureFile = async (fileUrl: string) => {
     try {
       const res = await fetch('/api/travels/download', {
@@ -62,10 +48,9 @@ export default function TripDetails() {
       alert("Erreur lors de l'ouverture du fichier.");
     }
   };
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleAction = async (newStatus: string, note: string = "", extraData: any = null) => {
     setLoadingAction(true);
-    
     const updatedTrip = {
       ...trip,
       status: newStatus,
@@ -80,14 +65,12 @@ export default function TripDetails() {
         }
       ]
     };
-
     try {
       const res = await fetch('/api/travels/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: trip.id, data: updatedTrip })
       });
-
       if (res.ok) {
         setTrip(updatedTrip);
         if (newStatus === "REJECTED_MODIF") alert("Demande de modification envoyée.");
@@ -98,20 +81,15 @@ export default function TripDetails() {
       setLoadingAction(false);
     }
   };
-
-  // Fonction de secours pour la date
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatSafeDate = (dateStr: any) => {
     if (!dateStr) return "N/C";
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? "Date à préciser" : d.toLocaleDateString('fr-FR');
   };
-
   if (!isUserLoaded || !trip) return <p className="p-10 text-center font-medium text-slate-500">Chargement du dossier...</p>;
-
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
-      
-      {/* BOUTON RETOUR - Design identique à la page d'accueil */}
       <div className="flex justify-start">
         <button 
           onClick={() => router.push('/travels')}
@@ -120,8 +98,6 @@ export default function TripDetails() {
           <span>←</span> Retour aux dossiers
         </button>
       </div>
-
-      {/* BANNIÈRE SI REFUS */}
       {trip.status === "REJECTED_MODIF" && (
         <div className="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-2xl shadow-sm">
           <h3 className="text-amber-800 font-bold mb-1 flex items-center gap-2">
@@ -138,8 +114,6 @@ export default function TripDetails() {
           </button>
         </div>
       )}
-
-      {/* 1. Header avec Statut corrigé */}
       <div className="flex justify-between items-start border-b pb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">{trip.data.title}</h1>
@@ -151,38 +125,30 @@ export default function TripDetails() {
           {trip.status}
         </div>
       </div>
-
-      {/* 2. Le Stepper */}
       <div className="grid grid-cols-3 gap-4 text-center">
         <Step label="Pédagogie (DIR)" active={trip.status === 'PENDING_DIR_INITIAL'} step="1" />
         <Step label="Finances (GEST)" active={trip.status === 'PENDING_COMPTA'} step="2" />
         <Step label="Validation Finale" active={trip.status === 'PENDING_DIR_FINAL' || trip.status === 'VALIDATED'} step="3" />
       </div>
-
-      {/* 3. Détails du contenu */}
       <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
         <h2 className="text-xl font-bold mb-6 text-slate-800">Récapitulatif de la sortie</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
           <DetailItem label="Destination" value={trip.data.destination} />
           <DetailItem label="Date prévue" value={formatSafeDate(trip.data.date)} />
-          
           <DetailItem label="Heure de départ" value={trip.data.startTime} />
           <DetailItem label="Heure de retour" value={trip.data.endTime} />
-          
           <DetailItem label="Effectif" value={`${trip.data.nbEleves} élèves (${trip.data.classes})`} />
           <DetailItem label="Budget Estimé" value={`${Math.round(Number(trip.data.coutTotal))} €`} />
-          
           <div className="flex flex-col border-b border-indigo-50 pb-2 bg-indigo-50/30 p-2 rounded-lg">
             <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Coût par élève (Compta)</span>
             <span className="text-indigo-700 font-bold text-lg">{trip.data.costPerStudent ? `${trip.data.costPerStudent} €` : "En attente validation compta"}</span>
           </div>
-
           <DetailItem label="Pique-nique Cantine" value={trip.data.piqueNique ? "Oui" : "Non"} />
-          
           <div className="flex flex-col">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Documents joints</span>
             <div className="flex flex-wrap gap-2 mt-2">
               {trip.data.attachments && trip.data.attachments.length > 0 ? (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 trip.data.attachments.map((file: any, idx: number) => (
                   <button 
                     key={idx} 
@@ -199,8 +165,6 @@ export default function TripDetails() {
           </div>
         </div>
       </div>
-
-      {/* 4. BARRE D'ACTION */}
       {(isDirection || isCompta) && (
         <div className="bg-slate-900 text-white p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl">
           <div className="text-center md:text-left">
