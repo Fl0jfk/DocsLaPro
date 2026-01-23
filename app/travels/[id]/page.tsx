@@ -104,7 +104,7 @@ export default function TripDetails() {
             <span>⚠️</span> Modification demandée
           </h3>
           <p className="text-amber-700 italic text-sm mb-4">
-            "{trip.history?.[trip.history.length - 1]?.note || "Aucun motif précisé"}"
+            &quot;{trip.history?.[trip.history.length - 1]?.note || "Aucun motif précisé"}&quot;
           </p>
           <button 
             onClick={() => router.push(`/travels/simple?edit=${trip.id}`)}

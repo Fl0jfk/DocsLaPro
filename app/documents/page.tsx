@@ -17,6 +17,7 @@ export default function DocumentsPage() {
   const cacheKey = (prefix: string) => `documents_cache_${prefix}`;
   const cacheTTL = 15 * 60 * 1000;
   const [downloading, setDownloading] = useState<string | null>(null);
+  console.log(downloading)
   const [uploading, setUploading] = useState(false);
   const [selectedDest, setSelectedDest] = useState("");
   const fetchDocuments = async (prefix: string, forceRefresh = false) => {

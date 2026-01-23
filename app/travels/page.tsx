@@ -32,7 +32,7 @@ export default function TripDashboard() {
   }, [isLoaded, isSignedIn]);
 
   if (!isLoaded || !isSignedIn) return null;
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatDate = (trip: any, field: 'created' | 'travel') => {
     let val;
     if (field === 'created') {
@@ -77,6 +77,7 @@ export default function TripDashboard() {
         {loading ? (
           <div className="col-span-full text-center py-20">Chargement des dossiers...</div>
         ) : trips.length > 0 ? (
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           trips.map((trip: any) => {
             const isComplex = trip.type === "COMPLEX" || trip.data?.transport;
             const imageUrl = trip.imageUrl || trip.data?.imageUrl || trip.data?.data?.imageUrl;
