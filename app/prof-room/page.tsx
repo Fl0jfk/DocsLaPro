@@ -106,7 +106,7 @@ export default function ProfRoomPage() {
             <h2 className="font-bold text-lg">Gestion des créneaux</h2>
             <span className="text-xs bg-purple-500 px-2 py-1 rounded-full uppercase font-bold tracking-tighter">Mode Admin</span>
           </div>
-          <div className="max-h-[350px] overflow-y-auto p-2 space-y-2">
+          <div className="max-h-[500px] overflow-y-auto p-2 space-y-2">
             {upcomingReservations.map((res) => {
               const isEditing = editingRes?.id === res.id;
               const resDate = res.startsAt.split("T")[0];
@@ -121,7 +121,7 @@ export default function ProfRoomPage() {
                     <p className="text-[10px] text-gray-400 uppercase font-bold">📍 {rooms.find(r => r.id === res.roomId)?.name} — {res.lastName}</p>
                   </div>
 
-                  <div className="flex gap-2 mt-3 sm:mt-0 w-full sm:w-auto justify-end">
+                  <div className="flex gap-2 sm:mt-0 w-full sm:w-auto justify-end">
                     {isEditing ? (
                       <>
                         <select 
@@ -169,12 +169,21 @@ export default function ProfRoomPage() {
               <label className="block mb-1 text-sm font-bold text-gray-600">Matière</label>
               <select value={subject} onChange={(e) => setSubject(e.target.value)} className="border-gray-200 rounded-lg w-full p-2.5 bg-white">
                 <option value="">-- Choisir --</option>
-                <option value="MATHS">MATHÉMATIQUES</option>
                 <option value="FRANCAIS">FRANÇAIS</option>
-                <option value="ANGLAIS">ANGLAIS</option>
-                <option value="SVT/PHY">SCIENCES</option>
+                <option value="MATHS">MATHÉMATIQUES</option>
                 <option value="HIST-GEO">HISTOIRE-GÉO</option>
-                <option value="ARTS">ARTS / MUSIQUE</option>
+                <option value="ANGLAIS">ANGLAIS</option>
+                <option value="ESPAGNOL">ESPAGNOL</option>
+                <option value="SVT">SVT</option>
+                <option value="PHYSIQUE-CHIMIE">PHYSIQUE-CHIMIE</option>
+                <option value="TECHNOLOGIE">TECHNOLOGIE</option>
+                <option value="ARTS PLASTIQUES">ARTS PLASTIQUES</option>
+                <option value="MUSIQUE">MUSIQUE</option>
+                <option value="LATIN/GREC">LATIN/GREC</option>
+                <option value="SNT">SNT</option>
+                <option value="ST2S">ST2S</option>
+                <option value="SI">SCIENCES INGENIEUR</option>
+                <option value="SL">SCIENCES LABORATOIRE</option>
                 <option value="AUTRE">AUTRE</option>
               </select>
             </div>
