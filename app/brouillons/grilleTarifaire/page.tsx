@@ -11,10 +11,10 @@ export default function GrilleTarifaire ()  {
         </div>
       </div>
       <section className="mb-4">
-        <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 text-center">Enfants présents dans l'établissement pour la rentrée 2026 - 2027 (par ordre de naissance)</h2>
+        <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 text-center">Enfants présents dans l&apos;établissement pour la rentrée 2026 - 2027 (par ordre de naissance)</h2>
   <div className="grid grid-cols-2 bg-black text-white text-[11px] font-bold uppercase rounded-t-lg border-x-2 border-t-2 border-black">
-    <div className="p-3 border-r-2 border-white/20 text-center">Nom de l'élève</div>
-    <div className="p-3 text-center">Prénom de l'élève</div>
+    <div className="p-3 border-r-2 border-white/20 text-center">Nom de l&apos;élève</div>
+    <div className="p-3 text-center">Prénom de l&apos;élève</div>
   </div>
         <div className="border-2 border-black rounded-b-lg overflow-hidden bg-white">
             {[1, 2, 3, 4].map((i) => (
@@ -25,7 +25,7 @@ export default function GrilleTarifaire ()  {
                 <input 
                 type="text" 
                 className="p-3 outline-none focus:bg-blue-50 border-r-2 border-black uppercase text-sm font-bold text-black" 
-                style={{ borderRightColor: '#000000' }} // Force le noir pur
+                style={{ borderRightColor: '#000000' }}
                 />
                 <input 
                 type="text" 
@@ -47,19 +47,18 @@ export default function GrilleTarifaire ()  {
           <div className="mb-4 bg-red-50 border-2 border-red-600 p-4 rounded-lg flex items-start gap-4">
         <div className="bg-red-600 px-2 py-1 rounded text-white font-bold uppercase text-[10px] shrink-0">Important</div>
         <div className="text-red-700 text-xs leading-tight">
-          <strong>JUSTIFICATIF OBLIGATOIRE :</strong> Si vous ne relevez pas de la <strong>Catégorie 1</strong>, vous devez impérativement joindre la photocopie de votre <strong>avis d’imposition 2025 (sur les revenus 2024)</strong>. En l'absence de ce document, le tarif de la Catégorie 1 sera appliqué d'office.
+          <strong>JUSTIFICATIF OBLIGATOIRE :</strong> Si vous ne relevez pas de la <strong>Catégorie 1</strong>, vous devez impérativement joindre la photocopie de votre <strong>avis d&apos;imposition 2025 (sur les revenus 2024)</strong>. En l&apos;absence de ce document, le tarif de la Catégorie 1 sera appliqué d&apos;office.
         </div>
       </div>
-      {/* CALCUL DU QUOTIENT */}
       <section className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <div className="bg-slate-50 p-3 border-b border-slate-200 font-bold text-[10px] uppercase text-slate-500 tracking-widest">
-          Données d'imposition
+          Données d&apos;imposition
         </div>
         <div className="p-6 space-y-4">
           <div className="flex justify-between items-center gap-10">
             <div className='flex flex-col'>
                 <span className="flex-1 text-xs font-medium"><strong>REVENU FISCAL DE RÉFÉRENCE</strong> (Avis 2025 sur revenus 2024)</span>
-                <span className="text-[11px] font-medium italic">Inclure les revenus accessoires exonérés d'impôt ainsi que les revenus perçus à l'étranger non imposables en France.</span>
+                <span className="text-[11px] font-medium italic">Inclure les revenus accessoires exonérés d&apos;impôt ainsi que les revenus perçus à l&apos;étranger non imposables en France.</span>
             </div>
             
             <div className="flex items-center bg-slate-50 border rounded px-3">
@@ -106,49 +105,29 @@ export default function GrilleTarifaire ()  {
             </tbody>
           </table>
         </div>
-
-        {/* BOX RÉSULTAT FINAL RÉORGANISÉ */}
         <div className="bg-slate-50 p-4 rounded-2xl shadow-inner border border-slate-200">
   <div className="grid grid-cols-1 gap-4">
-    
-    {/* Section Quotient Familial */}
     <div className="text-center">
-      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] block mb-2">
-        Quotient Familial Annuel
-      </span>
+      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] block mb-2">Quotient Familial Annuel</span>
       <div className="text-3xl font-bold text-slate-800 tabular-nums h-7">
-       
       </div>
     </div>
-
-    {/* Séparateur élégant */}
     <div className="flex items-center justify-center">
       <div className="h-[1px] w-full bg-slate-200"></div>
       <div className="px-3 text-slate-300 text-xs">▼</div>
       <div className="h-[1px] w-full bg-slate-200"></div>
     </div>
-
-    {/* Section Catégorie - Mise en avant */}
     <div className="text-center bg-white p-3 rounded-xl shadow-sm border border-blue-50">
-      <span className="text-[11px] font-bold text-blue-500 uppercase tracking-[0.2em] block mb-2">
-        Catégorie de Tarif
-      </span>
+      <span className="text-[11px] font-bold text-blue-500 uppercase tracking-[0.2em] block mb-2">Catégorie de Tarif</span>
       <div className="flex items-center justify-center gap-3">
         <span className="text-sm text-slate-400 font-medium h-7 italic"></span>
       </div>
     </div>
-
   </div>
-
 </div>
       </div>
-
-      {/* FOOTER DE VALIDATION */}
       <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
-         <p className="text-[9px] text-slate-500 italic leading-snug">
-            Ce document est une simulation établie sous réserve de validation définitive par le service comptabilité de l'établissement après réception et vérification de votre avis d'imposition.
-         </p>
-        
+         <p className="text-[9px] text-slate-500 italic leading-snug">Ce document est une simulation établie sous réserve de validation définitive par le service comptabilité de l&apos;établissement après réception et vérification de votre avis d&apos;imposition.</p>
       </div>
     </div>
   );

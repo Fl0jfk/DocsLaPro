@@ -12,13 +12,12 @@ export async function POST(req: NextRequest) {
   try {
     const { userId } = getAuth(req);
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-
     const { id, newHour } = await req.json();
-
     const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const resS3 = await fetch(getUrl);
-    let existing: any[] = await resS3.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing: any[] = await resS3.json();
     const index = existing.findIndex(r => r.id === id);
     if (index === -1) throw new Error("Réservation introuvable");
     const res = existing[index];
@@ -29,17 +28,14 @@ export async function POST(req: NextRequest) {
       r.id !== id && r.roomId === res.roomId && r.status !== "CANCELLED" &&
       new Date(r.startsAt) < newEnd && new Date(r.endsAt) > newStart
     );
-
     if (conflict) return NextResponse.json({ error: "Conflit d'horaire" }, { status: 409 });
-
     existing[index].startsAt = newStart.toISOString();
     existing[index].endsAt = newEnd.toISOString();
-
     const putCmd = new PutObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json", ContentType: "application/json" });
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
-
     return NextResponse.json({ success: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

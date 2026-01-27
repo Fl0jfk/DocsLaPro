@@ -22,17 +22,14 @@ export async function POST(req: NextRequest) {
     const user = await clerk.users.getUser(userId);
     const lastNameAdmin = (user.lastName ?? "").toUpperCase();
     const firstNameAdmin = user.firstName ?? "";
-
     const { id, groupId, deleteAllSeries, reason, userEmail, startsAt } = await req.json();
-
     const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const resS3 = await fetch(getUrl);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any[] = [];
     if (resS3.ok) existing = await resS3.json();
-
-    let targetReservations = [];
-
+    const targetReservations = [];
     if (deleteAllSeries && groupId) {
       existing = existing.map(r => {
         if (r.groupId === groupId && r.status !== "CANCELLED") {
@@ -51,11 +48,9 @@ export async function POST(req: NextRequest) {
         existing[index].cancelReason = reason;
       }
     }
-
     const putCmd = new PutObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json", ContentType: "application/json" });
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
-
     if (userEmail && targetReservations.length > 0) {
       const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
       await transporter.sendMail({
@@ -65,8 +60,8 @@ export async function POST(req: NextRequest) {
         html: `<p>Bonjour,</p><p>Votre réservation (ou série) débutant le ${dateFormatted} a été annulée.</p><p><b>Motif :</b> ${reason}</p>`
       });
     }
-
     return NextResponse.json({ success: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

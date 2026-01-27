@@ -14,7 +14,9 @@ const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 
 export default function ProfRoomPage() {
   const { user, isLoaded } = useUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rooms, setRooms] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reservations, setReservations] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
@@ -24,11 +26,9 @@ export default function ProfRoomPage() {
   const [className, setClassName] = useState("");
   const [recurrence, setRecurrence] = useState("none");
   const [untilDate, setUntilDate] = useState("");
-
-  // États pour la modification
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
   const [newHourValue, setNewHourValue] = useState<number | "">("");
-
   const lastName = (user?.lastName ?? "").toUpperCase();
   const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI","FORTINEAU","DONA","DUMOUCHEL","PLANTEC","GUEDIN","LAINE"];
   const firstName = user?.firstName ?? "";
@@ -36,7 +36,6 @@ export default function ProfRoomPage() {
   const today = new Date();
   const minDate = today.toISOString().split("T")[0];
   const maxDate = isAdmin ? "" : new Date(today.getTime() + 56 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
   useEffect(() => {
     async function load() {
       try {
@@ -50,21 +49,15 @@ export default function ProfRoomPage() {
     }
     load();
   }, []);
-
   if (!isLoaded || !user) return <p className="p-8 text-center font-bold">Chargement...</p>;
-
   const upcomingReservations = reservations.filter(r => r.status !== "CANCELLED" && new Date(r.startsAt) >= new Date()).sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-
   function getReservation(hour: number, dateStr?: string) { 
     const d = dateStr || selectedDate;
     return reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(d) && r.status !== "CANCELLED" && new Date(r.startsAt).getHours() === hour);
   }
-
   const toggleHour = (hour: number) => {
     setSelectedHours(prev => prev.includes(hour) ? prev.filter(h => h !== hour) : [...prev, hour]);
   };
-
-  // Logique de modification
   async function submitEdit() {
     if (newHourValue === "") return;
     const resp = await fetch("/api/reservation-rooms/reservations/update", {
@@ -79,7 +72,7 @@ export default function ProfRoomPage() {
       alert("❌ Erreur : le créneau est peut-être déjà pris.");
     }
   }
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function handleDeleteReservation(reservation: any) {
     const reason = prompt(`Motif de l'annulation :`, "Indisponibilité exceptionnelle");
     if (reason === null) return; 
@@ -94,7 +87,6 @@ export default function ProfRoomPage() {
     });
     if (res.ok) { alert("🗑️ Annulé."); window.location.reload(); }
   }
-
   async function handleConfirm() {
     if (!selectedHours.length || !selectedRoom || !selectedDate || !subject || !className) {
       alert("Veuillez remplir tous les champs."); return;
@@ -106,10 +98,8 @@ export default function ProfRoomPage() {
     });
     if (res.ok) { alert("✅ Confirmé !"); window.location.reload(); }
   }
-
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-8 mt-[10vh]">
-      {/* LISTE ADMIN AVEC MODIFICATION PAR SELECT */}
       {isAdmin && (
         <div className="bg-white border-2 border-purple-100 rounded-2xl shadow-sm overflow-hidden">
           <div className="bg-purple-600 p-4 flex justify-between items-center text-white">
@@ -139,15 +129,14 @@ export default function ProfRoomPage() {
                           onChange={(e) => setNewHourValue(parseInt(e.target.value))}
                           className="text-[10px] font-bold border-2 border-blue-400 rounded-lg px-2 py-1 bg-white outline-none"
                         >
-                          <option value="">Changer l'heure...</option>
+                          <option value="">Changer l&apos;heure...</option>
                           {HOURS.map(h => {
-                            // On vérifie si l'heure est libre pour CETTE salle et CE jour
                             const occupied = reservations.find(r => 
                               r.roomId === res.roomId && 
                               r.startsAt.startsWith(resDate) && 
                               r.status !== "CANCELLED" && 
                               new Date(r.startsAt).getHours() === h &&
-                              r.id !== res.id // On ne compte pas la résa actuelle comme un obstacle
+                              r.id !== res.id
                             );
                             return (
                               <option key={h} value={h} disabled={!!occupied}>
@@ -172,8 +161,6 @@ export default function ProfRoomPage() {
           </div>
         </div>
       )}
-
-      {/* FORMULAIRE RÉSERVATION */}
       <div className="bg-white border rounded-2xl shadow-sm p-6">
         <h1 className="text-2xl font-bold mb-6 text-gray-800">Réserver une salle</h1>
         <div className="space-y-4 bg-gray-50 p-4 rounded-xl border mb-6 text-black">
@@ -260,8 +247,6 @@ export default function ProfRoomPage() {
           </div>
         )}
       </div>
-
-      {/* VISUEL CALENDRIER HEBDOMADAIRE */}
       {selectedRoom && (
         <div className="bg-white border-2 border-blue-50 rounded-2xl p-4 overflow-x-auto shadow-sm">
           <h2 className="font-black text-blue-800 uppercase text-center mb-4 tracking-tighter">Occupation : {rooms.find(r => r.id === selectedRoom)?.name}</h2>

@@ -3,8 +3,6 @@ import Image from "next/image";
 export default function ReglementFinancier() {
   return (
     <div className="max-w-5xl mx-auto py-8 px-10 bg-white text-slate-800 font-sans shadow-2xl my-10 rounded-sm border border-slate-100" id="mon-flyer-a-imprimer">
-      
-      {/* HEADER : IDENTITÉ ET TITRE */}
       <header className="flex justify-between items-end pb-4 mb-4">
           <Image src={"/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"} width={110} height={110} alt="logo"/>
           <div>
@@ -12,8 +10,6 @@ export default function ReglementFinancier() {
             <p className="text-xl font-bold text-blue-700 tracking-widest">ANNÉE SCOLAIRE 2026 / 2027</p>
           </div>
       </header>
-
-      {/* 01. CONTRIBUTION FAMILIALE */}
       <section className="mb-4">
         <div className="bg-slate-900 text-white p-3 mb-4 flex justify-between items-center">
           <h2 className="text-sm font-bold uppercase tracking-widest">01. Contribution Familiale Mensuelle (sur 10 mois)</h2>
@@ -50,7 +46,7 @@ export default function ReglementFinancier() {
         </div>
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px] text-slate-600 bg-slate-50 px-4 py-2 border border-slate-100 italic">
           <p>• La contribution est modulée selon la composition familiale et les revenus.</p>
-          <p>• <strong>Réduction Fratrie :</strong> -10% pour 3 enfants scolarisés dans l'établissement.</p>
+          <p>• <strong>Réduction Fratrie :</strong> -10% pour 3 enfants scolarisés dans l&apos;établissement.</p>
           <p>• <strong>Gratuité :</strong> Accordée à compter du 5ème enfant scolarisé.</p>
         </div>
       </section>
@@ -88,12 +84,10 @@ export default function ReglementFinancier() {
           </div>
         </div>
         <div className="mt-4 px-4 py-2 border-2 border-slate-100 rounded text-[11px] leading-relaxed">
-          <p className="mb-2"><strong>Notes Demi-Pension :</strong> Une contribution d'accueil sera facturée aux élèves amenant leur panier repas dans le cadre d'un <strong>PAI uniquement (forfait 145 € annuel)</strong>.</p>
-          <p><strong>Conditions d'absence :</strong> Remboursement de la part variable après 7 jours calendaires consécutifs d'absence justifiée : <strong>3,40 €</strong> (repas) ou <strong>8,50 €</strong> (internat) par jour ouvré.</p>
+          <p className="mb-2"><strong>Notes Demi-Pension :</strong> Une contribution d&apos;accueil sera facturée aux élèves amenant leur panier repas dans le cadre d'un <strong>PAI uniquement (forfait 145 € annuel)</strong>.</p>
+          <p><strong>Conditions d&apos;absence :</strong> Remboursement de la part variable après 7 jours calendaires consécutifs d&apos;absence justifiée : <strong>3,40 €</strong> (repas) ou <strong>8,50 €</strong> (internat) par jour ouvré.</p>
         </div>
       </section>
-
-      {/* 03. ÉTUDE, GARDERIE ET COTISATIONS ANNUELLES */}
       <div className="flex flex-col gap-4 pt-8">
         <section>
           <div className="bg-slate-900 text-white p-3 mb-4"><h2 className="text-sm font-bold uppercase tracking-widest">03. Étude ou Garderie Mensuelle (sur 10 mois)</h2></div>
@@ -114,18 +108,13 @@ export default function ReglementFinancier() {
           </div>
         </section>
       </div>
-
-      {/* 05. MODALITÉS DE PAIEMENT ET INSCRIPTION */}
       <section className="mb-4 bg-slate-50 px-8 pb-4 pt-6 mt-4 border border-slate-200">
   <h2 className="text-sm font-black uppercase mb-4 flex items-center gap-3">
     <span className="h-px bg-slate-900 flex-1"></span>
     Informations Pratiques
     <span className="h-px bg-slate-900 flex-1"></span>
   </h2>
-  
   <div className="flex flex-col gap-2 text-[12px] leading-relaxed max-w-3xl mx-auto">
-    
-    {/* 1. INSCRIPTIONS / RÉINSCRIPTIONS */}
     <div className="space-y-1">
       <div className="flex items-center gap-2">
         <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">1</span>
@@ -134,7 +123,7 @@ export default function ReglementFinancier() {
       <ul className="space-y-1 pl-8">
         <li>• <strong>Première demande :</strong> 50 € de frais de dossier à régler sur Ecole Directe.</li>
         <li>• <strong>Réinscription 2026/2027 :</strong> Acompte de <strong>80 €</strong> (externe/DP) ou <strong>500 €</strong> (interne) prélevé en juin 2026.</li>
-         <li>• Cet acompte n'est pas remboursé en cas de désistement ou si l'élève quitte l'établissement en cours d'année.</li>
+         <li>• Cet acompte n'est pas remboursé en cas de désistement ou si l&apos;élève quitte l&apos;établissement en cours d&apos;année.</li>
       </ul>
       <div>
         
@@ -151,8 +140,6 @@ export default function ReglementFinancier() {
           </div>
         </div>
     </div>
-
-    {/* 2. FACTURATION & RÈGLEMENTS */}
     <div className="space-y-1">
       <div className="flex items-center gap-2">
         <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
@@ -160,7 +147,7 @@ export default function ReglementFinancier() {
       </div>
       <div className="pl-8">
         <p className="mb-2">
-          Les factures sont établies <strong>fin septembre</strong>. Le règlement s'effectue par prélèvements mensuels d'octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.
+          Les factures sont établies <strong>fin septembre</strong>. Le règlement s'effectue par prélèvements mensuels d&apos;octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.
         </p>
         <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
           <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Responsable Facturation :</p>
@@ -171,28 +158,22 @@ export default function ReglementFinancier() {
         </div>
       </div>
     </div>
-
-    {/* 3. AIDES & BOURSES SCOLAIRES */}
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">3</span>
         <p className="font-black uppercase text-blue-700 tracking-wider">Aides & Bourses Scolaires</p>
       </div>
       <div className="pl-8">
-        <p className="mb-2">
-          Le collège et le lycée sont habilités à recevoir les <strong>élèves boursiers</strong> de l'Éducation Nationale.
-        </p>
+        <p className="mb-2">Le collège et le lycée sont habilités à recevoir les <strong>élèves boursiers</strong> de l&apos;Éducation Nationale.</p>
         <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
           <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Gestionnaire Bourses :</p>
           <div className="flex gap-4 items-center">
             <p className="text-md font-black text-slate-900 uppercase leading-none">Karine PERRIER</p>
             <p className="text-blue-600 font-bold underline">karine.perrier@ac-normandie.fr</p>
           </div>
-          
         </div>
       </div>
     </div>
-
   </div>
   <div className="flex gap-4 text-[11px] justify-between w-full mx-auto pt-6 px-4">
           <div className="space-y-1">
@@ -216,7 +197,6 @@ export default function ReglementFinancier() {
           <p className="text-md font-bold uppercase text-slate-400 tracking-widest">Ligne Directe Standard</p>
         </div>
 </section>
-
     </div>
   );
 }
