@@ -57,8 +57,7 @@ export default function TripDashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen bg-slate-50/30">
-      {/* HEADER */}
+    <div className="max-w-7xl mx-auto p-6 min-h-screen mt-[10vh]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">Espace Voyages</h1>
@@ -87,33 +86,29 @@ export default function TripDashboard() {
               <div 
                 key={trip.id} 
                 onClick={() => router.push(`/travels/${trip.id}`)}
-                className="group bg-white border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                className="group bg-white border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer transform-gpu"
               >
-                {/* ZONE IMAGE / BANNIÈRE */}
-                <div className="h-44 w-full relative bg-slate-100 overflow-hidden">
+                <div className="h-44 w-full relative bg-slate-100 overflow-hidden isolate" style={{ maskImage: 'radial-gradient(white, black)' }}>
                   {imageUrl ? (
                     <Image 
                       src={imageUrl} 
                       alt={trip.data?.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 rounded-top-xl"
-                      width={300}
-                      height={200}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      width={500}
+                      height={300}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-5xl bg-gradient-to-br from-slate-50 to-slate-100">
                       {isComplex ? '🚌' : '🍦'}
                     </div>
                   )}
-                  {/* Overlay Badges sur l'image */}
                   <div className="absolute top-4 left-4 flex gap-2">
                     <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-sm ${getStatusStyle(trip.status)}`}>
                       {trip.status?.replace('PENDING_', '').replace('_', ' ')}
                     </span>
                   </div>
                 </div>
-
                 <div className="p-8">
-                  {/* Date de création */}
                   <div className="flex justify-between items-center mb-4">
                     <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isComplex ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
                       {isComplex ? 'Voyage Scolaire' : 'Sortie Locale'}
@@ -122,8 +117,6 @@ export default function TripDashboard() {
                       Dossier du {formatDate(trip, 'created')}
                     </span>
                   </div>
-
-                  {/* Contenu Principal */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <h3 className="text-2xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
@@ -138,7 +131,6 @@ export default function TripDashboard() {
                         </p>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-3 md:justify-end">
                       <div className="bg-slate-50 px-4 py-3 rounded-2xl text-center min-w-[70px] border border-slate-100">
                         <p className="text-[10px] text-slate-400 font-bold uppercase">Élèves</p>
@@ -150,8 +142,6 @@ export default function TripDashboard() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Footer Carte */}
                   <div className="mt-8 pt-6 border-t border-slate-50 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-bold text-white uppercase shadow-inner">
@@ -176,8 +166,6 @@ export default function TripDashboard() {
           </div>
         )}
       </div>
-
-      {/* MODALE */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />

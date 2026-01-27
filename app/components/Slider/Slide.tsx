@@ -23,7 +23,7 @@ export default function Slide({ name, img, link, external, priority = false,}: S
       {ImageBlock}
     </>
   );
-  const baseClass ="bg-white select-none flex items-end h-[400px] md:h-[300px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
+  const baseClass ="bg-white select-none flex items-end h-[400px] md:h-[300px] sm:h-[450px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
   return external ? (
     <a href={link} target="_blank" rel="noopener noreferrer" className={baseClass}>
       {content}

@@ -3,39 +3,31 @@
 @tailwind utilities;
 
 @media print {
-  /* 1. On cache tout ce qui n'est pas l'affiche */
-  body * {
-    visibility: hidden;
+  /* On ne cache tout QUE si on est réellement en train d'imprimer via le navigateur */
+  body {
+    background: white !important;
+  }
+  
+  main > *:not(#mon-flyer-a-imprimer) {
+    display: none !important; /* 'none' est plus radical et propre que 'hidden' */
   }
 
-  /* 2. On affiche uniquement l'élément principal de ton flyer et ses enfants */
-  #mon-flyer-a-imprimer, #mon-flyer-a-imprimer * {
-    visibility: visible;
-  }
-
-  /* 3. On force le flyer à se coller en haut à gauche sans marges */
   #mon-flyer-a-imprimer {
     position: absolute;
     left: 0;
     top: 0;
-    margin: 0;
-    padding: 0;
-    width: 297mm; /* Force le format paysage */
-    height: 210mm;
-    box-shadow: none; /* On enlève l'ombre portée pour l'encre */
+    margin: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact; /* FORCE le navigateur à garder les couleurs */
+    print-color-adjust: exact;
   }
 
-  /* 4. On règle les paramètres de la page */
   @page {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 0;
   }
 }
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
 
 @media (prefers-color-scheme: dark) {
   :root {

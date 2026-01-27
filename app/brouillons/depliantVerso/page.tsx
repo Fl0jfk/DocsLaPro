@@ -124,9 +124,9 @@ export default function DepliantProvidenceVerso() {
             <div className="relative min-h-[80px] flex items-center">
               <div className="absolute inset-0 bg-gray-900/90 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-sm"></div>
               <div className="relative z-10 flex items-center w-full px-6 py-3">
-                <div className="w-16 h-16 shrink-0 bg-[#fbb800] rounded-full flex items-center justify-center text-3xl shadow-lg border-2 border-white">🌎</div>
+                <div className="w-16 h-16 shrink-0 flex items-center justify-center text-5xl shadow-lg">🌎</div>
                 <div className="ml-6 flex flex-col gap-1">
-                  <h4 className="font-black text-xl uppercase text-[#fbb800] leading-none">Ambition Internationale</h4>
+                  <h4 className="font-black text-xl uppercase text-white leading-none">Ambition Internationale</h4>
                   <p className="text-[13px] text-white">
                     <span className="font-bold">École :</span> Initiation Anglais dès la maternelle • 
                     <span className="font-bold"> Collège :</span> Option Bi-langue (Double dès la 6ème LV1 Anglais/Allemand) ou LCE Anglais • 
@@ -140,9 +140,9 @@ export default function DepliantProvidenceVerso() {
             <div className="relative min-h-[80px] flex items-center">
               <div className="absolute inset-0 bg-gray-900/90 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-sm"></div>
               <div className="relative z-10 flex items-center w-full px-6 py-3">
-                <div className="w-16 h-16 shrink-0 bg-[#18aae2] rounded-full flex items-center justify-center text-3xl shadow-lg border-2 border-white">🐾</div>
+                <div className="w-16 h-16 shrink-0 bg-white rounded-full flex items-center justify-center text-4xl shadow-lg">🐾</div>
                 <div className="ml-6 flex flex-col gap-1">
-                  <h4 className="font-black text-xl uppercase text-[#18aae2] leading-none">Pôle Bien-Être & Santé</h4>
+                  <h4 className="font-black text-xl uppercase text-white leading-none">Pôle Bien-Être & Santé</h4>
                   <p className="text-[13px] text-white leading-tight">Infirmière & Psychologue sur site • Médiation animale (chiens en vie scolaire) • Internat de semaine (Collège/Lycée).</p>
                 </div>
               </div>
@@ -152,9 +152,9 @@ export default function DepliantProvidenceVerso() {
             <div className="relative min-h-[80px] flex items-center">
               <div className="absolute inset-0 bg-gray-900/90 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-sm"></div>
               <div className="relative z-10 flex items-center w-full px-6 py-3">
-                <div className="w-16 h-16 shrink-0 bg-[#e94f8a] rounded-full flex items-center justify-center text-3xl shadow-lg border-2 border-white">🤝</div>
+                <div className="w-16 h-16 shrink-0 flex items-center justify-center text-5xl shadow-lg">🤝</div>
                 <div className="ml-6 flex flex-col gap-1">
-                  <h4 className="font-black text-xl text-[#e94f8a] uppercase leading-none">Cadre de Vie & Solidarité</h4>
+                  <h4 className="font-black text-xl text-white uppercase leading-none">Cadre de Vie & Solidarité</h4>
                   <p className="text-[13px] text-white">
                     <span className="font-bold uppercase">Sécurité :</span> Un élève = une salle attitrée, limitation des flux et absence de sorties libres pour garantir un environnement serein.
                     <span className="font-bold uppercase ml-4"><br/>Solidarité :</span> Accueil de tous avec grille tarifaire en 5 catégories.
@@ -162,7 +162,6 @@ export default function DepliantProvidenceVerso() {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </section>
