@@ -84,7 +84,7 @@ export default function ReglementFinancier() {
           </div>
         </div>
         <div className="mt-4 px-4 py-2 border-2 border-slate-100 rounded text-[11px] leading-relaxed">
-          <p className="mb-2"><strong>Notes Demi-Pension :</strong> Une contribution d&apos;accueil sera facturée aux élèves amenant leur panier repas dans le cadre d'un <strong>PAI uniquement (forfait 145 € annuel)</strong>.</p>
+          <p className="mb-2"><strong>Notes Demi-Pension :</strong> Une contribution d&apos;accueil sera facturée aux élèves amenant leur panier repas dans le cadre d&apos;un <strong>PAI uniquement (forfait 145 € annuel)</strong>.</p>
           <p><strong>Conditions d&apos;absence :</strong> Remboursement de la part variable après 7 jours calendaires consécutifs d&apos;absence justifiée : <strong>3,40 €</strong> (repas) ou <strong>8,50 €</strong> (internat) par jour ouvré.</p>
         </div>
       </section>
@@ -123,7 +123,7 @@ export default function ReglementFinancier() {
       <ul className="space-y-1 pl-8">
         <li>• <strong>Première demande :</strong> 50 € de frais de dossier à régler sur Ecole Directe.</li>
         <li>• <strong>Réinscription 2026/2027 :</strong> Acompte de <strong>80 €</strong> (externe/DP) ou <strong>500 €</strong> (interne) prélevé en juin 2026.</li>
-         <li>• Cet acompte n'est pas remboursé en cas de désistement ou si l&apos;élève quitte l&apos;établissement en cours d&apos;année.</li>
+         <li>• Cet acompte n&apos;est pas remboursé en cas de désistement ou si l&apos;élève quitte l&apos;établissement en cours d&apos;année.</li>
       </ul>
       <div>
         
@@ -147,7 +147,7 @@ export default function ReglementFinancier() {
       </div>
       <div className="pl-8">
         <p className="mb-2">
-          Les factures sont établies <strong>fin septembre</strong>. Le règlement s'effectue par prélèvements mensuels d&apos;octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.
+          Les factures sont établies <strong>fin septembre</strong>. Le règlement s&apos;effectue par prélèvements mensuels d&apos;octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.
         </p>
         <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
           <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Responsable Facturation :</p>
