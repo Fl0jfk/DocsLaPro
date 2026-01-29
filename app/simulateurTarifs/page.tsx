@@ -35,6 +35,7 @@ export default function SimulateurTarifs() {
   const [resultat, setResultat] = useState({ contribution: 0, reste: 0, total: 0 });
   const ajouterEnfant = () => { setEnfants([...enfants, { id: Date.now(), niveau: "college", mode: "demi", repas: 4, garderie: 0 }]);};
   const supprimerEnfant = (id: number) => { if (enfants.length > 1) setEnfants(enfants.filter((e) => e.id !== id));};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateEnfant = (id: number, field: keyof Enfant, value: any) => { setEnfants(enfants.map(e => e.id === id ? { ...e, [field]: value } : e));};
   useEffect(() => {
     const QF = foyer > 0 ? revenu / foyer : 0;
