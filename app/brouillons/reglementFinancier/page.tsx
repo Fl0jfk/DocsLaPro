@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export default function ReglementFinancier() {
   return (
-    <div className="max-w-5xl mx-auto py-8 px-10 bg-white text-slate-800 font-sans shadow-2xl my-10 rounded-sm border border-slate-100" id="mon-flyer-a-imprimer">
+    <div className="max-w-5xl mx-auto pt-8 pb-4 px-10 bg-white text-slate-800 font-sans shadow-2xl my-10 rounded-sm border border-slate-100" id="mon-flyer-a-imprimer">
       <header className="flex justify-between items-end pb-4 mb-4">
           <Image src={"/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"} width={110} height={110} alt="logo"/>
           <div>
@@ -10,6 +10,7 @@ export default function ReglementFinancier() {
             <p className="text-xl font-bold text-blue-700 tracking-widest">ANNÉE SCOLAIRE 2026 / 2027</p>
           </div>
       </header>
+
       <section className="mb-4">
         <div className="bg-slate-900 text-white p-3 mb-4 flex justify-between items-center">
           <h2 className="text-sm font-bold uppercase tracking-widest">01. Contribution Familiale Mensuelle (sur 10 mois)</h2>
@@ -54,7 +55,7 @@ export default function ReglementFinancier() {
       {/* 02. RESTAURATION (DEMI-PENSION & PENSION) */}
       <section className="mb-4">
         <div className="bg-slate-900 text-white p-3 mb-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest">02. Restauration et Pension Mensuelle (sur 10 mois)</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest">02. Restauration ou Pension Mensuelle (sur 10 mois)</h2>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 overflow-hidden border border-slate-200">
@@ -79,15 +80,16 @@ export default function ReglementFinancier() {
               <span className="text-sm font-bold uppercase">Forfait PENSION</span>
               <span className="text-slate-900 text-sm">589 € <small className="text-sm">/mois</small></span>
             </div>
-            <span className="text-[10px] text-slate-500 uppercase font-bold">Comprend la demi-pension</span>
             <p className="text-[10px] text-slate-500 uppercase font-bold">Uniquement Collège et Lycée</p>
+            <span className="text-[9px] text-slate-500 font-bold">Le forfait pension inclut la demi‑pension, l’hébergement ainsi que l’étude. Il n’inclut pas la contribution familiale, qui doit être ajoutée au montant indiqué.</span> 
           </div>
         </div>
         <div className="mt-4 px-4 py-2 border-2 border-slate-100 rounded text-[11px] leading-relaxed">
           <p className="mb-2"><strong>Notes Demi-Pension :</strong> Une contribution d&apos;accueil sera facturée aux élèves amenant leur panier repas dans le cadre d&apos;un <strong>PAI uniquement (forfait 145 € annuel)</strong>.</p>
-          <p><strong>Conditions d&apos;absence :</strong> Remboursement de la part variable après 7 jours calendaires consécutifs d&apos;absence justifiée : <strong>3,40 €</strong> (repas) ou <strong>8,50 €</strong> (internat) par jour ouvré.</p>
+          <p><strong>En cas d&apos;absence :</strong> Remboursement de la part variable après 7 jours calendaires consécutifs d&apos;absence justifiée : <strong>3,40 €</strong> (repas) ou <strong>8,50 €</strong> (internat) par jour ouvré.</p>
         </div>
       </section>
+
       <div className="flex flex-col gap-4 pt-8">
         <section>
           <div className="bg-slate-900 text-white p-3 mb-4"><h2 className="text-sm font-bold uppercase tracking-widest">03. Étude ou Garderie Mensuelle (sur 10 mois)</h2></div>
@@ -95,7 +97,8 @@ export default function ReglementFinancier() {
             <div className="flex justify-between"><span>1 jour / semaine</span><strong>15,50 €</strong></div>
             <div className="flex justify-between border-y border-slate-50 py-1"><span>2 jours / semaine</span><strong>31,00 €</strong></div>
             <div className="flex justify-between border-b border-slate-50 pb-1"><span>3 jours / semaine</span><strong>46,50 €</strong></div>
-            <div className="flex justify-between"><span>4 jours / semaine</span><strong>62,00 €</strong></div>
+            <div className="flex justify-between border-b border-slate-50 pb-1"><span>4 jours / semaine</span><strong>62,00 €</strong></div>
+            <div className="flex justify-between"><span>Tarif unique</span><strong>5,00 € / jour</strong></div>
           </div>
         </section>
         <section>
@@ -108,16 +111,29 @@ export default function ReglementFinancier() {
           </div>
         </section>
       </div>
+
       <div className="mt-4 flex justify-center">
-        <p className="text-[8px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 px-6 py-2 w-full border border-slate-200 rounded-sm text-center">Le forfait mensuel est dû pour tout mois commencé, sans possibilité de remboursement au prorata des jours de présence.</p>
+        <p className="text-[8px] font-black uppercase tracking-wider text-red-500 bg-slate-50 px-6 py-2 w-full border border-slate-200 rounded-sm text-center">Les forfaits mensuels sont dûs pour tout mois commencé, sans possibilité de remboursement au prorata des jours de présence.</p>
       </div>
-      <section className="mb-4 bg-slate-50 px-8 pb-4 pt-4 mt-4 border border-slate-200">
+
+      <section className="relative mb-3 bg-slate-50 px-4 pb-3 pt-4 mt-4 border border-slate-200">
+        
+        {/* QR CODE SIMULATEUR TARIF */}
+        <div className="absolute right-6 top-[350px] w-32 bg-blue-700 rounded-2xl p-2 shadow-lg flex flex-col items-center text-center text-white z-10">
+          <p className="font-black text-[9px] leading-tight uppercase mb-1">Simulateur</p>
+          <p className="font-bold text-[11px] italic mb-1">Vos Tarifs</p>
+          <div className="p-1 bg-white rounded-lg mb-1">
+            <Image src="/QR Code Simulateur Tarifs.png" width={100} height={100} alt="QR Simulateur" quality={100}/>
+          </div>
+        </div>
+
         <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-3">
           <span className="h-px bg-slate-900 flex-1"></span>
           Informations Pratiques
           <span className="h-px bg-slate-900 flex-1"></span>
         </h2>
-        <div className="flex flex-col gap-2 text-[12px] leading-relaxed max-w-3xl mx-auto">
+        
+        <div className="flex flex-col gap-2 text-[12px] leading-relaxed max-w-4xl mx-auto">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">1</span>
@@ -140,6 +156,7 @@ export default function ReglementFinancier() {
               </div>
             </div>
           </div>
+
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
@@ -158,6 +175,7 @@ export default function ReglementFinancier() {
               </div>
             </div>
           </div>
+
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">3</span>
@@ -175,6 +193,7 @@ export default function ReglementFinancier() {
             </div>
           </div>
         </div>
+
         <div className="flex gap-4 text-[11px] justify-between w-full mx-auto pt-4 px-4">
           <div className="space-y-1">
             <p className="font-black uppercase text-slate-400">Direction École</p>
@@ -192,9 +211,9 @@ export default function ReglementFinancier() {
             <a href="mailto:0761713z@ac-normandie.fr" className="text-blue-700 font-medium">0761713z@ac-normandie.fr</a>
           </div>
         </div>
-        <div className="text-center flex flex-row-reverse items-center justify-center gap-2 mt-4">
-          <div className="text-[14px] font-black tabular-nums tracking-widest text-slate-900">02.32.86.50.90</div>
-          <p className="text-[14px] font-bold uppercase text-slate-400 tracking-widest">Ligne Directe Standard</p>
+        <div className="text-center flex flex-row-reverse items-center justify-center gap-2 mt-2">
+          <div className="text-[12px] font-black tabular-nums tracking-widest text-slate-900">02.32.86.50.90</div>
+          <p className="text-[12px] font-bold uppercase text-slate-400 tracking-widest">Ligne Directe Standard</p>
         </div>
       </section>
     </div>

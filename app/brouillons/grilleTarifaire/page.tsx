@@ -2,7 +2,7 @@ import Image from 'next/image';
 
 export default function GrilleTarifaire ()  {
   return (
-    <div className="max-w-[900px] mx-auto my-10 p-12 py-4 bg-white shadow-2xl border border-gray-200 text-slate-800 leading-tight font-sans">
+    <div className="max-w-[900px] mx-auto my-10 p-12 py-4 bg-white shadow-2xl border border-gray-200 text-slate-800 leading-tight font-sans" id='mon-flyer-a-imprimer'>
       <div className="flex justify-between items-end mb-4 border-b-2 border-slate-900 pb-4">
         <Image src={"/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"} width={100} height={100} alt='Logo'/>
         <div className="text-right">
@@ -47,7 +47,7 @@ export default function GrilleTarifaire ()  {
           <div className="mb-4 bg-red-50 border-2 border-red-600 p-4 rounded-lg flex items-start gap-4">
         <div className="bg-red-600 px-2 py-1 rounded text-white font-bold uppercase text-[10px] shrink-0">Important</div>
         <div className="text-red-700 text-xs leading-tight">
-          <strong>JUSTIFICATIF OBLIGATOIRE :</strong> Si vous ne relevez pas de la <strong>Catégorie 1</strong>, vous devez impérativement joindre la photocopie de votre <strong>avis d&apos;imposition 2025 (sur les revenus 2024)</strong>. En l&apos;absence de ce document, le tarif de la Catégorie 1 sera appliqué d&apos;office.
+          <strong>JUSTIFICATIF OBLIGATOIRE :</strong> Si vous ne relevez pas de la <strong>Catégorie 1</strong>, vous devez impérativement joindre la photocopie de votre <strong>avis d&apos;imposition 2025 (sur les revenus 2024)</strong>. En l&apos;absence de ce document, le tarif de la Catégorie 1 vous sera attribué.
         </div>
       </div>
       <section className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
