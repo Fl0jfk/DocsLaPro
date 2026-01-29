@@ -19,7 +19,6 @@ export default function DocumentsPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedDest, setSelectedDest] = useState("");
-
   useEffect(() => {
     if (isLoaded && user) {
       const roles = (user.publicMetadata.role as string[]) || [];
@@ -29,12 +28,10 @@ export default function DocumentsPage() {
       else if (roles.includes("administratif")) defaultPath = "documents/administratif/";
       else if (roles.includes("direction")) defaultPath = "documents/direction/";
       else if (roles.includes("education")) defaultPath = "documents/education/";
-
       setCurrentPrefix(defaultPath);
       setSelectedDest(defaultPath);
     }
   }, [isLoaded, user]);
-
   const fetchDocuments = async (prefix: string) => {
     if (!prefix && isLoaded) return;
     setLoading(true);
@@ -49,19 +46,16 @@ export default function DocumentsPage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (currentPrefix || isLoaded) {
       fetchDocuments(currentPrefix);
       setSelectedDest(currentPrefix);
     }
   }, [currentPrefix, isLoaded]);
-
   const enterFolder = (path: string) => { 
     setHistory(prev => [...prev, currentPrefix]); 
     setCurrentPrefix(path);
   };
-
   const goBack = () => {
     const prev = history.pop();
     if (prev !== undefined) {
@@ -82,7 +76,15 @@ export default function DocumentsPage() {
     try {
       const res = await fetch(`/api/documents/get-url?key=${encodeURIComponent(path)}`);
       const data = await res.json();
-      if (data.url) window.open(data.url, '_blank');
+      if (data.url) {
+        const link = document.createElement('a');
+        link.href = data.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (e) {
       console.error(e)
       alert("Erreur de connexion");
@@ -115,17 +117,12 @@ export default function DocumentsPage() {
           <p className="text-sm text-gray-500">Gérez et partagez vos ressources</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <select 
-            className="p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            value={selectedDest} 
-            onChange={(e) => setSelectedDest(e.target.value)}
-          >
+          <select className="p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={selectedDest}  onChange={(e) => setSelectedDest(e.target.value)}>
             <option value={currentPrefix}>📂 Dossier actuel</option>
             {items.filter(i => i.type === "folder").map((f) => (
               <option key={f.path} value={f.path}>↳ {f.name}</option>
             ))}
           </select>
-
           <label className={`relative flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${uploading ? 'bg-gray-100 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'}`}>
             {uploading ? "Envoi en cours..." : "＋ Ajouter un fichier"}
             <input type="file" onChange={handleUpload} disabled={uploading} className="hidden" />
@@ -134,11 +131,7 @@ export default function DocumentsPage() {
       </section>
       <div className="flex items-center gap-3">
         {history.length > 0 && (
-          <button 
-            onClick={goBack} 
-            className="p-2 hover:bg-gray-100 rounded-full text-blue-600 transition-colors"
-            title="Retour"
-          >
+          <button  onClick={goBack} className="p-2 hover:bg-gray-100 rounded-full text-blue-600 transition-colors" title="Retour">
             <span className="text-xl">⬅️</span>
           </button>
         )}
@@ -156,9 +149,8 @@ export default function DocumentsPage() {
             <div className="h-5 w-5 border-2 border-blue-600 border-t-transparent animate-spin rounded-full"></div>
           </div>
         )}
-
         {items.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-8">
             {items.map((item, idx) => (
               <div 
                 key={idx} 

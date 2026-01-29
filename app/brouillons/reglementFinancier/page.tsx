@@ -65,7 +65,7 @@ export default function ReglementFinancier() {
                   <th className="p-3">Mat.</th><th className="p-3">Elem.</th><th className="p-3">Coll.</th><th className="p-3">Lyc.</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-center">
+              <tbody className="divide-y divide-slate-100 text-center text-sm">
                 <tr><td className="p-2 text-left font-semibold italic">1 repas / semaine</td><td>21 €</td><td>25 €</td><td>25 €</td><td>26 €</td></tr>
                 <tr><td className="p-2 text-left font-semibold italic">2 repas / semaine</td><td>43 €</td><td>50 €</td><td>50 €</td><td>52 €</td></tr>
                 <tr><td className="p-2 text-left font-semibold italic">3 repas / semaine</td><td>64 €</td><td>74 €</td><td>75 €</td><td>77 €</td></tr>
@@ -75,11 +75,11 @@ export default function ReglementFinancier() {
             </table>
           </div>
           <div className="bg-slate-100 p-4 flex flex-col justify-center border-l-4 border-slate-900">
-            <h3 className="text-xs font-black uppercase mb-1 tracking-tighter">Pension / Internat</h3>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-bold uppercase">Forfait</span>
-              <span className="text-3xl font-black text-slate-900">589 € <small className="text-xs">/mois</small></span>
+              <span className="text-sm font-bold uppercase">Forfait PENSION</span>
+              <span className="text-slate-900 text-sm">589 € <small className="text-sm">/mois</small></span>
             </div>
+            <span className="text-[10px] text-slate-500 uppercase font-bold">Comprend la demi-pension</span>
             <p className="text-[10px] text-slate-500 uppercase font-bold">Uniquement Collège et Lycée</p>
           </div>
         </div>
@@ -99,104 +99,104 @@ export default function ReglementFinancier() {
           </div>
         </section>
         <section>
-          <div className="bg-slate-900 text-white p-3 mb-4"><h2 className="text-sm font-bold uppercase tracking-widest">04. Cotisations & Inscriptions anuelles</h2></div>
+          <div className="bg-slate-900 text-white p-3 mb-4"><h2 className="text-sm font-bold uppercase tracking-widest">04. Cotisations & Inscriptions Mensuelle (sur 10 mois)</h2></div>
           <div className="grid grid-cols-4 gap-4 text-[10px] uppercase font-bold">
-            <div className="bg-slate-50 p-3">Pôle Culturel Collège<br/><span className="text-sm">5,00 €</span></div>
-            <div className="bg-slate-50 p-3">Pôle Culturel Lycée<br/><span className="text-sm">15,00 €</span></div>
-            <div className="bg-slate-100 p-3 text-blue-800">A.P.E.L. (par Famille, facultative)<br/><span className="text-sm">16,04 €</span></div>
-            <div className="bg-slate-100 p-3 text-blue-800">Assurance Scolaire (facultative)<br/><span className="text-sm">8,50 €</span></div>
+            <div className="bg-slate-50 p-3">Pôle Culturel Collège<br/><span className="text-sm">0,50 €</span></div>
+            <div className="bg-slate-50 p-3">Pôle Culturel Lycée<br/><span className="text-sm">1,50 €</span></div>
+            <div className="bg-slate-100 p-3 text-blue-800">A.P.E.L. (par Famille)<br/><span className="text-sm">1,604 €</span><span className="ml-12 text-[7px]">facultative</span></div>
+            <div className="bg-slate-100 p-3 text-blue-800">Assurance Scolaire<br/><span className="text-sm">0,85 €</span><span className="ml-12 text-[7px]">facultative</span></div>
           </div>
         </section>
       </div>
-      <section className="mb-4 bg-slate-50 px-8 pb-4 pt-6 mt-4 border border-slate-200">
-  <h2 className="text-sm font-black uppercase mb-4 flex items-center gap-3">
-    <span className="h-px bg-slate-900 flex-1"></span>
-    Informations Pratiques
-    <span className="h-px bg-slate-900 flex-1"></span>
-  </h2>
-  <div className="flex flex-col gap-2 text-[12px] leading-relaxed max-w-3xl mx-auto">
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">1</span>
-        <p className="font-black uppercase text-blue-700 tracking-wider">Inscriptions / Réinscriptions</p>
+      <div className="mt-4 flex justify-center">
+        <p className="text-[8px] font-black uppercase tracking-wider text-slate-500 bg-slate-50 px-6 py-2 w-full border border-slate-200 rounded-sm text-center">Le forfait mensuel est dû pour tout mois commencé, sans possibilité de remboursement au prorata des jours de présence.</p>
       </div>
-      <ul className="space-y-1 pl-8">
-        <li>• <strong>Première demande :</strong> 50 € de frais de dossier à régler sur Ecole Directe.</li>
-        <li>• <strong>Réinscription 2026/2027 :</strong> Acompte de <strong>80 €</strong> (externe/DP) ou <strong>500 €</strong> (interne) prélevé en juin 2026.</li>
-         <li>• Cet acompte n&apos;est pas remboursé en cas de désistement ou si l&apos;élève quitte l&apos;établissement en cours d&apos;année.</li>
-      </ul>
-      <div>
-        
-      </div>
-      <div className="p-3 ml-8 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-lg w-full">
-          <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Gestionnaires réinscriptions :</p>
-          <div className="flex gap-4 items-center">
-            <p className="text-md font-black text-slate-900 uppercase leading-none">Pauline LEBLOND</p>
-            <p className="text-blue-600 font-bold underline">pauline.leblond@ac-normandie.fr</p>
+      <section className="mb-4 bg-slate-50 px-8 pb-4 pt-4 mt-4 border border-slate-200">
+        <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-3">
+          <span className="h-px bg-slate-900 flex-1"></span>
+          Informations Pratiques
+          <span className="h-px bg-slate-900 flex-1"></span>
+        </h2>
+        <div className="flex flex-col gap-2 text-[12px] leading-relaxed max-w-3xl mx-auto">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">1</span>
+              <p className="font-black uppercase text-blue-700 tracking-wider">Inscriptions / Réinscriptions</p>
+            </div>
+            <ul className="space-y-1 pl-8">
+              <li>• <strong>Première demande :</strong> 50 € de frais de dossier à régler sur Ecole Directe.</li>
+              <li>• <strong>Réinscription 2026/2027 :</strong> Acompte de <strong>80 €</strong> (externe/DP) ou <strong>500 €</strong> (interne) prélevé en juin 2026.</li>
+              <li>• Cet acompte n&apos;est pas remboursé en cas de désistement ou si l&apos;élève quitte l&apos;établissement en cours d&apos;année.</li>
+            </ul>
+            <div className="p-3 mt-2 ml-8 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-lg w-full">
+              <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Gestionnaires réinscriptions :</p>
+              <div className="flex gap-4 items-center">
+                <p className="text-md font-black text-slate-900 uppercase leading-none">Pauline LEBLOND</p>
+                <a href="mailto:pauline.leblond@ac-normandie.fr" className="text-blue-600 font-bold">pauline.leblond@ac-normandie.fr</a>
+              </div>
+              <div className="flex gap-4 items-center">
+                <p className="text-md font-black text-slate-900 uppercase leading-none">Florian HACQUEVILLE-MATHI</p>
+                <a href="mailto:florian.hacqueville-mathi@ac-normandie.fr" className="text-blue-600 font-bold">florian.hacqueville-mathi@ac-normandie.fr</a>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-4 items-center">
-            <p className="text-md font-black text-slate-900 uppercase leading-none">Florian HACQUEVILLE-MATHI</p>
-            <p className="text-blue-600 font-bold underline">florian.hacqueville-mathi@ac-normandie.fr</p>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
+              <p className="font-black uppercase text-blue-700 tracking-wider">Facturation & Règlements</p>
+            </div>
+            <div className="pl-8">
+              <p className="mb-2">
+                Les factures sont établies <strong>fin septembre</strong>. Le règlement s&apos;effectue par prélèvements mensuels d&apos;octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.
+              </p>
+              <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
+                <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Responsable Facturation :</p>
+                <div className="flex gap-4 items-center">
+                  <p className="text-md font-black text-slate-900 uppercase leading-none">Anaïs BOUTIGNY</p>
+                  <a href="mailto:anais.boutigny@laprovidence-nicolasbarre.fr" className="text-blue-600 font-bold">anais.boutigny@laprovidence-nicolasbarre.fr</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">3</span>
+              <p className="font-black uppercase text-blue-700 tracking-wider">Aides & Bourses Scolaires</p>
+            </div>
+            <div className="pl-8">
+              <p className="mb-2">Le collège et le lycée sont habilités à recevoir les <strong>élèves boursiers</strong> de l&apos;Éducation Nationale.</p>
+              <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
+                <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Gestionnaire Bourses :</p>
+                <div className="flex gap-4 items-center">
+                  <p className="text-md font-black text-slate-900 uppercase leading-none">Karine PERRIER</p>
+                  <a href="mailto:karine.perrier@ac-normandie.fr" className="text-blue-600 font-bold ">karine.perrier@ac-normandie.fr</a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-    </div>
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
-        <p className="font-black uppercase text-blue-700 tracking-wider">Facturation & Règlements</p>
-      </div>
-      <div className="pl-8">
-        <p className="mb-2">
-          Les factures sont établies <strong>fin septembre</strong>. Le règlement s&apos;effectue par prélèvements mensuels d&apos;octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.
-        </p>
-        <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
-          <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Responsable Facturation :</p>
-          <div className="flex gap-4 items-center">
-            <p className="text-md font-black text-slate-900 uppercase leading-none">Anaïs BOUTIGNY</p>
-            <p className="text-blue-600 font-bold underline">anais.boutigny@laprovidence-nicolasbarre.fr</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">3</span>
-        <p className="font-black uppercase text-blue-700 tracking-wider">Aides & Bourses Scolaires</p>
-      </div>
-      <div className="pl-8">
-        <p className="mb-2">Le collège et le lycée sont habilités à recevoir les <strong>élèves boursiers</strong> de l&apos;Éducation Nationale.</p>
-        <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
-          <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Gestionnaire Bourses :</p>
-          <div className="flex gap-4 items-center">
-            <p className="text-md font-black text-slate-900 uppercase leading-none">Karine PERRIER</p>
-            <p className="text-blue-600 font-bold underline">karine.perrier@ac-normandie.fr</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div className="flex gap-4 text-[11px] justify-between w-full mx-auto pt-6 px-4">
+        <div className="flex gap-4 text-[11px] justify-between w-full mx-auto pt-4 px-4">
           <div className="space-y-1">
             <p className="font-black uppercase text-slate-400">Direction École</p>
             <p className="font-bold text-sm">Mme Elise PLANTEC</p>
-            <p className="text-blue-700 font-medium">0762041f@ac-normandie.fr</p>
+            <a href="mailto:0762041f@ac-normandie.fr" className="text-blue-700 font-medium">0762041f@ac-normandie.fr</a>
           </div>
           <div className="space-y-1 border-x border-slate-200 px-6">
             <p className="font-black uppercase text-slate-400">Direction Collège</p>
             <p className="font-bold text-sm">Mme Anne-Sophie DUMOUCHEL</p>
-            <p className="text-blue-700 font-medium">0762565a@ac-normandie.fr</p>
+            <a href="mailto:0762565a@ac-normandie.fr" className="text-blue-700 font-medium">0762565a@ac-normandie.fr</a>
           </div>
           <div className="space-y-1">
             <p className="font-black uppercase text-slate-400">Direction Lycée</p>
             <p className="font-bold text-sm">Mme Anne-Marie DONA</p>
-            <p className="text-blue-700 font-medium">0761713z@ac-normandie.fr</p>
+            <a href="mailto:0761713z@ac-normandie.fr" className="text-blue-700 font-medium">0761713z@ac-normandie.fr</a>
           </div>
         </div>
-        <div className="text-center flex flex-row-reverse items-center justify-center gap-2 mt-5">
-          <div className="text-md font-black tabular-nums tracking-widest text-slate-900">02.32.86.50.90</div>
-          <p className="text-md font-bold uppercase text-slate-400 tracking-widest">Ligne Directe Standard</p>
+        <div className="text-center flex flex-row-reverse items-center justify-center gap-2 mt-4">
+          <div className="text-[14px] font-black tabular-nums tracking-widest text-slate-900">02.32.86.50.90</div>
+          <p className="text-[14px] font-bold uppercase text-slate-400 tracking-widest">Ligne Directe Standard</p>
         </div>
-</section>
+      </section>
     </div>
   );
 }

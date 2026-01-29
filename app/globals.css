@@ -12,6 +12,10 @@
     display: none !important; /* 'none' est plus radical et propre que 'hidden' */
   }
 
+  header {
+    display: none;
+  }
+
   #mon-flyer-a-imprimer {
     position: absolute;
     left: 0;
