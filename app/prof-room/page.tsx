@@ -289,14 +289,37 @@ export default function ProfRoomPage() {
                             {canModify && <span className="text-[10px]">✎</span>}
                           </div>
                         </div>
-                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-slate-900 text-white p-3 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-                          <p className="text-[16px] font-black text-blue-400 uppercase mb-1">{res.subject} - {res.className}</p>
-                          <p className="text-[15px] font-bold mb-2">Par : {res.firstName} {res.lastName}</p>
+                        <div className={`
+                          absolute left-1/2 -translate-x-1/2 w-72 bg-slate-900 text-white p-4 rounded-xl shadow-2xl 
+                          opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-[100]
+                          ${h <= 10 ? 'top-full mt-2' : 'bottom-full mb-2'}
+                        `}>
+                          {/* Titre et Classe */}
+                          <p className="text-[16px] font-black text-blue-400 uppercase mb-1 break-words leading-tight">
+                            {res.subject} - {res.className}
+                          </p>
+
+                          {/* Nom du Prof */}
+                          <p className="text-[15px] font-bold mb-3 opacity-90">
+                            Par : {res.firstName} {res.lastName}
+                          </p>
+
+                          {/* Bloc Commentaire */}
                           {res.comment && (
-                            <div className="bg-white/10 p-2 rounded-lg italic text-[15px] leading-relaxed">&apos;{res.comment}&apos;</div>
+                            <div className="bg-white/10 p-3 rounded-lg border border-white/5">
+                              <p className="text-[14px] leading-relaxed italic text-slate-200 whitespace-normal break-words">
+                                &apos;{res.comment}&apos;
+                              </p>
+                            </div>
                           )}
-                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
+
+                          {/* Flèche */}
+                          <div className={`
+                            absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45
+                            ${h <= 10 ? '-top-1.5' : '-bottom-1.5'}
+                          `}></div>
                         </div>
+                        
                       </>
                     ) : (
                       <div className="h-full w-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
