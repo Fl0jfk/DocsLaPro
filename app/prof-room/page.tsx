@@ -31,6 +31,14 @@ const SUBJECT_COLORS: Record<string, string> = {
 
 const HOURS = Array.from({ length: 10 }, (_, i) => 8 + i);
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+const getParisHour = (dateInput: string | Date) => {
+  const d = new Date(dateInput);
+  return parseInt(d.toLocaleTimeString('fr-FR', { 
+    timeZone: 'Europe/Paris', 
+    hour: '2-digit', 
+    hour12: false 
+  }));
+};
 
 export default function ProfRoomPage() {
   const { user, isLoaded } = useUser();
@@ -56,7 +64,6 @@ export default function ProfRoomPage() {
   const [targetFirstName, setTargetFirstName] = useState("");
   const [targetLastName, setTargetLastName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
   const lastName = (user?.lastName ?? "").toUpperCase();
   const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
@@ -108,8 +115,8 @@ export default function ProfRoomPage() {
       if (isAdmin || resExist.userId === user?.id) {
         setIsEditing(true);
         setEditingRes(resExist);
-        setSelectedDate(resExist.startsAt.split("T")[0]);
-        setSelectedHours([new Date(resExist.startsAt).getHours()]);
+        setSelectedDate(new Date(resExist.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }));
+        setSelectedHours([getParisHour(resExist.startsAt)]);
         setSubject(resExist.subject);
         setClassName(resExist.className);        
         const foundLevel = Object.keys(CLASSES_DATA).find(l => CLASSES_DATA[l].includes(resExist.className));
@@ -129,12 +136,12 @@ export default function ProfRoomPage() {
       document.getElementById("form-section")?.scrollIntoView({ behavior: "smooth" });
     }
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleContextMenu = (e: React.MouseEvent, dateStr: string, hour: number, resExist?: any) => {
     e.preventDefault();
     setContextMenu({ x: e.pageX, y: e.pageY, res: resExist, dateStr, hour });
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const copyReservation = (res: any) => {
     setClipboard({ subject: res.subject, className: res.className, comment: res.comment });
     setContextMenu(null);
@@ -183,7 +190,8 @@ export default function ProfRoomPage() {
       setEditingRes(null);
       window.location.reload(); 
     } else { 
-      alert("❌ Erreur lors de l'enregistrement."); 
+      const errorData = await res.json();
+      alert(`❌ Erreur : ${errorData.error || "Erreur lors de l'enregistrement."}`); 
     }
   }
   async function handleDelete() {
@@ -232,6 +240,7 @@ export default function ProfRoomPage() {
           )}
         </div>
       )}
+
       <div className="bg-white rounded-2xl shadow-sm border p-4 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-3">
           <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 text-white font-black px-4 py-2 rounded-xl outline-none shadow-md">
@@ -250,6 +259,7 @@ export default function ProfRoomPage() {
           {isAdmin && <span className="bg-purple-600 text-white text-[10px] font-black px-3 py-1 rounded-full tracking-tighter">ADMIN MODE</span>}
         </div>
       </div>
+
       <div className="bg-white border rounded-3xl shadow-xl overflow-hidden">
         <div className="grid grid-cols-6 bg-gray-50 border-b">
           <div className="p-4 text-[13px] font-black text-gray-400 uppercase text-center">Heure</div>
@@ -260,13 +270,18 @@ export default function ProfRoomPage() {
             </div>
           ))}
         </div>
+
         <div className="divide-y">
           {HOURS.map(h => (
             <div key={h} className="grid grid-cols-6 min-h-[95px]">
               <div className="text-[13px] font-black text-gray-400 flex items-center justify-center bg-gray-50/50 italic">{h}h30</div>
               {weekDays.map((date, i) => {
                 const dateStr = date.toISOString().split("T")[0];
-                const res = reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(dateStr) && new Date(r.startsAt).getHours() === h && r.status !== "CANCELLED");
+                const res = reservations.find(r => {
+                  const rDateStr = new Date(r.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+                  const rHour = getParisHour(r.startsAt); // Automatique
+                  return r.roomId === selectedRoom && rDateStr === dateStr && rHour === h && r.status !== "CANCELLED";
+                });
                 const isOwn = res?.userId === user.id;
                 const canModify = isAdmin || isOwn;
                 const colorClass = res ? (SUBJECT_COLORS[res.subject] || "bg-slate-600 text-white") : "";
@@ -289,7 +304,7 @@ export default function ProfRoomPage() {
                             {canModify && <span className="text-[10px]">✎</span>}
                           </div>
                         </div>
-                        <div className={`absolute left-1/2 -translate-x-1/2 w-72 bg-slate-900 text-white p-4 rounded-xl shadow-2xl  opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-[100] ${h <= 10 ? 'top-full mt-2' : 'bottom-full mb-2'}`}>
+                        <div className={`absolute left-1/2 -translate-x-1/2 w-72 bg-slate-900 text-white p-4 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-[100] ${h <= 10 ? 'top-full mt-2' : 'bottom-full mb-2'}`}>
                           <p className="text-[16px] font-black text-blue-400 uppercase mb-1 break-words leading-tight">{res.subject} - {res.className}</p>
                           <p className="text-[15px] font-bold mb-3 opacity-90">Par : {res.firstName} {res.lastName}</p>
                           {res.comment && (
@@ -312,29 +327,34 @@ export default function ProfRoomPage() {
           ))}
         </div>
       </div>
+
       {myUpcomingReservations.length > 0 && (
         <div className="bg-white border-2 border-blue-100 rounded-3xl p-6 shadow-lg">
           <h3 className="text-sm font-black text-blue-600 uppercase mb-4 flex items-center gap-2">📅 Mes 5 prochaines réservations</h3>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            {myUpcomingReservations.map((res) => (
-              <div 
-                key={res.id} 
-                onClick={() => handleCellClick(res.startsAt.split("T")[0], new Date(res.startsAt).getHours(), res)}
-                className="bg-gray-50 hover:bg-blue-50 border border-gray-100 rounded-2xl p-3 cursor-pointer transition-all"
-              >
-                <p className="text-[10px] font-black text-gray-400 uppercase">
-                  {new Date(res.startsAt).toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric', month: 'short' })}
-                </p>
-                <p className="text-xs font-black text-blue-700">{new Date(res.startsAt).getHours()}h30</p>
-                <div className="mt-2 text-[10px] font-bold">
-                  <span className="block truncate">📍 {rooms.find(r => r.id === res.roomId)?.name || "Salle"}</span>
-                  <span className="block text-gray-500">📚 {res.subject} ({res.className})</span>
+            {myUpcomingReservations.map((res) => {
+              const d = new Date(res.startsAt);
+              return (
+                <div 
+                  key={res.id} 
+                  onClick={() => handleCellClick(d.toLocaleDateString('en-CA', {timeZone: 'Europe/Paris'}), getParisHour(res.startsAt), res)}
+                  className="bg-gray-50 hover:bg-blue-50 border border-gray-100 rounded-2xl p-3 cursor-pointer transition-all"
+                >
+                  <p className="text-[10px] font-black text-gray-400 uppercase">
+                    {d.toLocaleDateString("fr-FR", { timeZone: 'Europe/Paris', weekday: 'short', day: 'numeric', month: 'short' })}
+                  </p>
+                  <p className="text-xs font-black text-blue-700">{getParisHour(res.startsAt)}h30</p>
+                  <div className="mt-2 text-[10px] font-bold">
+                    <span className="block truncate">📍 {rooms.find(r => r.id === res.roomId)?.name || "Salle"}</span>
+                    <span className="block text-gray-500">📚 {res.subject} ({res.className})</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
+
       <div id="form-section" className="bg-slate-900 rounded-[40px] p-8 text-white shadow-2xl">
         <div className="flex justify-between items-start mb-10">
           <div className="flex items-center gap-4">
@@ -347,6 +367,7 @@ export default function ProfRoomPage() {
             <button onClick={handleDelete} className="bg-red-600 hover:bg-red-500 text-white text-xs font-black px-6 py-3 rounded-2xl shadow-lg transition-transform active:scale-90">🗑️ SUPPRIMER CE CRÉNEAU</button>
           )}
         </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="space-y-4">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Professeur & Cours</label>
@@ -373,6 +394,7 @@ export default function ProfRoomPage() {
               </select>
             </div>
           </div>
+
           <div className="space-y-4">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Calendrier</label>
             <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold" />
@@ -380,13 +402,15 @@ export default function ProfRoomPage() {
               <p className="text-[10px] font-bold text-slate-500 mb-2">Choisir l&apos;heure :</p>
               <div className="flex flex-wrap gap-2">
                 {HOURS.map(h => {
-                  const isTaken = reservations.some(r => 
-                    r.roomId === selectedRoom && 
-                    r.startsAt.startsWith(selectedDate) && 
-                    new Date(r.startsAt).getHours() === h && 
-                    r.status !== "CANCELLED" &&
-                    r.id !== editingRes?.id
-                  );
+                  const isTaken = reservations.some(r => {
+                    const rDateStr = new Date(r.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+                    const rHour = getParisHour(r.startsAt);
+                    return r.roomId === selectedRoom && 
+                           rDateStr === selectedDate && 
+                           rHour === h && 
+                           r.status !== "CANCELLED" &&
+                           r.id !== editingRes?.id;
+                  });
                   return (
                     <button
                       key={h}
@@ -409,6 +433,7 @@ export default function ProfRoomPage() {
               </div>
             </div>
           </div>
+
           <div className="space-y-4">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Notes & Répétition</label>
             <textarea placeholder="Commentaire (ex: Valise PC)" value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold h-20 resize-none focus:ring-2 ring-blue-500" />
@@ -422,6 +447,7 @@ export default function ProfRoomPage() {
             )}
           </div>
         </div>
+
         {isEditing && editingRes?.groupId && (
           <div className="mt-6 p-4 bg-blue-900/30 border border-blue-500/50 rounded-2xl flex items-center gap-3">
             <input 
@@ -434,6 +460,7 @@ export default function ProfRoomPage() {
             <label htmlFor="updateSeries" className="text-sm font-bold text-blue-400 cursor-pointer">🔄 Appliquer les modifications à TOUTE la série de réservations</label>
           </div>
         )}
+
         <div className="mt-10 flex gap-4">
           <button onClick={handleConfirm} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 text-lg">
             {isEditing ? "ENREGISTRER LES MODIFICATIONS" : "CONFIRMER LA RÉSERVATION"}
