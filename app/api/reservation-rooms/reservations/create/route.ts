@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     limitDate.setDate(limitDate.getDate() + 56); 
     const groupId = recurrence !== "none" ? `group-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` : null;
     for (const hour of selectedHours) {
-      let currentLoopDate = new Date(`${date}T12:00:00`); 
-      let stopDate = (recurrence !== "none" && untilDate) ? new Date(`${untilDate}T23:59:59`) : new Date(`${date}T23:59:59`);
+      const currentLoopDate = new Date(`${date}T12:00:00`); 
+      const stopDate = (recurrence !== "none" && untilDate) ? new Date(`${untilDate}T23:59:59`) : new Date(`${date}T23:59:59`);
       while (currentLoopDate <= stopDate) {
         if (!isAdmin && currentLoopDate > limitDate) break;
         const dateStr = currentLoopDate.toISOString().split("T")[0];
