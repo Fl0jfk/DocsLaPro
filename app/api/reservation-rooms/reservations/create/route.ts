@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
     limitDate.setDate(limitDate.getDate() + 56); 
     const groupId = recurrence !== "none" ? `group-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` : null;
     for (const hour of selectedHours) {
-      const currentStart = new Date(new Date(`${date}T${hour.toString().padStart(2, "0")}:30:00`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+      const dateString = `${date}T${hour.toString().padStart(2, "0")}:30:00`;
+      const currentStart = new Date(new Date(dateString).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
       const currentEnd = new Date(currentStart.getTime() + 60 * 60 * 1000);
       let stopDate = new Date(currentStart);
       if (recurrence !== "none" && untilDate) {
