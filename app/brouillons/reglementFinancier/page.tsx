@@ -3,14 +3,13 @@ import Image from "next/image";
 export default function ReglementFinancier() {
   return (
     <div className="max-w-5xl mx-auto pt-8 pb-4 px-10 bg-white text-slate-800 font-sans shadow-2xl my-10 rounded-sm border border-slate-100" id="mon-flyer-a-imprimer">
-      <header className="flex justify-between items-end pb-4 mb-4">
+      <header className="flex justify-between items-end pb-4">
           <Image src={"/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"} width={110} height={110} alt="logo"/>
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">Règlement Financier</h1>
             <p className="text-xl font-bold text-blue-700 tracking-widest">ANNÉE SCOLAIRE 2026 / 2027</p>
           </div>
       </header>
-
       <section className="mb-4">
         <div className="bg-slate-900 text-white p-3 mb-4 flex justify-between items-center">
           <h2 className="text-sm font-bold uppercase tracking-widest">01. Contribution Familiale Mensuelle (sur 10 mois)</h2>
@@ -51,8 +50,6 @@ export default function ReglementFinancier() {
           <p>• <strong>Gratuité :</strong> Accordée à compter du 5ème enfant scolarisé.</p>
         </div>
       </section>
-
-      {/* 02. RESTAURATION (DEMI-PENSION & PENSION) */}
       <section className="mb-4">
         <div className="bg-slate-900 text-white p-3 mb-4">
           <h2 className="text-sm font-bold uppercase tracking-widest">02. Restauration ou Pension Mensuelle (sur 10 mois)</h2>
@@ -62,8 +59,14 @@ export default function ReglementFinancier() {
             <table className="w-full text-[12px] border-collapse">
               <thead className="bg-slate-100 uppercase font-bold text-slate-600 border-b border-slate-200">
                 <tr>
-                  <th className="p-3 text-left">Forfaits Demi-Pension</th>
-                  <th className="p-3">Mat.</th><th className="p-3">Elem.</th><th className="p-3">Coll.</th><th className="p-3">Lyc.</th>
+                  <th className="p-3 text-left relative min-w-[150px]">
+                    <span>Forfaits Demi-Pension</span>
+                    <p className="absolute left-3 top-[30px] text-[9px] leading-tight text-slate-500 normal-case font-bold w-[450px] pointer-events-none">Le forfait demi-pension n’inclut pas la contribution familiale, qui doit être ajoutée au montant indiqué.</p>
+                  </th>
+                  <th className="p-3">Mat.</th>
+                  <th className="p-3">Elem.</th>
+                  <th className="p-3">Coll.</th>
+                  <th className="p-3">Lyc.</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-center text-sm">
@@ -75,7 +78,7 @@ export default function ReglementFinancier() {
               </tbody>
             </table>
           </div>
-          <div className="bg-slate-100 p-4 flex flex-col justify-center border-l-4 border-slate-900">
+          <div className="bg-slate-100 p-4 py-2 flex flex-col justify-center border-l-4 border-slate-900">
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-bold uppercase">Forfait PENSION</span>
               <span className="text-slate-900 text-sm">589 € <small className="text-sm">/mois</small></span>
@@ -89,7 +92,6 @@ export default function ReglementFinancier() {
           <p><strong>En cas d&apos;absence :</strong> Remboursement de la part variable après 7 jours calendaires consécutifs d&apos;absence justifiée : <strong>3,40 €</strong> (repas) ou <strong>8,50 €</strong> (internat) par jour ouvré.</p>
         </div>
       </section>
-
       <div className="flex flex-col gap-4 pt-8">
         <section>
           <div className="bg-slate-900 text-white p-3 mb-4"><h2 className="text-sm font-bold uppercase tracking-widest">03. Étude ou Garderie Mensuelle (sur 10 mois)</h2></div>
@@ -111,14 +113,10 @@ export default function ReglementFinancier() {
           </div>
         </section>
       </div>
-
       <div className="mt-4 flex justify-center">
         <p className="text-[8px] font-black uppercase tracking-wider text-red-500 bg-slate-50 px-6 py-2 w-full border border-slate-200 rounded-sm text-center">Les forfaits mensuels sont dûs pour tout mois commencé, sans possibilité de remboursement au prorata des jours de présence.</p>
       </div>
-
       <section className="relative mb-3 bg-slate-50 px-4 pb-3 pt-4 mt-4 border border-slate-200">
-        
-        {/* QR CODE SIMULATEUR TARIF */}
         <div className="absolute right-6 top-[350px] w-32 bg-blue-700 rounded-2xl p-2 shadow-lg flex flex-col items-center text-center text-white z-10">
           <p className="font-black text-[9px] leading-tight uppercase mb-1">Simulateur</p>
           <p className="font-bold text-[11px] italic mb-1">Vos Tarifs</p>
@@ -126,13 +124,11 @@ export default function ReglementFinancier() {
             <Image src="/QR Code Simulateur Tarifs.png" width={100} height={100} alt="QR Simulateur" quality={100}/>
           </div>
         </div>
-
         <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-3">
           <span className="h-px bg-slate-900 flex-1"></span>
           Informations Pratiques
           <span className="h-px bg-slate-900 flex-1"></span>
         </h2>
-        
         <div className="flex flex-col gap-2 text-[12px] leading-relaxed max-w-4xl mx-auto">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -156,16 +152,13 @@ export default function ReglementFinancier() {
               </div>
             </div>
           </div>
-
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">2</span>
               <p className="font-black uppercase text-blue-700 tracking-wider">Facturation & Règlements</p>
             </div>
             <div className="pl-8">
-              <p className="mb-2">
-                Les factures sont établies <strong>fin septembre</strong>. Le règlement s&apos;effectue par prélèvements mensuels d&apos;octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.
-              </p>
+              <p className="mb-2">Les factures sont établies <strong>fin septembre</strong>. Le règlement s&apos;effectue par prélèvements mensuels d&apos;octobre 2026 à juillet 2027 entre le 1er et le 5ème jour ouvré du mois.</p>
               <div className="p-3 bg-white border-2 border-blue-100 rounded-xl shadow-sm max-w-md">
                 <p className="font-black uppercase text-[10px] mb-1 text-slate-400">Responsable Facturation :</p>
                 <div className="flex gap-4 items-center">
@@ -175,7 +168,6 @@ export default function ReglementFinancier() {
               </div>
             </div>
           </div>
-
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="bg-blue-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">3</span>
@@ -193,7 +185,6 @@ export default function ReglementFinancier() {
             </div>
           </div>
         </div>
-
         <div className="flex gap-4 text-[11px] justify-between w-full mx-auto pt-4 px-4">
           <div className="space-y-1">
             <p className="font-black uppercase text-slate-400">Direction École</p>

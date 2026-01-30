@@ -22,10 +22,15 @@ export async function POST(req: NextRequest) {
     if (index === -1) throw new Error("Réservation introuvable");
     const originalRes = existing[index];
     const reservationsToUpdate = (updateAllSeries && originalRes.groupId) ? existing.filter(r => r.groupId === originalRes.groupId && r.status !== "CANCELLED") : [originalRes];
+    
     for (const res of reservationsToUpdate) {
-        const baseDate = (!updateAllSeries && date) ? date : res.startsAt.split("T")[0];
-        const tempStart = new Date(`${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`);
+        // Extraction de la date en mode "Europe/Paris" pour éviter le décalage de jour
+        const baseDate = (!updateAllSeries && date) ? date : new Date(res.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+        
+        // Création du nouveau point de départ en forçant le fuseau horaire
+        const tempStart = new Date(new Date(`${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
         const tempEnd = new Date(tempStart.getTime() + 60 * 60 * 1000);
+        
         const conflict = existing.some(ext => 
             !reservationsToUpdate.find(u => u.id === ext.id) && 
             ext.roomId === res.roomId && 
@@ -33,15 +38,19 @@ export async function POST(req: NextRequest) {
             new Date(ext.startsAt) < tempEnd && new Date(ext.endsAt) > tempStart
         );
         if (conflict) { 
-            return NextResponse.json({ error: `Conflit d'horaire détecté pour la date du ${new Date(tempStart).toLocaleDateString()}`}, { status: 409 })
+            return NextResponse.json({ error: `Conflit d'horaire détecté pour la date du ${tempStart.toLocaleDateString('fr-FR')}`}, { status: 409 })
         }
     }
+
     reservationsToUpdate.forEach(res => {
         const resIndex = existing.findIndex(r => r.id === res.id);
         if (resIndex !== -1) {
-            const baseDate = (!updateAllSeries && date) ? date : existing[resIndex].startsAt.split("T")[0];
-            const newStart = new Date(`${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`);
+            // Même logique pour la mise à jour effective
+            const baseDate = (!updateAllSeries && date) ? date : new Date(existing[resIndex].startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+            
+            const newStart = new Date(new Date(`${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
             const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
+            
             existing[resIndex].startsAt = newStart.toISOString();
             existing[resIndex].endsAt = newEnd.toISOString();
             if (subject) existing[resIndex].subject = subject;

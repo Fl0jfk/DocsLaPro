@@ -52,7 +52,12 @@ export async function POST(req: NextRequest) {
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
     if (userEmail && targetReservations.length > 0) {
-      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
+      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", { 
+        timeZone: "Europe/Paris",
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long' 
+      });
       await transporter.sendMail({
         from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
         to: userEmail,

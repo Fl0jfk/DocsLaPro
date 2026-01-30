@@ -38,12 +38,11 @@ export async function POST(req: NextRequest) {
     limitDate.setDate(limitDate.getDate() + 56); 
     const groupId = recurrence !== "none" ? `group-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` : null;
     for (const hour of selectedHours) {
-      const currentStart = new Date(`${date}T${hour.toString().padStart(2, "0")}:30:00`);
+      const currentStart = new Date(new Date(`${date}T${hour.toString().padStart(2, "0")}:30:00`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
       const currentEnd = new Date(currentStart.getTime() + 60 * 60 * 1000);
       let stopDate = new Date(currentStart);
       if (recurrence !== "none" && untilDate) {
-        stopDate = new Date(untilDate);
-        stopDate.setHours(23, 59, 59, 999); 
+        stopDate = new Date(new Date(`${untilDate}T23:59:59`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
       }
       while (currentStart <= stopDate) {
         if (!isAdmin && currentStart > limitDate) break;
@@ -85,9 +84,13 @@ export async function POST(req: NextRequest) {
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
     if (email) {
-      const datesList = newReservationsAdded.map(r => 
-        `<li>Le ${new Date(r.startsAt).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' })} à ${new Date(r.startsAt).getHours()}h30</li>`
-      ).join("");
+      const datesList = newReservationsAdded.map(r => {
+        const d = new Date(r.startsAt);
+        const dateFr = d.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", weekday: 'long', day: 'numeric', month: 'long' });
+        const hourFr = d.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+        return `<li>Le ${dateFr} à ${hourFr}</li>`;
+      }).join("");
+
       await transporter.sendMail({
         from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
         to: email,
@@ -97,27 +100,22 @@ export async function POST(req: NextRequest) {
             <div style="background-color: #2563eb; padding: 20px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;">Réservation Confirmée</h1>
             </div>
-
             <div style="padding: 30px; background-color: #ffffff;">
               <p style="font-size: 16px; margin-top: 0;">Bonjour,</p>
               <p style="font-size: 15px;">Nous vous confirmons que vos créneaux ont été correctement enregistrés dans le système pour la salle :</p>
-              
               <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 4px;">
                 <p style="margin: 5px 0;"><strong>📍 Salle :</strong> ${roomId}</p>
                 <p style="margin: 5px 0;"><strong>📚 Matière :</strong> ${subject}</p>
                 <p style="margin: 5px 0;"><strong>👥 Classe :</strong> ${className}</p>
               </div>
-
               <p style="font-size: 15px; font-weight: bold; color: #2563eb;">Dates et horaires réservés :</p>
               <ul style="background-color: #f1f5f9; padding: 15px 15px 15px 35px; border-radius: 8px; font-size: 14px; list-style-type: square;">
                 ${datesList}
               </ul>
-
               <p style="font-size: 14px; color: #64748b; margin-top: 25px;">
                 Si vous avez besoin de modifier ou d'annuler ces réservations, merci de vous rendre directement sur l'application.
               </p>
             </div>
-
             <div style="background-color: #f8fafc; padding: 15px; text-align: center; border-top: 1px solid #e0e0e0;">
               <p style="margin: 0; font-size: 14px; font-weight: bold; color: #334155;">Bonne journée,</p>
               <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Système de Gestion de Salles Automatisé</p>
@@ -127,7 +125,7 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json({ success: true, count: newReservationsAdded.length }, { status: 201 });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
