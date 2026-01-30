@@ -272,7 +272,7 @@ export default function ProfRoomPage() {
                                                   <span className="bg-white/20 px-1 rounded text-[11px] font-bold">{res.className}</span>
                                               </div>
                                               {res.comment && (
-                                                  <p className="mt-1 italic opacity-90 line-clamp-1 leading-tight border-t border-white/10 pt-1">"{res.comment}"</p>
+                                                  <p className="mt-1 italic opacity-90 line-clamp-1 leading-tight border-t border-white/10 pt-1">&apos;{res.comment}&apos;</p>
                                               )}
                                           </div>
                                           <div className="flex justify-between items-end mt-1">
@@ -284,7 +284,7 @@ export default function ProfRoomPage() {
                                           <p className="text-[16px] font-black text-blue-400 uppercase mb-1">{res.subject} - {res.className}</p>
                                           <p className="text-[15px] font-bold mb-2">Par : {res.firstName} {res.lastName}</p>
                                           {res.comment && (
-                                            <div className="bg-white/10 p-2 rounded-lg italic text-[15px] leading-relaxed">"{res.comment}"</div>
+                                            <div className="bg-white/10 p-2 rounded-lg italic text-[15px] leading-relaxed">&apos;{res.comment}&apos;</div>
                                           )}
                                           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
                                       </div>

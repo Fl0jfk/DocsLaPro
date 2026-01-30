@@ -27,7 +27,7 @@ export default function FicheSanitaire() {
 
         {/* SECTION 1 : ÉLÈVE */}
         <section className="mb-12">
-          <h2 className="bg-slate-900 text-white px-4 py-2 text-sm font-black uppercase mb-6 inline-block rounded-r-full">1. Identification de l'élève</h2>
+          <h2 className="bg-slate-900 text-white px-4 py-2 text-sm font-black uppercase mb-6 inline-block rounded-r-full">1. Identification de l&apos;élève</h2>
           <div className="grid grid-cols-1 gap-8">
             <div className="flex items-end gap-4">
               <span className="text-sm font-bold uppercase min-w-[150px]">Nom et Prénom :</span>
@@ -52,8 +52,8 @@ export default function FicheSanitaire() {
 
         {/* SECTION 2 : RESPONSABLES & URGENCE */}
         <section className="mb-12 flex-1">
-          <h2 className="bg-slate-900 text-white px-4 py-2 text-sm font-black uppercase mb-6 inline-block rounded-r-full">2. Personnes à prévenir en cas d'urgence</h2>
-          <p className="text-xs italic text-slate-500 mb-4 font-bold">Indiquez l'ordre de priorité (1, 2, 3) pour les appels de l'infirmerie.</p>
+          <h2 className="bg-slate-900 text-white px-4 py-2 text-sm font-black uppercase mb-6 inline-block rounded-r-full">2. Personnes à prévenir en cas d&apos;urgence</h2>
+          <p className="text-xs italic text-slate-500 mb-4 font-bold">Indiquez l&apos;ordre de priorité (1, 2, 3) pour les appels de l&apos;infirmerie.</p>
           <div className="space-y-6">
             {[1, 2, 3].map((num) => (
               <div key={num} className="grid grid-cols-12 gap-4 border-2 border-slate-100 p-4 rounded-xl">
@@ -77,7 +77,7 @@ export default function FicheSanitaire() {
         {/* FOOTER RECTO */}
         <div className="border-t-2 border-slate-100 pt-6 flex justify-between items-end">
             <div className="text-[10px] max-w-sm font-medium italic text-slate-400">
-                Note : Pour toute modification de coordonnées en cours d'année, merci de prévenir immédiatement le secrétariat de direction.
+                Note : Pour toute modification de coordonnées en cours d&apos;année, merci de prévenir immédiatement le secrétariat de direction.
             </div>
             <p className="text-xs font-black uppercase text-slate-300">Page 1 / 2 (Tournez SVP)</p>
         </div>
@@ -103,7 +103,7 @@ export default function FicheSanitaire() {
             </div>
             <div className="space-y-4">
                 <h4 className="text-xs font-black uppercase mb-2 underline">Antécédents & Traitements</h4>
-                <p className="text-[11px] leading-relaxed italic text-slate-500">Précisez si l'élève est sujet à : asthme, épilepsie, diabète, problèmes cardiaques, ou s'il a subi une intervention chirurgicale récente.</p>
+                <p className="text-[11px] leading-relaxed italic text-slate-500">Précisez si l&apos;élève est sujet à : asthme, épilepsie, diabète, problèmes cardiaques, ou s&apos;il a subi une intervention chirurgicale récente.</p>
                 <div className="h-40 border-b-2 border-slate-100"></div>
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function FicheSanitaire() {
           
           <div className="grid grid-cols-1 gap-6 mb-6">
             <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-                <p className="text-xs font-bold uppercase underline">Choix des parents pour l'administration :</p>
+                <p className="text-xs font-bold uppercase underline">Choix des parents pour l&apos;administration :</p>
                 <div className="flex gap-8">
                     <label className="flex items-center gap-2 text-xs cursor-pointer">
                         <span className="w-5 h-5 border-2 border-blue-600 rounded"></span> Donner <strong>avant</strong> de prévenir la famille
@@ -130,7 +130,7 @@ export default function FicheSanitaire() {
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm">
-                <p className="text-xs font-bold uppercase mb-4">L'infirmière est autorisée à administrer les spécialités suivantes :</p>
+                <p className="text-xs font-bold uppercase mb-4">L&apos;infirmière est autorisée à administrer les spécialités suivantes :</p>
                 <div className="grid grid-cols-3 gap-4">
                     {['Doliprane / Paracétamol', 'Spasfon (Douleurs)', 'Vogalène (Nausées)', 'Lysopaïne (Maux de gorge)', 'Smecta (Diarrhée)', 'Gaviscon (Estomac)'].map(m => (
                         <div key={m} className="flex items-center gap-3 text-[10px] font-bold">
@@ -144,9 +144,9 @@ export default function FicheSanitaire() {
 
         {/* SECTION 5 : AUTORISATION LÉGALE */}
         <section className="flex-1 p-6 border-2 border-slate-900 rounded-2xl relative">
-          <h2 className="text-sm font-black uppercase mb-4">Autorisation d'Urgence & Hospitalisation</h2>
+          <h2 className="text-sm font-black uppercase mb-4">Autorisation d&apos;Urgence & Hospitalisation</h2>
           <p className="text-xs leading-relaxed mb-8">
-            Je soussigné(e) <span className="border-b-2 border-slate-200 inline-block w-48"></span>, responsable légal de l'élève, déclare autoriser le Chef d'Établissement du Lycée La Providence, à prendre, sur avis médical, en cas de maladie ou accident de l'élève, toutes mesures d'urgences, tant médicales que chirurgicales, y compris éventuellement l'hospitalisation au <strong>CHU Charles Nicolle (Rouen)</strong>.
+            Je soussigné(e) <span className="border-b-2 border-slate-200 inline-block w-48"></span>, responsable légal de l'élève, déclare autoriser le Chef d&apos;Établissement du Lycée La Providence, à prendre, sur avis médical, en cas de maladie ou accident de l&apos;élève, toutes mesures d&apos;urgences, tant médicales que chirurgicales, y compris éventuellement l&apos;hospitalisation au <strong>CHU Charles Nicolle (Rouen)</strong>.
           </p>
 
           <div className="grid grid-cols-2 gap-10 items-end">
