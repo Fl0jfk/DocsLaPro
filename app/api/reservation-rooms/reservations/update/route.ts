@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const { userId } = getAuth(req);
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    const { id, newHour } = await req.json();
+    const { id, newHour, updateAllSeries, subject, className, comment } = await req.json();
     const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const resS3 = await fetch(getUrl);
@@ -20,18 +20,38 @@ export async function POST(req: NextRequest) {
     const existing: any[] = await resS3.json();
     const index = existing.findIndex(r => r.id === id);
     if (index === -1) throw new Error("Réservation introuvable");
-    const res = existing[index];
-    const newStart = new Date(res.startsAt);
-    newStart.setHours(newHour, 30, 0, 0);
-    const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
-    const conflict = existing.some(r => 
-      r.id !== id && r.roomId === res.roomId && r.status !== "CANCELLED" &&
-      new Date(r.startsAt) < newEnd && new Date(r.endsAt) > newStart
-    );
-    if (conflict) return NextResponse.json({ error: "Conflit d'horaire" }, { status: 409 });
-    existing[index].startsAt = newStart.toISOString();
-    existing[index].endsAt = newEnd.toISOString();
-    const putCmd = new PutObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json", ContentType: "application/json" });
+    const originalRes = existing[index];
+    const reservationsToUpdate = (updateAllSeries && originalRes.groupId)  ? existing.filter(r => r.groupId === originalRes.groupId && r.status !== "CANCELLED") : [originalRes];
+    for (const res of reservationsToUpdate) {
+        const tempStart = new Date(res.startsAt);
+        tempStart.setHours(newHour, 30, 0, 0);
+        const tempEnd = new Date(tempStart.getTime() + 60 * 60 * 1000);
+        const conflict = existing.some(ext => 
+            !reservationsToUpdate.find(u => u.id === ext.id) && 
+            ext.roomId === res.roomId && 
+            ext.status !== "CANCELLED" &&
+            new Date(ext.startsAt) < tempEnd && new Date(ext.endsAt) > tempStart
+        );
+        if (conflict) { return NextResponse.json({ error: `Conflit d'horaire détecté pour la date du ${new Date(res.startsAt).toLocaleDateString()}`}, { status: 409 })}
+    }
+    reservationsToUpdate.forEach(res => {
+        const resIndex = existing.findIndex(r => r.id === res.id);
+        if (resIndex !== -1) {
+            const newStart = new Date(existing[resIndex].startsAt);
+            newStart.setHours(newHour, 30, 0, 0);
+            const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
+            existing[resIndex].startsAt = newStart.toISOString();
+            existing[resIndex].endsAt = newEnd.toISOString();
+            if (subject) existing[resIndex].subject = subject;
+            if (className) existing[resIndex].className = className;
+            if (comment !== undefined) existing[resIndex].comment = comment;
+        }
+    });
+    const putCmd = new PutObjectCommand({ 
+        Bucket: process.env.BUCKET_NAME!, 
+        Key: "reservation-rooms/reservations.json", 
+        ContentType: "application/json" 
+    });
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
     return NextResponse.json({ success: true });

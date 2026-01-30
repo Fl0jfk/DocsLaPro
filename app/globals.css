@@ -3,13 +3,12 @@
 @tailwind utilities;
 
 @media print {
-  /* On ne cache tout QUE si on est réellement en train d'imprimer via le navigateur */
   body {
     background: white !important;
   }
   
   main > *:not(#mon-flyer-a-imprimer) {
-    display: none !important; /* 'none' est plus radical et propre que 'hidden' */
+    display: none !important;
   }
 
   header {
@@ -22,7 +21,7 @@
     top: 0;
     margin: 0 !important;
     box-shadow: none !important;
-    -webkit-print-color-adjust: exact; /* FORCE le navigateur à garder les couleurs */
+    -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 

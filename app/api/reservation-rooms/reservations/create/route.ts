@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const { userId } = getAuth(req);
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     const body = await req.json();
-    const { roomId, selectedHours, date, subject, className, recurrence, untilDate, firstName, lastName, email } = body;
+    const { roomId, selectedHours, date, subject, className, comment, recurrence, untilDate, firstName, lastName, email } = body;
     const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const resS3 = await fetch(getUrl);
@@ -55,7 +55,14 @@ export async function POST(req: NextRequest) {
           const resObj = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             groupId,
-            roomId, userId, firstName, lastName, email, subject, className,
+            roomId, 
+            userId, 
+            firstName, 
+            lastName, 
+            email, 
+            subject, 
+            className,
+            comment,
             startsAt: currentStart.toISOString(),
             endsAt: currentEnd.toISOString(),
             createdAt: new Date().toISOString(),

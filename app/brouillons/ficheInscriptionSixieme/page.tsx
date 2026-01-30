@@ -3,7 +3,7 @@ import logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovi
 
 export default function Page(){
     return (
-        <main className="w-screen max-w-[1000px] flex flex-col mx-auto gap-2 text-sm">
+        <main className="w-full max-w-[1000px] flex flex-col mx-auto gap-2 text-sm ">
             <div className="bg-blue-400 flex gap-14 p-2 rounded-xl">
                 <div>
                     <Image src={logo} alt="logo" width={100} height={100}/>
@@ -100,16 +100,16 @@ export default function Page(){
                                 <input type="checkbox"></input>
                                 <li>6ème &quot;Classique&quot; (Anglais LV1)</li>
                             </div>
+                            <div className="flex gap-4 items-center justify-center p-2">
+                                <input type="checkbox"></input>
+                                <li>Option pour les élèves à besoin particulier</li>
+                            </div>
                         <hr className="border-blue-400" />
                         <div className="flex gap-4 items-center justify-center p-2">
                                 <input type="checkbox"></input>
                                 <li>6ème Bilangue (Anglais + Allemand LV1)</li>
                         </div>
-                        <hr className="border-blue-400" />
-                        <div className="flex gap-4 items-center justify-center p-2">
-                                <input type="checkbox"></input>
-                                <li>6ème avec accompagnement pour les élèves à besoin particulier</li>
-                            </div>
+                        
                         </ul>
                     </div>
                     </div>
@@ -245,7 +245,7 @@ export default function Page(){
                 </div>
                 
             </section>
-            <section className="border-2 border-blue-400 rounded-xl p-2 px-4 flex flex-col justify-center gap-2 mt-2">
+            <section className="border-2 border-blue-400 rounded-xl p-2 px-4 flex flex-col justify-center gap-2 mt-16">
                 <h3 className="text-center underline font-bold text-xl leading-5">Responsable principal</h3>
                 <div className="flex gap-16">
                     <p>Civilité :</p>

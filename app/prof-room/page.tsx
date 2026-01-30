@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 
 const CLASSES_DATA: Record<string, string[]> = {
@@ -9,7 +9,27 @@ const CLASSES_DATA: Record<string, string[]> = {
   "MAINTENANCE": ["MAINTENANCE"],
 };
 
-const HOURS = Array.from({ length: 11 }, (_, i) => 8 + i);
+const SUBJECT_COLORS: Record<string, string> = {
+  "FRANCAIS": "bg-blue-600 text-white",
+  "MATHS": "bg-red-600 text-white",
+  "HISTOIRE-GEO": "bg-amber-700 text-white",
+  "ANGLAIS": "bg-pink-600 text-white",
+  "ESPAGNOL": "bg-rose-500 text-white",
+  "ALLEMAND": "bg-stone-600 text-white",
+  "SVT": "bg-emerald-600 text-white",
+  "PHYSIQUE-CHIMIE": "bg-yellow-500 text-white",
+  "TECHNOLOGIE": "bg-orange-600 text-white",
+  "ARTS PLASTIQUES": "bg-fuchsia-600 text-white",
+  "MUSIQUE": "bg-violet-600 text-white",
+  "LATIN-GREC": "bg-slate-400 text-white",
+  "SNT": "bg-indigo-600 text-white",
+  "SCIENCES INGENIEUR": "bg-cyan-600 text-white",
+  "SCIENCES LABO": "bg-teal-600 text-white",
+  "ST2S": "bg-lime-600 text-white",
+  "MAINTENANCE": "bg-zinc-500 text-white",
+};
+
+const HOURS = Array.from({ length: 10 }, (_, i) => 8 + i);
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 
 export default function ProfRoomPage() {
@@ -18,24 +38,52 @@ export default function ProfRoomPage() {
   const [rooms, setRooms] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reservations, setReservations] = useState<any[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHours, setSelectedHours] = useState<number[]>([]);
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("");
   const [className, setClassName] = useState("");
+  const [comment, setComment] = useState("");
   const [recurrence, setRecurrence] = useState("none");
   const [untilDate, setUntilDate] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [clipboard, setClipboard] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, res?: any, dateStr?: string, hour?: number } | null>(null);
+  const [updateAllSeries, setUpdateAllSeries] = useState(false);
+  const [targetFirstName, setTargetFirstName] = useState("");
+  const [targetLastName, setTargetLastName] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
-  const [newHourValue, setNewHourValue] = useState<number | "">("");
   const lastName = (user?.lastName ?? "").toUpperCase();
-  const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI","FORTINEAU","DONA","DUMOUCHEL","PLANTEC","GUEDIN","LAINE"];
-  const firstName = user?.firstName ?? "";
+  const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
   const isAdmin = ADMIN_LASTNAMES.includes(lastName);
-  const today = new Date();
-  const minDate = today.toISOString().split("T")[0];
-  const maxDate = isAdmin ? "" : new Date(today.getTime() + 56 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const todayStr = new Date().toISOString().split("T")[0];
+  const maxDateLimit = new Date();
+  maxDateLimit.setDate(maxDateLimit.getDate() + 56);
+  const maxDateStr = isAdmin ? "" : maxDateLimit.toISOString().split("T")[0];
+  const myUpcomingReservations = useMemo(() => {
+    return reservations
+      .filter(r => r.userId === user?.id && r.status !== "CANCELLED" && new Date(r.startsAt) >= new Date())
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+      .slice(0, 5);
+  }, [reservations, user?.id]);
+  const startOfWeek = useMemo(() => {
+    const d = new Date(currentDate);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  }, [currentDate]);
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(startOfWeek);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [startOfWeek]);
   useEffect(() => {
     async function load() {
       try {
@@ -43,245 +91,339 @@ export default function ProfRoomPage() {
           fetch("/api/reservation-rooms/rooms"),
           fetch("/api/reservation-rooms/reservations")
         ]);
-        if (roomsRes.ok) setRooms((await roomsRes.json()).rooms || []);
+        if (roomsRes.ok) {
+            const data = await roomsRes.json();
+            setRooms(data.rooms || []);
+            if (data.rooms?.length > 0) setSelectedRoom(data.rooms[0].id);
+        }
         if (resRes.ok) setReservations((await resRes.json()).reservations || []);
       } catch (error) { console.error(error); }
     }
     load();
+    const closeMenu = () => setContextMenu(null);
+    window.addEventListener("click", closeMenu);
+    return () => window.removeEventListener("click", closeMenu);
   }, []);
-  if (!isLoaded || !user) return <p className="p-8 text-center font-bold">Chargement...</p>;
-  const upcomingReservations = reservations.filter(r => r.status !== "CANCELLED" && new Date(r.startsAt) >= new Date()).sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-  function getReservation(hour: number, dateStr?: string) { 
-    const d = dateStr || selectedDate;
-    return reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(d) && r.status !== "CANCELLED" && new Date(r.startsAt).getHours() === hour);
-  }
-  const toggleHour = (hour: number) => {
-    setSelectedHours(prev => prev.includes(hour) ? prev.filter(h => h !== hour) : [...prev, hour]);
-  };
-  async function submitEdit() {
-    if (newHourValue === "") return;
-    const resp = await fetch("/api/reservation-rooms/reservations/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editingRes.id, newHour: newHourValue }),
-    });
-    if (resp.ok) {
-      alert("✅ Créneau modifié !");
-      window.location.reload();
-    } else {
-      alert("❌ Erreur : le créneau est peut-être déjà pris.");
-    }
-  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async function handleDeleteReservation(reservation: any) {
-    const reason = prompt(`Motif de l'annulation :`, "Indisponibilité exceptionnelle");
-    if (reason === null) return; 
-    let deleteAllSeries = false;
-    if (reservation.groupId) {
-      deleteAllSeries = confirm("Voulez-vous supprimer TOUTES les réservations suivantes ?");
+  const handleCellClick = (dateStr: string, hour: number, resExist?: any) => {
+    setUpdateAllSeries(false);
+    if (resExist) {
+        if (isAdmin || resExist.userId === user?.id) {
+            setIsEditing(true);
+            setEditingRes(resExist);
+            setSelectedDate(resExist.startsAt.split("T")[0]);
+            setSelectedHours([new Date(resExist.startsAt).getHours()]);
+            setSubject(resExist.subject);
+            setClassName(resExist.className);
+            setComment(resExist.comment || "");
+            setTargetFirstName(resExist.firstName);
+            setTargetLastName(resExist.lastName);
+            document.getElementById("form-section")?.scrollIntoView({ behavior: "smooth" });
+        }
+    } else {
+        setIsEditing(false);
+        setEditingRes(null);
+        setSelectedDate(dateStr);
+        setSelectedHours([hour]);
+        setTargetFirstName(user?.firstName || "");
+        setTargetLastName(lastName);
+        document.getElementById("form-section")?.scrollIntoView({ behavior: "smooth" });
     }
-    const res = await fetch("/api/reservation-rooms/reservations/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: reservation.id, groupId: reservation.groupId, deleteAllSeries, startsAt: reservation.startsAt, reason, userEmail: reservation.email }),
-    });
-    if (res.ok) { alert("🗑️ Annulé."); window.location.reload(); }
-  }
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleContextMenu = (e: React.MouseEvent, dateStr: string, hour: number, resExist?: any) => {
+    e.preventDefault();
+    setContextMenu({ x: e.pageX, y: e.pageY, res: resExist, dateStr, hour });
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const copyReservation = (res: any) => {
+    setClipboard({ subject: res.subject, className: res.className, comment: res.comment });
+    setContextMenu(null);
+  };
+  const pasteReservation = (dateStr: string, hour: number) => {
+    if (!clipboard) return;
+    setIsEditing(false);
+    setEditingRes(null);
+    setSelectedDate(dateStr);
+    setSelectedHours([hour]);
+    setSubject(clipboard.subject);
+    setClassName(clipboard.className);
+    setComment(clipboard.comment || "");
+    setTargetFirstName(user?.firstName || "");
+    setTargetLastName(lastName);
+    setContextMenu(null);
+    document.getElementById("form-section")?.scrollIntoView({ behavior: "smooth" });
+  };
   async function handleConfirm() {
-    if (!selectedHours.length || !selectedRoom || !selectedDate || !subject || !className) {
-      alert("Veuillez remplir tous les champs."); return;
-    }
-    const res = await fetch("/api/reservation-rooms/reservations/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomId: selectedRoom, selectedHours, date: selectedDate, subject, className, recurrence, untilDate, firstName, lastName, email: user?.primaryEmailAddress?.emailAddress }),
-    });
-    if (res.ok) { alert("✅ Confirmé !"); window.location.reload(); }
+    const endpoint = isEditing ? "/api/reservation-rooms/reservations/update" : "/api/reservation-rooms/reservations/create";
+    const userEmail = user?.primaryEmailAddress?.emailAddress || "";
+    const body = {
+        id: editingRes?.id,
+        roomId: selectedRoom, 
+        selectedHours,
+        newHour: selectedHours[0],
+        date: selectedDate, 
+        subject, 
+        className, 
+        comment, 
+        recurrence, 
+        untilDate, 
+        updateAllSeries,
+        firstName: isAdmin ? targetFirstName : user?.firstName, 
+        lastName: isAdmin ? targetLastName.toUpperCase() : lastName, 
+        email: userEmail 
+    };
+    const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (res.ok) { alert("✅ Enregistré !"); window.location.reload(); }
+    else { alert("❌ Erreur lors de l'enregistrement."); }
   }
+  async function handleDelete() {
+    if (!editingRes) return;
+    const reason = prompt("Motif de suppression :", "Annulation");
+    if (reason === null) return;
+    let deleteAllSeries = false;
+    if (editingRes.groupId) {
+      deleteAllSeries = confirm("Supprimer TOUTE la série ?");
+    }
+    const currentUserEmail = user?.primaryEmailAddress?.emailAddress || "";
+    const res = await fetch("/api/reservation-rooms/reservations/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            id: editingRes.id, 
+            groupId: editingRes.groupId, 
+            deleteAllSeries, 
+            reason,
+            userEmail: currentUserEmail,
+            startsAt: editingRes.startsAt
+        }),
+    });
+    if (res.ok) { 
+        alert("🗑️ Supprimé !"); 
+        window.location.reload(); 
+    } else {
+        alert("❌ Erreur lors de la suppression.");
+    }
+  }
+  if (!isLoaded || !user) return <div className="p-20 text-center font-bold">Initialisation...</div>;
   return (
-    <div className="p-4 max-w-4xl mx-auto space-y-8 mt-[10vh]">
-      {isAdmin && (
-        <div className="bg-white border-2 border-purple-100 rounded-2xl shadow-sm overflow-hidden">
-          <div className="bg-purple-600 p-4 flex justify-between items-center text-white">
-            <h2 className="font-bold text-lg">Gestion des créneaux</h2>
-            <span className="text-xs bg-purple-500 px-2 py-1 rounded-full uppercase font-bold tracking-tighter">Mode Admin</span>
-          </div>
-          <div className="max-h-[500px] overflow-y-auto p-2 space-y-2">
-            {upcomingReservations.map((res) => {
-              const isEditing = editingRes?.id === res.id;
-              const resDate = res.startsAt.split("T")[0];
-
-              return (
-                <div key={res.id} className={`flex flex-col sm:flex-row items-center justify-between p-3 rounded-lg border transition-all ${isEditing ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-100' : 'bg-gray-50 border-gray-100'}`}>
-                  <div className="flex-1 min-w-0 w-full">
-                    <p className="text-sm font-bold text-gray-800">
-                      {new Date(res.startsAt).toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric', month: 'short' })} — {new Date(res.startsAt).getHours()}h30
-                    </p>
-                    <p className="text-md font-black text-purple-700 uppercase leading-none my-1">{res.subject} / {res.className}</p>
-                    <p className="text-[10px] text-gray-400 uppercase font-bold">📍 {rooms.find(r => r.id === res.roomId)?.name} — {res.lastName}</p>
-                  </div>
-
-                  <div className="flex gap-2 sm:mt-0 w-full sm:w-auto justify-end">
-                    {isEditing ? (
-                      <>
-                        <select 
-                          value={newHourValue} 
-                          onChange={(e) => setNewHourValue(parseInt(e.target.value))}
-                          className="text-[10px] font-bold border-2 border-blue-400 rounded-lg px-2 py-1 bg-white outline-none"
-                        >
-                          <option value="">Changer l&apos;heure...</option>
-                          {HOURS.map(h => {
-                            const occupied = reservations.find(r => 
-                              r.roomId === res.roomId && 
-                              r.startsAt.startsWith(resDate) && 
-                              r.status !== "CANCELLED" && 
-                              new Date(r.startsAt).getHours() === h &&
-                              r.id !== res.id
-                            );
-                            return (
-                              <option key={h} value={h} disabled={!!occupied}>
-                                {h}h30 {occupied ? "(Indisponible)" : ""}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <button onClick={submitEdit} className="px-3 py-2 bg-green-600 text-white text-[10px] font-bold rounded-lg uppercase">Valider</button>
-                        <button onClick={() => setEditingRes(null)} className="px-3 py-2 bg-gray-400 text-white text-[10px] font-bold rounded-lg uppercase">X</button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => { setEditingRes(res); setNewHourValue(new Date(res.startsAt).getHours()); }} className="px-3 py-2 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-lg uppercase hover:bg-blue-600 hover:text-white transition">Modifier</button>
-                        <button onClick={() => handleDeleteReservation(res)} className="px-3 py-2 bg-red-100 text-red-600 text-[10px] font-bold rounded-lg uppercase hover:bg-red-600 hover:text-white transition">Annuler</button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      <div className="bg-white border rounded-2xl shadow-sm p-6">
-        <h1 className="text-2xl font-bold mb-6 text-gray-800">Réserver une salle</h1>
-        <div className="space-y-4 bg-gray-50 p-4 rounded-xl border mb-6 text-black">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 text-sm font-bold text-gray-600">Matière</label>
-              <select value={subject} onChange={(e) => setSubject(e.target.value)} className="border-gray-200 rounded-lg w-full p-2.5 bg-white">
-                <option value="">-- Choisir --</option>
-                <option value="FRANCAIS">FRANÇAIS</option>
-                <option value="MATHS">MATHÉMATIQUES</option>
-                <option value="HIST-GEO">HISTOIRE-GÉO</option>
-                <option value="ANGLAIS">ANGLAIS</option>
-                <option value="ESPAGNOL">ESPAGNOL</option>
-                <option value="SVT">SVT</option>
-                <option value="PHYSIQUE-CHIMIE">PHYSIQUE-CHIMIE</option>
-                <option value="TECHNOLOGIE">TECHNOLOGIE</option>
-                <option value="ARTS PLASTIQUES">ARTS PLASTIQUES</option>
-                <option value="MUSIQUE">MUSIQUE</option>
-                <option value="LATIN/GREC">LATIN/GREC</option>
-                <option value="SNT">SNT</option>
-                <option value="ST2S">ST2S</option>
-                <option value="SI">SCIENCES INGENIEUR</option>
-                <option value="SL">SCIENCES LABORATOIRE</option>
-                <option value="AUTRE">AUTRE</option>
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-bold text-gray-600">Niveau</label>
-              <select value={level} onChange={(e) => { setLevel(e.target.value); setClassName(""); }} className="border-gray-200 rounded-lg w-full p-2.5 bg-white text-blue-600 font-bold">
-                <option value="">-- Choisir Niveau --</option>
-                {Object.keys(CLASSES_DATA).map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1 text-sm font-bold text-gray-600">Classe</label>
-              <select disabled={!level} value={className} onChange={(e) => setClassName(e.target.value)} className="border-gray-200 rounded-lg w-full p-2.5 bg-white disabled:bg-gray-100">
-                <option value="">-- Sélectionner --</option>
-                {level && CLASSES_DATA[level].map(cls => <option key={cls} value={cls}>{cls}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-bold text-gray-600">Salle</label>
-              <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="border-gray-200 rounded-lg w-full p-2.5 bg-white">
-                <option value="">-- Choisir --</option>
-                {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
-            <div>
-              <label className="block mb-1 text-sm font-bold text-gray-600">Date</label>
-              <input type="date" value={selectedDate} min={minDate} max={maxDate} onChange={(e) => setSelectedDate(e.target.value)} className="border-gray-200 rounded-lg w-full p-2.5 bg-white"/>
-            </div>
-            <div>
-              <label className="block mb-1 text-sm font-bold text-gray-600">Répéter</label>
-              <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} className="border-gray-200 rounded-lg w-full p-2.5 bg-white">
-                <option value="none">Une seule fois</option>
-                <option value="weekly">Toutes les semaines</option>
-                <option value="biweekly">Toutes les 2 semaines</option>
-              </select>
-            </div>
-          </div>
-          {recurrence !== "none" && (
-            <div className="animate-in fade-in duration-300">
-              <label className="block mb-1 text-sm font-bold text-orange-600">Jusqu&apos;au (date de fin)</label>
-              <input type="date" value={untilDate} min={selectedDate} max={maxDate} onChange={(e) => setUntilDate(e.target.value)} className="border-orange-200 rounded-lg w-full p-2.5 bg-white" />
-            </div>
+    <div className="p-4 max-w-6xl mx-auto space-y-6 mt-[6vh]">
+      {contextMenu && (
+        <div  className="fixed z-[100] bg-white shadow-2xl border rounded-xl p-1 min-w-[180px] text-xs font-bold overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }}>
+          {contextMenu.res ? (
+            <button onClick={() => copyReservation(contextMenu.res)} className="w-full text-left p-3 hover:bg-blue-50 flex items-center gap-2 rounded-lg transition-colors">
+              <span>📋</span> Copier ce créneau
+            </button>
+          ) : clipboard ? (
+            <button onClick={() => pasteReservation(contextMenu.dateStr!, contextMenu.hour!)} className="w-full text-left p-3 hover:bg-green-50 flex items-center gap-2 rounded-lg transition-colors">
+              <span>📥</span> Coller : {clipboard.subject} ({clipboard.className})
+            </button>
+          ) : (
+            <div className="p-3 text-gray-400 italic">Rien à coller...</div>
           )}
         </div>
-
-        {selectedRoom && selectedDate && (
-          <div className="animate-in fade-in slide-in-from-bottom-2">
-            <h2 className="font-bold mb-3 text-gray-700">Sélectionner les heures :</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-              {HOURS.map((hour) => {
-                const res = getReservation(hour);
-                const isSelected = selectedHours.includes(hour);
-                return (
-                  <div key={hour} className={`flex flex-col border rounded-xl p-2 transition-all ${res ? 'bg-gray-100 opacity-60' : 'bg-white border-gray-200 shadow-sm'}`}>
-                    <button disabled={!!res} onClick={() => toggleHour(hour)} className={`p-2 rounded-lg text-sm font-bold ${ res ? "bg-gray-300 text-gray-500" : isSelected ? "bg-green-600 text-white shadow-md scale-105" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
-                      {hour}:30 - {hour + 1}:30
-                    </button>
-                    {res && <div className="mt-2 text-center text-[9px] font-black text-gray-700 uppercase leading-tight">{res.subject}<br/>{res.className}</div>}
-                  </div>
-                );
-              })}
-            </div>
-            {selectedHours.length > 0 && (
-              <button onClick={handleConfirm} className="w-full px-4 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-lg transform active:scale-95">Confirmer {selectedHours.length} créneau(x)</button>
-            )}
-          </div>
-        )}
-      </div>
-      {selectedRoom && (
-        <div className="bg-white border-2 border-blue-50 rounded-2xl p-4 overflow-x-auto shadow-sm">
-          <h2 className="font-black text-blue-800 uppercase text-center mb-4 tracking-tighter">Occupation : {rooms.find(r => r.id === selectedRoom)?.name}</h2>
-          <div className="grid grid-cols-6 border-l border-t">
-            <div className="p-2 bg-gray-100 font-bold border-r border-b text-[10px]">Heure</div>
-            {DAYS.map(d => <div key={d} className="p-2 bg-blue-600 text-white font-bold border-r border-b text-[10px] text-center">{d}</div>)}
-            {HOURS.map(h => (
-              <React.Fragment key={h}>
-                <div className="p-2 bg-gray-50 font-bold border-r border-b text-[9px] flex items-center justify-center">{h}h30</div>
-                {DAYS.map((_, i) => {
-                  const d = new Date(selectedDate || new Date());
-                  const dayOffset = i + 1 - (d.getDay() || 7); 
-                  const targetD = new Date(d); targetD.setDate(d.getDate() + dayOffset);
-                  const dateStr = targetD.toISOString().split("T")[0];
-                  const res = getReservation(h, dateStr);
-                  return (
-                    <div key={`${i}-${h}`} className={`p-1 border-r border-b min-h-[40px] text-[8px] flex flex-col items-center justify-center text-center font-bold ${res ? 'bg-orange-100 text-orange-800' : 'bg-white'}`}>
-                      {res ? <span className="leading-none uppercase">{res.subject}<br/>{res.className}</span> : ""}
-                    </div>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
       )}
+      <div className="bg-white rounded-2xl shadow-sm border p-4 flex flex-wrap justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+            <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 text-white font-black px-4 py-2 rounded-xl outline-none shadow-md">
+                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+            <div className="flex items-center bg-gray-100 rounded-xl p-1 border">
+                <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 hover:bg-white rounded-lg">◀</button>
+                <div className="px-4 text-[10px] font-black uppercase text-center">
+                    Semaine du <br/><span className="text-blue-600">{startOfWeek.toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
+                </div>
+                <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-white rounded-lg">▶</button>
+            </div>
+        </div>
+        <div className="flex items-center gap-4">
+            <input type="date" onChange={(e) => setCurrentDate(new Date(e.target.value))} className="text-xs border rounded-lg p-1"/>
+            {isAdmin && <span className="bg-purple-600 text-white text-[10px] font-black px-3 py-1 rounded-full tracking-tighter">ADMIN MODE</span>}
+        </div>
+      </div>
+      <div className="bg-white border rounded-3xl shadow-xl overflow-hidden">
+        <div className="grid grid-cols-6 bg-gray-50 border-b">
+          <div className="p-4 text-[10px] font-black text-gray-300 uppercase text-center">Heure</div>
+          {weekDays.map((d, i) => (
+            <div key={i} className={`p-4 text-center border-l ${d.toDateString() === new Date().toDateString() ? "bg-blue-50" : ""}`}>
+                <p className="text-[10px] uppercase font-bold text-gray-400">{DAYS[i]}</p>
+                <p className="text-xl font-black">{d.getDate()}</p>
+            </div>
+          ))}
+        </div>
+        <div className="divide-y">
+            {HOURS.map(h => (
+                <div key={h} className="grid grid-cols-6 min-h-[95px]">
+                    <div className="text-[10px] font-black text-gray-300 flex items-center justify-center bg-gray-50/50 italic">{h}h30</div>
+                    {weekDays.map((date, i) => {
+                        const dateStr = date.toISOString().split("T")[0];
+                        const res = reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(dateStr) && new Date(r.startsAt).getHours() === h && r.status !== "CANCELLED");
+                        const isOwn = res?.userId === user.id;
+                        const canModify = isAdmin || isOwn;
+                        const colorClass = res ? (SUBJECT_COLORS[res.subject] || "bg-slate-600 text-white") : "";
+                        return (
+                            <div key={i}  onClick={() => handleCellClick(dateStr, h, res)}  onContextMenu={(e) => handleContextMenu(e, dateStr, h, res)} className={`border-l relative p-1 transition-all group ${!res ? 'hover:bg-green-50' : 'cursor-pointer'}`}>
+                                {res ? (
+                                    <>
+                                      <div className={`h-full w-full rounded-xl p-2 text-[11px] flex flex-col justify-between ${colorClass} ${isOwn ? "ring-2 ring-blue-400 ring-inset" : ""}`}>
+                                          <div>
+                                              <div className="flex justify-between items-start">
+                                                  <p className="font-black uppercase leading-none truncate">{res.subject}</p>
+                                                  <span className="bg-white/20 px-1 rounded text-[11px] font-bold">{res.className}</span>
+                                              </div>
+                                              {res.comment && (
+                                                  <p className="mt-1 italic opacity-90 line-clamp-1 leading-tight border-t border-white/10 pt-1">"{res.comment}"</p>
+                                              )}
+                                          </div>
+                                          <div className="flex justify-between items-end mt-1">
+                                              <span className="font-bold opacity-80 truncate uppercase">{res.lastName}</span>
+                                              {canModify && <span className="text-[10px]">✎</span>}
+                                          </div>
+                                      </div>
+                                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-slate-900 text-white p-3 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+                                          <p className="text-[16px] font-black text-blue-400 uppercase mb-1">{res.subject} - {res.className}</p>
+                                          <p className="text-[15px] font-bold mb-2">Par : {res.firstName} {res.lastName}</p>
+                                          {res.comment && (
+                                            <div className="bg-white/10 p-2 rounded-lg italic text-[15px] leading-relaxed">"{res.comment}"</div>
+                                          )}
+                                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                      </div>
+                                    </>
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                        <span className="text-[10px] font-black text-green-600">+ LIBRE</span>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            ))}
+        </div>
+      </div>
+      {myUpcomingReservations.length > 0 && (
+          <div className="bg-white border-2 border-blue-100 rounded-3xl p-6 shadow-lg">
+              <h3 className="text-sm font-black text-blue-600 uppercase mb-4 flex items-center gap-2">📅 Mes 5 prochaines réservations</h3>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                  {myUpcomingReservations.map((res) => (
+                      <div 
+                        key={res.id} 
+                        onClick={() => handleCellClick(res.startsAt.split("T")[0], new Date(res.startsAt).getHours(), res)}
+                        className="bg-gray-50 hover:bg-blue-50 border border-gray-100 rounded-2xl p-3 cursor-pointer transition-all"
+                      >
+                          <p className="text-[10px] font-black text-gray-400 uppercase">
+                            {new Date(res.startsAt).toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className="text-xs font-black text-blue-700">{new Date(res.startsAt).getHours()}h30</p>
+                          <div className="mt-2 text-[10px] font-bold">
+                              <span className="block truncate">📍 {rooms.find(r => r.id === res.roomId)?.name || "Salle"}</span>
+                              <span className="block text-gray-500">📚 {res.subject} ({res.className})</span>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+      <div id="form-section" className="bg-slate-900 rounded-[40px] p-8 text-white shadow-2xl">
+        <div className="flex justify-between items-start mb-10">
+            <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-2xl ${isEditing ? 'bg-orange-500' : 'bg-green-500'}`}>
+                    <span className="text-xl font-bold">{isEditing ? 'MODIFIER' : 'RÉSERVER'}</span>
+                </div>
+                <h2 className="text-2xl font-black uppercase italic tracking-tighter">{isEditing ? "Détails du créneau" : "Nouvelle demande"}</h2>
+            </div>
+            {isEditing && (
+                <button onClick={handleDelete} className="bg-red-600 hover:bg-red-500 text-white text-xs font-black px-6 py-3 rounded-2xl shadow-lg transition-transform active:scale-90">🗑️ SUPPRIMER CE CRÉNEAU</button>
+            )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Professeur & Cours</label>
+                {isAdmin ? (
+                    <div className="flex gap-2">
+                        <input type="text" placeholder="Prénom" value={targetFirstName} onChange={(e) => setTargetFirstName(e.target.value)} className="flex-1 bg-slate-800 border-none rounded-xl p-3 text-xs font-bold text-blue-400" />
+                        <input type="text" placeholder="NOM" value={targetLastName} onChange={(e) => setTargetLastName(e.target.value.toUpperCase())} className="flex-1 bg-slate-800 border-none rounded-xl p-3 text-xs font-bold text-blue-400" />
+                    </div>
+                ) : (
+                    <div className="bg-slate-800 p-3 rounded-xl text-xs font-bold text-slate-400 italic">Par : {user.firstName} {lastName}</div>
+                )}
+                <select value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold focus:ring-2 ring-blue-500">
+                    <option value="">-- MATIÈRE --</option>
+                    <option value="FRANCAIS">FRANÇAIS</option>
+                    <option value="MATHS">MATHÉMATIQUES</option>
+                    <option value="HISTOIRE-GEO">HISTOIRE-GEO</option>
+                    <option value="ANGLAIS">ANGLAIS</option>
+                    <option value="ESPAGNOL">ESPAGNOL</option>
+                    <option value="ALLEMAND">ALLEMAND</option>
+                    <option value="SVT">SVT</option>
+                    <option value="PHYSIQUE-CHIMIE">PHYSIQUE-CHIMIE</option>
+                    <option value="TECHNOLOGIE">TECHNOLOGIE</option>
+                    <option value="ARTS PLASTIQUES">ARTS PLASTIQUES</option>
+                    <option value="MUSIQUE">MUSIQUE</option>
+                    <option value="LATIN-GREC">LATIN-GREC</option>
+                    <option value="SNT">SNT</option>
+                    <option value="SCIENCES INGENIEUR">SCIENCES INGENIEUR</option>
+                    <option value="SCIENCES LABO">SCIENCES LABO</option>
+                    <option value="ST2S">ST2S</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                </select>
+                <div className="flex gap-2">
+                    <select value={level} onChange={(e) => setLevel(e.target.value)} className="flex-1 bg-slate-800 border-none rounded-xl p-4 text-xs font-bold">
+                        <option value="">NIVEAU</option>
+                        {Object.keys(CLASSES_DATA).map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                    <select value={className} onChange={(e) => setClassName(e.target.value)} className="flex-1 bg-slate-800 border-none rounded-xl p-4 text-xs font-bold">
+                        <option value="">CLASSE</option>
+                        {level && CLASSES_DATA[level].map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Calendrier</label>
+                <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold" />
+                <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-500 mb-2">Heure :</p>
+                    <div className="flex flex-wrap gap-2">
+                        {selectedHours.map(h => <span key={h} className="bg-blue-600 px-3 py-1 rounded-lg font-black text-xs shadow-lg">{h}h30</span>)}
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Notes & Répétition</label>
+                <textarea placeholder="Commentaire (ex: Valise PC)" value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold h-20 resize-none focus:ring-2 ring-blue-500" />
+                <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-xs font-bold">
+                    <option value="none">Une seule fois</option>
+                    <option value="weekly">Toutes les semaines</option>
+                    <option value="biweekly">Toutes les 2 semaines</option>
+                </select>
+                {recurrence !== "none" && (
+                    <input type="date" value={untilDate} min={selectedDate} max={maxDateStr} onChange={(e) => setUntilDate(e.target.value)} className="w-full bg-orange-900/30 border border-orange-500/50 rounded-xl p-3 text-xs font-bold text-orange-400" />
+                )}
+            </div>
+        </div>
+        {isEditing && editingRes?.groupId && (
+            <div className="mt-6 p-4 bg-blue-900/30 border border-blue-500/50 rounded-2xl flex items-center gap-3">
+                <input 
+                    type="checkbox" 
+                    id="updateSeries" 
+                    checked={updateAllSeries} 
+                    onChange={(e) => setUpdateAllSeries(e.target.checked)}
+                    className="w-5 h-5 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="updateSeries" className="text-sm font-bold text-blue-400 cursor-pointer">🔄 Appliquer les modifications à TOUTE la série de réservations</label>
+            </div>
+        )}
+
+        <div className="mt-10 flex gap-4">
+            <button onClick={handleConfirm} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 text-lg">
+                {isEditing ? "ENREGISTRER LES MODIFICATIONS" : "CONFIRMER LA RÉSERVATION"}
+            </button>
+            <button onClick={() => { setIsEditing(false); setEditingRes(null); setSubject(""); setClassName(""); setComment(""); }} className="bg-slate-700 px-8 rounded-2xl font-bold hover:bg-slate-600 transition-colors">ANNULER</button>
+        </div>
+      </div>
     </div>
   );
 }
