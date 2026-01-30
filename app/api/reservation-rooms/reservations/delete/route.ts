@@ -57,7 +57,32 @@ export async function POST(req: NextRequest) {
         from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: "⚠️ Annulation de réservation",
-        html: `<p>Bonjour,</p><p>Votre réservation (ou série) débutant le ${dateFormatted} a été annulée.</p><p><b>Motif :</b> ${reason}</p>`
+        html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #fee2e2; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <div style="background: linear-gradient(90deg, #dc2626 0%, #ea580c 100%); padding: 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;">Avis d'annulation</h1>
+            </div>
+
+            <div style="padding: 30px; background-color: #ffffff;">
+              <p style="font-size: 16px; margin-top: 0;">Bonjour,</p>
+              <p style="font-size: 15px;">Nous vous informons qu'une réservation (ou série de réservations) a été <strong>annulée</strong> dans le système.</p>
+              
+              <div style="background-color: #fffafb; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 5px 0; font-size: 14px;"><strong>📅 Date concernée :</strong> ${dateFormatted}</p>
+                <p style="margin: 5px 0; font-size: 14px; color: #dc2626;"><strong>📝 Motif de l'annulation :</strong> ${reason}</p>
+              </div>
+
+              <p style="font-size: 14px; color: #64748b; margin-top: 25px; font-style: italic;">
+                Le créneau a été libéré et est désormais disponible pour d'autres utilisateurs.
+              </p>
+            </div>
+
+            <div style="background-color: #f8fafc; padding: 15px; text-align: center; border-top: 1px solid #fee2e2;">
+              <p style="margin: 0; font-size: 14px; font-weight: bold; color: #475569;">L'équipe de gestion</p>
+              <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Plateforme de réservation de salles</p>
+            </div>
+          </div>
+        `
       });
     }
     return NextResponse.json({ success: true });

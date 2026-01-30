@@ -91,8 +91,39 @@ export async function POST(req: NextRequest) {
       await transporter.sendMail({
         from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
         to: email,
-        subject: "✅ Confirmation de réservation",
-        html: `<p>Bonjour,</p><p>Réservations confirmées pour <b>${roomId}</b> (${subject} - ${className}) :</p><ul>${datesList}</ul>`
+        subject: "✅ Confirmation de réservation - Système de Gestion",
+        html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden;">
+            <div style="background-color: #2563eb; padding: 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;">Réservation Confirmée</h1>
+            </div>
+
+            <div style="padding: 30px; background-color: #ffffff;">
+              <p style="font-size: 16px; margin-top: 0;">Bonjour,</p>
+              <p style="font-size: 15px;">Nous vous confirmons que vos créneaux ont été correctement enregistrés dans le système pour la salle :</p>
+              
+              <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 5px 0;"><strong>📍 Salle :</strong> ${roomId}</p>
+                <p style="margin: 5px 0;"><strong>📚 Matière :</strong> ${subject}</p>
+                <p style="margin: 5px 0;"><strong>👥 Classe :</strong> ${className}</p>
+              </div>
+
+              <p style="font-size: 15px; font-weight: bold; color: #2563eb;">Dates et horaires réservés :</p>
+              <ul style="background-color: #f1f5f9; padding: 15px 15px 15px 35px; border-radius: 8px; font-size: 14px; list-style-type: square;">
+                ${datesList}
+              </ul>
+
+              <p style="font-size: 14px; color: #64748b; margin-top: 25px;">
+                Si vous avez besoin de modifier ou d'annuler ces réservations, merci de vous rendre directement sur l'application.
+              </p>
+            </div>
+
+            <div style="background-color: #f8fafc; padding: 15px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="margin: 0; font-size: 14px; font-weight: bold; color: #334155;">Bonne journée,</p>
+              <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Système de Gestion de Salles Automatisé</p>
+            </div>
+          </div>
+        `
       });
     }
     return NextResponse.json({ success: true, count: newReservationsAdded.length }, { status: 201 });
