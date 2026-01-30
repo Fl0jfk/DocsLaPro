@@ -7,40 +7,38 @@ export async function POST(req: Request) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
-    if (!userId) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
+    if (!userId) { return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })}
     const user = await currentUser();
     const lastName = (user?.lastName || "").toUpperCase();
     const { text } = await req.json();
     if (!text) { return NextResponse.json({ error: 'text requis' }, { status: 400 })}
     const extractionPrompt = `
-Analyse ce document scolaire et extrais UNIQUEMENT les informations suivantes si elles sont clairement présentes dans le texte :
-- Type de document (bulletin, relevé de notes, certificat de scolarité, diplôme, bac, etc.)
-- Nom de famille de l'élève
-- Prénom de l'élève
-- INE de l'élève (identifiant national élève), si présent
-- Date de naissance de l'élève (si présente)
-- Classe ou niveau (si mentionné)
-- Période (trimestre 1/2/3, semestre 1/2, année scolaire, etc.)
-Si une information n'est PAS présente dans le document, écris exactement "non_trouvé" pour ce champ.
-Ne devine JAMAIS, n'invente JAMAIS.
-IMPORTANT : Réponds UNIQUEMENT avec du JSON valide, sans aucun commentaire, remarque, note explicative, ou texte supplémentaire.
-Pas de markdown, pas de \`\`\`json, pas de notes entre parenthèses, pas de remarques après les valeurs.
-Texte du document :
----
-${text}
----
-Format de réponse (JSON uniquement) :
-{
-  "type": "...",
-  "nom": "...",
-  "prénom": "...",
-  "ine": "...",
-  "date_naissance": "...",
-  "classe": "...",
-  "période": "..."
-}
+      Analyse ce document scolaire et extrais UNIQUEMENT les informations suivantes si elles sont clairement présentes dans le texte :
+      - Type de document (bulletin, relevé de notes, certificat de scolarité, diplôme, bac, etc.)
+      - Nom de famille de l'élève
+      - Prénom de l'élève
+      - INE de l'élève (identifiant national élève), si présent
+      - Date de naissance de l'élève (si présente)
+      - Classe ou niveau (si mentionné)
+      - Période (trimestre 1/2/3, semestre 1/2, année scolaire, etc.)
+      Si une information n'est PAS présente dans le document, écris exactement "non_trouvé" pour ce champ.
+      Ne devine JAMAIS, n'invente JAMAIS.
+      IMPORTANT : Réponds UNIQUEMENT avec du JSON valide, sans aucun commentaire, remarque, note explicative, ou texte supplémentaire.
+      Pas de markdown, pas de \`\`\`json, pas de notes entre parenthèses, pas de remarques après les valeurs.
+      Texte du document :
+      ---
+      ${text}
+      ---
+      Format de réponse (JSON uniquement) :
+      {
+        "type": "...",
+        "nom": "...",
+        "prénom": "...",
+        "ine": "...",
+        "date_naissance": "...",
+        "classe": "...",
+        "période": "..."
+      }
     `;
     const extractionResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
@@ -135,26 +133,26 @@ Format de réponse (JSON uniquement) :
       console.error("Erreur appel /api/match-eleve:", e);
     }
     const namingPrompt = `
-Tu es un système de nommage de fichiers pour une école.
+      Tu es un système de nommage de fichiers pour une école.
 
-Voici les informations extraites d'un document :
-- Type : ${extracted.type || "non_trouvé"}
-- Nom : ${extracted.nom || "non_trouvé"}
-- Prénom : ${extracted.prénom || "non_trouvé"}
-- INE : ${extracted.ine || "non_trouvé"}
-- Date de naissance : ${extracted.date_naissance || "non_trouvé"}
-- Classe : ${extracted.classe || "non_trouvé"}
-- Période : ${extracted.période || "non_trouvé"}
-Génère un nom de fichier selon ces règles :
-1. Format général : Type Période Classe NOM Prénom
-2. Si une information vaut "non_trouvé", ne l'inclus PAS dans le nom
-3. Garde les accents et caractères spéciaux
-4. Exemples :
-   - Bulletin trimestre1 3eme DUPONT Jean
-   - Baccalauréat MARTIN Sophie
-   - Certificat de scolarité BERNARD Luc
-   - Relevé de notes du semestre2 2nde PETIT Marie
-Réponds UNIQUEMENT avec le nom de fichier (sans extension), rien d'autre. Pas de ponctuation finale.
+      Voici les informations extraites d'un document :
+      - Type : ${extracted.type || "non_trouvé"}
+      - Nom : ${extracted.nom || "non_trouvé"}
+      - Prénom : ${extracted.prénom || "non_trouvé"}
+      - INE : ${extracted.ine || "non_trouvé"}
+      - Date de naissance : ${extracted.date_naissance || "non_trouvé"}
+      - Classe : ${extracted.classe || "non_trouvé"}
+      - Période : ${extracted.période || "non_trouvé"}
+      Génère un nom de fichier selon ces règles :
+      1. Format général : Type Période Classe NOM Prénom
+      2. Si une information vaut "non_trouvé", ne l'inclus PAS dans le nom
+      3. Garde les accents et caractères spéciaux
+      4. Exemples :
+        - Bulletin trimestre1 3eme DUPONT Jean
+        - Baccalauréat MARTIN Sophie
+        - Certificat de scolarité BERNARD Luc
+        - Relevé de notes du semestre2 2nde PETIT Marie
+      Réponds UNIQUEMENT avec le nom de fichier (sans extension), rien d'autre. Pas de ponctuation finale.
     `;
     const namingResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
