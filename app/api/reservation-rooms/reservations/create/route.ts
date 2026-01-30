@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     limitDate.setDate(limitDate.getDate() + 56); 
     const groupId = recurrence !== "none" ? `group-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` : null;
     for (const hour of selectedHours) {
+<<<<<<< HEAD
       const dateString = `${date}T${hour.toString().padStart(2, "0")}:30:00`;
       const currentStart = new Date(new Date(dateString).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
       const currentEnd = new Date(currentStart.getTime() + 60 * 60 * 1000);
@@ -50,10 +51,28 @@ export async function POST(req: NextRequest) {
         const hasConflict = existing.some(r => 
           r.roomId === roomId && r.status !== "CANCELLED" &&
           new Date(r.startsAt) < currentEnd && new Date(r.endsAt) > currentStart
+=======
+      let currentLoopDate = new Date(`${date}T12:00:00`);
+      let stopDate = recurrence !== "none" && untilDate ? new Date(`${untilDate}T23:59:59`) : new Date(`${date}T23:59:59`);
+      if (recurrence !== "none" && untilDate) {
+        stopDate = new Date(new Date(`${untilDate}T23:59:59`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+      }
+      while (currentLoopDate <= stopDate) {
+        if (!isAdmin && currentLoopDate > limitDate) break;
+        const dateStr = currentLoopDate.toISOString().split("T")[0];
+        const startsAt = `${dateStr}T${hour.toString().padStart(2, "0")}:30:00`;
+        const endsAt = `${dateStr}T${(hour + 1).toString().padStart(2, "0")}:30:00`;
+        const hasConflict = existing.some(r => 
+          r.roomId === roomId && 
+          r.status !== "CANCELLED" &&
+          r.startsAt.substring(0, 19) < endsAt && 
+          r.endsAt.substring(0, 19) > startsAt
+>>>>>>> bc81110 (Correction décalage horaire et reprise sur nouveau PC)
         );
         if (!hasConflict) {
           const resObj = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+<<<<<<< HEAD
             groupId,
             roomId, 
             userId, 
@@ -65,12 +84,17 @@ export async function POST(req: NextRequest) {
             comment,
             startsAt: currentStart.toISOString(),
             endsAt: currentEnd.toISOString(),
+=======
+            groupId, roomId, userId, firstName, lastName, email, subject, className, comment,
+            startsAt, endsAt,
+>>>>>>> bc81110 (Correction décalage horaire et reprise sur nouveau PC)
             createdAt: new Date().toISOString(),
             status: "CONFIRMED",
           };
           newReservationsAdded.push(resObj);
           existing.push(resObj);
         }
+<<<<<<< HEAD
         if (recurrence === "weekly") {
           currentStart.setDate(currentStart.getDate() + 7);
           currentEnd.setDate(currentEnd.getDate() + 7);
@@ -78,6 +102,11 @@ export async function POST(req: NextRequest) {
           currentStart.setDate(currentStart.getDate() + 14);
           currentEnd.setDate(currentEnd.getDate() + 14);
         } else break;
+=======
+        if (recurrence === "weekly") currentLoopDate.setDate(currentLoopDate.getDate() + 7);
+        else if (recurrence === "biweekly") currentLoopDate.setDate(currentLoopDate.getDate() + 14);
+        else break;
+>>>>>>> bc81110 (Correction décalage horaire et reprise sur nouveau PC)
       }
     }
     if (newReservationsAdded.length === 0) return NextResponse.json({ error: "Aucun créneau disponible." }, { status: 409 });
@@ -91,7 +120,10 @@ export async function POST(req: NextRequest) {
         const hourFr = d.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
         return `<li>Le ${dateFr} à ${hourFr}</li>`;
       }).join("");
+<<<<<<< HEAD
 
+=======
+>>>>>>> bc81110 (Correction décalage horaire et reprise sur nouveau PC)
       await transporter.sendMail({
         from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
         to: email,
@@ -130,4 +162,8 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> bc81110 (Correction décalage horaire et reprise sur nouveau PC)

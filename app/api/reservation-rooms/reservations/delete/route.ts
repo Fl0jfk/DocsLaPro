@@ -14,8 +14,6 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
 
-const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
-
 export async function POST(req: NextRequest) {
   try {
     const { userId } = getAuth(req);
@@ -31,25 +29,12 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any[] = [];
     if (resS3.ok) existing = await resS3.json();
-    const originalRes = existing.find(r => r.id === id);
-    if (!originalRes) return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 });
-    const isAdmin = ADMIN_LASTNAMES.includes(lastNameAdmin);
-    if (!isAdmin && originalRes.userId !== userId) {
-      return NextResponse.json({ error: "Vous n'avez pas le droit de supprimer cette réservation" }, { status: 403 });
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const targetReservations: any[] = [];
+    const targetReservations = [];
     if (deleteAllSeries && groupId) {
       existing = existing.map(r => {
         if (r.groupId === groupId && r.status !== "CANCELLED") {
           targetReservations.push(r);
-          return { 
-            ...r, 
-            status: "CANCELLED", 
-            cancelledAt: new Date().toISOString(), 
-            cancelledBy: `${firstNameAdmin} ${lastNameAdmin}`, 
-            cancelReason: reason 
-          };
+          return { ...r, status: "CANCELLED", cancelledAt: new Date().toISOString(), cancelledBy: `${firstNameAdmin} ${lastNameAdmin}`, cancelReason: reason };
         }
         return r;
       });
@@ -67,17 +52,15 @@ export async function POST(req: NextRequest) {
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
     if (userEmail && targetReservations.length > 0) {
-      const dateFormatted = new Date(startsAt).toLocaleDateString("fr-FR", { 
-        timeZone: "Europe/Paris",
+      const dateFormatted = new Date(startsAt.split('T')[0] + "T12:00:00").toLocaleDateString("fr-FR", { 
         weekday: 'long', 
         day: 'numeric', 
-        month: 'long' 
+        month: 'long',
+        year: 'numeric'
       });
-      const hourFormatted = new Date(startsAt).toLocaleTimeString("fr-FR", {
-        timeZone: "Europe/Paris",
-        hour: '2-digit',
-        minute: '2-digit'
-      }).replace(':', 'h');
+      const hourFormatted = startsAt.includes('T') 
+        ? startsAt.split('T')[1].substring(0, 5).replace(':', 'h') 
+        : "";
       await transporter.sendMail({
         from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
         to: userEmail,
@@ -87,20 +70,20 @@ export async function POST(req: NextRequest) {
             <div style="background: linear-gradient(90deg, #dc2626 0%, #ea580c 100%); padding: 20px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;">Avis d'annulation</h1>
             </div>
+
             <div style="padding: 30px; background-color: #ffffff;">
               <p style="font-size: 16px; margin-top: 0;">Bonjour,</p>
-              <p style="font-size: 15px;">Nous vous informons qu'une réservation a été <strong>annulée</strong>.</p>
+              <p style="font-size: 15px;">Nous vous informons qu'une réservation (ou série de réservations) a été <strong>annulée</strong> dans le système.</p>
+              
               <div style="background-color: #fffafb; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                <p style="margin: 5px 0; font-size: 14px;"><strong>📅 Date :</strong> Le ${dateFormatted} à ${hourFormatted}</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #dc2626;"><strong>📝 Motif :</strong> ${reason}</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #64748b;"><strong>🚫 Annulé par :</strong> ${firstNameAdmin} ${lastNameAdmin}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><strong>📅 Date concernée :</strong> ${dateFormatted} ${hourFormatted ? `à ${hourFormatted}` : ""}</p>
+                <p style="margin: 5px 0; font-size: 14px; color: #dc2626;"><strong>📝 Motif de l'annulation :</strong> ${reason}</p>
               </div>
-              <p style="font-size: 14px; color: #64748b; margin-top: 25px; font-style: italic;">
-                Le créneau a été libéré et est désormais disponible.
-              </p>
             </div>
+
             <div style="background-color: #f8fafc; padding: 15px; text-align: center; border-top: 1px solid #fee2e2;">
               <p style="margin: 0; font-size: 14px; font-weight: bold; color: #475569;">L'équipe de gestion</p>
+              <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Plateforme de réservation de salles</p>
             </div>
           </div>
         `
