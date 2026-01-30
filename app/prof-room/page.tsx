@@ -66,10 +66,7 @@ export default function ProfRoomPage() {
   maxDateLimit.setDate(maxDateLimit.getDate() + 56);
   const maxDateStr = isAdmin ? "" : maxDateLimit.toISOString().split("T")[0];
   const myUpcomingReservations = useMemo(() => {
-    return reservations
-      .filter(r => r.userId === user?.id && r.status !== "CANCELLED" && new Date(r.startsAt) >= new Date())
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
-      .slice(0, 5);
+    return reservations.filter(r => r.userId === user?.id && r.status !== "CANCELLED" && new Date(r.startsAt) >= new Date()).sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).slice(0, 5);
   }, [reservations, user?.id]);
   const startOfWeek = useMemo(() => {
     const d = new Date(currentDate);
@@ -114,7 +111,9 @@ export default function ProfRoomPage() {
             setSelectedDate(resExist.startsAt.split("T")[0]);
             setSelectedHours([new Date(resExist.startsAt).getHours()]);
             setSubject(resExist.subject);
-            setClassName(resExist.className);
+            setClassName(resExist.className);        
+            const foundLevel = Object.keys(CLASSES_DATA).find(l => CLASSES_DATA[l].includes(resExist.className));
+            if (foundLevel) setLevel(foundLevel);
             setComment(resExist.comment || "");
             setTargetFirstName(resExist.firstName);
             setTargetLastName(resExist.lastName);
@@ -182,9 +181,7 @@ export default function ProfRoomPage() {
     const reason = prompt("Motif de suppression :", "Annulation");
     if (reason === null) return;
     let deleteAllSeries = false;
-    if (editingRes.groupId) {
-      deleteAllSeries = confirm("Supprimer TOUTE la série ?");
-    }
+    if (editingRes.groupId) { deleteAllSeries = confirm("Supprimer TOUTE la série ?");}
     const currentUserEmail = user?.primaryEmailAddress?.emailAddress || "";
     const res = await fetch("/api/reservation-rooms/reservations/delete", {
         method: "POST",
@@ -379,18 +376,42 @@ export default function ProfRoomPage() {
                     </select>
                 </div>
             </div>
-
             <div className="space-y-4">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Calendrier</label>
                 <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold" />
                 <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-500 mb-2">Heure :</p>
+                    <p className="text-[10px] font-bold text-slate-500 mb-2">Choisir l&apos;heure :</p>
                     <div className="flex flex-wrap gap-2">
-                        {selectedHours.map(h => <span key={h} className="bg-blue-600 px-3 py-1 rounded-lg font-black text-xs shadow-lg">{h}h30</span>)}
+                        {HOURS.map(h => {
+                            const isTaken = reservations.some(r => 
+                                r.roomId === selectedRoom && 
+                                r.startsAt.startsWith(selectedDate) && 
+                                new Date(r.startsAt).getHours() === h && 
+                                r.status !== "CANCELLED" &&
+                                r.id !== editingRes?.id
+                            );
+                            return (
+                                <button
+                                    key={h}
+                                    type="button"
+                                    disabled={isTaken}
+                                    onClick={() => setSelectedHours([h])}
+                                    className={`relative px-3 py-1 rounded-lg font-black text-xs transition-all ${
+                                        selectedHours.includes(h) 
+                                        ? "bg-blue-600 text-white shadow-lg scale-110 z-10" 
+                                        : isTaken 
+                                          ? "bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800 opacity-50" 
+                                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                                    }`}
+                                >
+                                    {h}h30
+                                    {isTaken && <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[7px] text-red-500 uppercase whitespace-nowrap">Occupé</span>}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
-
             <div className="space-y-4">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Notes & Répétition</label>
                 <textarea placeholder="Commentaire (ex: Valise PC)" value={comment} onChange={(e) => setComment(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold h-20 resize-none focus:ring-2 ring-blue-500" />
@@ -416,7 +437,6 @@ export default function ProfRoomPage() {
                 <label htmlFor="updateSeries" className="text-sm font-bold text-blue-400 cursor-pointer">🔄 Appliquer les modifications à TOUTE la série de réservations</label>
             </div>
         )}
-
         <div className="mt-10 flex gap-4">
             <button onClick={handleConfirm} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 text-lg">
                 {isEditing ? "ENREGISTRER LES MODIFICATIONS" : "CONFIRMER LA RÉSERVATION"}
