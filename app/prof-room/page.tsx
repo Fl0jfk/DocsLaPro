@@ -268,6 +268,7 @@ export default function ProfRoomPage() {
               {weekDays.map((date, i) => {
                 const dateStr = date.toISOString().split("T")[0];
                 const hourPrefix = `${dateStr}T${h.toString().padStart(2, "0")}`;
+                // Correction : Comparaison par string pour éviter les décalages d'objet Date
                 const res = reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(hourPrefix) && r.status !== "CANCELLED");
                 const isOwn = res?.userId === user.id;
                 const canModify = isAdmin || isOwn;

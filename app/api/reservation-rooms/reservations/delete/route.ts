@@ -29,12 +29,20 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any[] = [];
     if (resS3.ok) existing = await resS3.json();
-    const targetReservations = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const targetReservations: any[] = [];
+
     if (deleteAllSeries && groupId) {
       existing = existing.map(r => {
         if (r.groupId === groupId && r.status !== "CANCELLED") {
           targetReservations.push(r);
-          return { ...r, status: "CANCELLED", cancelledAt: new Date().toISOString(), cancelledBy: `${firstNameAdmin} ${lastNameAdmin}`, cancelReason: reason };
+          return { 
+            ...r, 
+            status: "CANCELLED", 
+            cancelledAt: new Date().toISOString(), 
+            cancelledBy: `${firstNameAdmin} ${lastNameAdmin}`, 
+            cancelReason: reason 
+          };
         }
         return r;
       });
@@ -48,7 +56,11 @@ export async function POST(req: NextRequest) {
         existing[index].cancelReason = reason;
       }
     }
-    const putCmd = new PutObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json", ContentType: "application/json" });
+    const putCmd = new PutObjectCommand({ 
+        Bucket: process.env.BUCKET_NAME!, 
+        Key: "reservation-rooms/reservations.json", 
+        ContentType: "application/json" 
+    });
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
     if (userEmail && targetReservations.length > 0) {
@@ -77,8 +89,10 @@ export async function POST(req: NextRequest) {
               
               <div style="background-color: #fffafb; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; border-radius: 4px;">
                 <p style="margin: 5px 0; font-size: 14px;"><strong>📅 Date concernée :</strong> ${dateFormatted} ${hourFormatted ? `à ${hourFormatted}` : ""}</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #dc2626;"><strong>📝 Motif de l'annulation :</strong> ${reason}</p>
+                <p style="margin: 5px 0; font-size: 14px; color: #dc2626;"><strong>📝 Motif :</strong> ${reason}</p>
+                <p style="margin: 5px 0; font-size: 12px; color: #64748b;"><strong>🚫 Annulé par :</strong> ${firstNameAdmin} ${lastNameAdmin}</p>
               </div>
+
             </div>
 
             <div style="background-color: #f8fafc; padding: 15px; text-align: center; border-top: 1px solid #fee2e2;">
