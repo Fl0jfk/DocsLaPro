@@ -146,12 +146,12 @@ export default function FicheSanitaire() {
         <section className="flex-1 p-6 border-2 border-slate-900 rounded-2xl relative">
           <h2 className="text-sm font-black uppercase mb-4">Autorisation d&apos;Urgence & Hospitalisation</h2>
           <p className="text-xs leading-relaxed mb-8">
-            Je soussigné(e) <span className="border-b-2 border-slate-200 inline-block w-48"></span>, responsable légal de l'élève, déclare autoriser le Chef d&apos;Établissement du Lycée La Providence, à prendre, sur avis médical, en cas de maladie ou accident de l&apos;élève, toutes mesures d&apos;urgences, tant médicales que chirurgicales, y compris éventuellement l&apos;hospitalisation au <strong>CHU Charles Nicolle (Rouen)</strong>.
+            Je soussigné(e) <span className="border-b-2 border-slate-200 inline-block w-48"></span>, responsable légal de l&apos;élève, déclare autoriser le Chef d&apos;Établissement du Lycée La Providence, à prendre, sur avis médical, en cas de maladie ou accident de l&apos;élève, toutes mesures d&apos;urgences, tant médicales que chirurgicales, y compris éventuellement l&apos;hospitalisation au <strong>CHU Charles Nicolle (Rouen)</strong>.
           </p>
 
           <div className="grid grid-cols-2 gap-10 items-end">
             <div className="space-y-4">
-                <p className="text-xs font-bold">Mention manuscrite "Lu et approuvé" :</p>
+                <p className="text-xs font-bold">Mention manuscrite &apos;Lu et approuvé&apos; :</p>
                 <div className="h-10 border-b border-slate-200"></div>
                 <p className="text-xs font-bold italic">Fait à ........................, le ........................</p>
             </div>
