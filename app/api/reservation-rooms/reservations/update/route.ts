@@ -5,12 +5,18 @@ import { getAuth } from "@clerk/nextjs/server";
 
 const s3 = new S3Client({
   region: process.env.REGION,
-  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY! },
+  credentials: { 
+    accessKeyId: process.env.ACCESS_KEY_ID!, 
+    secretAccessKey: process.env.SECRET_ACCESS_KEY! 
+  },
 });
+
+const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId, sessionClaims } = getAuth(req);
+    const userLastName = (sessionClaims?.lastName as string) || "";
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     const { id, newHour, date, updateAllSeries, subject, className, comment } = await req.json();
     const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
@@ -19,18 +25,20 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing: any[] = await resS3.json();
     const index = existing.findIndex(r => r.id === id);
-    if (index === -1) throw new Error("Réservation introuvable");
+    if (index === -1) return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 });
     const originalRes = existing[index];
-    const reservationsToUpdate = (updateAllSeries && originalRes.groupId) ? existing.filter(r => r.groupId === originalRes.groupId && r.status !== "CANCELLED") : [originalRes];
-    
+    const isAdmin = ADMIN_LASTNAMES.includes(userLastName.toUpperCase());
+    if (!isAdmin && originalRes.userId !== userId) {
+      return NextResponse.json({ error: "Action non autorisée" }, { status: 403 });
+    }
+    const reservationsToUpdate = (updateAllSeries && originalRes.groupId)  ? existing.filter(r => r.groupId === originalRes.groupId && r.status !== "CANCELLED") : [originalRes];
     for (const res of reservationsToUpdate) {
-        // Extraction de la date en mode "Europe/Paris" pour éviter le décalage de jour
-        const baseDate = (!updateAllSeries && date) ? date : new Date(res.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
-        
-        // Création du nouveau point de départ en forçant le fuseau horaire
-        const tempStart = new Date(new Date(`${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+        const baseDate = (!updateAllSeries && date) 
+            ? date 
+            : new Date(res.startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+        const dateString = `${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`;
+        const tempStart = new Date(new Date(dateString).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
         const tempEnd = new Date(tempStart.getTime() + 60 * 60 * 1000);
-        
         const conflict = existing.some(ext => 
             !reservationsToUpdate.find(u => u.id === ext.id) && 
             ext.roomId === res.roomId && 
@@ -38,19 +46,17 @@ export async function POST(req: NextRequest) {
             new Date(ext.startsAt) < tempEnd && new Date(ext.endsAt) > tempStart
         );
         if (conflict) { 
-            return NextResponse.json({ error: `Conflit d'horaire détecté pour la date du ${tempStart.toLocaleDateString('fr-FR')}`}, { status: 409 })
+            const dateFr = tempStart.toLocaleDateString('fr-FR');
+            return NextResponse.json({ error: `Conflit d'horaire détecté pour le ${dateFr}`}, { status: 409 });
         }
     }
-
     reservationsToUpdate.forEach(res => {
         const resIndex = existing.findIndex(r => r.id === res.id);
         if (resIndex !== -1) {
-            // Même logique pour la mise à jour effective
-            const baseDate = (!updateAllSeries && date) ? date : new Date(existing[resIndex].startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
-            
-            const newStart = new Date(new Date(`${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+            const baseDate = (!updateAllSeries && date)  ? date  : new Date(existing[resIndex].startsAt).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+            const dateString = `${baseDate}T${newHour.toString().padStart(2, "0")}:30:00`;
+            const newStart = new Date(new Date(dateString).toLocaleString("en-US", { timeZone: "Europe/Paris" }));
             const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
-            
             existing[resIndex].startsAt = newStart.toISOString();
             existing[resIndex].endsAt = newEnd.toISOString();
             if (subject) existing[resIndex].subject = subject;
@@ -66,7 +72,7 @@ export async function POST(req: NextRequest) {
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
     return NextResponse.json({ success: true });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
