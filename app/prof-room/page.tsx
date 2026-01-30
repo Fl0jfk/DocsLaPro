@@ -64,6 +64,7 @@ export default function ProfRoomPage() {
   const [targetFirstName, setTargetFirstName] = useState("");
   const [targetLastName, setTargetLastName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
   const lastName = (user?.lastName ?? "").toUpperCase();
   const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
