@@ -71,7 +71,7 @@ export default function ReglementFinancier() {
                 <tr><td className="p-2 text-left font-semibold italic">2 repas / semaine</td><td>43 €</td><td>50 €</td><td>50 €</td><td>52 €</td></tr>
                 <tr><td className="p-2 text-left font-semibold italic">3 repas / semaine</td><td>64 €</td><td>74 €</td><td>75 €</td><td>77 €</td></tr>
                 <tr><td className="p-2 text-left font-semibold italic">4 repas / semaine</td><td>85 €</td><td>99 €</td><td>100 €</td><td>103 €</td></tr>
-                <tr className="bg-slate-50 font-bold"><td className="p-2 text-left uppercase">5 repas / semaine</td><td>-</td><td>-</td><td>125 €</td><td>129 €</td></tr>
+                <tr><td className="p-2 text-left font-semibold italic">5 repas / semaine</td><td>-</td><td>-</td><td>125 €</td><td>129 €</td></tr>
               </tbody>
             </table>
           </div>

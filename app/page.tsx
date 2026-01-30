@@ -26,13 +26,8 @@ export default function Home() {
     return [];
   }
   const roles = normalizeRoles(user?.publicMetadata?.role);
-  const filteredCategories = data.categories.filter(category => 
-    (category.allowedRoles ?? []).some(r => roles.includes(r))
-  );
-  const uniqueCategories = Array.from(
-    new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values()
-  );
-
+  const filteredCategories = data.categories.filter(category =>  (category.allowedRoles ?? []).some(r => roles.includes(r)));
+  const uniqueCategories = Array.from( new Map(filteredCategories.map(cat => [cat.id ?? cat.name, cat])).values());
   return (
     <main className="relative flex flex-col w-full min-h-screen overflow-hidden mt-[10vh] max-w-[1500px] mx-auto">
       <div className="relative z-10 w-full flex flex-col flex-grow">
@@ -47,24 +42,16 @@ export default function Home() {
         )}
         <SignedOut>
           <div className="absolute inset-0 flex items-center justify-center bg-white/20 backdrop-blur-[2px] z-50">
-            <div className="bg-white p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-center max-w-sm w-full mx-4">
-              <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-3xl mb-6 shadow-lg shadow-blue-200">
-                🔒
+            <div className="bg-white p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-center max-w-sm w-full mx-4"><div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-3xl mb-6 shadow-lg shadow-blue-200">🔒
               </div>
               <h2 className="text-2xl font-black text-gray-800 mb-2">Espace Privé</h2>
-              <p className="text-gray-500 text-sm text-center mb-8 leading-relaxed">
-                Veuillez vous identifier pour accéder à vos services Providence.
-              </p>
-              
+              <p className="text-gray-500 text-sm text-center mb-8 leading-relaxed">Veuillez vous identifier pour accéder à vos services Providence.</p> 
               <SignInButton mode="modal">
-                <button className="w-full py-4 px-8 bg-gray-900 text-white rounded-2xl font-bold hover:bg-black transition-all hover:scale-[1.02] active:scale-95 shadow-xl">
-                  Se connecter
-                </button>
+                <button className="w-full py-4 px-8 bg-gray-900 text-white rounded-2xl font-bold hover:bg-black transition-all hover:scale-[1.02] active:scale-95 shadow-xl">Se connecter</button>
               </SignInButton>
             </div>
           </div>
         </SignedOut>
-
       </div>
     </main>
   );

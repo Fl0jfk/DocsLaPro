@@ -28,7 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       document.head.appendChild(newMetaDescription);
     }
   }, [pathname, title, description]);
-
   return (
     <ClerkProvider>
       <html lang="fr">

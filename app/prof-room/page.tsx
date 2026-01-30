@@ -78,7 +78,7 @@ export default function ProfRoomPage() {
     if (reason === null) return; 
     let deleteAllSeries = false;
     if (reservation.groupId) {
-      deleteAllSeries = confirm("Voulez-vous supprimer TOUTE la série de répétitions ?");
+      deleteAllSeries = confirm("Voulez-vous supprimer TOUTES les réservations suivantes ?");
     }
     const res = await fetch("/api/reservation-rooms/reservations/delete", {
       method: "POST",
