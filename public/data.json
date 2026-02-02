@@ -120,6 +120,14 @@
             "link":"https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/IQC50xx-JtAFQr6iU6GdgepSAW5mUuNX_aARV_kdxUnJyTc?e=4gvKbw",
             "allowedRoles": ["administratif","direction_ecole","direction_college","direction_lycee"],
             "external": true
+        },
+        {
+            "id":16,
+            "name":"Salons",
+            "img":"https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
+            "link":"/channels",
+            "allowedRoles": ["administratif","direction_ecole","direction_college","direction_lycee,","comptabilite"],
+            "external": false
         }
     ]
 }
