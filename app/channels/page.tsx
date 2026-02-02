@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
+import Image from "next/image";
 
 type Channel = {
   id: string;
@@ -367,10 +368,12 @@ export default function ProfChatPage() {
                       : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"
                     }`}>
                       {m.content.startsWith("[IMG]") ? (
-                        <img 
+                        <Image 
                           src={m.content.replace("[IMG]", "")} 
                           className="max-w-full rounded-lg cursor-pointer" 
                           alt="Partage"
+                          width={200}
+                          height={200}
                           onClick={() => window.open(m.content.replace("[IMG]", ""), "_blank")}
                         />
                       ) : m.content.startsWith("[DOC]") ? (
@@ -453,7 +456,7 @@ export default function ProfChatPage() {
                       onClick={() => toggleMemberCreation(user.id)}
                       className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all ${selectedMembers.includes(user.id) ? 'bg-blue-100' : 'hover:bg-white'}`}
                     >
-                      <img src={user.avatar} className="w-8 h-8 rounded-full border border-gray-200" alt="" />
+                      <Image src={user.avatar} className="w-8 h-8 rounded-full border border-gray-200" width={100} height={100} alt="" />
                       <span className="text-sm flex-1 truncate">{user.name}</span>
                       <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${selectedMembers.includes(user.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
                         {selectedMembers.includes(user.id) && <span className="text-white text-[10px]">✓</span>}
@@ -487,7 +490,7 @@ export default function ProfChatPage() {
                     onClick={() => toggleMemberUpdate(user.id)}
                     className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all border ${isMember ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-transparent hover:bg-white hover:border-gray-200'}`}
                   >
-                    <img src={user.avatar} className="w-9 h-9 rounded-full border border-gray-200" alt="" />
+                    <Image src={user.avatar} width={100} height={100} className="w-9 h-9 rounded-full border border-gray-200" alt="" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
                       <p className="text-[10px] text-gray-500">{isMember ? "A accès au salon" : "Pas d'accès"}</p>

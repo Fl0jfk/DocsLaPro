@@ -97,6 +97,7 @@ export async function DELETE(req: NextRequest) {
   if (!messageId) return new Response("ID manquant", { status: 400 });
   try {
     const messages = await readMessagesFromS3(false);
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filteredMessages = messages.filter((m: any) => m.id.toString() !== messageId);
     await s3.send(new PutObjectCommand({
       Bucket: BUCKET,

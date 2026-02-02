@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       const res = await fetch(url);
       if (res.ok) channels = await res.json();
       else channels = [{ id: "general", name: "Général", type: "public" }];
-    } catch (e) { channels = [{ id: "general", name: "Général", type: "public" }]}
+    } catch (e) { channels = [{ id: "general", name: "Général", type: "public"}], e}
     const newChan = {
       id: body.name.toLowerCase().trim().replace(/\s+/g, '-'),
       name: body.name,
@@ -73,7 +73,7 @@ export async function PATCH(req: NextRequest) {
     const url = await getSignedUrl(s3, getCommand, { expiresIn: 60 });
     const res = await fetch(url);
     if (!res.ok) return new Response("Fichier introuvable", { status: 404 });
-    let channels = await res.json();
+    const channels = await res.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const channelIndex = channels.findIndex((c: any) => c.id === channelId);
     if (channelIndex === -1) return new Response("Salon introuvable", { status: 404 });

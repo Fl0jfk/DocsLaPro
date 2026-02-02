@@ -15,6 +15,7 @@ export async function GET() {
     }));
     return NextResponse.json(users);
   } catch (error) {
-    return NextResponse.json({ error: "Impossible de lister les personnels" }, { status: 500 });
+    console.log(error)
+    return NextResponse.json({ error: "Impossible de lister les personnels" }, { status: 500 });  
   }
 }
