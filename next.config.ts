@@ -13,11 +13,6 @@ const ContentSecurityPolicy = `
 `;
 
 const nextConfig: NextConfig = {
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '10mb',
-    },
-  },
   images: {
     formats : ['image/webp'],
     remotePatterns: [
