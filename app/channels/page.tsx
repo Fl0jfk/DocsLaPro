@@ -209,7 +209,10 @@ export default function ProfChatPage() {
         const content = file.type.startsWith("image/") ? `[IMG]${data.url}` : `[DOC]${data.name}|${data.url}`;
         await handleSend(false, content);
       }
-    } catch (err) { alert("Erreur envoi"); } finally { setIsUploading(false); }
+    } catch (err) { 
+      console.log(err)
+      alert("Erreur envoi"); 
+    } finally { setIsUploading(false); }
   };
   const toggleMemberCreation = (id: string) => { setSelectedMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])};
   const toggleMemberUpdate = (id: string) => {

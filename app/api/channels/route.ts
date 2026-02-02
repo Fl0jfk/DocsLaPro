@@ -43,7 +43,10 @@ export async function POST(req: NextRequest) {
       const res = await fetch(url);
       if (res.ok) channels = await res.json();
       else channels = [{ id: "general", name: "Général", type: "public" }];
-    } catch (e) { channels = [{ id: "general", name: "Général", type: "public"}], e}
+    } catch (e) { 
+      console.log(e);
+      channels = [{ id: "general", name: "Général", type: "public"}]
+    }
     const newChan = {
       id: body.name.toLowerCase().trim().replace(/\s+/g, '-'),
       name: body.name,
