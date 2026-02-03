@@ -1,6 +1,6 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
-import Header from './components/HeaderF/Header';
+import Header from './components/Header/Header';
 import { DataProvider } from './contexts/data';
 import { Metadata } from 'next';
 

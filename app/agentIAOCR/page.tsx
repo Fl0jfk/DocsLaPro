@@ -6,7 +6,7 @@ const msalConfig: msal.Configuration = {
   auth: {
     clientId: process.env.NEXT_PUBLIC_CLIENT_ID!,
     authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_TENANT_ID}`,
-    redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}onedrive`,
+    redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}agentIAOCR`,
   }
 };
 
@@ -117,7 +117,7 @@ export default function OneDriveUpDocsOCRAI() {
   const processSingleFile = async (file: File): Promise<{ success: boolean; result?: any; error?: string; fileName: string }> => {
     try {
       if (!accessToken) { throw new Error("Pas de token OneDrive disponible")}
-      const r1 = await fetch("/api/upload-url", {
+      const r1 = await fetch("/api/agentIAOCR/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, contentType: file.type }),
@@ -143,7 +143,7 @@ export default function OneDriveUpDocsOCRAI() {
         }
       );
       if (!odRes.ok) { throw new Error("Échec upload OneDrive Temp : " + (await odRes.text()))}
-      const r2 = await fetch("/api/ocr-process", {
+      const r2 = await fetch("/api/agentIAOCR/ocr-process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key }),
@@ -153,7 +153,7 @@ export default function OneDriveUpDocsOCRAI() {
       if (!jobId) throw new Error("Impossible de lancer Textract");
       let extractedText = "";
       for (let i = 0; i < 30; i++) {
-        const r3 = await fetch("/api/ocr-result", {
+        const r3 = await fetch("/api/agentIAOCR/ocr-result", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ jobId }),
@@ -171,7 +171,7 @@ export default function OneDriveUpDocsOCRAI() {
         }
       }
       if (!extractedText) throw new Error("Timeout OCR : aucun texte retourné");
-      const r4 = await fetch("/api/analyze-doc", {
+      const r4 = await fetch("/api/agentIAOCR/analyze-doc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: extractedText }),
@@ -183,7 +183,7 @@ export default function OneDriveUpDocsOCRAI() {
         const sourcePath = `Temp/${file.name}`;
         const targetFolderPath = ai.oneDriveFolderPath || null;
         if (!targetFolderPath) { return { success: false, error: "Aucun élève trouvé de manière fiable, veuillez ranger ce document manuellement.", fileName: file.name, result: ai } }
-        const moveRes = await fetch("/api/move-file", {
+        const moveRes = await fetch("/api/agentIAOCR/move-file", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

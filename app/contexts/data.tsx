@@ -151,7 +151,7 @@ const STATIC_DATA: Data = {
       "id": 14,
       "name": "Ajout de documents IA",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
-      "link": "/onedrive",
+      "link": "/agentIAOCR",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
     },

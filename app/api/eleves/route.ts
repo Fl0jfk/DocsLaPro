@@ -1,4 +1,3 @@
-// app/api/eleves/route.ts
 import { NextResponse, NextRequest } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
