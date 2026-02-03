@@ -77,14 +77,6 @@ const STATIC_DATA: Data = {
     },
     {
       "id": 5,
-      "name": "Gestion du stock",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Stocks.jpg",
-      "link": "/stocks",
-      "allowedRoles": ["test"],
-      "external": false
-    },
-    {
-      "id": 6,
       "name": "Création de QR Code",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
       "link": "/qrcreator",
@@ -92,7 +84,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 7,
+      "id": 6,
       "name": "Base de données Elèves",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
       "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:f:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/El7spw2Xkz5Jhj7mfvCF3GQBF_SXsR3v_8S_7G4lMJMKMQ?e=fI8DPd",
@@ -100,23 +92,7 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 8,
-      "name": "Demande d'absence",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
-      "link": "/absences",
-      "allowedRoles": ["test"],
-      "external": false
-    },
-    {
-      "id": 9,
-      "name": "Organigramme",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
-      "link": "/organigramme",
-      "allowedRoles": ["test"],
-      "external": false
-    },
-    {
-      "id": 10,
+      "id": 7,
       "name": "ZeenDoc",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
       "link": "https://armoires.zeendoc.com/_Login/Login.php",
@@ -124,7 +100,7 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 11,
+      "id": 8,
       "name": "Réservation de salle",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
       "link": "/prof-room",
@@ -132,7 +108,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 12,
+      "id": 9,
       "name": "Arena Ac Normandie",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/MIN_Education_Nationale_et_Jeunesse_RVB.jpg",
       "link": "https://arena.ac-normandie.fr/arena/",
@@ -140,7 +116,7 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 13,
+      "id": 10,
       "name": "Planning des absences",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
       "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/ETx1_Apa6ANLj_N8J05vWGEBsog7mkqCltCeB06kyUGcLQ?e=0IeBeq",
@@ -148,7 +124,7 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 14,
+      "id": 11,
       "name": "Ajout de documents IA",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
       "link": "/agentIAOCR",
@@ -156,7 +132,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 15,
+      "id": 12,
       "name": "Portes ouvertes",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Portes+ouvertes.jpg",
       "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/IQC50xx-JtAFQr6iU6GdgepSAW5mUuNX_aARV_kdxUnJyTc?e=4gvKbw",
@@ -164,11 +140,11 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 16,
+      "id": 13,
       "name": "Salons",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
       "link": "/channels",
-      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite"],
+      "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
       "external": false
     }
   ],
