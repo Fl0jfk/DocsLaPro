@@ -160,7 +160,7 @@ etc.
       eleve: selectedEleve,
     });
   } catch (error) {
-    console.error("Erreur POST /api/match-eleve:", error);
+    console.error("Erreur POST /api/agentIAOCR/match-eleve:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

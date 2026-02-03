@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     let oneDriveFolderPath: string | null = null;
     let matchedEleve: { ine: string; nom: string; prenom: string; folderName: string } | null = null;
     try {
-      const matchRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}api/match-eleve`, {
+      const matchRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}api/agentIAOCR/match-eleve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -127,10 +127,10 @@ export async function POST(req: Request) {
         }
       } else {
         const errText = await matchRes.text();
-        console.error("Erreur /api/match-eleve:", errText);
+        console.error("Erreur /api/agentIAOCR/match-eleve:", errText);
       }
     } catch (e) {
-      console.error("Erreur appel /api/match-eleve:", e);
+      console.error("Erreur appel /api/agentIAOCR/match-eleve:", e);
     }
     const namingPrompt = `
       Tu es un système de nommage de fichiers pour une école.

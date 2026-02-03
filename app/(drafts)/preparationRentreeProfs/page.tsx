@@ -3,19 +3,13 @@ import Image from "next/image";
 export default function PreparationRentreeProfs() {
   return (
     <div className="max-w-5xl mx-auto pt-8 pb-6 px-12  bg-white text-slate-800 font-sans shadow-2xl my-10 border border-slate-200" id="mon-flyer-a-imprimer">
-      
-      {/* HEADER : Logo et Date */}
       <header className="flex justify-start items-start mb-4 border-b-2 border-slate-900 pb-6">
-        
           <Image src="/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp" width={100} height={100} alt="logo"/>
-         
       </header>
-
-      {/* TITRE PRINCIPAL */}
       <div className="text-center mb-4">
         <h1 className="text-4xl font-black uppercase tracking-tighter text-slate-900 mb-2">Fiche de Vœux Individuelle</h1>
         <p className="text-blue-700 font-bold tracking-[0.2em] uppercase text-sm bg-blue-50 inline-block px-4 py-1 rounded">Enseignants • Rentrée 2026</p>
-        <p className="text-[11px] font-bold text-red-500 uppercase mt-4 animate-pulse">À remettre aux secrétariats avant le 28/02/2026</p>
+        <p className="text-[11px] font-bold text-red-500 uppercase mt-4">À compléter et me retourner avant le 28/02/2026</p>
       </div>
 
       {/* SECTION 01 : IDENTITÉ */}
@@ -144,8 +138,7 @@ export default function PreparationRentreeProfs() {
             {[
               { label: "Professeur Principal", sub: "Obligations, charges et avantages inclus" },
               { label: "Catéchèse / Formation humaine", sub: "Animation de groupe" },
-              { label: "Aide Pastorale ponctuelle", sub: "1 fois/mois ou trimestre" },
-              { label: "Heures Supplémentaires (HSE)", sub: "Accepte ou souhaite" },
+              { label: "Aide Pastorale ponctuelle", sub: "1 fois/mois ou trimestre" }
             ].map((row, i) => (
               <tr key={i} className="hover:bg-slate-50 transition-colors">
                 <td className="px-4 py-2">
@@ -167,7 +160,7 @@ export default function PreparationRentreeProfs() {
         <div className="grid grid-cols-1  gap-4 items-center">
           <div className="text-[11px] leading-relaxed space-y-2 opacity-80 italic">
             <p>• Le mercredi est un jour travaillé.</p>
-            <p>• En raison de la complexification (Spécialités Lycée, Groupes Math/Français Collège), le souhait peut être refusé.</p>
+            <p>• En raison de la complexification (Spécialités Lycée, Groupes Collège), le souhait peut être refusé.</p>
           </div>
           <textarea 
             className="w-full bg-white/10 border-2 border-white/20 rounded-2xl p-4 text-white placeholder:text-white/30 outline-none focus:border-white/50 h-24"
