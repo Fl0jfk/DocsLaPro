@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "engines": {
-    "node": "22.x"
+    "node": "20.x"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "latest",
@@ -19,19 +19,16 @@
     "@clerk/nextjs": "latest",
     "framer-motion": "latest",
     "html5-qrcode": "latest",
-    "jwt-decode": "^4.0.0",
     "next": "^15.4.1",
     "nodemailer": "latest",
     "qrcode": "latest",
     "qrcode.react": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "react-hook-form": "latest",
-    "react-icons": "^5.5.0"
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@eslint/eslintrc": "latest",
-    "@types/node": "^24.4.0",
+    "@types/node": "20.x",
     "@types/nodemailer": "latest",
     "@types/qrcode": "latest",
     "@types/react": "latest",
