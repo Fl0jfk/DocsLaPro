@@ -58,7 +58,7 @@ export default function ProfRoomPage() {
   const [isEditing, setIsEditing] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
-  const lastName = (user?.lastName ?? "").toUpperCase();
+  const lastName = (user?.lastName || "").toUpperCase();
   const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
   const isAdmin = ADMIN_LASTNAMES.includes(lastName);
   const todayStr = new Date().toISOString().split("T")[0];
@@ -135,7 +135,7 @@ export default function ProfRoomPage() {
     e.preventDefault();
     setContextMenu({ x: e.pageX, y: e.pageY, res: resExist, dateStr, hour });
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const copyReservation = (res: any) => {
     setClipboard({ subject: res.subject, className: res.className, comment: res.comment });
     setContextMenu(null);
@@ -233,8 +233,9 @@ export default function ProfRoomPage() {
           )}
         </div>
       )}
+
       <div className="bg-white rounded-2xl shadow-sm border p-4 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 sm:flex-col sm:items-start">
           <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 text-white font-black px-4 py-2 rounded-xl outline-none shadow-md">
             {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
@@ -251,6 +252,7 @@ export default function ProfRoomPage() {
           {isAdmin && <span className="bg-purple-600 text-white text-[10px] font-black px-3 py-1 rounded-full tracking-tighter">ADMIN MODE</span>}
         </div>
       </div>
+
       <div className="bg-white border rounded-3xl shadow-xl overflow-hidden">
         <div className="grid grid-cols-6 bg-gray-50 border-b">
           <div className="p-4 text-[13px] font-black text-gray-400 uppercase text-center">Heure</div>
@@ -268,28 +270,29 @@ export default function ProfRoomPage() {
               {weekDays.map((date, i) => {
                 const dateStr = date.toISOString().split("T")[0];
                 const hourPrefix = `${dateStr}T${h.toString().padStart(2, "0")}`;
-                // Correction : Comparaison par string pour éviter les décalages d'objet Date
                 const res = reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(hourPrefix) && r.status !== "CANCELLED");
                 const isOwn = res?.userId === user.id;
                 const canModify = isAdmin || isOwn;
                 const colorClass = res ? (SUBJECT_COLORS[res.subject] || "bg-slate-600 text-white") : "";
                 return (
-                  <div key={i} onClick={() => handleCellClick(dateStr, h, res)} onContextMenu={(e) => handleContextMenu(e, dateStr, h, res)} className={`border-l relative p-1 transition-all group ${!res ? 'hover:bg-green-50' : 'cursor-pointer'}`}>
+                  <div key={i} onClick={() => handleCellClick(dateStr, h, res)} onContextMenu={(e) => handleContextMenu(e, dateStr, h, res)} className={`border-l relative p-1 transition-all sm:h-[120px] group ${!res ? 'hover:bg-green-50' : 'cursor-pointer'}`}>
                     {res ? (
                       <>
                         <div className={`h-full w-full rounded-xl p-2 text-[11px] flex flex-col justify-between ${colorClass} ${isOwn ? "ring-2 ring-blue-400 ring-inset" : ""}`}>
                           <div>
-                            <div className="flex justify-between items-start">
+                            <div className="flex justify-between items-start sm:flex-col">
                               <p className="font-black uppercase leading-none truncate">{res.subject}</p>
                               <span className="bg-white/20 px-1 rounded text-[11px] font-bold">{res.className}</span>
                             </div>
                             {res.comment && (
-                              <p className="mt-1 italic opacity-90 line-clamp-1 leading-tight border-t border-white/10 pt-1">&apos;{res.comment}&apos;</p>
+                              <p className="mt-1 italic opacity-90 leading-tight border-t border-white/10 pt-1 whitespace-normal break-words sm:line-clamp-3">
+                                &apos;{res.comment}&apos;
+                              </p>
                             )}
                           </div>
                           <div className="flex justify-between items-end mt-1">
-                            <span className="font-bold opacity-80 truncate uppercase">{res.lastName}</span>
-                            {canModify && <span className="text-[10px]">✎</span>}
+                            <span className="font-bold opacity-80 uppercase ">{res.lastName}</span>
+                            {canModify && <span className="text-[10px] sm:hidden">✎</span>}
                           </div>
                         </div>
                         <div className={`absolute left-1/2 -translate-x-1/2 w-72 bg-slate-900 text-white p-4 rounded-xl shadow-2xl  opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-[100] ${h <= 10 ? 'top-full mt-2' : 'bottom-full mb-2'}`}>
@@ -363,7 +366,10 @@ export default function ProfRoomPage() {
                 <input type="text" placeholder="NOM" value={targetLastName} onChange={(e) => setTargetLastName(e.target.value.toUpperCase())} className="flex-1 bg-slate-800 border-none rounded-xl p-3 text-xs font-bold text-blue-400" />
               </div>
             ) : (
-              <div className="bg-slate-800 p-3 rounded-xl text-xs font-bold text-slate-400 italic">Par : {user.firstName} {lastName}</div>
+              <div className="bg-slate-800 p-4 rounded-xl text-sm font-bold border border-slate-700">
+                <p className="text-[10px] text-slate-500 uppercase mb-1">Identité Clerk :</p>
+                <span className="text-blue-400">{user.firstName} {lastName}</span>
+              </div>
             )}
             <select value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold focus:ring-2 ring-blue-500">
               <option value="">-- MATIÈRE --</option>
@@ -381,7 +387,7 @@ export default function ProfRoomPage() {
             </div>
           </div>
           <div className="space-y-4">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Calendrier</label>
+            <label className="text-[10px] font-black text-slate-500 w-full uppercase tracking-widest">Calendrier</label>
             <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold" />
             <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
               <p className="text-[10px] font-bold text-slate-500 mb-2">Choisir l&apos;heure :</p>
@@ -441,11 +447,11 @@ export default function ProfRoomPage() {
             <label htmlFor="updateSeries" className="text-sm font-bold text-blue-400 cursor-pointer">🔄 Appliquer les modifications à TOUTE la série de réservations</label>
           </div>
         )}
-        <div className="mt-10 flex gap-4">
+        <div className="mt-10 flex gap-4 sm:flex-col">
           <button onClick={handleConfirm} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 text-lg">
             {isEditing ? "ENREGISTRER LES MODIFICATIONS" : "CONFIRMER LA RÉSERVATION"}
           </button>
-          <button onClick={() => { setIsEditing(false); setEditingRes(null); setSubject(""); setClassName(""); setComment(""); setLevel(""); }} className="bg-slate-700 px-8 rounded-2xl font-bold hover:bg-slate-600 transition-colors">ANNULER</button>
+          <button onClick={() => { setIsEditing(false); setEditingRes(null); setSubject(""); setClassName(""); setComment(""); setLevel(""); }} className="bg-slate-700 px-8 rounded-2xl font-bold hover:bg-slate-600 transition-colors sm:py-4">ANNULER</button>
         </div>
       </div>
     </div>
