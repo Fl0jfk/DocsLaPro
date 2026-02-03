@@ -1,14 +1,15 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useState, PropsWithChildren} from "react";
+import { createContext, useContext, PropsWithChildren } from "react";
 
 type Categories = {
   id: number;
   name: string;
   link: string;
   img: string;
-  description: string;
+  description?: string;
   allowedRoles: string[];
+  external?: boolean;
 };
 
 type Travels = {
@@ -16,10 +17,10 @@ type Travels = {
   name: string;
   img: string;
   date: string;
-  validated:boolean;
+  validated: boolean;
   description: string;
-  company:string;
-  to:string;
+  company: string;
+  to: string;
 };
 
 type DocumentItem = {
@@ -40,9 +41,138 @@ type Data = {
   error: string | null;
 };
 
-const initialData: Data = {
+const STATIC_DATA: Data = {
+  categories: [
+    {
+      "id": 1,
+      "name": "Les documents",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+      "link": "/documents",
+      "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+      "external": false
+    },
+    {
+      "id": 2,
+      "name": "Ecole Directe",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Ecole+direct.png",
+      "link": "https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
+      "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+      "external": true
+    },
+    {
+      "id": 3,
+      "name": "Maintenance",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/maintenance.avif",
+      "link": "https://providence.dedikam.com/index.php?a=add",
+      "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+      "external": true
+    },
+    {
+      "id": 4,
+      "name": "Sortie scolaire",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
+      "link": "/travels",
+      "allowedRoles": ["administratif", "comptabilite"],
+      "external": false
+    },
+    {
+      "id": 5,
+      "name": "Gestion du stock",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Stocks.jpg",
+      "link": "/stocks",
+      "allowedRoles": ["test"],
+      "external": false
+    },
+    {
+      "id": 6,
+      "name": "Création de QR Code",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+      "link": "/qrcreator",
+      "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+      "external": false
+    },
+    {
+      "id": 7,
+      "name": "Base de données Elèves",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
+      "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:f:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/El7spw2Xkz5Jhj7mfvCF3GQBF_SXsR3v_8S_7G4lMJMKMQ?e=fI8DPd",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+      "external": true
+    },
+    {
+      "id": 8,
+      "name": "Demande d'absence",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+      "link": "/absences",
+      "allowedRoles": ["test"],
+      "external": false
+    },
+    {
+      "id": 9,
+      "name": "Organigramme",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
+      "link": "/organigramme",
+      "allowedRoles": ["test"],
+      "external": false
+    },
+    {
+      "id": 10,
+      "name": "ZeenDoc",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
+      "link": "https://armoires.zeendoc.com/_Login/Login.php",
+      "allowedRoles": ["administratif", "comptabilite", "direction_college", "direction_ecole", "direction_lycee"],
+      "external": true
+    },
+    {
+      "id": 11,
+      "name": "Réservation de salle",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
+      "link": "/prof-room",
+      "allowedRoles": ["professeur", "administratif", "direction_college", "direction_ecole", "direction_lycee", "maintenance"],
+      "external": false
+    },
+    {
+      "id": 12,
+      "name": "Arena Ac Normandie",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/MIN_Education_Nationale_et_Jeunesse_RVB.jpg",
+      "link": "https://arena.ac-normandie.fr/arena/",
+      "allowedRoles": ["administratif", "direction_college", "direction_ecole", "direction_lycee"],
+      "external": true
+    },
+    {
+      "id": 13,
+      "name": "Planning des absences",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
+      "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/ETx1_Apa6ANLj_N8J05vWGEBsog7mkqCltCeB06kyUGcLQ?e=0IeBeq",
+      "allowedRoles": ["administratif", "direction_college", "direction_ecole", "direction_lycee", "comptabilite", "infirmerie", "education"],
+      "external": true
+    },
+    {
+      "id": 14,
+      "name": "Ajout de documents IA",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
+      "link": "/onedrive",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+      "external": false
+    },
+    {
+      "id": 15,
+      "name": "Portes ouvertes",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Portes+ouvertes.jpg",
+      "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/IQC50xx-JtAFQr6iU6GdgepSAW5mUuNX_aARV_kdxUnJyTc?e=4gvKbw",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+      "external": true
+    },
+    {
+      "id": 16,
+      "name": "Salons",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
+      "link": "/channels",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite"],
+      "external": false
+    }
+  ],
   travels: [],
-  categories: [],
   documents: [],
   error: null,
 };
@@ -50,33 +180,13 @@ const initialData: Data = {
 const DataContext = createContext<Data | undefined>(undefined);
 
 export const DataProvider = ({ children }: PropsWithChildren<object>) => {
-  const [error, setError] = useState<Error | null>(null);
-  const [data, setData] = useState<Data | undefined>(undefined);
-  const fetchData = useCallback(async () => {
-    try {
-      const response = await fetch("/data.json");
-      if (!response.ok) {
-        throw new Error("Failed to fetch data");
-      }
-      const jsonData: Data = await response.json();
-      setData(jsonData);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("An error occurred"));
-    }
-  }, []);
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
   return (
-    <DataContext.Provider value={data || initialData}>
-      {error && <p className="error">{error.message}</p>}
-      {children}
-    </DataContext.Provider>
+    <DataContext.Provider value={STATIC_DATA}>{children}</DataContext.Provider>
   );
 };
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (!context) { throw new Error("useData must be used within a DataProvider");}
+  if (!context) {throw new Error("useData must be used within a DataProvider")}
   return context;
 };

@@ -51,10 +51,12 @@ export default function ProfChatPage() {
   const lastSeenMessageId = useRef<Record<string, number>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const roles = (user?.publicMetadata?.role as string[]) || [];
+
   const isAdminByName = useMemo(() => {
     if (!user?.fullName) return false;
     return AUTHORIZED_ADMINS.includes(user.fullName);
   }, [user]);
+
   const sortedUsers = useMemo(() => {
     return [...allUsers].sort((a, b) => {
       const nameA = a.name.split(' ').pop() || "";
@@ -62,6 +64,7 @@ export default function ProfChatPage() {
       return nameA.localeCompare(nameB);
     });
   }, [allUsers]);
+
   useEffect(() => {
     if (user?.id) {
       const saved = localStorage.getItem(`lastSeen_${user.id}`);
@@ -70,6 +73,7 @@ export default function ProfChatPage() {
       }
     }
   }, [user?.id]);
+
   const fetchChannels = async () => {
     try {
       const res = await fetch("/api/channels");
@@ -81,10 +85,23 @@ export default function ProfChatPage() {
         return false;
       });
       setChannels(accessible);
+
+      // --- FIX: Synchronisation de l'ID au démarrage ---
+      if (accessible.length > 0 && activeChannel === "general") {
+        const generalChan = accessible.find((c: Channel) => c.name.toLowerCase() === "general");
+        if (generalChan) {
+          setActiveChannel(generalChan.id);
+        } else {
+          setActiveChannel(accessible[0].id);
+        }
+      }
+      // -----------------------------------------------
+      
     } catch (err) {
       console.error("Erreur channels:", err);
     }
   };
+
   const fetchProfs = async () => {
     try {
       const res = await fetch("/api/channels/users/list");
@@ -94,6 +111,7 @@ export default function ProfChatPage() {
       console.error("Erreur liste profs:", err);
     }
   };
+
   const fetchMessages = async (isInitialLoad = false) => {
     if (isInitialLoad) setLoading(true);
     try {
@@ -101,6 +119,7 @@ export default function ProfChatPage() {
       const allMessages: Message[] = await res.json();
       const filtered = allMessages.filter((m) => m.channel === activeChannel);
       setMessages(filtered);
+      
       const newUnreads: string[] = [];
       channels.forEach(chan => {
         const chanMessages = allMessages.filter(m => m.channel === chan.id);
@@ -124,24 +143,30 @@ export default function ProfChatPage() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     if (isLoaded && user) {
       fetchChannels();
       fetchProfs();
     }
   }, [isLoaded, user?.id]);
+
   useEffect(() => {
+    // On ne lance fetchMessages que si activeChannel n'est pas la valeur par défaut "general" 
+    // ou si on a confirmé que c'est bien l'ID voulu.
     if (isLoaded && activeChannel && channels.length > 0) {
       fetchMessages(true);
       const interval = setInterval(() => fetchMessages(false), 5000);
       return () => clearInterval(interval);
     }
   }, [activeChannel, isLoaded, channels.length]);
+
   useEffect(() => {
     if (scrollRef.current && !loading) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
+
   const handleSend = async (anonymous: boolean, overrideContent?: string) => {
     const contentToSend = overrideContent || text;
     if (!contentToSend.trim()) return;
@@ -158,6 +183,7 @@ export default function ProfChatPage() {
       fetchMessages(false);
     }
   };
+
   const handleDeleteMessage = async (messageId: number) => {
     if (!confirm("Supprimer ce message ?")) return;
     try {
@@ -169,6 +195,7 @@ export default function ProfChatPage() {
       console.error("Erreur suppression:", err);
     }
   };
+
   const handleDeleteChannel = async () => {
     if (!currentChannel) return;
     const firstConfirm = confirm(`Supprimer #${currentChannel.name} ?`);
@@ -179,6 +206,7 @@ export default function ProfChatPage() {
       } catch (err) { console.error(err); }
     }
   };
+
   const handleUpdateMembers = async (newMembers: string[]) => {
     try {
       const res = await fetch("/api/channels", {
@@ -196,6 +224,7 @@ export default function ProfChatPage() {
       console.error("Erreur mise à jour membres:", err);
     }
   };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -214,7 +243,9 @@ export default function ProfChatPage() {
       alert("Erreur envoi"); 
     } finally { setIsUploading(false); }
   };
+
   const toggleMemberCreation = (id: string) => { setSelectedMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])};
+  
   const toggleMemberUpdate = (id: string) => {
     if (!currentChannel) return;
     const currentList = currentChannel.members || [];
@@ -222,6 +253,7 @@ export default function ProfChatPage() {
     if (currentChannel.creatorId && !newList.includes(currentChannel.creatorId)) { newList.push(currentChannel.creatorId);}
     handleUpdateMembers(newList);
   };
+
   const handleCreateChannel = async () => {
     setNameError(false);
     if (!newChanName.trim()) { setNameError(true); return; }
@@ -242,9 +274,11 @@ export default function ProfChatPage() {
       }
     } catch (err) { console.error(err); }
   };
+
   if (!isLoaded) return <div className="p-10 text-center">Chargement...</div>;
   const currentChannel = channels.find(c => c.id === activeChannel);
   const isCreator = currentChannel?.creatorId === user?.id;
+
   return (
     <main className="flex h-screen bg-gray-100 p-2 md:p-4 gap-4 relative overflow-hidden">
       <div className={`
