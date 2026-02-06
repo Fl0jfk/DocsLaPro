@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from "@clerk/nextjs/server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 
 const IMAGE_CATALOG = [
   { 
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     const title = innerData.title || "Titre introuvable";
     const destination = innerData.destination || "Destination introuvable";
     const objectToSave = body.data; 
+
     if (!objectToSave.imageUrl) {
       try {
         const catalogSummary = IMAGE_CATALOG.map(i => `${i.id} (${i.label})`).join(", ");
@@ -56,7 +57,14 @@ export async function POST(req: Request) {
                 role: "system", 
                 content: `Choisis l'ID exact parmis : ${catalogSummary}. Réponds uniquement par l'ID. Sinon "img_default".` 
               },
-              { role: "user", content: `Titre: ${title} | Lieu: ${destination}` }
+              { 
+                role: "user", 
+                content: `DONNÉES À ANALYSER :
+                - TITRE DE LA SORTIE : "${title}"
+                - LIEU PRÉVU : "${destination}"
+                
+                IDENTIFIANT À EXTRAIRE DU CATALOGUE :` 
+              }
             ],
             temperature: 0
           })
@@ -72,6 +80,7 @@ export async function POST(req: Request) {
         console.error("Erreur IA:", err);
       }
     }
+
     const s3Client = new S3Client({
       region: process.env.REGION,
       credentials: {
@@ -79,12 +88,63 @@ export async function POST(req: Request) {
         secretAccessKey: process.env.SECRET_ACCESS_KEY!,
       },
     });
+
+    // 1. Sauvegarde du fichier détaillé du voyage
     await s3Client.send(new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,
       Key: `travels/${tripId}.json`,
       Body: JSON.stringify(objectToSave),
       ContentType: "application/json",
     }));
+
+    // --- 2. GESTION DE L'INDEX (L'optimisation) ---
+    const INDEX_KEY = 'travels/index.json';
+    let currentIndex = [];
+
+    try {
+      const getIndexCommand = new GetObjectCommand({
+        Bucket: process.env.BUCKET_NAME,
+        Key: INDEX_KEY,
+      });
+      const indexRes = await s3Client.send(getIndexCommand);
+      const indexBody = await indexRes.Body?.transformToString();
+      if (indexBody) currentIndex = JSON.parse(indexBody);
+    } catch (e) {
+      console.log("Premier voyage : l'index va être créé.");
+    }
+
+    const tripSummary = {
+      id: tripId,
+      ownerName: objectToSave.ownerName,
+      status: objectToSave.status,
+      type: objectToSave.type,
+      createdAt: objectToSave.createdAt || new Date().toISOString(),
+      data: {
+        title: innerData.title,
+        destination: innerData.destination,
+        imageUrl: objectToSave.imageUrl,
+        nbEleves: innerData.nbEleves,
+        coutTotal: innerData.coutTotal,
+        date: innerData.date || null, 
+        startDate: innerData.startDate || null,
+        endDate: innerData.endDate || null,
+      }
+    };
+
+    const existingIndex = currentIndex.findIndex((t: any) => t.id === tripId);
+    if (existingIndex > -1) {
+      currentIndex[existingIndex] = tripSummary;
+    } else {
+      currentIndex.push(tripSummary);
+    }
+
+    await s3Client.send(new PutObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: INDEX_KEY,
+      Body: JSON.stringify(currentIndex),
+      ContentType: "application/json",
+    }));
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("ERREUR S3:", error);

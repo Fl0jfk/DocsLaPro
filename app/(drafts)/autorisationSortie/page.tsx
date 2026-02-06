@@ -8,8 +8,7 @@ export default function TransportRequestPage() {
     const [classe, setClasse] = useState("");
     const [date, setDate] = useState(""); 
     const [dateLimite, setDateLimite] = useState("");
-    const [lieu, setLieu] = useState(""); // Nouvel état pour le lieu de la sortie
-    
+    const [lieu, setLieu] = useState(""); 
     const calculerDateLimite = (dateSortie: string | number | Date) => {
         const dateSortieObj = new Date(dateSortie);
         dateSortieObj.setDate(dateSortieObj.getDate() - 7);
@@ -30,7 +29,7 @@ export default function TransportRequestPage() {
     }, [date]);
 
     return (
-        <main className="p-4 w-full flex flex-col gap-3 items-center justify-center text-lg">
+        <main className="p-4 w-full flex flex-col gap-3 items-center justify-center text-lg" id="mon-flyer-a-imprimer">
             <header className="flex gap-16 items-center justify-center">
                 <Image src={logo} alt="Logo La Providence" width={110} height={110} />
                 <h1 className="text-4xl font-bold">La Providence Nicolas Barré</h1>

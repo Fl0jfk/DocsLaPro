@@ -25,10 +25,7 @@ export async function POST(req: Request) {
       Bucket: process.env.BUCKET_NAME,
       Key: key,
     });
-
-    // L'URL sera valide 60 minutes
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-
     return NextResponse.json({ signedUrl });
   } catch (error) {
     console.error("Erreur signature S3:", error);

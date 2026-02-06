@@ -16,7 +16,7 @@ function SimpleTripFormContent() {
     title: "",
     destination: "",
     date: "",
-    startTime: "", // Nouveau
+    startTime: "",
     endTime: "",
     nbEleves: "",
     classes: "",
@@ -85,8 +85,15 @@ function SimpleTripFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.coutTotal > 0 && (!formData.nbEleves || Number(formData.nbEleves) <= 0)) {
+      alert("Veuillez préciser le nombre d'élèves pour un voyage avec budget.");
+      return;
+    }
+    if (formData.coutTotal < 0) {
+      alert("Le budget ne peut pas être négatif.");
+      return;
+    }
     setLoading(true);
-
     const tripData = {
       id: editId || crypto.randomUUID(),
       ownerId: user?.id,
@@ -195,17 +202,17 @@ function SimpleTripFormContent() {
         />
         </div>
         <div>
-          <label className="block text-sm font-semibold mb-2">Coût total estimé (€)</label>
+          <label className="block text-sm font-semibold mb-2">
+            Coût total estimé (€) {formData.coutTotal > 0 && <span className="text-red-500">*</span>}
+          </label>
           <input 
             type="number"
+            required={formData.coutTotal > 0}
             value={formData.coutTotal}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            placeholder="0"
+            className={`w-full p-3 border rounded-xl outline-indigo-500 ${formData.coutTotal > 0 ? 'bg-white border-indigo-200' : 'bg-slate-50'}`}
             onChange={e => setFormData({...formData, coutTotal: Number(e.target.value)})}
           />
         </div>
-
-        {/* Section Participants */}
         <div className="md:col-span-2 space-y-4 border-b pb-4 mt-4 text-slate-400 uppercase text-xs font-bold tracking-widest">
           Participants & Encadrement
         </div>

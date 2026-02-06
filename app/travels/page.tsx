@@ -126,8 +126,14 @@ export default function TripDashboard() {
                         <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
                           <span className="text-lg">📍</span> {trip.data?.destination || "Non définie"}
                         </p>
-                        <p className="text-xs font-bold text-indigo-600 bg-indigo-50 w-fit px-2 py-1 rounded-lg">
-                          Le {formatDate(trip, 'travel')} {trip.data?.startTime ? `à ${trip.data.startTime}` : ''}
+                        <p className="text-sm text-slate-500">
+                          {trip.type === "COMPLEX" ? (
+                            // Si c'est complexe, on affiche la plage de dates
+                            <span>Du {new Date(trip.data.startDate).toLocaleDateString()} au {new Date(trip.data.endDate).toLocaleDateString()}</span>
+                          ) : (
+                            // Si c'est simple, on garde l'affichage classique
+                            <span>Le {new Date(trip.data.date).toLocaleDateString()}</span>
+                          )}
                         </p>
                       </div>
                     </div>
