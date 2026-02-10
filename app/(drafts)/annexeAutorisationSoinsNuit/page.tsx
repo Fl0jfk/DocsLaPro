@@ -78,7 +78,7 @@ export default function AnnexeInternatPDF() {
             <p className="text-red-600 font-black text-[10px] uppercase flex items-center gap-2">
                 <span className="text-lg">⚠️</span> Protocole urgence de nuit (fièvre / douleur aiguë)
             </p>
-            <p className="text-[10px] font-bold text-slate-600 mt-2 uppercase leading-tight">En l'absence d'ordonnance, aucun médicament ne sera administré sans l'avis préalable de l'infirmière ou du SAMU (15). Si l'état de l'élève le nécessite, la famille sera invitée à venir chercher l'enfant ou, à défaut, le surveillant d'internat organisera une prise en charge par les services de secours.</p>
+            <p className="text-[10px] font-bold text-slate-600 mt-2 uppercase leading-tight">En l'absence d'une ordonnance médicale de soins courants (précisant par exemple les modalités d'administration de Doliprane en cas de fièvre ou de Spasfon pour des maux de ventre), aucun médicament ne sera administré sans l'avis préalable de l'infirmière ou du SAMU (15). Si l'état de l'élève le nécessite, la famille sera invitée à venir chercher l'enfant ou, à défaut, le surveillant d'internat organisera une prise en charge par les services de secours</p>
           </div>
         </section>
         <section className="px-8 py-4 border-4 border-slate-900 rounded-3xl font-sans">

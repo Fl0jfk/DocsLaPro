@@ -5,7 +5,9 @@ const isPublicRoute = createRouteMatcher([
   '/travels/(.*)/devis',
   '/api/public/(.*)',
   '/sign-in(.*)',
-  '/sign-up(.*)'
+  '/sign-up(.*)',
+  '/portesouvertes(.*)',
+  '/simulateurTarifs(.*)'
 ]);
 
 const isDev = process.env.NODE_ENV !== "production";
