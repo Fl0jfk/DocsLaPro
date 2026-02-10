@@ -67,7 +67,7 @@ export default function FicheTransport() {
             <div className="grid grid-cols-2 gap-10 items-end pt-10">
               <div className="space-y-4">
                 <p className="text-xs font-bold italic">Fait à ....................................., le ....................................</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Signature précédée de la mention "Lu et approuvé"</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Signature précédée de la mention &quot;Lu et approuvé&quot;</p>
               </div>
               <div className="text-center">
                 <div className="w-full h-32 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-300 italic text-[10px] uppercase font-black">Cadre Signature</div>

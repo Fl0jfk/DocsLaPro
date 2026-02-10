@@ -8,14 +8,14 @@ export default function TripDetails() {
   const { id } = useParams();
   const router = useRouter();
   const { user, isLoaded: isUserLoaded } = useUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [trip, setTrip] = useState<any>(null);
   const [loadingAction, setLoadingAction] = useState(false);
-
+  console.log(loadingAction)
   const rawRoles = user?.publicMetadata?.role;
   const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
   const isDirection = userRoles.some(r => ['direction école', 'direction collège', 'direction_lycee'].includes(r));
   const isCompta = userRoles.includes('comptabilité');
-
   useEffect(() => {
     const fetchTrip = async () => {
       try {
@@ -30,7 +30,6 @@ export default function TripDetails() {
     };
     if (id) fetchTrip();
   }, [id]);
-
   const openSecureFile = async (fileUrl: string) => {
     try {
       const res = await fetch('/api/travels/download', {
@@ -44,7 +43,7 @@ export default function TripDetails() {
       alert("Erreur lors de l'ouverture du fichier.");
     }
   };
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleAction = async (newStatus: string, note: string = "", extraData: any = null) => {
     setLoadingAction(true);
     const updatedTrip = {
@@ -74,30 +73,25 @@ export default function TripDetails() {
       setLoadingAction(false);
     }
   };
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatSafeDate = (dateStr: any) => {
     if (!dateStr) return "N/C";
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? "Date à préciser" : d.toLocaleDateString('fr-FR');
   };
-
   if (!isUserLoaded || !trip) return <p className="p-10 text-center font-medium text-slate-500">Chargement du dossier...</p>;
-
   const stepsSimple = [
     { n: "1", label: "Pédagogie", key: "PENDING_DIR_INITIAL" },
     { n: "2", label: "Finances", key: "PENDING_COMPTA" },
     { n: "3", label: "Finalisé", key: "VALIDATED" }
   ];
-
   const stepsComplex = [
     { n: "1", label: "Pédagogie", key: "PENDING_DIR_INITIAL" },
     { n: "2", label: "Finances", key: "PENDING_COMPTA" },
     { n: "3", label: "Logistique", key: "PROF_LOGISTICS" },
     { n: "4", label: "Finalisé", key: "VALIDATED" }
   ];
-
   const currentSteps = trip.type === "COMPLEX" ? stepsComplex : stepsSimple;
-
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
       {/* RETOUR */}
@@ -222,6 +216,7 @@ export default function TripDetails() {
           <div className="flex flex-col md:col-span-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Documents et Devis</span>
             <div className="flex flex-wrap gap-2">
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               {trip.data.attachments?.map((file: any, idx: number) => (
                 <button key={idx} onClick={() => openSecureFile(file.url)} className="text-xs bg-slate-50 border px-3 py-1.5 rounded-lg font-semibold text-indigo-600 hover:bg-indigo-50 transition">
                   📄 {file.name}

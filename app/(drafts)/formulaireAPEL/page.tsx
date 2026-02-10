@@ -16,7 +16,7 @@ export default function FormulaireAPEL() {
           </div>
           <div className="text-right flex flex-col items-end">
              <Image src={logoApel} width={100} height={75} alt="Logo APEL" unoptimized priority />
-             <p className="text-xs font-black text-slate-900 uppercase mt-2">Participation à la vie de l'établissement</p>
+             <p className="text-xs font-black text-slate-900 uppercase mt-2">Participation à la vie de l&apos;établissement</p>
           </div>
         </div>
         <section className="mb-4">
@@ -65,7 +65,7 @@ export default function FormulaireAPEL() {
           </div>
         </section>
         <section className="mb-4">
-          <h2 className="bg-blue-600 text-white px-4 py-2 text-sm font-black uppercase mb-4 inline-block rounded-r-full">3. Sollicitations de l'établissement</h2>
+          <h2 className="bg-blue-600 text-white px-4 py-2 text-sm font-black uppercase mb-4 inline-block rounded-r-full">3. Sollicitations de l&apos;établissement</h2>
           <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 space-y-4">
             <p className="text-xs font-black text-blue-800 uppercase mb-2">L’établissement pourrait-il vous solliciter pour :</p>
             <div className="space-y-3">
@@ -87,7 +87,7 @@ export default function FormulaireAPEL() {
           </div>
         </section>
         <section className="flex-1">
-          <h2 className="bg-slate-900 text-white px-4 py-2 text-sm font-black uppercase mb-4 inline-block rounded-r-full">4. Implication au sein de l'APEL</h2>
+          <h2 className="bg-slate-900 text-white px-4 py-2 text-sm font-black uppercase mb-4 inline-block rounded-r-full">4. Implication au sein de l&apos;APEL</h2>
           <div className="bg-slate-50 px-6 rounded-2xl border border-slate-200 text-justify mb-4 py-4">
             <p className="text-[10px] leading-relaxed text-slate-600">
               Par sa <strong>cotisation volontaire à l’APEL</strong> (Association de Parents d’élèves de l’Enseignement Libre), chaque famille est adhérente à l’association et contribue au dynamisme de l’établissement. Si vous souhaitez vous impliquer davantage (commissions, temps forts tels que le Marché de Noël ou la Kermesse, …), n’hésitez pas à rejoindre l’équipe d’animation que vous pourrez rencontrer aux cafés d’accueil de rentrée ou lors de l’assemblée générale de l’association début octobre.

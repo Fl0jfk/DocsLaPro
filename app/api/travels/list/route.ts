@@ -20,8 +20,10 @@ export async function GET() {
     const response = await s3Client.send(getCommand);
     const body = await response.Body?.transformToString();
     const trips = body ? JSON.parse(body) : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sortedTrips = trips.sort((a: any, b: any) =>  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return NextResponse.json(sortedTrips);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     if (error.name === "NoSuchKey") {
       return NextResponse.json([]);

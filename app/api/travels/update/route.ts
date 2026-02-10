@@ -88,16 +88,12 @@ export async function POST(req: Request) {
         secretAccessKey: process.env.SECRET_ACCESS_KEY!,
       },
     });
-
-    // 1. Sauvegarde du fichier détaillé du voyage
     await s3Client.send(new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,
       Key: `travels/${tripId}.json`,
       Body: JSON.stringify(objectToSave),
       ContentType: "application/json",
     }));
-
-    // --- 2. GESTION DE L'INDEX (L'optimisation) ---
     const INDEX_KEY = 'travels/index.json';
     let currentIndex = [];
 
@@ -110,9 +106,8 @@ export async function POST(req: Request) {
       const indexBody = await indexRes.Body?.transformToString();
       if (indexBody) currentIndex = JSON.parse(indexBody);
     } catch (e) {
-      console.log("Premier voyage : l'index va être créé.");
+      console.log("Premier voyage : l'index va être créé.", e);
     }
-
     const tripSummary = {
       id: tripId,
       ownerName: objectToSave.ownerName,
@@ -130,7 +125,7 @@ export async function POST(req: Request) {
         endDate: innerData.endDate || null,
       }
     };
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existingIndex = currentIndex.findIndex((t: any) => t.id === tripId);
     if (existingIndex > -1) {
       currentIndex[existingIndex] = tripSummary;

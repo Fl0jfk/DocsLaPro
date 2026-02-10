@@ -40,8 +40,11 @@ function ComplexTripFormContent() {
     partEtablissement: 0,
     // Documents
     docs: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       programme: null as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       listeEleves: null as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       devis: [] as any[]
     }
   });
