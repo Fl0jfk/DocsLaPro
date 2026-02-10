@@ -4,7 +4,7 @@ export async function POST(req: Request) {
   try {
     const data = await req.json();
     if (data.website) {  return new Response("Bot detected", { status: 400 })}
-    const { responsableNom, responsablePrenom, email, telephone, enfantNom, enfantPrenom, etablissement, classe, horaire, preinscription,} = data;
+    const { last_name, first_name, email, telephone, enfantNom, enfantPrenom, etablissement, classe, horaire, preinscription,} = data;
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
         <p><strong>Horaire choisi :</strong> ${horaire}</p>
         <p><strong>Pré-inscription déjà faite :</strong> ${preinscription}</p>
         <hr />
-        <p><strong>Responsable :</strong> ${responsablePrenom} ${responsableNom}</p>
+        <p><strong>Responsable :</strong> ${last_name} ${first_name}</p>
         <p><strong>Email :</strong> ${email}</p>
         <p><strong>Téléphone :</strong> ${telephone}</p>
         <hr />

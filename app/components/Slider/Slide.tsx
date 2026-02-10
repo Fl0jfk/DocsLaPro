@@ -18,12 +18,12 @@ export default function Slide({ name, img, link, external, priority = false,}: S
   const content = (
     <>
       <div className="flex flex-col gap-1 z-[2]">
-        <p className="md:text-2xl text-4xl font-bold">{name}</p>
+        <p className="sm:max-md:text-3xl text-2xl font-bold">{name}</p>
       </div>
       {ImageBlock}
     </>
   );
-  const baseClass ="bg-white select-none flex items-end h-[350px] md:h-[300px] sm:h-[450px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
+  const baseClass ="bg-white select-none flex items-end h-[350px] md:max-lg:h-[300px] sm:max-md:h-[450px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
   return external ? (
     <a href={link} target="_blank" rel="noopener noreferrer" className={baseClass}>
       {content}

@@ -234,26 +234,25 @@ export default function ProfRoomPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border p-4 flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-3 sm:flex-col sm:items-start">
-          <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 text-white font-black px-4 py-2 rounded-xl outline-none shadow-md">
+      <div className="bg-white rounded-2xl p-4 flex sm:max-md:flex-wrap justify-between items-center gap-4 w-full">
+        <div className="flex items-center gap-3 sm:max-lg:flex-col sm:max-md:w-full w-1/2">
+          <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 w-full text-center text-white font-black px-4 p-3 h-full rounded-xl outline-none">
             {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
-          <div className="flex items-center bg-gray-100 rounded-xl p-1 border">
-            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 hover:bg-white rounded-lg">◀</button>
-            <div className="px-4 text-[10px] font-black uppercase text-center">
+          <div className="flex items-center bg-gray-100 rounded-xl w-full justify-between">
+            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 py-3 hover:bg-white rounded-lg">◀</button>
+            <div className="px-4 text-[12px] font-black uppercase text-center">
               Semaine du <br/><span className="text-blue-600">{startOfWeek.toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
             </div>
             <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-white rounded-lg">▶</button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <input type="date" onChange={(e) => setCurrentDate(new Date(e.target.value))} className="text-xs border rounded-lg p-1"/>
-          {isAdmin && <span className="bg-purple-600 text-white text-[10px] font-black px-3 py-1 rounded-full tracking-tighter">ADMIN MODE</span>}
+        <div className="flex items-center sm:max-md:justify-between md:justify-end h-[40px] sm:max-md:w-full w-1/2 gap-4">
+          <input type="date" onChange={(e) => setCurrentDate(new Date(e.target.value))} className="text-[15px] rounded-full px-3 py-1 border"/>
+          {isAdmin && <span className="bg-purple-600 text-white text-[15px] font-black px-3 py-1 rounded-full tracking-tighter">ADMIN MODE</span>}
         </div>
       </div>
-
-      <div className="bg-white border rounded-3xl shadow-xl overflow-hidden">
+      <div className="bg-white rounded-3xl overflow-hidden">
         <div className="grid grid-cols-6 bg-gray-50 border-b">
           <div className="p-4 text-[13px] font-black text-gray-400 uppercase text-center">Heure</div>
           {weekDays.map((d, i) => (
@@ -357,7 +356,7 @@ export default function ProfRoomPage() {
             <button onClick={handleDelete} className="bg-red-600 hover:bg-red-500 text-white text-xs font-black px-6 py-3 rounded-2xl shadow-lg transition-transform active:scale-90">🗑️ SUPPRIMER CE CRÉNEAU</button>
           )}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           <div className="space-y-4">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Professeur & Cours</label>
             {isAdmin ? (
@@ -447,7 +446,7 @@ export default function ProfRoomPage() {
             <label htmlFor="updateSeries" className="text-sm font-bold text-blue-400 cursor-pointer">🔄 Appliquer les modifications à TOUTE la série de réservations</label>
           </div>
         )}
-        <div className="mt-10 flex gap-4 sm:flex-col">
+        <div className="mt-10 flex gap-4 sm:max-md:flex-col">
           <button onClick={handleConfirm} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 text-lg">
             {isEditing ? "ENREGISTRER LES MODIFICATIONS" : "CONFIRMER LA RÉSERVATION"}
           </button>
