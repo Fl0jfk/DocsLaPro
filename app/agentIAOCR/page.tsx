@@ -269,7 +269,7 @@ export default function OneDriveUpDocsOCRAI() {
   const progressPercent = processingStatus.total > 0  ? ((processingStatus.completed + processingStatus.failed) / processingStatus.total) * 100  : 0;
   return (
     <div className="p-6 max-w-[1200px] mx-auto mt-[8vh]">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-col md:max-lg:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">IA Scanner & OneDrive</h1>
           <p className="text-gray-500">Automatisez le rangement de vos documents par élève.</p>
@@ -288,44 +288,42 @@ export default function OneDriveUpDocsOCRAI() {
       )}
       {account && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <div
-                onDragOver={dropDisabled ? undefined : handleDragOver}
-                onDragLeave={dropDisabled ? undefined : handleDragLeave}
-                onDrop={dropDisabled ? undefined : handleDrop}
-                onClick={() => !dropDisabled && multiInputRef.current?.click()}
-                className={`relative overflow-hidden border-2 border-dashed rounded-3xl p-12 text-center transition-all duration-300 group
-                  ${isDragging ? "border-blue-600 bg-blue-50 scale-[1.01]" : "border-gray-300 bg-white hover:border-blue-400 hover:bg-gray-50"}
-                  ${dropDisabled ? "opacity-60 cursor-not-allowed shadow-none" : "cursor-pointer shadow-xl hover:shadow-2xl"}`}
-              >
-                <div className="flex flex-col items-center">
-                  <div className={`text-6xl mb-4 transition-all duration-500 ${ocrProcessing ? 'scale-110' : 'group-hover:rotate-12'}`}>
-                    {ocrProcessing ? <div className="animate-spin inline-block">⚙️</div> : "📄"}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">
-                    {ocrProcessing ? "Analyse en cours..." : "Glissez vos documents PDF ici"}
-                  </h3>
-                  <p className="text-gray-500 max-w-xs mx-auto">
-                    {ocrProcessing ? "L'IA classe vos documents, vous pouvez prendre un café mais ne fermez pas la page !"  : "Ou cliquez pour parcourir vos fichiers. L'IA s'occupe de l'OCR et du rangement."}
-                  </p>
+          <div className="grid grid-cols-1 gap-8">
+            <div
+              onDragOver={dropDisabled ? undefined : handleDragOver}
+              onDragLeave={dropDisabled ? undefined : handleDragLeave}
+              onDrop={dropDisabled ? undefined : handleDrop}
+              onClick={() => !dropDisabled && multiInputRef.current?.click()}
+              className={`relative overflow-hidden border-2 border-dashed rounded-3xl p-12 text-center transition-all duration-300 group
+                ${isDragging ? "border-blue-600 bg-blue-50 scale-[1.01]" : "border-gray-300 bg-white hover:border-blue-400 hover:bg-gray-50"}
+                ${dropDisabled ? "opacity-60 cursor-not-allowed shadow-none" : "cursor-pointer shadow-xl hover:shadow-2xl"}`}
+            >
+              <div className="flex flex-col items-center">
+                <div className={`text-6xl mb-4 transition-all duration-500 ${ocrProcessing ? 'scale-110' : 'group-hover:rotate-12'}`}>
+                  {ocrProcessing ? <div className="animate-spin inline-block">⚙️</div> : "📄"}
                 </div>
-                {ocrProcessing && (
-                  <div className="mt-8 w-full max-w-md mx-auto">
-                    <div className="flex justify-between text-xs font-bold text-blue-600 mb-2 uppercase tracking-wider">
-                      <span>Traitement</span>
-                      <span>{Math.round(progressPercent)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <div 
-                        className="bg-blue-600 h-full transition-all duration-500 ease-out animate-pulse" 
-                        style={{ width: `${progressPercent}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-                <input ref={multiInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files) { enqueueFiles(e.target.files); e.target.value = "" } }} />
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  {ocrProcessing ? "Analyse en cours..." : "Glissez vos documents PDF ici"}
+                </h3>
+                <p className="text-gray-500 max-w-xs mx-auto">
+                  {ocrProcessing ? "L'IA classe vos documents, vous pouvez prendre un café mais ne fermez pas la page !"  : "Ou cliquez pour parcourir vos fichiers. L'IA s'occupe de l'OCR et du rangement."}
+                </p>
               </div>
+              {ocrProcessing && (
+                <div className="mt-8 w-full max-w-md mx-auto">
+                  <div className="flex justify-between text-xs font-bold text-blue-600 mb-2 uppercase tracking-wider">
+                    <span>Traitement</span>
+                    <span>{Math.round(progressPercent)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-blue-600 h-full transition-all duration-500 ease-out animate-pulse" 
+                      style={{ width: `${progressPercent}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              <input ref={multiInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files) { enqueueFiles(e.target.files); e.target.value = "" } }} />
             </div>
             <div className="flex flex-col gap-4">
               <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
