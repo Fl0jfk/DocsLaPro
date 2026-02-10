@@ -40,6 +40,7 @@ export default function TripDetails() {
       const { signedUrl } = await res.json();
       if (signedUrl) window.open(signedUrl, '_blank');
     } catch (err) {
+      console.error(err)
       alert("Erreur lors de l'ouverture du fichier.");
     }
   };
@@ -216,7 +217,7 @@ export default function TripDetails() {
           <div className="flex flex-col md:col-span-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Documents et Devis</span>
             <div className="flex flex-wrap gap-2">
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              {/*eslint-disable-next-line @typescript-eslint/no-explicit-any*/}
               {trip.data.attachments?.map((file: any, idx: number) => (
                 <button key={idx} onClick={() => openSecureFile(file.url)} className="text-xs bg-slate-50 border px-3 py-1.5 rounded-lg font-semibold text-indigo-600 hover:bg-indigo-50 transition">
                   📄 {file.name}

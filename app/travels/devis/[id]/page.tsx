@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 
 export default function DevisPublicPage() {
   const { id } = useParams();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [trip, setTrip] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
   const [providerName, setProviderName] = useState("");
@@ -45,6 +46,7 @@ export default function DevisPublicPage() {
         setStatus("error");
       }
     } catch (err) {
+      console.error(err)
       setStatus("error");
     }
   };
@@ -134,7 +136,7 @@ export default function DevisPublicPage() {
               </div>
 
               {status === "error" && (
-                <p className="text-red-500 text-xs font-bold text-center">Une erreur est survenue lors de l'envoi.</p>
+                <p className="text-red-500 text-xs font-bold text-center">Une erreur est survenue lors de l&apos;envoi.</p>
               )}
 
               <button 
