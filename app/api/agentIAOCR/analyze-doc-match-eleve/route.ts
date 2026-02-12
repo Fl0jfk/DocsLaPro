@@ -35,12 +35,7 @@ async function getElevesFromS3(): Promise<EleveConfig[]> {
 }
 
 function normalize(str: string): string {
-  return str
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[-\s]+/g, " ")
-    .trim();
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[-\s]+/g, " ").trim();
 }
 
 function nameSimilarity(

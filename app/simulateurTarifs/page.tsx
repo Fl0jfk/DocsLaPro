@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Logo from "../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
 
 type NiveauScolaire = "maternelle" | "elementaire" | "college" | "lycee";
 
@@ -65,11 +66,11 @@ export default function SimulateurTarifs() {
   }, [revenu, foyer, enfants]);
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 bg-white border border-slate-200 rounded-3xl shadow-2xl my-10 font-sans text-slate-800">
-        <div className="flex items-end justify-between  mb-4">
-            <Image src="/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp" width={100} height={100} alt="logo"/>
+        <div className="flex items-end justify-between mb-4">
+            <Image src={Logo} width={100} height={100} alt="logo"/>
             <div>
-                <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Simulateur de Tarifs</h2>
-                <p className="text-sm font-bold text-blue-600">La Providence Nicolas Barré • 2026 / 2027</p>
+                <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 text-end">Simulateur de Tarifs</h2>
+                <p className="text-sm font-bold text-blue-600 text-end">La Providence Nicolas Barré • 2026 / 2027</p>
             </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-100">
@@ -138,7 +139,7 @@ export default function SimulateurTarifs() {
             </button>
         </div>
         <div className="bg-blue-600 text-white rounded-3xl p-8 shadow-xl shadow-blue-200 relative overflow-hidden">
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6">
+            <div className="relative z-10 flex flex-col justify-between items-center w-full gap-6">
                 <div className="space-y-4 w-full text-white">
                     <div className="flex justify-between border-b border-blue-500 pb-2">
                         <span className="text-sm font-bold opacity-80">Contribution Familiale {enfants.length >= 3 && "(Remise -10% incluse)"}</span>
@@ -148,14 +149,14 @@ export default function SimulateurTarifs() {
                         <span className="text-sm font-bold opacity-80">Restauration & Services</span>
                         <span className="font-black">{resultat.reste.toFixed(2)} €</span>
                     </div>
-                    <div className="flex justify-between pt-2">
+                    <div className="flex justify-end pt-2">
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Total Mensuel Estimé</p>
                             <p className="text-4xl font-black">{resultat.total.toFixed(2)} € <small className="text-sm font-normal">/ mois</small></p>
                         </div>
                     </div>
                 </div>
-                <div className="bg-white text-blue-600 p-4 rounded-2xl text-[10px] font-bold uppercase leading-tight md:w-48 text-center">Estimation sur 10 mois, hors options facultatives et assurance.</div>
+                <div className="bg-white text-blue-600 p-4 rounded-2xl text-[10px] font-bold uppercase leading-tight md:w-64 text-center">Estimation sur 10 mois, hors options facultatives et assurance.</div>
             </div>
         </div>
     </div>

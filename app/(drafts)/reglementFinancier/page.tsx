@@ -1,15 +1,17 @@
 import Image from "next/image";
+import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
+import QR from "../../../public/QR Code Simulateur Tarifs.png"
 
 export default function ReglementFinancier() {
   return (
     <div className="max-w-5xl mx-auto pt-8 pb-4 px-10 bg-white text-slate-800 font-sans shadow-2xl my-10 rounded-sm border border-slate-100" id="mon-flyer-a-imprimer">
-      <header className="flex justify-between items-end pb-4">
-          <Image src={"/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"} width={110} height={110} alt="logo"/>
+      <div className="flex justify-between items-end pb-4">
+          <Image src={Logo} width={110} height={110} alt="logo"/>
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">Règlement Financier</h1>
             <p className="text-xl font-bold text-blue-700 tracking-widest">ANNÉE SCOLAIRE 2026 / 2027</p>
           </div>
-      </header>
+      </div>
       <section className="mb-4">
         <div className="bg-slate-900 text-white p-3 mb-4 flex justify-between items-center">
           <h2 className="text-sm font-bold uppercase tracking-widest">01. Contribution Familiale Mensuelle (sur 10 mois)</h2>
@@ -108,7 +110,7 @@ export default function ReglementFinancier() {
           <div className="grid grid-cols-4 gap-4 text-[10px] uppercase font-bold">
             <div className="bg-slate-50 p-3">Pôle Culturel Collège<br/><span className="text-sm">0,50 €</span></div>
             <div className="bg-slate-50 p-3">Pôle Culturel Lycée<br/><span className="text-sm">1,50 €</span></div>
-            <div className="bg-slate-100 p-3 text-blue-800">A.P.E.L. (par Famille)<br/><span className="text-sm">1,604 €</span><span className="ml-12 text-[7px]">facultative</span></div>
+            <div className="bg-slate-100 p-3 text-blue-800">A.P.E.L. (par Famille)<br/><span className="text-sm">1,7 €</span><span className="ml-12 text-[7px]">facultative</span></div>
             <div className="bg-slate-100 p-3 text-blue-800">Assurance Scolaire<br/><span className="text-sm">0,85 €</span><span className="ml-12 text-[7px]">facultative</span></div>
           </div>
         </section>
@@ -121,7 +123,7 @@ export default function ReglementFinancier() {
           <p className="font-black text-[9px] leading-tight uppercase mb-1">Simulateur</p>
           <p className="font-bold text-[11px] italic mb-1">Vos Tarifs</p>
           <div className="p-1 bg-white rounded-lg mb-1">
-            <Image src="/QR Code Simulateur Tarifs.png" width={100} height={100} alt="QR Simulateur" quality={100}/>
+            <Image src={QR} width={100} height={100} alt="QR Simulateur" quality={100}/>
           </div>
         </div>
         <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-3">
