@@ -171,7 +171,7 @@ export default function OneDriveUpDocsOCRAI() {
         }
       }
       if (!extractedText) throw new Error("Timeout OCR : aucun texte retourné");
-      const r4 = await fetch("/api/agentIAOCR/analyze-doc", {
+      const r4 = await fetch("/api/agentIAOCR/analyze-doc-match-eleve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: extractedText }),

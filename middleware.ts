@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 const isPublicRoute = createRouteMatcher([
   '/travels/(.*)/devis',
-  '/api/public/(.*)',
+  '/api/portes-ouvertes/(.*)',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/portesouvertes(.*)',
