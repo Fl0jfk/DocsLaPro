@@ -96,7 +96,6 @@ export async function POST(req: Request) {
         "période": "..."
       }
     `;
-
     const extractionResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -110,41 +109,28 @@ export async function POST(req: Request) {
         response_format: { type: "json_object" }
       })
     });
-
     if (!extractionResponse.ok) {
       const err = await extractionResponse.text();
       return NextResponse.json({ error: `Erreur Mistral extraction: ${err}` }, { status: extractionResponse.status });
     }
-
     const extractionData = await extractionResponse.json();
     let extractionResult = extractionData.choices?.[0]?.message?.content || '';
-    
-    // NETTOYAGE STRICT (COPIER-COLLER DE TON CODE)
     extractionResult = extractionResult.trim();
     extractionResult = extractionResult.replace(/`{3}json/gi, '');
     extractionResult = extractionResult.replace(/`{3}/g, '');
     extractionResult = extractionResult.replace(/\n/g, ' ');
     extractionResult = extractionResult.trim();
-    extractionResult = extractionResult
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/.*/g, '')
-      .replace(/,\s*\*\(.*?\)\*/g, '');
-
+    extractionResult = extractionResult.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '').replace(/,\s*\*\(.*?\)\*/g, '');
     const jsonStartIndex = extractionResult.indexOf('{');
     const jsonEndIndex = extractionResult.lastIndexOf('}');
-    if (jsonStartIndex === -1 || jsonEndIndex === -1) {
-      return NextResponse.json({ error: "Aucun JSON trouvé dans la réponse", brut: extractionResult }, { status: 500 });
-    }
-
+    if (jsonStartIndex === -1 || jsonEndIndex === -1) { return NextResponse.json({ error: "Aucun JSON trouvé dans la réponse", brut: extractionResult }, { status: 500 })}
     const cleanJson = extractionResult.substring(jsonStartIndex, jsonEndIndex + 1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let extracted: any;
     try {
       extracted = JSON.parse(cleanJson);
     } catch (parseError) {
-      const superCleanJson = cleanJson
-        .replace(/\s+/g, ' ')
-        .replace(/,\s*}/g, '}')
-        .replace(/,\s*]/g, ']');
+      const superCleanJson = cleanJson.replace(/\s+/g, ' ').replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
       try {
         extracted = JSON.parse(superCleanJson);
       } catch {
@@ -156,42 +142,25 @@ export async function POST(req: Request) {
           }, { status: 500 });
       }
     }
-
-    // --- LOGIQUE DE MATCHING FUSIONNÉE (STRICTE) ---
     let oneDriveFolderPath: string | null = null;
     let matchedEleve: { ine: string; nom: string; prenom: string; folderName: string } | null = null;
-
     try {
       const eleves = await getElevesFromS3();
       const { ine, nom, prénom } = extracted;
-
-      // 1. Check par INE
       if (ine && ine !== "non_trouvé") {
         const ineTrim = ine.trim().toUpperCase();
         const found = eleves.find((e) => e.ine && e.ine.trim().toUpperCase() === ineTrim);
-        if (found) {
-          matchedEleve = found;
-        }
+        if (found) {matchedEleve = found}
       }
-
-      // 2. Si pas trouvé par INE, check par Nom/Prénom
       if (!matchedEleve && nom && prénom && nom !== "non_trouvé" && prénom !== "non_trouvé") {
         const scored = eleves.map((e) => ({
           eleve: e,
           score: nameSimilarity(nom, prénom, e.nom, e.prenom),
         }));
-
-        const sorted = scored
-          .filter((s) => s.score > 0)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 5);
-
+        const sorted = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score).slice(0, 5);
         if (sorted.length > 0) {
           const shortlist = sorted.map((s) => s.eleve);
-          const shortlistDescription = shortlist
-            .map((e, idx) => `${idx + 1}. INE: ${e.ine}, Nom: ${e.nom}, Prénom: ${e.prenom}, Dossier: ${e.folderName}`)
-            .join("\n");
-
+          const shortlistDescription = shortlist.map((e, idx) => `${idx + 1}. INE: ${e.ine}, Nom: ${e.nom}, Prénom: ${e.prenom}, Dossier: ${e.folderName}`).join("\n");
           const selectionPrompt = `
             Tu es un système qui associe un document scolaire à l'élève correspondant.
             Voici le texte OCR brut du document :
@@ -213,7 +182,6 @@ export async function POST(req: Request) {
             {"index": 2}
             etc.
             `;
-
           const selectionResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -227,7 +195,6 @@ export async function POST(req: Request) {
               response_format: { type: "json_object" },
             }),
           });
-
           if (selectionResponse.ok) {
             const selectionData = await selectionResponse.json();
             let content = (selectionData.choices?.[0]?.message?.content || "").trim();
@@ -244,8 +211,6 @@ export async function POST(req: Request) {
           }
         }
       }
-
-      // 3. Attribution du dossier OneDrive
       if (matchedEleve?.folderName) {
         const userBase = (lastName && USER_ONEDRIVE_BASES[lastName]) || "Dossier élèves/Lycée";
         oneDriveFolderPath = `${userBase}/${matchedEleve.folderName}`;
@@ -253,8 +218,6 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("Erreur matching interne:", e);
     }
-
-    // --- LOGIQUE DE NOMMAGE (STRICTE) ---
     const namingPrompt = `
       Tu es un système de nommage de fichiers pour une école.
 
@@ -277,7 +240,6 @@ export async function POST(req: Request) {
         - Relevé de notes du semestre2 2nde PETIT Marie
       Réponds UNIQUEMENT avec le nom de fichier (sans extension), rien d'autre. Pas de ponctuation finale.
     `;
-
     const namingResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -290,20 +252,13 @@ export async function POST(req: Request) {
         temperature: 0
       })
     });
-
     if (!namingResponse.ok) {
       const err = await namingResponse.text();
       return NextResponse.json({ error: `Erreur Mistral naming: ${err}` }, { status: namingResponse.status });
     }
-
     const namingData = await namingResponse.json();
     let fileName = namingData.choices?.[0]?.message?.content?.trim() || '';
-    fileName = fileName
-      .replace(/[<>:"/\\|?*]/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '');
-
-    // --- RÉPONSE FINALE ---
+    fileName = fileName.replace(/[<>:"/\\|?*]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     return NextResponse.json({
       ...extracted,
       eleve: {
@@ -318,7 +273,6 @@ export async function POST(req: Request) {
       oneDriveFolderPath,
       matchedEleve,
     });
-
   } catch (error) {
     console.error('Erreur analyse Mistral:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
