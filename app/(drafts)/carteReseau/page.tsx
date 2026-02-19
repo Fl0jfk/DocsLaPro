@@ -3,7 +3,7 @@ import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovi
 
 export default function CarteRéseau() {
   return (
-    <main className="flex flex-col overflow-hidden bg-[rgba(207, 207, 216, 1)] p-4 self-center items-center justify-between text-[10px] gap-12 my-auto relative" style={{ width: "1123px", height: "794px" }}>
+    <section className="flex flex-col overflow-hidden bg-gray-100 p-4 self-center items-center justify-between text-[10px] gap-12 my-auto relative" style={{ width: "1123px", height: "794px" }}>
       <svg className="absolute inset-0 pointer-events-none z-50" viewBox="0 0 1123 794" preserveAspectRatio="none">
           <defs>
             <marker id="arrow" markerWidth="6" markerHeight="6"  refX="6" refY="3"  orient="auto-start-reverse">
@@ -272,7 +272,7 @@ export default function CarteRéseau() {
             <div className="flex flex-col rounded-xl p-2 bg-gray-400 bg-white">
               <p className="font-bold">Instances éducatives</p>
               <p>Ministère de l&apos;éducation nationale E.GEFFRAY</p>
-              <p>Académie de Normandie C. GAVINI-CHEVET</p>
+              <p>Académie de Normandie V. CABUIL</p>
             </div>
             <div className="flex flex-col rounded-xl p-2 bg-gray-400 bg-white">
               <p className="font-bold">Collectivités territoriales</p>
@@ -409,7 +409,7 @@ export default function CarteRéseau() {
           </div>
         </div>
       </section>
-    </main>
+    </section>
   );
 }
 

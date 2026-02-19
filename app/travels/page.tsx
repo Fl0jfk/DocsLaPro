@@ -71,8 +71,6 @@ export default function TripDashboard() {
           + Nouvelle demande
         </button>
       </div>
-
-      {/* GRID DE CARTES */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-8">
         {loading ? (
           <div className="col-span-full text-center py-20">Chargement des dossiers...</div>
@@ -128,10 +126,8 @@ export default function TripDashboard() {
                         </p>
                         <p className="text-sm text-slate-500">
                           {trip.type === "COMPLEX" ? (
-                            // Si c'est complexe, on affiche la plage de dates
                             <span>Du {new Date(trip.data.startDate).toLocaleDateString()} au {new Date(trip.data.endDate).toLocaleDateString()}</span>
                           ) : (
-                            // Si c'est simple, on garde l'affichage classique
                             <span>Le {new Date(trip.data.date).toLocaleDateString()}</span>
                           )}
                         </p>

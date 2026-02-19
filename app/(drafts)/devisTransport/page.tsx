@@ -10,11 +10,11 @@ export default function TransportRequestPage() {
     const [tarif, setTarif] = useState("");
     const transporters = ["TRANSPORTS PERIER (stephanie.fouin@cars-perier.fr)","TRANSPORTS REFLEXE (contact.autocars@reflexe-voyages.com)","TRANSPORTS HANGARD (carole@hangard-autocars.com)","TRANSPORTS AUZOUX (contact@auzouxvoyages.fr)", "CARS DENIS (contact@carsdenis.com)"];
     return (
-        <main className="p-4 w-full">
-            <header className="flex gap-16 items-center justify-center">
+        <section className="p-4 w-full">
+            <section className="flex gap-16 items-center justify-center">
                 <Image src={logo} alt="Logo La Providence" width={110} height={110} />
                 <h1 className="text-4xl font-bold">La Providence Nicolas Barré</h1>
-            </header>
+            </section>
             <section className="mt-2 flex flex-col gap-4 items-center w-full mx-auto justify-center">
                 <div className="mb-4 w-full text-xl">
                     <h2 className="text-2xl font-bold underline mb-4">Informations :</h2>
@@ -82,6 +82,6 @@ export default function TransportRequestPage() {
                     </div>
                 </div>
             </section>
-        </main>
+        </section>
     );
 }
