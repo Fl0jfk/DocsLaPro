@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     const mailOptions = {
       from: `"Gestion Sorties" <${process.env.EMAIL_USER}>`,
-      to: "chef.0056isi@newrest.eu",
+      to: "flojfk@gmail.com",
       cc: userEmail,
       subject: `Commande Cuisine - ${userName} - ${tripData.data.title}`,
       text: `Bonjour Chef,\n\nVeuillez trouver ci-joint le bon de commande de restauration pour le projet "${tripData.data.title}" prévu du ${tripData.data.startDate} au ${tripData.data.endDate}.\n\nCordialement,\n${userName}`,
