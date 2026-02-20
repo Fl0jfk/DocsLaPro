@@ -39,7 +39,12 @@ const ContentSecurityPolicy = `
 `;
 
 export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) { await auth.protect()}
+  if (isPublicRoute(request)) {
+    const response = NextResponse.next();
+    response.headers.set("Content-Security-Policy", ContentSecurityPolicy.replace(/\n/g, " "));
+    return response;
+  }
+  await auth.protect();
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", ContentSecurityPolicy.replace(/\n/g, " "));
   return response;
