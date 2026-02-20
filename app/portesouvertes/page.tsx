@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import Logo from "../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
 
 export default function PortesOuvertesPage() {
   const [loading, setLoading] = useState(false);
@@ -78,21 +79,21 @@ export default function PortesOuvertesPage() {
   }
   return (
     <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-8 flex flex-col gap-4 mt-4">
-      <Image src="/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp" width={150} height={150} alt="logo" className="self-center"/>
+      <Image src={Logo} width={150} height={150} alt="logo" className="self-center"/>
       <h1 className="text-3xl font-bold">Inscription aux portes ouvertes du 14 mars 2026</h1>
-      <input autoComplete="family-name" type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl"/>
-      <input autoComplete="given-name" type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl"/>
-      <input name="email" type="email" placeholder="Email" required className="p-2 rounded-xl"/>
-      <input name="telephone" type="tel" placeholder="Téléphone" required className="p-2 rounded-xl"/>
-      <input autoComplete="family-name" type="text" name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl"/>
-      <input autoComplete="off" type="text" name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl"/>
-      <select name="etablissement" required className="p-2 rounded-xl">
+      <input autoComplete="family-name" type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl bg-white"/>
+      <input autoComplete="given-name" type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl bg-white"/>
+      <input name="email" type="email" placeholder="Email" required className="p-2 rounded-xl bg-white"/>
+      <input name="telephone" type="tel" placeholder="Téléphone" required className="p-2 rounded-xl bg-white"/>
+      <input autoComplete="family-name" type="text" name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl bg-white"/>
+      <input autoComplete="off" type="text" name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl bg-white"/>
+      <select name="etablissement" required className="p-2 rounded-xl bg-white">
         <option value="">Établissement qui vous intéresse</option>
         <option value="Ecole">École</option>
         <option value="Collège">Collège</option>
         <option value="Lycée">Lycée</option>
       </select>
-      <select name="classe" required className="p-2 rounded-xl">
+      <select name="classe" required className="p-2 rounded-xl bg-white">
         <option value="">Classe qui vous intéresse pour votre enfant </option>
         <option value="Petite section">Petite section</option>
         <option value="Moyenne section">Moyenne section</option>
@@ -112,7 +113,7 @@ export default function PortesOuvertesPage() {
         <option value="Terminale ST2S">Terminale ST2S</option>
         <option value="Terminale générale">Terminale générale</option>
       </select>
-      <select name="horaire" required className="p-2 rounded-xl">
+      <select name="horaire" required className="p-2 rounded-xl bg-white">
         <option value="">Choisissez un horaire</option>
         <option value="08:30">08:30</option>
         <option value="09:00">09:00</option>
