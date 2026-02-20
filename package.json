@@ -38,15 +38,14 @@
     "@types/qrcode": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "eslint": "^9.15.0",
-    "eslint-config-next": "latest",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "15.1.6",
     "postcss": "latest",
     "tailwindcss": "latest",
     "typescript": "latest"
   },
   "overrides": {
     "ajv": "^8.18.0",
-    "minimatch": "^10.2.1",
-    "eslint": "^9.15.0"
+    "minimatch": "^10.2.1"
   }
 }
