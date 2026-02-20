@@ -1,5 +1,5 @@
-import Image from "next/image";
-import LogoJapon from "../../../public/Logo La Providence JAPON.jpg"
+/*import Image from "next/image";
+import LogoJapon from "../../../public/Logo La Providence JAPON.jpg"*/
 
 export default function AfficheVoyageJapon() {
   return (
@@ -7,7 +7,7 @@ export default function AfficheVoyageJapon() {
       <section className="flex flex-col items-start text-center mb-8">
         <div className="flex gap-8">
             <div className="relative inline-block">
-              <Image src={LogoJapon} alt="Logo Nicolas Barré Japon" width={140} height={140} unoptimized quality={100} className="object-contain shadow-2xl"/>  
+             {/*} <Image src={LogoJapon} alt="Logo Nicolas Barré Japon" width={140} height={140} unoptimized quality={100} className="object-contain shadow-2xl"/>*/}  
             </div>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tighter uppercase italic self-center">Destination <span className="text-red-600">Japon</span></h1>
         </div>

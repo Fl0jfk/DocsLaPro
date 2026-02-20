@@ -1,14 +1,14 @@
 "use client"
 
-import Image from "next/image";
-import LogoJapon from "../../../public/Logo_La_Providence_JAPON.png"
+/*import Image from "next/image";
+import LogoJapon from "../../../public/Logo_La_Providence_JAPON.png"*/
 
 export default function AfficheVoyageJaponPrint() {
   return (
     <section className="min-h-screen bg-white text-black font-sans p-8 md:p-16">
       <section className="flex flex-col items-start text-center mb-8">
         <div className="flex gap-8">
-           <Image src={LogoJapon} alt="Logo Nicolas Barré Japon" width={140} height={140} quality={100} unoptimized className="object-contain"/> 
+           {/*<Image src={LogoJapon} alt="Logo Nicolas Barré Japon" width={140} height={140} quality={100} unoptimized className="object-contain"/> */}
             <h1 className="text-5xl md:text-7xl font-bold tracking-tighter uppercase italic self-center text-black">Destination <span className="text-red-600">Japon</span></h1>
         </div>
         <p className="mt-14 text-xl text-gray-600 max-w-2xl self-center">Une odyssée unique entre <span className="text-black font-semibold">tradition ancestrale</span> et <span className="text-black font-semibold">futurisme urbain</span>. Plus qu'un séjour pédagogique, une révélation culturelle.</p>
