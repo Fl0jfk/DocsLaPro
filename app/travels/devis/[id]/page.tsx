@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
 const PROVIDER_EMAILS: Record<string, string> = {
+  "Cars Bleus":"carbleus@mail.fr",
   "Perrier": "perrier-voyages@orange.fr",
   "Reflexe": "florian.hacqueville-mathi@ac-normandie.fr",
   "Hangard": "hangard.autocars@outlook.fr",

@@ -9,7 +9,6 @@ export default function TripDetails() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isLoaded: isUserLoaded } = useUser();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [trip, setTrip] = useState<any>(null);
   const [loadingAction, setLoadingAction] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -22,10 +21,8 @@ export default function TripDetails() {
   const isDirectionCollege = userRoles.includes('direction collège');
   const isDirectionEcole = userRoles.includes('direction école');
   const isDirection = isDirectionLycee || isDirectionCollege || isDirectionEcole;
-  
   const isCompta = userRoles.includes('comptabilité');
   const isOwner = user?.fullName === trip?.ownerName;
-  
   const canManageFiles = isOwner || isDirection || isCompta;
 
   useEffect(() => {
@@ -59,11 +56,80 @@ export default function TripDetails() {
     }
   };
 
+  const saveUpdates = async (updatedTrip: any) => {
+    try {
+      const res = await fetch('/api/travels/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: trip.id, data: updatedTrip })
+      });
+      if (res.ok) {
+        setTrip(updatedTrip);
+        setEditedData(updatedTrip.data);
+      }
+    } catch (err) {
+      console.error("Erreur sauvegarde:", err);
+    }
+  };
+
+  const handleFinalValidation = async () => {
+    setLoadingAction(true);
+    try {
+      let finalAttachments = [...(trip.data.attachments || [])];
+      
+      // 1. Génération Circulaire
+      const circRes = await fetch('/api/travels/generate-circular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tripData: trip })
+      });
+      
+      if (circRes.ok) {
+        const { pdf } = await circRes.json();
+        const fileName = `Circulaire_${trip.data.title.replace(/\s+/g, '_')}.pdf`;
+        
+        const uploadRes = await fetch('/api/travels/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName, fileType: "application/pdf" })
+        });
+        
+        const { uploadUrl, fileUrl } = await uploadRes.json();
+        const base64Content = pdf.split(',')[1];
+        const byteArray = new Uint8Array(atob(base64Content).split("").map(c => c.charCodeAt(0)));
+        await fetch(uploadUrl, { method: 'PUT', body: new Blob([byteArray], { type: 'application/pdf' }) });
+        
+        finalAttachments.push({ name: `📄 Circulaire Parents`, url: fileUrl });
+      }
+
+      // 2. Cuisine
+      if (trip.data.piqueNiqueDetails?.active) {
+        await fetch('/api/travels/send-cuisine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            tripData: trip, 
+            userEmail: user?.primaryEmailAddress?.emailAddress,
+            userName: trip.ownerName 
+          })
+        });
+      }
+
+      // 3. Valider définitivement le dossier
+      await handleAction("VALIDATED", "Dossier validé. Circulaire générée et commande cuisine envoyée.", { attachments: finalAttachments });
+      alert("Dossier validé ! La circulaire a été ajoutée aux documents.");
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la validation finale.");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!canManageFiles) return;
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploading(true);
     try {
       const res = await fetch('/api/travels/upload', {
@@ -72,25 +138,15 @@ export default function TripDetails() {
         body: JSON.stringify({ fileName: file.name, fileType: file.type })
       });
       const { uploadUrl, fileUrl } = await res.json();
-      await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type }
-      });
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
       const newAttachment = { name: file.name, url: fileUrl };
+      const currentAttachments = isEditing ? (editedData.attachments || []) : (trip.data.attachments || []);
+      const updatedAttachments = [...currentAttachments, newAttachment];
+      
       if (isEditing) {
-        setEditedData((prev: any) => ({
-          ...prev,
-          attachments: [...(prev.attachments || []), newAttachment]
-        }));
+        setEditedData((prev: any) => ({ ...prev, attachments: updatedAttachments }));
       } else {
-        const updatedTrip = {
-          ...trip,
-          data: {
-            ...trip.data,
-            attachments: [...(trip.data.attachments || []), newAttachment]
-          }
-        };
+        const updatedTrip = { ...trip, data: { ...trip.data, attachments: updatedAttachments } };
         await saveUpdates(updatedTrip);
       }
     } catch (error) {
@@ -103,48 +159,27 @@ export default function TripDetails() {
 
   const removeFile = async (index: number) => {
     if (!canManageFiles) return;
+    const currentAttachments = isEditing ? (editedData.attachments || []) : (trip.data.attachments || []);
+    const updatedFiles = currentAttachments.filter((_: any, i: number) => i !== index);
     if (isEditing) {
-      const updatedFiles = (editedData.attachments || []).filter((_: any, i: number) => i !== index);
       setEditedData({ ...editedData, attachments: updatedFiles });
     } else {
-      const updatedFiles = (trip.data.attachments || []).filter((_: any, i: number) => i !== index);
-      const updatedTrip = {
-        ...trip,
-        data: { ...trip.data, attachments: updatedFiles }
-      };
+      const updatedTrip = { ...trip, data: { ...trip.data, attachments: updatedFiles } };
       await saveUpdates(updatedTrip);
-    }
-  };
-
-  const saveUpdates = async (updatedTrip: any) => {
-    try {
-      const res = await fetch('/api/travels/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: trip.id, data: updatedTrip })
-      });
-      if (res.ok) setTrip(updatedTrip);
-    } catch (err) {
-      console.error("Erreur sauvegarde:", err);
     }
   };
 
   const handleAction = async (newStatus: string, note: string = "", extraData: any = null) => {
     setLoadingAction(true);
-    const finalData = isEditing ? editedData : (extraData ? { ...trip.data, ...extraData } : trip.data);
-    
+    const baseData = isEditing ? { ...trip.data, ...editedData } : trip.data;
+    const finalData = extraData ? { ...baseData, ...extraData } : baseData;
     const updatedTrip = {
       ...trip,
       status: newStatus,
       data: finalData,
       history: [
         ...(trip.history || []),
-        {
-          date: new Date().toISOString(),
-          user: user?.fullName,
-          action: newStatus,
-          note: note
-        }
+        { date: new Date().toISOString(), user: user?.fullName, action: newStatus, note: note }
       ]
     };
     await saveUpdates(updatedTrip);
@@ -154,103 +189,46 @@ export default function TripDetails() {
 
   const selectBusQuote = async (quote: any) => {
     if (!confirm(`Confirmer le choix de ${quote.providerName} ? Cela informera la direction pour signature.`)) return;
-    
-    const updatedTrip = {
-      ...trip,
-      status: "PENDING_BUS_SIGNATURE",
-      data: { 
-        ...trip.data, 
-        selectedBusQuote: quote,
-      },
-    };
+    const updatedTrip = { ...trip, status: "PENDING_BUS_SIGNATURE", data: { ...trip.data, selectedBusQuote: quote } };
     await saveUpdates(updatedTrip);
   };
 
   const signBusQuote = async () => {
     if (!confirm("Voulez-vous signer le devis et envoyer la commande au transporteur ?")) return;
     const transporteurEmail = trip.data.selectedBusQuote?.email || trip.data.selectedBusQuote?.providerEmail;
-    if (!transporteurEmail) {
-      alert("Erreur : Impossible de trouver l'adresse email du transporteur.");
-      return;
-    }
+    if (!transporteurEmail) return alert("Erreur : Email transporteur introuvable.");
+    
     setLoadingAction(true);
-    let sigType = "";
-    if (userRoles.includes('direction école')) sigType = "ecole";
-    else if (userRoles.includes('direction collège')) sigType = "college";
-    else if (userRoles.includes('direction_lycee')) sigType = "lycee";
-
-    if (!sigType) {
-      alert("Erreur de rôle.");
-      setLoadingAction(false);
-      return;
-    }
+    let sigType = userRoles.includes('direction école') ? "ecole" : userRoles.includes('direction collège') ? "college" : userRoles.includes('direction_lycee') ? "lycee" : "";
+    if (!sigType) return alert("Erreur de rôle.");
 
     try {
-      console.log("1. Demande de signature PDF...");
       const signRes = await fetch('/api/travels/sign-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          quoteUrl: trip.data.selectedBusQuote.fileUrl, 
-          signatureType: sigType 
-        })
+        body: JSON.stringify({ quoteUrl: trip.data.selectedBusQuote.fileUrl, signatureType: sigType })
       });
-
-      if (!signRes.ok) throw new Error("Erreur lors de la signature PDF");
       const { signedPdfData } = await signRes.json();
-      console.log("2. PDF signé reçu (base64)");
-      const base64Content = signedPdfData.split(',')[1];
-      const byteCharacters = atob(base64Content);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      console.log("3. Demande d'URL d'upload...");
       const fileName = `Devis_Signe_${trip.data.selectedBusQuote.providerName.replace(/\s+/g, '_')}.pdf`;
       const uploadRes = await fetch('/api/travels/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName, fileType: "application/pdf" })
       });
-      
       const { uploadUrl, fileUrl } = await uploadRes.json();
+      const byteArray = new Uint8Array(atob(signedPdfData.split(',')[1]).split("").map(c => c.charCodeAt(0)));
+      await fetch(uploadUrl, { method: 'PUT', body: new Blob([byteArray], { type: 'application/pdf' }) });
 
-      console.log("4. Upload vers S3...");
-      await fetch(uploadUrl, { 
-        method: 'PUT', 
-        body: blob, 
-        headers: { 'Content-Type': 'application/pdf' } 
-      });
-
-      console.log("5. Envoi du mail au transporteur...");
       await fetch('/api/travels/send-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tripId: trip.id,
-          tripTitle: trip.data.title,
-          providerEmail: transporteurEmail,
-          signedQuoteUrl: fileUrl,
-          providerName: trip.data.selectedBusQuote.providerName
-        })
+        body: JSON.stringify({ tripId: trip.id, tripTitle: trip.data.title, providerEmail: transporteurEmail, signedQuoteUrl: fileUrl, providerName: trip.data.selectedBusQuote.providerName })
       });
 
       const newAttachment = { name: `✅ ${fileName}`, url: fileUrl };
-      const extraData = {
-        attachments: [...(trip.data.attachments || []), newAttachment],
-        signedQuoteUrl: fileUrl
-      };
-
-      console.log("6. Mise à jour du statut du dossier...");
-      handleAction("PENDING_COMPTA", `Devis signé (${sigType}) et commande envoyée à ${trip.data.selectedBusQuote.providerName}`, extraData);
-      
-      alert("Succès : Devis signé et envoyé !");
-
-    } catch (err: any) {
-      console.error("Erreur complète:", err);
-      alert("Erreur lors du processus : " + err.message);
+      handleAction("PENDING_COMPTA", `Devis signé et commande envoyée`, { attachments: [...(trip.data.attachments || []), newAttachment], signedQuoteUrl: fileUrl });
+    } catch (err) {
+      alert("Erreur lors de la signature.");
     } finally {
       setLoadingAction(false);
     }
@@ -275,18 +253,45 @@ export default function TripDetails() {
     : [
         { n: "1", label: "Pédagogie", key: "PENDING_DIR_INITIAL" }, 
         { n: "2", label: "Finances", key: "PENDING_COMPTA" }, 
-        { n: "3", label: "Finalisé", key: "VALIDATED" }
+        { n: "3", label: "Validation", key: "PENDING_DIR_FINAL" }, 
+        { n: "4", label: "Finalisé", key: "VALIDATED" }
       ];
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
+    <div className="relative max-w-5xl mx-auto p-6 space-y-8">
+      
+      {/* LOADING OVERLAY AU MILIEU DE LA PAGE */}
+      {loadingAction && (
+        <div className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in fade-in zoom-in duration-300">
+            <div className="relative flex justify-center">
+              <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+              <span className="absolute inset-0 flex items-center justify-center text-xl">📄</span>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-slate-900">Génération de la circulaire</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                Analyse des documents en cours. Cela peut prendre <strong>une dizaine de secondes</strong>. 
+                <br /><br />
+                <span className="text-indigo-600 font-semibold italic">Merci de ne pas quitter cette page.</span>
+              </p>
+            </div>
+            <div className="bg-indigo-50 p-4 rounded-2xl">
+              <p className="text-[11px] text-indigo-700 font-medium">
+                💡 Une fois terminé, le document se trouvera dans les pièces du dossier sous le nom <strong>"Circulaire Parents"</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {trip.status === "NEED_MODIFICATION" && !isEditing && (
         <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 text-left">
             <span className="text-3xl">⚠️</span>
             <div>
               <p className="font-bold text-orange-900">Action requise : Modifications demandées</p>
-              <p className="text-orange-700 text-sm">Seul le créateur du projet peut modifier ces informations.</p>
+              <p className="text-orange-700 text-sm italic">"{trip.history?.[trip.history.length - 1]?.note}"</p>
             </div>
           </div>
           {isOwner && (
@@ -301,12 +306,11 @@ export default function TripDetails() {
         <button onClick={() => router.push('/travels')} className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-2xl font-bold transition-all active:scale-95">
           ← Retour
         </button>
-
         {isEditing && (
           <div className="flex gap-2">
             <button onClick={() => setIsEditing(false)} className="bg-slate-200 text-slate-700 px-6 py-2.5 rounded-2xl font-bold">Annuler</button>
             <button 
-              onClick={() => handleAction("PENDING_DIR_INITIAL", "Modifications effectuées")}
+              onClick={() => handleAction(trip.data.previousStatus || "PENDING_DIR_INITIAL", "Modifications effectuées")}
               disabled={uploading}
               className="bg-green-600 text-white px-6 py-2.5 rounded-2xl font-bold shadow-lg disabled:opacity-50"
             >
@@ -335,7 +339,7 @@ export default function TripDetails() {
       </div>
 
       {trip.data.needsBus && trip.type === "COMPLEX" && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-8 space-y-6">
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-8 space-y-6 text-left">
           <h2 className="text-xl font-bold text-amber-900 flex items-center gap-2">🚌 Gestion des devis Transport</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
@@ -359,7 +363,6 @@ export default function TripDetails() {
                 <p className="text-xs text-slate-400 italic">En attente de devis via le lien public...</p>
               )}
             </div>
-
             <div className="bg-white/60 rounded-2xl p-6 border border-amber-200 flex flex-col justify-center items-center text-center">
               {trip.data.selectedBusQuote ? (
                 <>
@@ -389,7 +392,6 @@ export default function TripDetails() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
           <DetailItem label="Destination" value={trip.data.destination} />
           <EditableDetail isEditing={isEditing} label="Classes concernées" value={isEditing ? editedData.classes : trip.data.classes} onChange={(v) => setEditedData({...editedData, classes: v})} />
-
           <div className="flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Effectifs</span>
             {isEditing ? (
@@ -401,9 +403,7 @@ export default function TripDetails() {
               <span className="text-slate-700 font-medium">{trip.data.nbEleves} élèves | {trip.data.nbAccompagnateurs || "0"} accompagnateurs</span>
             )}
           </div>
-
           <EditableDetail isEditing={isEditing} label="Noms des accompagnateurs" value={isEditing ? editedData.nomsAccompagnateurs : trip.data.nomsAccompagnateurs} onChange={(v) => setEditedData({...editedData, nomsAccompagnateurs: v})} />
-
           <div className="flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dates</span>
             {isEditing ? (
@@ -415,7 +415,6 @@ export default function TripDetails() {
               <span className="text-slate-700 font-medium">{trip.type === "COMPLEX" ? `Du ${formatSafeDate(trip.data.startDate)} au ${formatSafeDate(trip.data.endDate)}` : `Le ${formatSafeDate(trip.data.date)}`}</span>
             )}
           </div>
-
           <div className="flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Horaires</span>
             {isEditing ? (
@@ -427,7 +426,6 @@ export default function TripDetails() {
               <span className="text-slate-700 font-medium">{`Départ: ${trip.data.startTime} | Retour: ${trip.data.endTime}`}</span>
             )}
           </div>
-
           <div className="flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Budget prévisionnel</span>
             {isEditing ? (
@@ -444,7 +442,6 @@ export default function TripDetails() {
               </div>
             )}
           </div>
-
           <div className="flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Restauration</span>
             {isEditing ? (
@@ -453,10 +450,16 @@ export default function TripDetails() {
                     <span className="text-sm font-medium text-slate-700">Pique-nique à prévoir</span>
                 </div>
             ) : (
-                <span className="text-slate-700 font-medium">{trip.data.piqueNique ? "🥪 Pique-nique à prévoir" : "🍴 Pas de pique-nique"}</span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-slate-700 font-medium">{trip.data.piqueNiqueDetails?.active ? "🥪 Pique-nique à prévoir" : "🍴 Pas de pique-nique"}</span>
+                  {trip.data.piqueNiqueDetails?.active && (
+                    <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full w-fit">
+                      {trip.data.piqueNiqueDetails.picnicTotal} repas demandés
+                    </span>
+                  )}
+                </div>
             )}
           </div>
-
           <div className="md:col-span-2 flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Objectifs pédagogiques</span>
             {isEditing ? (
@@ -469,7 +472,6 @@ export default function TripDetails() {
               <p className="text-slate-700 font-medium mt-1 text-sm leading-relaxed">{trip.data.objectifs || "Aucun objectif renseigné."}</p>
             )}
           </div>
-
           <div className="md:col-span-2 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-50 pb-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Documents et Devis</span>
@@ -490,14 +492,14 @@ export default function TripDetails() {
                     <button type="button" onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 px-1 font-bold text-[10px]">✕</button>
                   )}
                 </div>
-              )) || <span className="text-xs text-slate-400 italic">Aucune pièce jointe.</span>}
+              ))}
             </div>
           </div>
         </div>
       </div>
 
       {(isDirection || isCompta) && !isEditing && trip.status !== "NEED_MODIFICATION" && (
-        <div className="bg-slate-900 text-white p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl">
+        <div className="bg-slate-900 text-white p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl text-left">
           <div className="text-center md:text-left">
             <p className="font-bold text-lg">Espace Décisionnaire</p>
             <p className="text-slate-400 text-sm italic">{isCompta ? "Comptabilité" : "Direction"}</p>
@@ -505,15 +507,21 @@ export default function TripDetails() {
           <div className="flex flex-wrap gap-3">
             {((isDirection && (trip.status === 'PENDING_DIR_INITIAL' || trip.status === 'PENDING_BUS_SIGNATURE' || trip.status === 'PENDING_DIR_FINAL')) || (isCompta && trip.status === 'PENDING_COMPTA')) && (
               <>
-                <ActionButton label="Refus Définitif" color="bg-red-600" onClick={() => { const n = prompt("Motif du refus définitif :"); if(n) handleAction("REJECTED", n); }} />
-                <ActionButton label="Demander Modifs" color="bg-orange-500" onClick={() => { const n = prompt("Précisez les changements attendus :"); if(n) handleAction("NEED_MODIFICATION", n); }} />
+                {isDirection && (
+                    <ActionButton label="Refus Définitif" color="bg-red-600" onClick={() => { const n = prompt("Motif du refus définitif :"); if(n) handleAction("REJECTED", n); }} />
+                )}
+                <ActionButton label="Demander Modifs" color="bg-orange-500" onClick={() => { 
+                    const n = prompt("Précisez les changements attendus :"); 
+                    if(n) {
+                      const returnTo = trip.status === "PENDING_DIR_FINAL" ? "PENDING_COMPTA" : trip.status;
+                      handleAction("NEED_MODIFICATION", n, { previousStatus: returnTo }); 
+                    }
+                }} />
               </>
             )}
-
             {isDirection && trip.status === 'PENDING_DIR_INITIAL' && (
               <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction(trip.type === "COMPLEX" ? "PROF_LOGISTICS" : "PENDING_COMPTA", "Pédagogie validée")} />
             )}
-
             {isCompta && trip.status === 'PENDING_COMPTA' && (
               <ActionButton label="Valider Budget Global" color="bg-green-600" onClick={() => { 
                 const total = prompt("Montant GLOBAL final (€) :");
@@ -523,9 +531,12 @@ export default function TripDetails() {
                 }
               }} />
             )}
-
             {isDirection && trip.status === 'PENDING_DIR_FINAL' && (
-              <ActionButton label="Validation Finale Dossier" color="bg-green-600" onClick={() => handleAction("VALIDATED", "Dossier validé par la Direction")} />
+              <ActionButton 
+                label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"} 
+                color="bg-green-600" 
+                onClick={handleFinalValidation} 
+              />
             )}
           </div>
         </div>

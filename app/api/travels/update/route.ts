@@ -98,7 +98,6 @@ export async function POST(req: Request) {
       const indexBody = await indexRes.Body?.transformToString();
       if (indexBody) currentIndex = JSON.parse(indexBody);
     } catch (e) {
-      console.log("Premier voyage : création de l'index.");
     }
     const tripSummary = {
       id: tripId,
@@ -115,6 +114,7 @@ export async function POST(req: Request) {
         nomsAccompagnateurs: innerData.nomsAccompagnateurs || [],
         classes: innerData.classes || [],
         piqueNique: innerData.piqueNique || false,
+        piqueNiqueDetails: innerData.piqueNiqueDetails || null,
         date: innerData.date || null, 
         startDate: innerData.startDate || innerData.date || null,
         endDate: innerData.endDate || innerData.date || null,

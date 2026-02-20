@@ -24,9 +24,28 @@ function SimpleTripFormContent() {
     nomsAccompagnateurs: "",
     coutTotal: 0,
     piqueNique: false,
+    // DONNÉES CUISINE DÉTAILLÉES
+    cuisineDetails: {
+      deliveryTime: "",
+      deliveryPlace: "Self", // Self ou Bosco
+      picnicTotal: "",
+      picnicNoPork: "",
+      picnicVeg: "",
+      selfAdults: "",
+      selfStudents: "",
+      breakCoffee: false,
+      breakJuice: false,
+      breakCakes: false,
+      breakViennoiseries: false,
+      breakOther: "",
+      daysSelection: {
+        lundi: false, mardi: false, mercredi: false, jeudi: false, vendredi: false
+      }
+    },
     description: "",
     attachments: [] as { name: string; url: string }[]
   });
+
   useEffect(() => {
     if (editId && isLoaded) {
       setFetching(true);
@@ -36,7 +55,8 @@ function SimpleTripFormContent() {
           if (trip && trip.data) {
             setFormData({
               ...trip.data,
-              attachments: trip.data.attachments || []
+              attachments: trip.data.attachments || [],
+              cuisineDetails: trip.data.cuisineDetails || formData.cuisineDetails
             });
           }
           setFetching(false);
@@ -47,6 +67,7 @@ function SimpleTripFormContent() {
         });
     }
   }, [editId, isLoaded]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -67,7 +88,6 @@ function SimpleTripFormContent() {
         ...prev,
         attachments: [...(prev.attachments || []), { name: file.name, url: fileUrl }]
       }));
-
     } catch (error) {
       console.error(error);
       alert("Erreur lors de l'envoi du fichier.");
@@ -89,13 +109,10 @@ function SimpleTripFormContent() {
       alert("Veuillez préciser le nombre d'élèves pour un voyage avec budget.");
       return;
     }
-    if (formData.coutTotal < 0) {
-      alert("Le budget ne peut pas être négatif.");
-      return;
-    }
     setLoading(true);
+    const tripId = editId || crypto.randomUUID();
     const tripData = {
-      id: editId || crypto.randomUUID(),
+      id: tripId,
       ownerId: user?.id,
       ownerName: user?.fullName,
       ownerEmail: user?.primaryEmailAddress?.emailAddress,
@@ -113,12 +130,11 @@ function SimpleTripFormContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: tripData.id, data: tripData })
       });
-
       if (response.ok) {
         router.push("/travels");
         router.refresh();
       } else {
-        alert("Erreur lors de la sauvegarde sur AWS");
+        alert("Erreur lors de la sauvegarde");
       }
     } catch (error) {
       console.error(error);
@@ -129,7 +145,7 @@ function SimpleTripFormContent() {
   };
 
   return (
-    <main className="max-w-4xl mx-auto p-8">
+    <main className="max-w-4xl mx-auto p-8 text-left">
       <div className="mb-8 flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">
@@ -137,9 +153,7 @@ function SimpleTripFormContent() {
           </h1>
           <p className="text-slate-500 font-medium">Proximité, sans transport complexe ni nuitée.</p>
         </div>
-        <button onClick={() => router.back()} className="text-sm font-bold text-indigo-600 hover:underline">
-          Annuler
-        </button>
+        <button onClick={() => router.back()} className="text-sm font-bold text-indigo-600 hover:underline">Annuler</button>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 border rounded-3xl shadow-sm">
@@ -149,142 +163,132 @@ function SimpleTripFormContent() {
 
         <div className="md:col-span-2">
           <label className="block text-sm font-semibold mb-2">Intitulé de la sortie</label>
-          <input 
-            required
-            value={formData.title}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            placeholder="Ex: Sortie Laser Game"
-            onChange={e => setFormData({...formData, title: e.target.value})}
-          />
+          <input required value={formData.title} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Ex: Sortie Laser Game" onChange={e => setFormData({...formData, title: e.target.value})} />
         </div>
 
         <div className="md:col-span-2">
           <label className="block text-sm font-semibold mb-2">Lieu et programme (Champ libre)</label>
-          <textarea 
-            required
-            rows={2}
-            value={formData.destination}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            placeholder="Détails du lieu..."
-            onChange={e => setFormData({...formData, destination: e.target.value})}
-          />
+          <textarea required rows={2} value={formData.destination} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Détails du lieu..." onChange={e => setFormData({...formData, destination: e.target.value})} />
         </div>
 
         <div>
           <label className="block text-sm font-semibold mb-2">Date de la sortie</label>
-          <input 
-            required
-            type="date"
-            value={formData.date}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            onChange={e => setFormData({...formData, date: e.target.value})}
-          />
+          <input required type="date" value={formData.date} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, date: e.target.value})} />
         </div>
-        <div>
-        <label className="block text-sm font-semibold mb-2">Heure de départ</label>
-        <input 
-            required
-            type="time"
-            value={formData.startTime}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            onChange={e => setFormData({...formData, startTime: e.target.value})}
-        />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-sm font-semibold mb-2">Départ</label>
+            <input required type="time" value={formData.startTime} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, startTime: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-2">Retour</label>
+            <input required type="time" value={formData.endTime} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, endTime: e.target.value})} />
+          </div>
         </div>
 
         <div>
-        <label className="block text-sm font-semibold mb-2">Heure de retour prévue</label>
-        <input 
-            required
-            type="time"
-            value={formData.endTime}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            onChange={e => setFormData({...formData, endTime: e.target.value})}
-        />
+          <label className="block text-sm font-semibold mb-2">Coût total estimé (€)</label>
+          <input type="number" value={formData.coutTotal} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, coutTotal: Number(e.target.value)})} />
         </div>
-        <div>
-          <label className="block text-sm font-semibold mb-2">
-            Coût total estimé (€) {formData.coutTotal > 0 && <span className="text-red-500">*</span>}
-          </label>
-          <input 
-            type="number"
-            required={formData.coutTotal > 0}
-            value={formData.coutTotal}
-            className={`w-full p-3 border rounded-xl outline-indigo-500 ${formData.coutTotal > 0 ? 'bg-white border-indigo-200' : 'bg-slate-50'}`}
-            onChange={e => setFormData({...formData, coutTotal: Number(e.target.value)})}
-          />
-        </div>
+
         <div className="md:col-span-2 space-y-4 border-b pb-4 mt-4 text-slate-400 uppercase text-xs font-bold tracking-widest">
           Participants & Encadrement
         </div>
 
         <div>
           <label className="block text-sm font-semibold mb-2">Classes concernées</label>
-          <input 
-            value={formData.classes}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            placeholder="Ex: 3A, 4B"
-            onChange={e => setFormData({...formData, classes: e.target.value})}
-          />
+          <input value={formData.classes} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Ex: 3A, 4B" onChange={e => setFormData({...formData, classes: e.target.value})} />
         </div>
 
         <div>
           <label className="block text-sm font-semibold mb-2">Nombre d&apos;élèves total</label>
-          <input 
-            type="number"
-            value={formData.nbEleves}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            onChange={e => setFormData({...formData, nbEleves: e.target.value})}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-2">Nombre d&apos;accompagnateurs</label>
-          <input 
-            type="number"
-            value={formData.nbAccompagnateurs}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            onChange={e => setFormData({...formData, nbAccompagnateurs: Number(e.target.value)})}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-2">Noms des accompagnateurs</label>
-          <input 
-            value={formData.nomsAccompagnateurs}
-            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
-            placeholder="Mme Martin..."
-            onChange={e => setFormData({...formData, nomsAccompagnateurs: e.target.value})}
-          />
+          <input type="number" value={formData.nbEleves} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, nbEleves: e.target.value})} />
         </div>
 
         <div className="md:col-span-2 mt-4">
           <div className="flex items-center gap-4 p-4 bg-orange-50 border border-orange-200 rounded-2xl">
-            <input 
-              type="checkbox"
-              id="pique"
-              checked={formData.piqueNique}
-              className="w-6 h-6 accent-orange-600"
-              onChange={e => setFormData({...formData, piqueNique: e.target.checked})}
-            />
-            <label htmlFor="pique" className="text-sm font-medium text-orange-900 cursor-pointer">
-              Besoin de pique-niques fournis par la cantine ?
+            <input type="checkbox" id="pique" checked={formData.piqueNique} className="w-6 h-6 accent-orange-600" onChange={e => setFormData({...formData, piqueNique: e.target.checked})} />
+            <label htmlFor="pique" className="text-sm font-bold text-orange-900 cursor-pointer flex flex-col">
+              Besoin de prestations fournies par la cantine ?
+              <span className="text-xs font-normal text-orange-700">Pique-niques, repas self, goûters...</span>
             </label>
           </div>
         </div>
 
-        {/* NOUVELLE SECTION : PIÈCES JOINTES */}
+        {formData.piqueNique && (
+          <div className="md:col-span-2 space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-200 animate-in fade-in duration-300">
+            <h3 className="font-bold text-slate-800 border-b pb-2">Bon de commande Cuisine</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500">Heure de livraison</label>
+                  <input type="time" value={formData.cuisineDetails.deliveryTime} className="w-full p-2 border rounded-lg" onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, deliveryTime: e.target.value}})} />
+               </div>
+               <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500">Lieu de livraison</label>
+                  <select value={formData.cuisineDetails.deliveryPlace} className="w-full p-2 border rounded-lg" onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, deliveryPlace: e.target.value}})}>
+                    <option value="Self">Self</option>
+                    <option value="Bosco">Église Bosco</option>
+                  </select>
+               </div>
+               <div className="flex flex-col">
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Jours concernés</label>
+                  <div className="flex gap-1 text-[10px]">
+                    {['L', 'M', 'Me', 'J', 'V'].map((d, i) => {
+                      const dayKey = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'][i];
+                      return (
+                        <button key={d} type="button" 
+                          onClick={() => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, daysSelection: {...formData.cuisineDetails.daysSelection, [dayKey]: !formData.cuisineDetails.daysSelection[dayKey as keyof typeof formData.cuisineDetails.daysSelection]}}})}
+                          className={`w-7 h-7 rounded-md font-bold ${formData.cuisineDetails.daysSelection[dayKey as keyof typeof formData.cuisineDetails.daysSelection] ? 'bg-indigo-600 text-white' : 'bg-white border text-slate-400'}`}>
+                          {d}
+                        </button>
+                      )
+                    })}
+                  </div>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-tighter">Pique-Niques</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><label className="text-[10px]">Total</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.picnicTotal} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, picnicTotal: e.target.value}})} /></div>
+                  <div><label className="text-[10px]">Sans Porc</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.picnicNoPork} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, picnicNoPork: e.target.value}})} /></div>
+                  <div><label className="text-[10px]">Végé</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.picnicVeg} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, picnicVeg: e.target.value}})} /></div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-tighter">Repas au Self</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className="text-[10px]">Adultes</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.selfAdults} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, selfAdults: e.target.value}})} /></div>
+                  <div><label className="text-[10px]">Élèves</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.selfStudents} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, selfStudents: e.target.value}})} /></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-tighter">Suppléments / Pauses</p>
+              <div className="flex flex-wrap gap-4 text-xs font-medium">
+                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakCoffee} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakCoffee: e.target.checked}})} /> Café/Thé/Choco</label>
+                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakJuice} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakJuice: e.target.checked}})} /> Jus de fruits</label>
+                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakCakes} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakCakes: e.target.checked}})} /> Petits Gâteaux</label>
+                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakViennoiseries} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakViennoiseries: e.target.checked}})} /> Viennoiseries</label>
+              </div>
+              <input type="text" placeholder="Autre (précisez...)" className="w-full p-2 text-xs border rounded-lg" value={formData.cuisineDetails.breakOther} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakOther: e.target.value}})} />
+            </div>
+          </div>
+        )}
+
         <div className="md:col-span-2 space-y-4 border-t pt-8 mt-4">
           <label className="block text-sm font-bold text-slate-700">Pièces jointes (Devis, Programme, liste des élèves...)</label>
-          
           <div className="flex flex-wrap gap-4">
-            {/* CORRECTION : Optionnel chaining pour éviter l'erreur sur les anciens dossiers */}
             {formData.attachments?.map((file, idx) => (
               <div key={idx} className="flex items-center gap-2 p-3 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100 text-sm font-medium">
                 <span className="truncate max-w-[200px]">📄 {file.name}</span>
                 <button type="button" onClick={() => removeFile(idx)} className="text-indigo-400 hover:text-indigo-600 ml-2">✕</button>
               </div>
             ))}
-           
             <label className="cursor-pointer flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-6 hover:bg-slate-50 transition-all w-full md:w-auto min-w-[200px]">
               <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
               <span className="text-slate-500 text-sm font-medium text-center">
@@ -293,13 +297,8 @@ function SimpleTripFormContent() {
             </label>
           </div>
         </div>
-        <p className="self-center text-red-500 text-center font-bold">Tout dossier non complet sera refusé !</p>
         <div className="md:col-span-2 mt-8">
-          <button 
-            type="submit"
-            disabled={loading || uploading}
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:bg-slate-300 transition-all"
-          >
+          <button type="submit" disabled={loading || uploading} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:bg-slate-300 transition-all">
             {loading ? "Enregistrement en cours..." : (editId ? "Mettre à jour la demande" : "Soumettre la demande")}
           </button>
         </div>

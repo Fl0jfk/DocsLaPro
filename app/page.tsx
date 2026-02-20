@@ -43,7 +43,7 @@ export default function Home() {
           )
         )}
         <SignedOut>
-          <div className="absolute inset-0 flex items-center justify-center bg-white/20 backdrop-blur-[2px] z-50">
+          <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px] z-50">
             <div className="bg-white p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-center max-w-sm w-full mx-4">
               <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-3xl mb-6 shadow-lg shadow-blue-200">🔒</div>
               <h2 className="text-2xl font-black text-gray-800 mb-2">Espace Privé</h2>
