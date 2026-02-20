@@ -8,26 +8,20 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { tripData, userEmail, userName } = body;
+    const { tripData,  userName } = body;
     const { data } = tripData;
-    
-    console.log("Détails du fichier reçu du front:", tripData?.data?.transportRequest?.busProgramFile);
-
     const transporteurs = [
       { name: "Perier", email: "flojfk@gmail.com" },
       { name: "Reflexe", email: "florian.hacqueville-mathi@ac-normandie.fr" },
       { name: "Cars Bleus", email: "florian@h-me.fr" }
     ];
-
     const doc = new jsPDF();
     const effectifTotal = Number(data.nbEleves) + Number(data.nbAccompagnateurs);
-
     doc.setFontSize(18);
     doc.text("DEMANDE DE TRANSPORT", 14, 20);
     doc.setFontSize(10);
     doc.text(`Référence : ${tripData.id}`, 14, 28);
     doc.text(`Demandeur : ${userName}`, 14, 33);
-
     autoTable(doc, {
       startY: 40,
       head: [['Poste', 'Information']],
@@ -42,7 +36,6 @@ export async function POST(req: Request) {
       theme: 'grid',
       headStyles: { fillColor: [245, 158, 11] } 
     });
-
     if (data.transportRequest.freeText) {
       // @ts-ignore
       const finalY = (doc as any).lastAutoTable.finalY + 10;
@@ -50,9 +43,7 @@ export async function POST(req: Request) {
       doc.setFontSize(9);
       doc.text(doc.splitTextToSize(data.transportRequest.freeText, 180), 14, finalY + 7);
     }
-
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-
     const attachments: any[] = [
       {
         filename: `Demande_Transport_${data.destination.replace(/\s+/g, '_')}.pdf`,
@@ -60,18 +51,11 @@ export async function POST(req: Request) {
         contentType: 'application/pdf'
       }
     ];
-
     if (data.transportRequest.busProgramFile && data.transportRequest.busProgramFile.url) {
       try {
         const s3Url = data.transportRequest.busProgramFile.url;
-        
-        // CORRECTION DE L'EXTRACTION DE LA CLÉ (KEY)
-        // decodeURIComponent gère les espaces (%20), pathname.substring(1) retire le "/" initial
         const urlObj = new URL(s3Url);
         const fileKey = decodeURIComponent(urlObj.pathname.substring(1)); 
-        
-        console.log("Tentative de récupération S3 avec la clé :", fileKey);
-
         const s3Client = new S3Client({
           region: process.env.REGION,
           credentials: {
@@ -79,19 +63,14 @@ export async function POST(req: Request) {
             secretAccessKey: process.env.SECRET_ACCESS_KEY!,
           },
         });
-
         const command = new GetObjectCommand({
           Bucket: process.env.BUCKET_NAME,
           Key: fileKey,
         });
-
         const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 120 });
         const fileRes = await fetch(presignedUrl);
-
         if (fileRes.ok) {
-          const arrayBuffer = await fileRes.arrayBuffer();
-          console.log("Fichier S3 récupéré avec succès, taille :", arrayBuffer.byteLength);
-          
+          const arrayBuffer = await fileRes.arrayBuffer();          
           attachments.push({
             filename: data.transportRequest.busProgramFile.name || "Programme_de_route.pdf",
             content: Buffer.from(arrayBuffer),
@@ -104,7 +83,6 @@ export async function POST(req: Request) {
         console.error("Impossible de récupérer la PJ via URL présignée", e);
       }
     }
-
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -112,10 +90,8 @@ export async function POST(req: Request) {
         pass: process.env.SMTP_PASS,
       },
     });
-
     for (const transporteur of transporteurs) {
       const uploadLink = `${process.env.NEXT_PUBLIC_APP_URL}/travels/devis/${tripData.id}?p=${encodeURIComponent(transporteur.name)}`;
-      
       await transporter.sendMail({
         from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
         to: transporteur.email,
@@ -141,7 +117,6 @@ export async function POST(req: Request) {
         attachments: attachments,
       });
     }
-
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Erreur API Gmail/Transport:", error);

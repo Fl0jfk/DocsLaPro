@@ -13,22 +13,18 @@ function ComplexTripFormContent() {
   const [uploading, setUploading] = useState(false);
   const [showPiqueNiqueModal, setShowPiqueNiqueModal] = useState(false);
   const [showBusRecapModal, setShowBusRecapModal] = useState(false);
-
   const [formData, setFormData] = useState({
     title: "",
     destination: "",
     objectifs: "",
-    // Dates et Heures
     startDate: "",
     startTime: "",
     endDate: "",
     endTime: "",
-    // Participants
     nbEleves: "",
     classes: "",
     nbAccompagnateurs: 1,
     nomsAccompagnateurs: "",
-    // Logistique & Transport Spécifique
     needsBus: false,
     transportRequest: {
       pickupPoint: "",
@@ -43,21 +39,16 @@ function ComplexTripFormContent() {
       vegetarien: 0,
       allergies: ""
     },
-    // Budget
     coutTotal: 0,
     partFamille: 0,
     partEtablissement: 0,
-    // Documents
     attachments: [] as { name: string, url: string }[]
   });
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isBusProgram = false) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     setUploading(true);
     const newAttachments = [...formData.attachments];
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
@@ -67,13 +58,11 @@ function ComplexTripFormContent() {
           body: JSON.stringify({ fileName: file.name, fileType: file.type })
         });
         const { uploadUrl, fileUrl } = await res.json();
-        
         await fetch(uploadUrl, {
           method: 'PUT',
           body: file,
           headers: { 'Content-Type': file.type }
         });
-
         if (isBusProgram) {
           setFormData(prev => ({
             ...prev,
@@ -87,7 +76,6 @@ function ComplexTripFormContent() {
         alert(`Erreur pour le fichier ${file.name}`);
       }
     }
-
     if (!isBusProgram) setFormData(prev => ({ ...prev, attachments: newAttachments }));
     setUploading(false);
   };
@@ -119,7 +107,6 @@ function ComplexTripFormContent() {
 
       if (res.ok) {
         if (formData.needsBus) {
-          // On envoie le payload complet qui contient .data.transportRequest.busProgramFile
           await fetch("/api/travels/send-transport", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -265,7 +252,6 @@ function ComplexTripFormContent() {
               </div>
             )}
           </div>
-
           <button type="button" onClick={() => setShowPiqueNiqueModal(true)} className={`w-full p-6 rounded-2xl border-2 flex items-center justify-between transition-all ${formData.piqueNiqueDetails.active ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
             <div className="text-left">
               <h3 className="font-bold text-slate-900">Restauration (Cantine)</h3>
@@ -274,8 +260,6 @@ function ComplexTripFormContent() {
             <span className="text-xl">🥪</span>
           </button>
         </div>
-
-        {/* 5. PIÈCES JOINTES GÉNÉRALES */}
         <div className="bg-white p-8 border rounded-3xl shadow-sm space-y-6">
           <div className="text-slate-400 uppercase text-xs font-bold tracking-widest border-b pb-4">5. Autres documents (Pédagogie, Hébergement...)</div>
           <div className="space-y-4">
@@ -293,13 +277,10 @@ function ComplexTripFormContent() {
             </div>
           </div>
         </div>
-
         <button disabled={loading || uploading} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
           {loading ? "Création du dossier..." : "Soumettre le dossier complet"}
         </button>
       </form>
-
-      {/* MODAL RÉCAPITULATIF TRANSPORTEUR */}
       {showBusRecapModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-2xl w-full shadow-2xl border border-amber-100">
@@ -310,7 +291,6 @@ function ComplexTripFormContent() {
                 <p className="text-slate-500 text-sm font-medium">Voici les informations qui seront transmises aux transporteurs.</p>
               </div>
             </div>
-
             <div className="space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100 mb-8 overflow-y-auto max-h-[50vh]">
               <div className="grid grid-cols-2 gap-6 text-sm">
                 <div>
@@ -331,7 +311,6 @@ function ComplexTripFormContent() {
                   <p className="font-bold text-slate-900">{formData.endDate} à {formData.endTime}</p>
                 </div>
               </div>
-
               <div className="pt-4 border-t border-slate-200">
                 <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mb-2">Options & Infos complémentaires</p>
                 <ul className="space-y-2">
@@ -349,7 +328,6 @@ function ComplexTripFormContent() {
                 </ul>
               </div>
             </div>
-
             <div className="flex gap-4">
               <button 
                 type="button" 
@@ -372,8 +350,6 @@ function ComplexTripFormContent() {
           </div>
         </div>
       )}
-
-      {/* MODAL PIQUE-NIQUE */}
       {showPiqueNiqueModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">

@@ -41,14 +41,11 @@ export default function DevisPublicPage() {
       alert("Merci de choisir un fichier.");
       return;
     }
-
     if (!emailFromUrl) {
       alert("Erreur : Email de contact non identifié.");
       return;
     }
-
     setStatus("uploading");
-
     try {
       const resAuth = await fetch("/api/travels/upload-devis", {
         method: "POST",
@@ -60,16 +57,13 @@ export default function DevisPublicPage() {
           providerName: providerName
         }),
       });
-
       if (!resAuth.ok) throw new Error("Erreur autorisation");
       const { uploadUrl, fileUrl } = await resAuth.json();
-
       const uploadRes = await fetch(uploadUrl, {
         method: "PUT",
         body: file,
         headers: { "Content-Type": file.type }
       });
-
       if (uploadRes.ok) {
         const confirmRes = await fetch("/api/travels/confirm-devis", { 
           method: "POST",
@@ -95,7 +89,6 @@ export default function DevisPublicPage() {
       setStatus("error");
     }
   };
-
   if (!trip) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <p className="animate-pulse text-slate-500 font-medium">Chargement de la demande de devis...</p>

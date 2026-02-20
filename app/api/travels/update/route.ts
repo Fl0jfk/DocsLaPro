@@ -121,7 +121,7 @@ export async function POST(req: Request) {
         startTime: innerData.startTime || null,
         endTime: innerData.endTime || null,
         needsBus: innerData.needsBus || false,
-        transportRequest: innerData.transportRequest || null, // Contient RDV, Pickup, StayOnSite
+        transportRequest: innerData.transportRequest || null,
         objectifs: innerData.objectifs || innerData.pedagogicalObjectives || null,
         coutTotal: innerData.coutTotal,
       }

@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20.x"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "latest",
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "latest",
-    "@types/node": "20.x",
+    "@types/node": "latest",
     "@types/nodemailer": "latest",
     "@types/qrcode": "latest",
     "@types/react": "latest",
@@ -43,5 +43,10 @@
     "postcss": "latest",
     "tailwindcss": "latest",
     "typescript": "latest"
+  },
+  "overrides": {
+    "ajv": "^8.18.0",
+    "minimatch": "^10.2.1",
+    "eslint": "^10.0.0"
   }
 }

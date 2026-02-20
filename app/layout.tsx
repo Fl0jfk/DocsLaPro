@@ -5,10 +5,7 @@ import Header from './components/Header/Header';
 import { DataProvider } from './contexts/data';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: "Bienvenue dans l'intranet de La Providence Nicolas Barré",
-  description: 'Un intranet moderne pour connecter vos équipes.',
-};
+export const metadata: Metadata = { title: "Bienvenue dans l'intranet de La Providence Nicolas Barré", description: 'Un intranet moderne pour connecter vos équipes.'};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
