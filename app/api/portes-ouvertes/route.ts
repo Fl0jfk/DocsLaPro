@@ -3,7 +3,6 @@ import nodemailer from "nodemailer";
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-    if (data.website) {  return new Response("Bot detected", { status: 400 })}
     const { last_name, first_name, email, telephone, enfantNom, enfantPrenom, etablissement, classe, horaire, preinscription,} = data;
     const transporter = nodemailer.createTransport({
       service: "gmail",

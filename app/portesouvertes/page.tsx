@@ -81,12 +81,12 @@ export default function PortesOuvertesPage() {
     <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-8 flex flex-col gap-4 mt-4">
       <Image src={Logo} width={150} height={150} alt="logo" className="self-center"/>
       <h1 className="text-3xl font-bold">Inscription aux portes ouvertes du 14 mars 2026</h1>
-      <input autoComplete="family-name" type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl bg-white"/>
-      <input autoComplete="given-name" type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl bg-white"/>
+      <input type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl bg-white"/>
+      <input type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl bg-white"/>
       <input name="email" type="email" placeholder="Email" required className="p-2 rounded-xl bg-white"/>
       <input name="telephone" type="tel" placeholder="Téléphone" required className="p-2 rounded-xl bg-white"/>
-      <input autoComplete="family-name" type="text" name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl bg-white"/>
-      <input autoComplete="off" type="text" name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl bg-white"/>
+      <input type="text" name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl bg-white"/>
+      <input type="text" name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl bg-white"/>
       <select name="etablissement" required className="p-2 rounded-xl bg-white">
         <option value="">Établissement qui vous intéresse</option>
         <option value="Ecole">École</option>

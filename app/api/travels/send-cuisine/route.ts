@@ -10,9 +10,7 @@ export async function POST(req: Request) {
   try {
     const { tripData, userEmail, userName } = await req.json();
     const details = tripData.data.piqueNiqueDetails;
-    if (!details || !details.active) {
-      return NextResponse.json({ error: "Aucune commande cuisine à envoyer" }, { status: 400 });
-    }
+    if (!details || !details.active) { return NextResponse.json({ error: "Aucune commande cuisine à envoyer" }, { status: 400 })}
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text("BON DE COMMANDE CUISINE", 105, 20, { align: "center" });
