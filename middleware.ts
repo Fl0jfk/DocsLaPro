@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 const isPublicRoute = createRouteMatcher([
   '/',
   '/travels/(.*)/devis',
-  '/api/portes-ouvertes/(.*)',
+  '/api/portes-ouvertes',
   '/api/travels/send-transport',
   '/api/travels/upload-devis',
   '/api/travels/confirm-devis',

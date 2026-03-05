@@ -5,10 +5,6 @@
     background: white !important;
   }
   
-  main > *:not(#mon-flyer-a-imprimer) {
-    display: none !important;
-  }
-
   header {
     display: none;
   }
@@ -18,13 +14,10 @@
     left: 0;
     top: 0;
     margin: 0 !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
 
   @page {
-    size: A4 portrait;
+    size: A4 landscape;
     margin: 0;
   }
 }

@@ -59,7 +59,7 @@ export default function ProfRoomPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
   const lastName = (user?.lastName || "").toUpperCase();
-  const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
+  const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE", "LAQUIEVRE"];
   const isAdmin = ADMIN_LASTNAMES.includes(lastName);
   const todayStr = new Date().toISOString().split("T")[0];
   const maxDateLimit = new Date();

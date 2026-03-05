@@ -1,5 +1,6 @@
-/*import Image from "next/image";
-import LogoJapon from "../../../public/Logo La Providence JAPON.jpg"*/
+import Image from "next/image";
+import LogoJapon from "../../../public/Logo La Providence JAPON.jpg"
+import QrCode from "../../../public/qr_code_japon.png"
 
 export default function AfficheVoyageJapon() {
   return (
@@ -7,7 +8,7 @@ export default function AfficheVoyageJapon() {
       <section className="flex flex-col items-start text-center mb-8">
         <div className="flex gap-8">
             <div className="relative inline-block">
-             {/*} <Image src={LogoJapon} alt="Logo Nicolas Barré Japon" width={140} height={140} unoptimized quality={100} className="object-contain shadow-2xl"/>*/}  
+              <Image src={LogoJapon} alt="Logo Nicolas Barré Japon" width={140} height={140} unoptimized quality={100} className="object-contain shadow-2xl"/>  
             </div>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tighter uppercase italic self-center">Destination <span className="text-red-600">Japon</span></h1>
         </div>
@@ -85,21 +86,17 @@ export default function AfficheVoyageJapon() {
         </div>
         <div className="bg-red-600 py-5 px-1 rounded-3xl text-white flex flex-col gap-4 shadow-lg h-fit">
           <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1">Trousse à Projets</p>
-            <h4 className="text-lg font-bold leading-tight">Soutenez l'immersion!</h4>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1">Pour en savoir plus,</p>
+            <h4 className="text-lg font-bold leading-tight">flashez le Qr Code !</h4>
           </div>
-          <div className="bg-white p-2 rounded-xl aspect-square flex items-center justify-center mx-auto w-32">
-             <div className="text-black text-[9px] font-bold text-center uppercase border-2 border-dashed border-zinc-200 p-2 leading-tight">
-               QR Code <br/> Disponible <br/> en Octobre
-             </div>
+          <div className="bg-white p-1 rounded-xl aspect-square flex items-center justify-center mx-auto w-32">
+               <Image src={QrCode} alt="" width={300} height={300}/>
           </div>
           <p className="text-[9px] text-center font-bold uppercase leading-tight opacity-90 italic">
-            Réduction fiscale de 66% <br/> pour chaque donateur
+            
           </p>
         </div>
-
       </section>
-
       <footer className="mt-8 border-t border-zinc-900 text-center pt-8">
         <p className="text-zinc-600 text-[10px] uppercase tracking-[0.5em]">La Providence Nicolas Barré • Projet Japon • Avril 2027</p>
       </footer>
