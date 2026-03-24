@@ -104,7 +104,7 @@ const STATIC_DATA: Data = {
       "name": "Réservation de salle",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
       "link": "/prof-room",
-      "allowedRoles": ["professeur", "administratif", "direction_college", "direction_ecole", "direction_lycee", "maintenance"],
+      "allowedRoles": ["professeur", "administratif", "direction_college", "direction_ecole", "direction_lycee", "maintenance", "education"],
       "external": false
     },
     {
@@ -145,6 +145,14 @@ const STATIC_DATA: Data = {
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
       "link": "/channels",
       "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+      "external": false
+    },
+    {
+      "id": 14,
+      "name": "Ajout d'actualités sur le site",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
+      "link": "/add-news-site",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
     }
   ],

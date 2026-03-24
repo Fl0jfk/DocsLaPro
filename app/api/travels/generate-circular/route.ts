@@ -92,11 +92,23 @@ export async function POST(req: Request) {
     const superContext = `
       DONNÉES DU FORMULAIRE :
       - Titre : ${d.title}
+      - Classes concernées : ${d.classes || "—"}
+      - Objectifs pédagogiques : ${d.objectifs || "—"}
       - Destination : ${d.destination}
       - Organisateur : ${professorName}
       - Dates : du ${d.startDate || d.date} au ${d.endDate || d.date}
+      - Effectif : ${d.nbEleves || "—"} élèves / ${d.nbAccompagnateurs || "—"} accompagnateurs
       - Coût par élève : ${costPerStudent} €
-      - Transport coché : ${d.needsBus ? 'Autocar' : 'Non coché (voir documents)'}
+      - Transport : ${d.needsBus ? "Autocar" : "Non coché (voir documents)"}
+      - Lieu de RDV : ${d.transportRequest?.pickupPoint || "—"}
+      - Bus sur place pour les visites : ${d.transportRequest?.stayOnSite ? "Oui" : "Non"}
+      - Infos complémentaires transport : ${d.transportRequest?.freeText || "—"}
+      - Pique-nique : ${(d.piqueNiqueDetails?.active || d.piqueNique) ? "Oui" : "Non"}
+      - Pique-nique (détails) : ${
+        d.piqueNiqueDetails?.active
+          ? `Livraison à ${d.piqueNiqueDetails.deliveryPlace} (${d.piqueNiqueDetails.deliveryTime || "heure à préciser"})`
+          : "—"
+      }
 
       CONTENU DES PIÈCES JOINTES (ANALYSE OCR) :
       ${ocrCombinedText || "Aucun document joint n'a pu être analysé."}
@@ -136,55 +148,157 @@ export async function POST(req: Request) {
     const docPdf = new jsPDF();
     const pageWidth = docPdf.internal.pageSize.getWidth();
     const pageHeight = docPdf.internal.pageSize.getHeight();
-    
-    let currentY = 15;
+
+    const marginX = 20;
+    const contentWidth = pageWidth - marginX * 2;
+    const headerBarHeight = 18;
+    const footerReserve = 95; // reserve area for coupon (avoid overlap)
+
+    const renderTopBar = () => {
+      docPdf.setFillColor(24, 170, 226);
+      docPdf.rect(0, 0, pageWidth, headerBarHeight, "F");
+      docPdf.setTextColor(255, 255, 255);
+      docPdf.setFont("helvetica", "bold");
+      docPdf.setFontSize(13);
+      docPdf.text("CIRCULAIRE PARENTS", marginX, 13);
+      docPdf.setTextColor(40, 40, 40);
+      docPdf.setFont("helvetica", "normal");
+    };
+
+    const transportLine = d.needsBus
+      ? `Transport : Autocar (RDV : ${d.transportRequest?.pickupPoint || "À préciser"})`
+      : `Transport : Non coché (voir documents)`;
+
+    const startDate = d.startDate || d.date || "";
+    const endDate = d.endDate || d.date || "";
+    const dateLine = d.endDate
+      ? `Dates : du ${startDate} au ${endDate}`
+      : `Date : ${startDate}`;
+
+    renderTopBar();
+    let currentY = headerBarHeight + 6;
+
+    // Optional header image
     if (tripData.imageUrl) {
       try {
         const response = await fetch(tripData.imageUrl);
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const imgData = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-        
+        const imgData = `data:image/jpeg;base64,${buffer.toString("base64")}`;
+
         const imgProps = docPdf.getImageProperties(imgData);
-        const maxW = pageWidth - 40; 
-        const maxH = 50; 
+        const maxW = contentWidth;
+        const maxH = 48;
         const ratio = Math.min(maxW / imgProps.width, maxH / imgProps.height);
         const newWidth = imgProps.width * ratio;
         const newHeight = imgProps.height * ratio;
-        
-        docPdf.addImage(imgData, 'JPEG', (pageWidth - newWidth) / 2, currentY, newWidth, newHeight);
+
+        const imgX = marginX + (contentWidth - newWidth) / 2;
+        docPdf.setDrawColor(226, 232, 240);
+        docPdf.rect(imgX - 6, currentY - 4, newWidth + 12, newHeight + 8);
+        docPdf.addImage(imgData, "JPEG", imgX, currentY, newWidth, newHeight);
         currentY += newHeight + 10;
       } catch (e) {
         console.error("Erreur image PDF:", e);
-        currentY = 20;
+        currentY += 8;
       }
-    } else {
-        currentY = 20;
     }
 
-    docPdf.setFont("helvetica", "normal");
-    docPdf.setFontSize(11);
-    docPdf.setTextColor(40, 40, 40);
-    const splitText = docPdf.splitTextToSize(generatedText, pageWidth - 40);
-    docPdf.text(splitText, 20, currentY);
+    // Key facts box (parents-friendly)
+    const boxY = currentY;
+    const boxH = 52;
+    docPdf.setFillColor(248, 250, 252);
+    docPdf.setDrawColor(226, 232, 240);
+    docPdf.rect(marginX - 3, boxY - 2, contentWidth + 6, boxH, "FD");
 
-    // --- 4. COUPON RÉPONSE ---
-    const couponStartY = pageHeight - 75; 
-    docPdf.setDrawColor(200);
-    docPdf.setLineDashPattern([2, 2], 0);
-    docPdf.line(10, couponStartY, pageWidth - 10, couponStartY); 
-    
-    docPdf.setFontSize(10);
+    docPdf.setTextColor(24, 170, 226);
     docPdf.setFont("helvetica", "bold");
+    docPdf.setFontSize(12);
+    docPdf.text(String(d.title || "Voyage"), marginX, boxY + 8);
+
+    docPdf.setTextColor(40, 40, 40);
+    docPdf.setFontSize(9);
+    docPdf.setFont("helvetica", "normal");
+
+    docPdf.text(`Organisateur : ${professorName}`, marginX, boxY + 16);
+    docPdf.text(`Destination : ${d.destination || "—"}`, marginX, boxY + 23);
+    docPdf.text(dateLine, marginX, boxY + 30);
+    if (d.needsBus) {
+      docPdf.text(transportLine, marginX, boxY + 37);
+      docPdf.text(`Coût par élève : ${costPerStudent} €`, marginX, boxY + 44);
+    } else {
+      docPdf.text(`Coût par élève : ${costPerStudent} €`, marginX, boxY + 37);
+    }
+
+    currentY = boxY + boxH + 10;
+
+    // --- Body text (Mistral output), paginated to avoid footer overlap ---
+    docPdf.setTextColor(55, 65, 81);
+    docPdf.setFont("helvetica", "bold");
+    docPdf.setFontSize(11);
+    docPdf.text("Programme et informations pour votre enfant", marginX, currentY);
+    currentY += 7;
+    docPdf.setFont("helvetica", "normal");
+    docPdf.setFontSize(10);
+
+    const paragraphs = generatedText
+      .replace(/\r\n/g, "\n")
+      .split(/\n{2,}/g)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const mainEndY = pageHeight - footerReserve;
+    const lineHeight = 5;
+
+    const renderParagraph = (p: string) => {
+      const lines = docPdf.splitTextToSize(p, contentWidth);
+      for (const line of lines) {
+        if (currentY + lineHeight > mainEndY) {
+          docPdf.addPage();
+          renderTopBar();
+          currentY = headerBarHeight + 12;
+        }
+        docPdf.text(String(line), marginX, currentY);
+        currentY += lineHeight;
+      }
+    };
+
+    for (const p of paragraphs) {
+      renderParagraph(p);
+      // Small spacing between paragraphs
+      if (currentY + lineHeight < mainEndY) currentY += 2;
+    }
+
+    // --- COUPON RÉPONSE (on the last page where we ended) ---
+    const couponStartY = pageHeight - 78;
+    docPdf.setDrawColor(245, 158, 11);
     docPdf.setTextColor(0, 0, 0);
-    docPdf.text("COUPON RÉPONSE - À retourner impérativement", 20, couponStartY + 10);
-    
+    docPdf.setFillColor(255, 251, 235);
+    docPdf.rect(marginX - 3, couponStartY - 2, contentWidth + 6, 74, "FD");
+
+    docPdf.setFont("helvetica", "bold");
+    docPdf.setFontSize(10);
+    docPdf.text("COUPON RÉPONSE - À retourner impérativement", marginX, couponStartY + 10);
+
     docPdf.setFont("helvetica", "normal");
     docPdf.setFontSize(9);
-    docPdf.text(`Je soussigné(e), ................................................., responsable légal de l'élève : .................................`, 20, couponStartY + 20);
-    docPdf.text(`autorise mon enfant à participer au voyage "${d.title}" organisé par ${professorName},`, 20, couponStartY + 28);
-    docPdf.text(`et m'engage à régler la somme de ${costPerStudent} € correspondant aux frais de participation.`, 20, couponStartY + 36);
-    docPdf.text(`Fait à : ....................................  le : ..../..../20...   Signature :`, 20, couponStartY + 46);
+    docPdf.setTextColor(40, 40, 40);
+
+    const couponLines: string[] = [
+      `Je soussigné(e), ................................................., responsable légal de l'élève : ........................................`,
+      `autorise mon enfant à participer au voyage "${d.title}" organisé par ${professorName},`,
+      `et m'engage à régler la somme de ${costPerStudent} € correspondant aux frais de participation.`,
+      `Fait à : ....................................  le : ..../..../20...   Signature : ....................................`,
+    ];
+
+    let couponY = couponStartY + 20;
+    for (const line of couponLines) {
+      const wrapped = docPdf.splitTextToSize(line, contentWidth);
+      for (const wl of wrapped) {
+        docPdf.text(String(wl), marginX, couponY);
+        couponY += 6;
+      }
+    }
 
     const pdfBase64 = docPdf.output('datauristring');
     console.log("--- FIN GÉNÉRATION CIRCULAIRE (SUCCÈS) ---");

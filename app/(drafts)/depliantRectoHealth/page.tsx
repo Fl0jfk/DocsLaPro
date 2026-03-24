@@ -6,6 +6,9 @@ import SoutienPsyImage from "../../../public/Psychologue.jpg"
 import SuiviSanteImage from "../../../public/Infirmière.jpg"
 import MediationAnimaleImage from "../../../public/Médiation animale.jpg"
 import Thomas from "../../../public/Thomas.jpg"
+import Ludmila from "../../../public/Ludmila.jpeg"
+import Pepsie from "../../../public/Pepsie.jpg"
+import Hopa from "../../../public/Hopa.png"
 
 export default function DepliantProvidenceRecto() {
   return (
@@ -25,7 +28,7 @@ export default function DepliantProvidenceRecto() {
           <ul className="space-y-8 mb-12">
             <li className="flex items-start gap-4">
               <span className="flex-shrink-0 w-2 h-2 rounded-full bg-[#fbb800] mt-2.5" />
-              <p className="text-gray-800 text-lg font-bold leading-tight">Formé des élèves équilibrés</p>
+              <p className="text-gray-800 text-lg font-bold leading-tight">Former des élèves équilibrés</p>
             </li>
             <li className="flex items-start gap-4">
               <span className="flex-shrink-0 w-2 h-2 rounded-full bg-[#18aae2] mt-2.5" />
@@ -60,7 +63,7 @@ export default function DepliantProvidenceRecto() {
         <div className="w-full flex flex-col gap-15 flex-grow justify-start">
           <div className="flex items-center gap-4">
             <div className="flex-shrink-0 w-20 h-20 rounded-full bg-slate-100 border-2 border-[#18aae2] overflow-hidden shadow-inner">
-              <Image src={Thomas} alt="Thomas Perez" className="w-full h-full object-cover" width={80} height={80} />
+              <Image src={Thomas} alt="Thomas Perez" className="w-full h-full object-cover" width={200} height={200} unoptimized/>
             </div>
             <div className="flex-grow">
               <p className="text-[#18aae2] text-[9px] font-black uppercase tracking-[0.15em]">Psychologue</p>
@@ -76,7 +79,7 @@ export default function DepliantProvidenceRecto() {
           <div className="w-full h-px bg-gray-100 mx-auto"/>
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0 w-20 h-20 rounded-full bg-slate-100 border-2 border-[#e94f8a] overflow-hidden shadow-inner">
-                <Image src="/photo-ludmila.jpg" alt="Ludmila Berbra" className="w-full h-full object-cover" width={80} height={80} />
+                <Image src={Ludmila} alt="Ludmila Berbra" className="w-full h-full object-cover transform scale-170 translate-y-[-20px]" width={200} height={200} unoptimized/>
               </div>
               <div className="flex-grow">
                 <p className="text-[#e94f8a] text-[9px] font-black uppercase tracking-[0.15em]">Infirmière</p>
@@ -97,16 +100,16 @@ export default function DepliantProvidenceRecto() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col items-center text-center p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
                     <div className="w-16 h-16 rounded-full bg-white border-2 border-[#fbb800] overflow-hidden mb-2">
-                      <Image src="/photo-hoppa.jpg" alt="Hopa" className="w-full h-full object-cover" width={64} height={64} />
+                      <Image src={Hopa} alt="Hopa" className="w-full h-full object-cover" width={64} height={64} />
                     </div>
                     <h4 className="text-gray-800 font-bold text-sm">Hopa</h4>
                     <p className="text-[#18aae2] text-[10px] font-bold uppercase mt-1">Collège</p>
                   </div>
                   <div className="flex flex-col items-center text-center p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
                     <div className="w-16 h-16 rounded-full bg-white border-2 border-[#fbb800] overflow-hidden mb-2">
-                      <Image src="/photo-pepsi.jpg" alt="Pepsi" className="w-full h-full object-cover" width={64} height={64} />
+                      <Image src={Pepsie} alt="Pepsie" className="w-full h-full object-cover" width={64} height={64} />
                     </div>
-                    <h4 className="text-gray-800 font-bold text-sm">Pepsi</h4>
+                    <h4 className="text-gray-800 font-bold text-sm">Pepsie</h4>
                     <p className="text-[#e94f8a] text-[10px] font-bold uppercase mt-1">Lycée</p>
                   </div>
                 </div>

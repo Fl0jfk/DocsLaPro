@@ -42,6 +42,9 @@ export default function TripDetails() {
   }, [id]);
 
   const openSecureFile = async (fileUrl: string) => {
+    // Safari is stricter about popups: if `window.open` happens after an `await`,
+    // it may be blocked. We open a blank tab immediately, then redirect it.
+    const newWindow = window.open("", "_blank");
     try {
       const res = await fetch('/api/travels/download', {
         method: 'POST',
@@ -49,9 +52,18 @@ export default function TripDetails() {
         body: JSON.stringify({ fileUrl })
       });
       const { signedUrl } = await res.json();
-      if (signedUrl) window.open(signedUrl, '_blank');
+      if (!signedUrl) throw new Error("Lien signé manquant");
+
+      if (newWindow) {
+        newWindow.location.href = signedUrl;
+        newWindow.focus();
+      } else {
+        // Popup blocked: fallback to current tab navigation.
+        window.location.href = signedUrl;
+      }
     } catch (err) {
       console.error(err);
+      if (newWindow) newWindow.close();
       alert("Erreur lors de l'ouverture du fichier.");
     }
   };

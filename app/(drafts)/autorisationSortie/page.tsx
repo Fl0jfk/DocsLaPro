@@ -26,7 +26,7 @@ export default function TransportRequestPage() {
     return (
         <div className="flex flex-col items-center bg-slate-100 py-6  print:bg-white print:py-0">
             <div className="bg-white px-[14mm] py-[11mm] border border-slate-200 shadow-xl w-[210mm] min-h-[297mm] flex flex-col print:shadow-none print:border-none">
-                <div className="flex justify-between items-start border-b-4 border-blue-600 pb-4 mb-4">
+                <div className="flex justify-between items-start border-b-4 border-blue-600 pb-4 mb-3">
                     <div className="flex gap-6 items-center">
                         <Image src={logo} width={110} height={110} alt="Logo"/>
                         <div>
@@ -50,36 +50,34 @@ export default function TransportRequestPage() {
                         <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400 mt-1 italic">Interne / Sortie</p>
                     </div>
                 </div>
-
-                {/* TITRE */}
-                <div className="bg-slate-900 rounded-[40px] p-8 mb-4 text-center shadow-lg">
-                    <h2 className="text-3xl font-black text-white uppercase tracking-widest mb-2">Autorisation de sortie</h2>
+                <div className="bg-white border-2 rounded-[40px] p-6 mb-3 text-center shadow-lg">
+                    <h2 className="text-3xl font-black text-black uppercase tracking-widest mb-2">Autorisation de sortie</h2>
                     <h3 className="text-xl font-bold text-blue-400 uppercase tracking-tight italic">Repas de classe & Activités</h3>
                 </div>
-                <div className="bg-amber-50 border-4 border-dashed border-amber-200 p-4 rounded-[30px] mb-4 flex flex-col justify-center items-center gap-4">
-                    <span className="text-amber-600 font-black uppercase text-sm tracking-wider">⚠️ À signer impérativement avant le :</span>
-                    <span className="text-xl text-slate-900 font-black underline decoration-amber-400 decoration-4">{dateLimite || "...................................."}</span>
-                </div>
-                <section className="flex-grow space-y-4">
-                    <div className="bg-blue-50/40 px-8 py-6 rounded-[50px] border-2 border-blue-100 shadow-inner space-y-6">
-                        <p className="text-xl text-slate-700 font-bold text-center leading-relaxed">
-                            Autorise mon enfant à participer à une sortie organisée par les élèves et leurs professeurs :
-                        </p>
-                        <div className="space-y-8">
+                <section className="flex-grow space-y-3">
+                    <div className="bg-blue-50/40 px-8 py-6 rounded-[50px] border-2 border-blue-100 shadow-inner space-y-3">
+                    <div className="flex flex-col gap-3">
+                                <span className="text-xs font-black uppercase text-blue-600 ml-4 tracking-widest">Nom prénom de l'enfant :</span>
+                                <input type="text" className="w-full bg-white border-4 border-blue-200 rounded-[25px] p-4 text-xl font-black text-slate-800 shadow-sm focus:border-blue-500 outline-none" />
+                            </div>
+                            <div className="flex flex-col gap-3">
+                                <span className="text-xs font-black uppercase text-blue-600 ml-4 tracking-widest">Classe :</span>
+                                <input type="text" className="w-full bg-white border-4 border-blue-200 rounded-[25px] p-4 text-xl font-black text-slate-800 shadow-sm focus:border-blue-500 outline-none" />
+                            </div> 
+                        <div className="space-y-3">
                             <div className="flex flex-col gap-3">
                                 <span className="text-xs font-black uppercase text-blue-600 ml-4 tracking-widest">Date de la sortie :</span>
                                 <input 
                                     type="date" 
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
-                                    className="w-full bg-white border-4 border-blue-200 rounded-[25px] p-6 text-xl font-black text-slate-800 shadow-sm focus:border-blue-500 outline-none" 
+                                    className="w-full bg-white border-4 border-blue-200 rounded-[25px] p-4 text-xl font-black text-slate-800 shadow-sm focus:border-blue-500 outline-none" 
                                 />
                             </div>
-
                             <div className="flex flex-col gap-3">
                                 <span className="text-xs font-black uppercase text-blue-600 ml-4 tracking-widest">Lieu de l&apos;événement :</span>
                                 <select 
-                                    className="w-full bg-white border-4 border-blue-200 rounded-[25px] p-6 text-xl font-black text-slate-800 shadow-sm focus:border-blue-500 outline-none appearance-none"
+                                    className="w-full bg-white border-4 border-blue-200 rounded-[25px] p-4 text-xl font-black text-slate-800 shadow-sm focus:border-blue-500 outline-none appearance-none"
                                     value={lieu}
                                     onChange={(e) => setLieu(e.target.value)}
                                 >
@@ -106,15 +104,19 @@ export default function TransportRequestPage() {
                                 />
                             </div>
                         </div>
+                        <p className="text-lg text-slate-700 font-bold text-center leading-relaxed">
+                            Autorise mon enfant à participer à une sortie organisée par les élèves et leurs professeurs :
+                        </p>
                     </div>
                 </section>
-                <div className="mt-4 grid grid-cols-2">
-                    <div></div>
-                    <div className="bg-blue-600 rounded-[40px] p-6 text-white flex flex-col items-center justify-center text-center shadow-xl shadow-blue-100">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="p-2 text-black flex flex-col items-center justify-start text-center text-2xl font-black italic">Signature des parents</div>
+                    <div className="p-2  text-black flex flex-col items-center  text-center">
                         <p className="text-2xl font-black italic">Madame DONA</p>
                         <p className="text-sm font-bold uppercase mt-2">Directrice du lycée</p>
                     </div>
                 </div>
+                <div className="h-8"></div>
             </div>
         </div>
     );

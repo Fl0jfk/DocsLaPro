@@ -7,11 +7,11 @@ export default function DepliantProvidenceVerso() {
           <div className="w-1/3 h-full bg-[#18aae2] border-x border-white/10"></div>
           <div className="w-1/3 h-full bg-[#e94f8a]"></div>
         </div>
-        <div className="relative z-10 flex flex-col h-full w-full">
-          <div className="flex h-[68%] w-full">
+        <div className="relative z-10 flex flex-col h-full w-full gap-2">
+          <div className="flex h-[80%] w-full">
             <div className="w-1/3 h-full p-6 flex flex-col">
               <h3 className="text-4xl font-black italic uppercase leading-none mb-6">École</h3>
-              <div className="space-y-4">
+              <div className="flex flex-col justify-between h-full">
                 <section className="bg-white text-gray-800 p-5 rounded-2xl shadow-xl">
                   <h4 className="font-black text-[16px] mb-2 uppercase text-[#fbb800] flex items-center gap-2">
                     <span>🧠</span> Psychologue
@@ -32,7 +32,7 @@ export default function DepliantProvidenceVerso() {
             </div>
             <div className="w-1/3 h-full p-6 flex flex-col border-x border-white/10">
               <h3 className="text-4xl font-black italic uppercase leading-none mb-6">Collège</h3>
-              <div className="space-y-4">
+              <div className="flex flex-col justify-between h-full">
                 <section className="bg-white text-gray-800 p-5 rounded-2xl shadow-xl border-t-4 border-[#18aae2]">
                   <h4 className="font-black text-[16px] mb-2 uppercase text-[#18aae2] flex items-center gap-2">
                     <span>🧠</span> Psychologue
@@ -53,7 +53,7 @@ export default function DepliantProvidenceVerso() {
             </div>
             <div className="w-1/3 h-full p-6 flex flex-col">
               <h3 className="text-4xl font-black italic uppercase leading-none mb-6">Lycée</h3>
-              <div className="space-y-4">
+              <div className="flex flex-col justify-between h-full">
                 <section className="bg-white text-gray-800 p-5 rounded-2xl shadow-xl border-t-4 border-[#e94f8a]">
                   <h4 className="font-black text-[16px] mb-2 uppercase text-[#e94f8a] flex items-center gap-2">
                     <span>🧠</span> Psychologue
@@ -73,13 +73,13 @@ export default function DepliantProvidenceVerso() {
               </div>
             </div>
           </div>
-          <div className="flex-grow w-full flex flex-col justify-center p-6 mb-[40px]">
-            <div className="relative min-h-[160px] flex items-center">
+          <div className="flex-grow w-full flex flex-col justify-center p-6 mb-[40px] h-[23%]">
+            <div className="relative flex items-center">
               <div className="absolute inset-0 bg-gray-900/95 rounded-3xl shadow-2xl"></div>
               <div className="relative z-10 flex items-center w-full px-10 py-6">
                 <div className="w-20 h-20 shrink-0 bg-white rounded-2xl flex items-center justify-center text-5xl shadow-[0_0_20px_rgba(255,255,255,0.2)]">🐾</div>
                 <div className="ml-8 flex flex-col gap-2">
-                  <h4 className="font-black text-2xl uppercase text-white tracking-tighter">Médiation Animale <span className="text-[#fbb800]">— Pepsi & Hopa</span></h4>
+                  <h4 className="font-black text-2xl uppercase text-white tracking-tighter">Médiation Animale <span className="text-[#fbb800]">— Pepsie & Hopa</span></h4>
                   <div className="grid grid-cols-1 gap-2">
                     <p className="text-[13px] text-gray-200 leading-relaxed">
                       La médiation animale constitue un <span className="text-[#18aae2] font-bold">outil complémentaire</span> pour soutenir le bien-être des élèves dans un cadre sécurisé et bienveillant. Cette approche innovante offre aux élèves un autre moyen de s’exprimer et de se détendre. 
