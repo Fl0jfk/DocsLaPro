@@ -5,8 +5,6 @@ import Logo from "../../../public/Logo La Providence Bien Etre.png"
 import SoutienPsyImage from "../../../public/Psychologue.jpg"
 import SuiviSanteImage from "../../../public/Infirmière.jpg"
 import MediationAnimaleImage from "../../../public/Médiation animale.jpg"
-import Thomas from "../../../public/Thomas.jpg"
-import Ludmila from "../../../public/Ludmila.jpeg"
 import Pepsie from "../../../public/Pepsie.jpg"
 import Hopa from "../../../public/Hopa.png"
 
@@ -62,8 +60,8 @@ export default function DepliantProvidenceRecto() {
         </div>
         <div className="w-full flex flex-col gap-15 flex-grow justify-start">
           <div className="flex items-center gap-4">
-            <div className="flex-shrink-0 w-20 h-20 rounded-full bg-slate-100 border-2 border-[#18aae2] overflow-hidden shadow-inner">
-              <Image src={Thomas} alt="Thomas Perez" className="w-full h-full object-cover" width={200} height={200} unoptimized/>
+            <div className="flex-shrink-0 w-20 h-20 rounded-full bg-[#18aae2]/10 border-2 border-[#18aae2] overflow-hidden shadow-inner flex items-center justify-center">
+              <span className="text-[#18aae2] font-black text-2xl">T</span>
             </div>
             <div className="flex-grow">
               <p className="text-[#18aae2] text-[9px] font-black uppercase tracking-[0.15em]">Psychologue</p>
@@ -78,8 +76,8 @@ export default function DepliantProvidenceRecto() {
           </div>
           <div className="w-full h-px bg-gray-100 mx-auto"/>
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-20 h-20 rounded-full bg-slate-100 border-2 border-[#e94f8a] overflow-hidden shadow-inner">
-                <Image src={Ludmila} alt="Ludmila Berbra" className="w-full h-full object-cover transform scale-170 translate-y-[-20px]" width={200} height={200} unoptimized/>
+              <div className="flex-shrink-0 w-20 h-20 rounded-full bg-[#e94f8a]/10 border-2 border-[#e94f8a] overflow-hidden shadow-inner flex items-center justify-center">
+                <span className="text-[#e94f8a] font-black text-2xl">L</span>
               </div>
               <div className="flex-grow">
                 <p className="text-[#e94f8a] text-[9px] font-black uppercase tracking-[0.15em]">Infirmière</p>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import Logo from "../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
+import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
 
 type NiveauScolaire = "maternelle" | "elementaire" | "college" | "lycee";
 
