@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "../../components/Header/Header";
+import { SCHOOL } from "../../lib/school";
 
 function Accordion({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -156,12 +157,26 @@ export default function CollegePage() {
             </div>
             <div className="bg-white rounded-3xl p-6 border border-slate-100">
               <h3 className="font-black text-slate-800 mb-4">📞 Contact & inscription</h3>
-              <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> Mme Anne-Sophie DUMOUCHEL</p>
-              <p className="text-sm text-slate-600 mb-1">6, rue de Neuvillette – Le Mesnil-Esnard</p>
-              <a href="tel:0232865090" className="text-sm font-bold text-blue-600 block mt-2">02 32 86 50 90</a>
-              <a href="mailto:0762565a@ac-normandie.fr" className="text-sm text-slate-500 block">0762565a@ac-normandie.fr</a>
+              <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> {SCHOOL.college.directrice}</p>
+              <p className="text-sm text-slate-600 mb-1">{SCHOOL.address.street} – {SCHOOL.address.city}</p>
+              <a href={SCHOOL.phone.tel} className="text-sm font-bold text-blue-600 block mt-2">{SCHOOL.phone.display}</a>
+              <a href={SCHOOL.college.emailHref} className="text-sm text-slate-500 block">{SCHOOL.college.email}</a>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── Internat CTA ── */}
+      <section className="max-w-[1200px] mx-auto px-6 py-10">
+        <div className="bg-slate-900 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 justify-between">
+          <div>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Pour les 6ème → 3ème</p>
+            <h3 className="text-2xl font-black text-white">L&apos;internat du collège</h3>
+            <p className="text-slate-300 text-sm mt-2 max-w-sm">25 places disponibles. Un cadre de vie encadré, du lundi au vendredi, pour progresser en toute sérénité.</p>
+          </div>
+          <Link href="/internat" className="flex-shrink-0 bg-white text-slate-900 font-black text-sm px-6 py-3 rounded-full hover:scale-105 transition-transform whitespace-nowrap">
+            En savoir plus →
+          </Link>
         </div>
       </section>
 
@@ -171,23 +186,23 @@ export default function CollegePage() {
           <h2 className="text-4xl font-black text-white mb-4">Votre enfant mérite le meilleur accompagnement</h2>
           <p className="text-blue-100 mb-8 max-w-md mx-auto">Prenez rendez-vous avec la direction pour une visite de l&apos;établissement.</p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z" className="bg-white text-blue-600 font-black px-8 py-4 rounded-full hover:scale-105 transition-transform text-sm">
+            <Link href={SCHOOL.preinscriptionUrl} className="bg-white text-blue-600 font-black px-8 py-4 rounded-full hover:scale-105 transition-transform text-sm">
               S&apos;inscrire
             </Link>
-            <a href="tel:0232865090" className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
-              02 32 86 50 90
+            <a href={SCHOOL.phone.tel} className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
+              {SCHOOL.phone.display}
             </a>
           </div>
         </div>
       </section>
 
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-xs">
-        <p>© {new Date().getFullYear()} Groupe Scolaire La Providence Nicolas Barré · Le Mesnil-Esnard (76)</p>
+        <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3">
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
-          <Link href="https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z" className="hover:text-white transition">Inscription</Link>
+          <Link href={SCHOOL.preinscriptionUrl} className="hover:text-white transition">Inscription</Link>
         </div>
       </footer>
     </div>

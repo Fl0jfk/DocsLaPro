@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "../../components/Header/Header";
+import { SCHOOL } from "../../lib/school";
 
 function Accordion({ title, children, defaultOpen = false, color = "hover:text-pink-600" }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean; color?: string;
@@ -341,6 +342,9 @@ export default function LyceePage() {
               <li>✓ Système de parrainage entre lycéens</li>
               <li>✓ Sorties le mercredi avec accord parental</li>
             </ul>
+            <Link href="/internat" className="inline-flex items-center gap-2 mt-6 bg-slate-900 text-white font-bold text-sm px-6 py-3 rounded-full hover:scale-105 transition-transform">
+              Découvrir la vie à l&apos;internat →
+            </Link>
           </div>
         </div>
       </section>
@@ -360,10 +364,10 @@ export default function LyceePage() {
             </div>
             <div className="bg-white rounded-3xl p-6 border border-slate-100">
               <h3 className="font-black text-slate-800 mb-4">📞 Contact & inscription</h3>
-              <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> Mme Anne-Marie DONA</p>
-              <p className="text-sm text-slate-600 mb-1">6, rue de Neuvillette BP 28 – 76240 Le Mesnil-Esnard</p>
-              <a href="tel:0232865090" className="text-sm font-bold text-pink-600 block mt-2">02 32 86 50 90</a>
-              <a href="mailto:0761713z@ac-normandie.fr" className="text-sm text-slate-500 block">0761713z@ac-normandie.fr</a>
+              <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> {SCHOOL.lycee.directrice}</p>
+              <p className="text-sm text-slate-600 mb-1">{SCHOOL.address.street} BP 28 – {SCHOOL.address.zip} {SCHOOL.address.city}</p>
+              <a href={SCHOOL.phone.tel} className="text-sm font-bold text-pink-600 block mt-2">{SCHOOL.phone.display}</a>
+              <a href={SCHOOL.lycee.emailHref} className="text-sm text-slate-500 block">{SCHOOL.lycee.email}</a>
               <p className="text-xs text-slate-400 mt-3">Inscriptions toute l&apos;année sur rendez-vous.</p>
             </div>
           </div>
@@ -379,15 +383,15 @@ export default function LyceePage() {
             <Link href="/portesouvertes" className="bg-white text-pink-600 font-black px-8 py-4 rounded-full hover:scale-105 transition-transform text-sm">
               S&apos;inscrire aux portes ouvertes
             </Link>
-            <a href="tel:0232865090" className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
-              02 32 86 50 90
+            <a href={SCHOOL.phone.tel} className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
+              {SCHOOL.phone.display}
             </a>
           </div>
         </div>
       </section>
 
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-xs">
-        <p>© {new Date().getFullYear()} Groupe Scolaire La Providence Nicolas Barré · Le Mesnil-Esnard (76)</p>
+        <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3">
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>

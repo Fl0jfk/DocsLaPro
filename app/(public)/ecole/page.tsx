@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "../../components/Header/Header";
+import { SCHOOL } from "../../lib/school";
 
 function Accordion({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -159,10 +160,10 @@ export default function EcolePage() {
           </div>
           <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">
             <h3 className="font-black text-slate-800 mb-4">📞 Contact & inscription</h3>
-            <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> Mme Elise PLANTEC</p>
-            <p className="text-sm text-slate-600 mb-1">6, rue de Neuvillette BP 28 – Le Mesnil-Esnard</p>
-            <a href="tel:0232865090" className="text-sm font-bold text-yellow-600 block mt-2">02 32 86 50 90</a>
-            <a href="mailto:0762041f@ac-normandie.fr" className="text-sm text-slate-500 block">0762041f@ac-normandie.fr</a>
+            <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> {SCHOOL.ecole.directrice}</p>
+            <p className="text-sm text-slate-600 mb-1">{SCHOOL.address.street} BP 28 – {SCHOOL.address.city}</p>
+            <a href={SCHOOL.phone.tel} className="text-sm font-bold text-yellow-600 block mt-2">{SCHOOL.phone.display}</a>
+            <a href={SCHOOL.ecole.emailHref} className="text-sm text-slate-500 block">{SCHOOL.ecole.email}</a>
             <p className="text-xs text-slate-400 mt-3">Inscriptions toute l&apos;année sur rendez-vous. L&apos;école accueille les enfants à partir de 3 ans½.</p>
           </div>
         </div>
@@ -174,11 +175,11 @@ export default function EcolePage() {
           <h2 className="text-4xl font-black text-white mb-4">Prêt à rejoindre l&apos;aventure ?</h2>
           <p className="text-yellow-50 mb-8 max-w-md mx-auto">Les inscriptions sont ouvertes toute l&apos;année. Prenez rendez-vous avec la directrice pour découvrir l&apos;école.</p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z" className="bg-white text-yellow-600 font-black px-8 py-4 rounded-full hover:scale-105 transition-transform text-sm">
+            <Link href={SCHOOL.preinscriptionUrl} className="bg-white text-yellow-600 font-black px-8 py-4 rounded-full hover:scale-105 transition-transform text-sm">
               S&apos;inscrire
             </Link>
-            <a href="tel:0232865090" className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
-              02 32 86 50 90
+            <a href={SCHOOL.phone.tel} className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
+              {SCHOOL.phone.display}
             </a>
           </div>
         </div>
@@ -186,12 +187,12 @@ export default function EcolePage() {
 
       {/* ── Footer ── */}
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-xs">
-        <p>© {new Date().getFullYear()} Groupe Scolaire La Providence Nicolas Barré · Le Mesnil-Esnard (76)</p>
+        <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3">
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
-          <Link href="https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z" className="hover:text-white transition">Inscription</Link>
+          <Link href={SCHOOL.preinscriptionUrl} className="hover:text-white transition">Inscription</Link>
         </div>
       </footer>
     </div>

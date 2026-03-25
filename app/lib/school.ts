@@ -1,0 +1,56 @@
+/**
+ * Central configuration for La Providence Nicolas Barré.
+ * Update here → changes propagate to every page automatically.
+ */
+
+export const SCHOOL = {
+  name: "Groupe Scolaire La Providence Nicolas Barré",
+  shortName: "La Providence Nicolas Barré",
+
+  address: {
+    street: "6, rue de Neuvillette",
+    city: "Le Mesnil-Esnard",
+    zip: "76240",
+    full: "6, rue de Neuvillette — 76240 Le Mesnil-Esnard",
+    fullCompact: "6 rue de Neuvillette · 76240 Le Mesnil-Esnard",
+    mapsEmbed:
+      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2596.094939189387!2d1.1363342768705298!3d49.407110261934506!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e0ded159510c6f%3A0x5f13891b9b6ad8fa!2s6%20Rue%20de%20Neuvillette%2C%2076240%20Le%20Mesnil-Esnard!5e0!3m2!1sfr!2sfr!4v1774430884088!5m2!1sfr!2sfr",
+    mapsItinerary:
+      "https://www.google.com/maps/dir/?api=1&destination=6+Rue+de+Neuvillette,+76240+Le+Mesnil-Esnard",
+  },
+
+  phone: {
+    display: "02 32 86 50 90",
+    tel: "tel:0232865090",
+    hours: "Lun – Ven · 8h00 – 17h30",
+  },
+
+  preinscriptionUrl:
+    "https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z",
+
+  ecole: {
+    label: "École",
+    directrice: "Mme Elise PLANTEC",
+    email: "0762041f@ac-normandie.fr",
+    emailHref: "mailto:0762041f@ac-normandie.fr",
+    grades: "Maternelle & Élémentaire",
+  },
+
+  college: {
+    label: "Collège",
+    directrice: "Mme Anne-Sophie DUMOUCHEL",
+    email: "0762565a@ac-normandie.fr",
+    emailHref: "mailto:0762565a@ac-normandie.fr",
+    grades: "6ème · 5ème · 4ème · 3ème",
+    internPlaces: 25,
+  },
+
+  lycee: {
+    label: "Lycée",
+    directrice: "Mme Anne-Marie DONA",
+    email: "0761713z@ac-normandie.fr",
+    emailHref: "mailto:0761713z@ac-normandie.fr",
+    grades: "2nde · 1ère · Terminale",
+    internPlaces: 125,
+  },
+} as const;

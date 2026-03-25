@@ -217,7 +217,7 @@ export default function ProfRoomPage() {
   }
   if (!isLoaded || !user) return <div className="p-20 text-center font-bold">Initialisation...</div>;
   return (
-    <div className="px-0 py-4 md:px-4 max-w-6xl mx-auto space-y-6 mt-[6vh]">
+    <div className="px-0 py-4 md:px-4 max-w-6xl mx-auto space-y-6 mt-[2vh]">
       {contextMenu && (
         <div className="fixed z-[100] bg-white shadow-2xl border rounded-xl p-1 min-w-[180px] text-xs font-bold overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }}>
           {contextMenu.res ? (

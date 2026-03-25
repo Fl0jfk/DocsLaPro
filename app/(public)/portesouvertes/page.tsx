@@ -1,8 +1,7 @@
 "use client"
 
-import Image from "next/image";
 import { useState } from "react";
-import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp"
+import Header from '../../components/Header/Header';
 
 export default function PortesOuvertesPage() {
   const [loading, setLoading] = useState(false);
@@ -78,63 +77,65 @@ export default function PortesOuvertesPage() {
     );
   }
   return (
-    <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-8 flex flex-col gap-4 mt-4">
-      <Image src={Logo} width={150} height={150} alt="logo" className="self-center"/>
-      <h1 className="text-3xl font-bold">Inscription aux portes ouvertes du 14 mars 2026</h1>
-      <input type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl bg-white"/>
-      <input type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl bg-white"/>
-      <input name="email" type="email" placeholder="Email" required className="p-2 rounded-xl bg-white"/>
-      <input name="telephone" type="tel" placeholder="Téléphone" required className="p-2 rounded-xl bg-white"/>
-      <input type="text" name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl bg-white"/>
-      <input type="text" name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl bg-white"/>
-      <select name="etablissement" required className="p-2 rounded-xl bg-white">
-        <option value="">Établissement qui vous intéresse</option>
-        <option value="Ecole">École</option>
-        <option value="Collège">Collège</option>
-        <option value="Lycée">Lycée</option>
-      </select>
-      <select name="classe" required className="p-2 rounded-xl bg-white">
-        <option value="">Classe qui vous intéresse pour votre enfant </option>
-        <option value="Petite section">Petite section</option>
-        <option value="Moyenne section">Moyenne section</option>
-        <option value="Grande section">Grande section</option>
-        <option value="CP">CP</option>
-        <option value="CE1">CE1</option>
-        <option value="CE2">CE2</option>
-        <option value="CM1">CM1</option>
-        <option value="CM2">CM2</option>
-        <option value="6ème">6ème</option>
-        <option value="5ème">5ème</option>
-        <option value="4ème">4ème</option>
-        <option value="3ème">3ème</option>
-        <option value="2nde">2nde</option>
-        <option value="1ère ST2S">1ère ST2S</option>
-        <option value="1ère générale">1ère générale</option>
-        <option value="Terminale ST2S">Terminale ST2S</option>
-        <option value="Terminale générale">Terminale générale</option>
-      </select>
-      <select name="horaire" required className="p-2 rounded-xl bg-white">
-        <option value="">Choisissez un horaire</option>
-        <option value="08:30">08:30</option>
-        <option value="09:00">09:00</option>
-        <option value="09:30">09:30</option>
-        <option value="10:00">10:00</option>
-        <option value="10:30">10:30</option>
-        <option value="11:00">11:00</option>
-        <option value="11:30">11:30</option>
-      </select>
-      <div>
-        <p>Pré-inscription déjà effectuée ?</p>
-        <label>
-          <input type="radio" name="preinscription" value="oui" required /> Oui
-        </label>
-        <label className="ml-4">
-          <input type="radio" name="preinscription" value="non" /> Non
-        </label>
-      </div>
-      <button type="submit" disabled={loading} className="bg-black text-white px-6 py-3 rounded-xl">
-        {loading ? "Envoi…" : "S’inscrire"}
-      </button>
-    </form>
+    <>
+      <Header />
+      <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-8 flex flex-col gap-4 mt-4">
+        <h1 className="text-3xl font-bold">Inscription aux portes ouvertes du 14 mars 2026</h1>
+        <input type="text" name="last_name" placeholder="Nom du responsable" required className="p-2 rounded-xl bg-white"/>
+        <input type="text" name="first_name" placeholder="Prénom du responsable" required className="p-2 rounded-xl bg-white"/>
+        <input name="email" type="email" placeholder="Email" required className="p-2 rounded-xl bg-white"/>
+        <input name="telephone" type="tel" placeholder="Téléphone" required className="p-2 rounded-xl bg-white"/>
+        <input type="text" name="enfantNom" placeholder="Nom de l’enfant" required className="p-2 rounded-xl bg-white"/>
+        <input type="text" name="enfantPrenom" placeholder="Prénom de l’enfant" required className="p-2 rounded-xl bg-white"/>
+        <select name="etablissement" required className="p-2 rounded-xl bg-white">
+          <option value="">Établissement qui vous intéresse</option>
+          <option value="Ecole">École</option>
+          <option value="Collège">Collège</option>
+          <option value="Lycée">Lycée</option>
+        </select>
+        <select name="classe" required className="p-2 rounded-xl bg-white">
+          <option value="">Classe qui vous intéresse pour votre enfant </option>
+          <option value="Petite section">Petite section</option>
+          <option value="Moyenne section">Moyenne section</option>
+          <option value="Grande section">Grande section</option>
+          <option value="CP">CP</option>
+          <option value="CE1">CE1</option>
+          <option value="CE2">CE2</option>
+          <option value="CM1">CM1</option>
+          <option value="CM2">CM2</option>
+          <option value="6ème">6ème</option>
+          <option value="5ème">5ème</option>
+          <option value="4ème">4ème</option>
+          <option value="3ème">3ème</option>
+          <option value="2nde">2nde</option>
+          <option value="1ère ST2S">1ère ST2S</option>
+          <option value="1ère générale">1ère générale</option>
+          <option value="Terminale ST2S">Terminale ST2S</option>
+          <option value="Terminale générale">Terminale générale</option>
+        </select>
+        <select name="horaire" required className="p-2 rounded-xl bg-white">
+          <option value="">Choisissez un horaire</option>
+          <option value="08:30">08:30</option>
+          <option value="09:00">09:00</option>
+          <option value="09:30">09:30</option>
+          <option value="10:00">10:00</option>
+          <option value="10:30">10:30</option>
+          <option value="11:00">11:00</option>
+          <option value="11:30">11:30</option>
+        </select>
+        <div>
+          <p>Pré-inscription déjà effectuée ?</p>
+          <label>
+            <input type="radio" name="preinscription" value="oui" required /> Oui
+          </label>
+          <label className="ml-4">
+            <input type="radio" name="preinscription" value="non" /> Non
+          </label>
+        </div>
+        <button type="submit" disabled={loading} className="bg-black text-white px-6 py-3 rounded-xl">
+          {loading ? "Envoi…" : "S’inscrire"}
+        </button>
+      </form>
+    </>
   );
 }

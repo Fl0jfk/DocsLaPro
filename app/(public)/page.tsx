@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import Image from 'next/image';
-import SiteHeader from '../components/Header/Header';
+import Header from '../components/Header/Header';
+import { SCHOOL } from '../lib/school';
 
 function resolveNewsImage(url: string): string | null {
   if (!url || !url.trim()) return null;
@@ -104,7 +105,7 @@ export default function HomePage() {
   };
   return (
     <div className="bg-[#f5f5f7] min-h-screen">
-      <SiteHeader />
+      <Header />
       <main className="bg-white overflow-hidden">
         <section className="py-10">
           {newsCount === 0 ? (
@@ -291,26 +292,67 @@ export default function HomePage() {
             Les inscriptions sont ouvertes toute l&apos;année.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z" className="bg-white text-blue-600 font-black px-10 py-4 rounded-full hover:scale-105 transition-transform text-sm shadow-lg">
+            <Link href={SCHOOL.preinscriptionUrl} className="bg-white text-blue-600 font-black px-10 py-4 rounded-full hover:scale-105 transition-transform text-sm shadow-lg">
               S&apos;inscrire
             </Link>
-            <a href="tel:0232865090" className="border-2 border-white text-white font-bold px-10 py-4 rounded-full hover:bg-white/10 transition text-sm">
-              02 32 86 50 90
+            <a href={SCHOOL.phone.tel} className="border-2 border-white text-white font-bold px-10 py-4 rounded-full hover:bg-white/10 transition text-sm">
+              {SCHOOL.phone.display}
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Nous trouver ── */}
+      <section className="bg-white py-16">
+        <div className="max-w-[1200px] mx-auto px-6">
+          <h2 className="text-3xl font-black text-slate-900 mb-2">Nous trouver</h2>
+          <p className="text-slate-500 mb-8 text-sm">{SCHOOL.address.fullCompact}</p>
+          <div className="grid md:grid-cols-3 gap-6 items-start">
+            <div className="md:col-span-2 rounded-2xl overflow-hidden shadow-sm border border-slate-100 h-[350px]">
+              <iframe 
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2596.137859864333!2d1.1376678768704698!3d49.40629856199216!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e0ded15ea2e671%3A0x858b95a5bd96c06f!2sGroupe%20Scolaire%20la%20Providence!5e0!3m2!1sfr!2sfr!4v1774431077055!5m2!1sfr!2sfr" 
+              width="100%" 
+              height="100%" 
+              style={{border:0}} 
+              allowFullScreen
+               loading="lazy" 
+               referrerPolicy="no-referrer-when-downgrade"
+               title="Localisation La Providence Nicolas Barré"
+               />
+            </div>
+            <div className="space-y-4">
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">📍 Adresse</p>
+                <p className="font-bold text-slate-800 text-sm">{SCHOOL.name}</p>
+                <p className="text-slate-500 text-sm mt-1">{SCHOOL.address.street}<br />{SCHOOL.address.zip} {SCHOOL.address.city}</p>
+              </div>
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">📞 Contact</p>
+                <a href={SCHOOL.phone.tel} className="font-bold text-blue-600 text-sm hover:underline block">{SCHOOL.phone.display}</a>
+                <p className="text-slate-400 text-xs mt-2">{SCHOOL.phone.hours}</p>
+              </div>
+              <a
+                href="https://maps.app.goo.gl/iJX54Sn4uKjDYC9t9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white font-bold text-sm py-3 rounded-2xl hover:bg-blue-700 transition"
+              >
+                🗺️ Itinéraire Google Maps
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── Footer ── */}
       <footer className="bg-slate-950 text-slate-400 py-10 text-center text-xs">
-        <p className="font-bold text-slate-300 mb-2">Groupe Scolaire La Providence Nicolas Barré</p>
-        <p>6 rue de Neuvillette · 76240 Le Mesnil-Esnard · 02 32 86 50 90</p>
+        <p className="font-bold text-slate-300 mb-2">{SCHOOL.name}</p>
+        <p>{SCHOOL.address.fullCompact} · <Link href={SCHOOL.phone.tel} className="hover:text-white transition">{SCHOOL.phone.display}</Link></p>
         <div className="flex gap-6 justify-center mt-4">
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
-          <Link href="/https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z" className="hover:text-white transition">Inscription</Link>
-          <Link href="/dashboard" className="hover:text-white transition">Espace pro</Link>
+          <Link href={SCHOOL.preinscriptionUrl} className="hover:text-white transition">Inscription</Link>
         </div>
       </footer>
     </div>
