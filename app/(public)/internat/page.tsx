@@ -215,7 +215,6 @@ export default function InternatPage() {
           </div>
         </div>
       </section>
-
       <footer className="bg-slate-950 text-slate-400 py-8 text-center text-xs">
         <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3">
