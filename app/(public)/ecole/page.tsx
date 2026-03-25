@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import SiteHeader from "../_components/SiteHeader";
+import SiteHeader from "../../components/Header/Header";
 
 function Accordion({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -24,7 +24,7 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
 export default function EcolePage() {
   return (
     <div className="bg-white min-h-screen">
-      <SiteHeader active="ecole" />
+      <SiteHeader />
 
       {/* ── Hero ── */}
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-yellow-400">

@@ -234,9 +234,9 @@ export default function ProfRoomPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-4 flex sm:max-md:flex-wrap justify-between items-center gap-4 w-full">
-        <div className="flex items-center gap-3 sm:max-lg:flex-col sm:max-md:w-full w-1/2">
-          <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 w-full text-center text-white font-black px-4 p-3 h-full rounded-xl outline-none">
+      <div className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 w-full">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-1/2">
+          <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 w-full text-center text-white font-black px-4 p-3 rounded-xl outline-none">
             {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
           <div className="flex items-center bg-gray-100 rounded-xl w-full justify-between">
@@ -247,9 +247,9 @@ export default function ProfRoomPage() {
             <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-white rounded-lg">▶</button>
           </div>
         </div>
-        <div className="flex items-center sm:max-md:justify-between md:justify-end h-[40px] sm:max-md:w-full w-1/2 gap-4">
-          <input type="date" onChange={(e) => setCurrentDate(new Date(e.target.value))} className="text-[15px] rounded-full px-3 py-1 border"/>
-          {isAdmin && <span className="bg-purple-600 text-white text-[15px] font-black px-3 py-1 rounded-full tracking-tighter">ADMIN MODE</span>}
+        <div className="flex items-center justify-between md:justify-end w-full md:w-1/2 gap-4">
+          <input type="date" onChange={(e) => setCurrentDate(new Date(e.target.value))} className="flex-1 min-w-0 text-[15px] rounded-full px-3 py-1 border"/>
+          {isAdmin && <span className="bg-purple-600 text-white text-[15px] font-black px-3 py-1 rounded-full tracking-tighter whitespace-nowrap">ADMIN MODE</span>}
         </div>
       </div>
       <div className="bg-white rounded-3xl overflow-hidden">
@@ -344,7 +344,7 @@ export default function ProfRoomPage() {
           </div>
         </div>
       )}
-      <div id="form-section" className="bg-slate-900 rounded-[40px] p-8 text-white shadow-2xl">
+      <div id="form-section" className="bg-slate-900 rounded-[40px] p-4 md:p-8 text-white shadow-2xl">
         <div className="flex justify-between items-start mb-10">
           <div className="flex items-center gap-4">
             <div className={`p-3 rounded-2xl ${isEditing ? 'bg-orange-500' : 'bg-green-500'}`}>
@@ -387,7 +387,7 @@ export default function ProfRoomPage() {
           </div>
           <div className="space-y-4">
             <label className="text-[10px] font-black text-slate-500 w-full uppercase tracking-widest">Calendrier</label>
-            <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold" />
+            <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full min-w-0 max-w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold" />
             <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
               <p className="text-[10px] font-bold text-slate-500 mb-2">Choisir l&apos;heure :</p>
               <div className="flex flex-wrap gap-2">

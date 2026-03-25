@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import SiteHeader from "../_components/SiteHeader";
+import SiteHeader from "../../components/Header/Header";
 
 function Accordion({ title, children, defaultOpen = false, color = "hover:text-pink-600" }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean; color?: string;
@@ -48,7 +48,7 @@ export default function LyceePage() {
 
   return (
     <div className="bg-white min-h-screen">
-      <SiteHeader active="lycee" />
+      <SiteHeader />
 
       {/* ── Hero ── */}
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-pink-600">
