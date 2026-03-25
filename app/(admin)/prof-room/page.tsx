@@ -217,7 +217,7 @@ export default function ProfRoomPage() {
   }
   if (!isLoaded || !user) return <div className="p-20 text-center font-bold">Initialisation...</div>;
   return (
-    <div className="p-4 max-w-6xl mx-auto space-y-6 mt-[6vh]">
+    <div className="px-0 py-4 md:px-4 max-w-6xl mx-auto space-y-6 mt-[6vh]">
       {contextMenu && (
         <div className="fixed z-[100] bg-white shadow-2xl border rounded-xl p-1 min-w-[180px] text-xs font-bold overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }}>
           {contextMenu.res ? (
@@ -247,8 +247,11 @@ export default function ProfRoomPage() {
             <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-white rounded-lg">▶</button>
           </div>
         </div>
-        <div className="flex items-center justify-between md:justify-end w-full md:w-1/2 gap-4">
-          <input type="date" onChange={(e) => setCurrentDate(new Date(e.target.value))} className="flex-1 min-w-0 text-[15px] rounded-full px-3 py-1 border"/>
+        <div className="flex items-center justify-between md:justify-end w-full md:w-1/2 gap-3">
+          <label className="flex items-center gap-2 flex-1 min-w-0 bg-white border-2 border-blue-100 rounded-full px-3 py-1 cursor-pointer">
+            <span className="text-blue-400 text-sm flex-shrink-0">📅</span>
+            <input type="date" onChange={(e) => setCurrentDate(new Date(e.target.value))} className="flex-1 min-w-0 w-full text-[15px] bg-transparent outline-none text-slate-600 font-semibold"/>
+          </label>
           {isAdmin && <span className="bg-purple-600 text-white text-[15px] font-black px-3 py-1 rounded-full tracking-tighter whitespace-nowrap">ADMIN MODE</span>}
         </div>
       </div>
@@ -345,15 +348,15 @@ export default function ProfRoomPage() {
         </div>
       )}
       <div id="form-section" className="bg-slate-900 rounded-[40px] p-4 md:p-8 text-white shadow-2xl">
-        <div className="flex justify-between items-start mb-10">
-          <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-2xl ${isEditing ? 'bg-orange-500' : 'bg-green-500'}`}>
-              <span className="text-xl font-bold">{isEditing ? 'MODIFIER' : 'RÉSERVER'}</span>
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-8">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`p-2 md:p-3 rounded-2xl flex-shrink-0 ${isEditing ? 'bg-orange-500' : 'bg-green-500'}`}>
+              <span className="text-base md:text-xl font-bold">{isEditing ? 'MODIFIER' : 'RÉSERVER'}</span>
             </div>
-            <h2 className="text-2xl font-black uppercase italic tracking-tighter">{isEditing ? "Détails du créneau" : "Nouvelle demande"}</h2>
+            <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter leading-tight">{isEditing ? "Détails du créneau" : "Nouvelle demande"}</h2>
           </div>
           {isEditing && (
-            <button onClick={handleDelete} className="bg-red-600 hover:bg-red-500 text-white text-xs font-black px-6 py-3 rounded-2xl shadow-lg transition-transform active:scale-90">🗑️ SUPPRIMER CE CRÉNEAU</button>
+            <button onClick={handleDelete} className="w-full md:w-auto bg-red-600 hover:bg-red-500 text-white text-xs font-black px-6 py-3 rounded-2xl shadow-lg transition-transform active:scale-90">🗑️ SUPPRIMER CE CRÉNEAU</button>
           )}
         </div>
         <div className="grid grid-cols-1 gap-8">
@@ -387,7 +390,9 @@ export default function ProfRoomPage() {
           </div>
           <div className="space-y-4">
             <label className="text-[10px] font-black text-slate-500 w-full uppercase tracking-widest">Calendrier</label>
-            <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full min-w-0 max-w-full bg-slate-800 border-none rounded-xl p-4 text-sm font-bold" />
+            <div className="w-full overflow-hidden">
+              <input type="date" value={selectedDate} min={todayStr} max={maxDateStr} onChange={(e) => setSelectedDate(e.target.value)} className="w-full block bg-slate-800 border-none rounded-xl px-4 py-3 text-[16px] font-bold text-white" style={{ colorScheme: "dark" }} />
+            </div>
             <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
               <p className="text-[10px] font-bold text-slate-500 mb-2">Choisir l&apos;heure :</p>
               <div className="flex flex-wrap gap-2">
