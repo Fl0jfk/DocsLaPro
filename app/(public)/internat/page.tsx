@@ -190,7 +190,7 @@ export default function InternatPage() {
               <h3 className="font-black text-slate-800 mb-4">🎓 Internat Lycée</h3>
               <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> {SCHOOL.lycee.directrice}</p>
               <p className="text-sm text-slate-600">{SCHOOL.address.full}</p>
-              <a href={SCHOOL.phone.tel} className="text-sm font-bold text-pink-600 block mt-3">{SCHOOL.phone.display} — poste 402</a>
+              <a href={SCHOOL.phone.tel} className="text-sm font-bold text-pink-600 block mt-3">{SCHOOL.phone.display}</a>
               <a href={SCHOOL.lycee.emailHref} className="text-xs text-slate-500 block mt-1">{SCHOOL.lycee.email}</a>
             </div>
           </div>
@@ -209,6 +209,9 @@ export default function InternatPage() {
             <Link href="/portesouvertes" className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
               Portes ouvertes
             </Link>
+            <a href={SCHOOL.reglementFinancier} target="_blank" rel="noopener noreferrer" className="border-2 border-slate-500 text-slate-300 font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
+              📄 Tarifs
+            </a>
           </div>
         </div>
       </section>

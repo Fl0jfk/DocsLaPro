@@ -264,6 +264,11 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+          <div className="text-center mt-10">
+            <Link href="/notre-identite" className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 border-2 border-indigo-100 rounded-full px-6 py-3 hover:bg-indigo-50 transition">
+              ✝ Découvrir notre histoire & projet pastoral →
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -297,6 +302,9 @@ export default function HomePage() {
             </Link>
             <a href={SCHOOL.phone.tel} className="border-2 border-white text-white font-bold px-10 py-4 rounded-full hover:bg-white/10 transition text-sm">
               {SCHOOL.phone.display}
+            </a>
+            <a href={SCHOOL.reglementFinancier} target="_blank" rel="noopener noreferrer" className="border-2 border-blue-200/60 text-blue-50 font-bold px-10 py-4 rounded-full hover:bg-white/10 transition text-sm">
+              📄 Tarifs
             </a>
           </div>
         </div>

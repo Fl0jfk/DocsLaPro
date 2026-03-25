@@ -374,6 +374,20 @@ export default function LyceePage() {
         </div>
       </section>
 
+      {/* ── Identité CTA ── */}
+      <section className="max-w-[1200px] mx-auto px-6 py-10">
+        <div className="bg-indigo-50 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 justify-between border border-indigo-100">
+          <div>
+            <p className="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-1">Établissement catholique sous contrat</p>
+            <h3 className="text-2xl font-black text-slate-900">Notre histoire & projet pastoral</h3>
+            <p className="text-slate-500 text-sm mt-2 max-w-sm">Héritiers de Nicolas Barré depuis le XVII<sup>e</sup> siècle — découvrez les valeurs et la spiritualité qui animent notre communauté éducative.</p>
+          </div>
+          <Link href="/notre-identite" className="flex-shrink-0 bg-indigo-600 text-white font-black text-sm px-6 py-3 rounded-full hover:scale-105 transition-transform whitespace-nowrap">
+            Découvrir →
+          </Link>
+        </div>
+      </section>
+
       {/* ── CTA ── */}
       <section className="bg-gradient-to-r from-pink-600 to-pink-500 py-20">
         <div className="max-w-[1200px] mx-auto px-6 text-center">
@@ -385,6 +399,9 @@ export default function LyceePage() {
             </Link>
             <a href={SCHOOL.phone.tel} className="border-2 border-white text-white font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
               {SCHOOL.phone.display}
+            </a>
+            <a href={SCHOOL.reglementFinancier} target="_blank" rel="noopener noreferrer" className="border-2 border-pink-200/60 text-pink-50 font-bold px-8 py-4 rounded-full hover:bg-white/10 transition text-sm">
+              📄 Tarifs
             </a>
           </div>
         </div>

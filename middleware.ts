@@ -20,6 +20,7 @@ const isPublicRoute = createRouteMatcher([
   '/college(.*)',
   '/lycee(.*)',
   '/internat(.*)',
+  '/notre-identite(.*)',
 ]);
 
 const isDev = process.env.NODE_ENV !== "production";
