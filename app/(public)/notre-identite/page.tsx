@@ -159,7 +159,7 @@ export default function NotreIdentitePage() {
       {/* ══════════════════════════════════════════════════════════════════
           NOTRE HISTOIRE — timeline interactive
       ══════════════════════════════════════════════════════════════════ */}
-      <section className="bg-stone-900 py-16">
+      <section id="notre-histoire" className="bg-stone-900 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-3">Le Mesnil-Esnard · 1928 — 2021</p>
           <h2 className="text-4xl font-black text-white mb-2">Notre histoire</h2>
@@ -233,7 +233,7 @@ export default function NotreIdentitePage() {
           <div className="flex items-center justify-between gap-4 mt-12">
             {prevChapter ? (
               <button
-                onClick={() => { setActiveChapter(prevChapter.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                onClick={() => { setActiveChapter(prevChapter.id); document.getElementById("notre-histoire")?.scrollIntoView({ behavior: "smooth" }); }}
                 className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 hover:bg-white/10 transition group text-left flex-1 max-w-xs"
               >
                 <span className="text-stone-400 text-xl flex-shrink-0">←</span>
@@ -254,7 +254,7 @@ export default function NotreIdentitePage() {
 
             {nextChapter ? (
               <button
-                onClick={() => { setActiveChapter(nextChapter.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                onClick={() => { setActiveChapter(nextChapter.id); document.getElementById("notre-histoire")?.scrollIntoView({ behavior: "smooth" }); }}
                 className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 hover:bg-white/10 transition group text-right flex-1 max-w-xs justify-end"
               >
                 <div>
