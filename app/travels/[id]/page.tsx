@@ -10,7 +10,7 @@ export default function TripDetails() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isLoaded: isUserLoaded } = useUser();
   const [trip, setTrip] = useState<any>(null);
-  const [loadingAction, setLoadingAction] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
@@ -21,6 +21,20 @@ export default function TripDetails() {
   const isDirectionCollege = userRoles.includes('direction collège');
   const isDirectionEcole = userRoles.includes('direction école');
   const isDirection = isDirectionLycee || isDirectionCollege || isDirectionEcole;
+
+  // Returns true if the currently logged-in director is allowed to sign for this trip's établissement.
+  // École → direction école only · Collège → direction collège only
+  // Lycée or unset/multi → direction lycée only (coordinator of the whole group)
+  const etabForSign = trip?.data?.etablissement || "";
+  // Normalise for accent/case-insensitive role comparison
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
+  const isEcoleDir  = userRoles.some((r: string) => norm(r).includes("directionecole")  || norm(r).includes("directionecol") || (norm(r).includes("direction") && norm(r).includes("ecole")));
+  const isCollegeDir = userRoles.some((r: string) => norm(r).includes("directioncollege") || (norm(r).includes("direction") && norm(r).includes("college")));
+  const isLyceeDir  = userRoles.some((r: string) => norm(r).includes("directionlycee")  || (norm(r).includes("direction") && norm(r).includes("lycee")));
+  const canSign = etabForSign === "École" ? (isDirectionEcole  || isEcoleDir)
+    : etabForSign === "Collège"            ? (isDirectionCollege || isCollegeDir)
+    : etabForSign === "Lycée"              ? (isDirectionLycee  || isLyceeDir)
+    : isDirectionLycee || isLyceeDir; // Groupe Scolaire / unset → lycée coordinator
   const isCompta = userRoles.includes('comptabilité');
   const isOwner = user?.fullName === trip?.ownerName;
   const canManageFiles = isOwner || isDirection || isCompta;
@@ -85,7 +99,8 @@ export default function TripDetails() {
   };
 
   const handleFinalValidation = async () => {
-    setLoadingAction(true);
+    if (!canSign) return alert("Vous n'êtes pas autorisé(e) à valider ce dossier.");
+    setLoadingAction("circular");
     try {
       let finalAttachments = [...(trip.data.attachments || [])];
       
@@ -134,7 +149,7 @@ export default function TripDetails() {
       console.error(err);
       alert("Erreur lors de la validation finale.");
     } finally {
-      setLoadingAction(false);
+      setLoadingAction(null);
     }
   };
 
@@ -182,7 +197,7 @@ export default function TripDetails() {
   };
 
   const handleAction = async (newStatus: string, note: string = "", extraData: any = null) => {
-    setLoadingAction(true);
+    if (!loadingAction) setLoadingAction("action");
     const baseData = isEditing ? { ...trip.data, ...editedData } : trip.data;
     const finalData = extraData ? { ...baseData, ...extraData } : baseData;
     const updatedTrip = {
@@ -196,7 +211,7 @@ export default function TripDetails() {
     };
     await saveUpdates(updatedTrip);
     setIsEditing(false);
-    setLoadingAction(false);
+    setLoadingAction(null);
   };
 
   const selectBusQuote = async (quote: any) => {
@@ -206,12 +221,16 @@ export default function TripDetails() {
   };
 
   const signBusQuote = async () => {
+    if (!canSign) return alert("Vous n'êtes pas autorisé(e) à signer ce dossier.");
     if (!confirm("Voulez-vous signer le devis et envoyer la commande au transporteur ?")) return;
     const transporteurEmail = trip.data.selectedBusQuote?.email || trip.data.selectedBusQuote?.providerEmail;
     if (!transporteurEmail) return alert("Erreur : Email transporteur introuvable.");
     
-    setLoadingAction(true);
-    let sigType = userRoles.includes('direction école') ? "ecole" : userRoles.includes('direction collège') ? "college" : userRoles.includes('direction_lycee') ? "lycee" : "";
+    setLoadingAction("signing");
+    // Determine signature from the trip's établissement field.
+    // If multiple classes / no etablissement → lycée director signs as group coordinator.
+    const etab = trip.data?.etablissement || "";
+    let sigType = etab === "École" ? "ecole" : etab === "Collège" ? "college" : "lycee";
     if (!sigType) return alert("Erreur de rôle.");
 
     try {
@@ -234,7 +253,14 @@ export default function TripDetails() {
       await fetch('/api/travels/send-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId: trip.id, tripTitle: trip.data.title, providerEmail: transporteurEmail, signedQuoteUrl: fileUrl, providerName: trip.data.selectedBusQuote.providerName })
+        body: JSON.stringify({
+          tripId: trip.id,
+          tripTitle: trip.data.title,
+          tripData: trip.data,
+          providerEmail: transporteurEmail,
+          signedQuoteUrl: fileUrl,
+          providerName: trip.data.selectedBusQuote.providerName,
+        })
       });
 
       const newAttachment = { name: `✅ ${fileName}`, url: fileUrl };
@@ -242,7 +268,7 @@ export default function TripDetails() {
     } catch (err) {
       alert("Erreur lors de la signature.");
     } finally {
-      setLoadingAction(false);
+      setLoadingAction(null);
     }
   };
 
@@ -272,27 +298,40 @@ export default function TripDetails() {
   return (
     <div className="relative max-w-5xl mx-auto p-6 space-y-8">
       
-      {/* LOADING OVERLAY AU MILIEU DE LA PAGE */}
+      {/* LOADING OVERLAY */}
       {loadingAction && (
         <div className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in fade-in zoom-in duration-300">
             <div className="relative flex justify-center">
               <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-              <span className="absolute inset-0 flex items-center justify-center text-xl">📄</span>
+              <span className="absolute inset-0 flex items-center justify-center text-xl">
+                {loadingAction === "circular" ? "📄" : loadingAction === "signing" ? "✍️" : "⏳"}
+              </span>
             </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold text-slate-900">Génération de la circulaire</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">
-                Analyse des documents en cours. Cela peut prendre <strong>une dizaine de secondes</strong>. 
-                <br /><br />
-                <span className="text-indigo-600 font-semibold italic">Merci de ne pas quitter cette page.</span>
-              </p>
-            </div>
-            <div className="bg-indigo-50 p-4 rounded-2xl">
-              <p className="text-[11px] text-indigo-700 font-medium">
-                💡 Une fois terminé, le document se trouvera dans les pièces du dossier sous le nom <strong>"Circulaire Parents"</strong>.
-              </p>
-            </div>
+            {loadingAction === "circular" ? (
+              <>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-slate-900">Génération de la circulaire</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed">
+                    Analyse des documents en cours. Cela peut prendre <strong>une dizaine de secondes</strong>.
+                    <br /><br />
+                    <span className="text-indigo-600 font-semibold italic">Merci de ne pas quitter cette page.</span>
+                  </p>
+                </div>
+                <div className="bg-indigo-50 p-4 rounded-2xl">
+                  <p className="text-[11px] text-indigo-700 font-medium">
+                    💡 Une fois terminé, le document se trouvera dans les pièces du dossier sous le nom <strong>"Circulaire Parents"</strong>.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-slate-900">
+                  {loadingAction === "signing" ? "Signature en cours…" : "Traitement en cours…"}
+                </h3>
+                <p className="text-slate-500 text-sm">Merci de patienter.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -381,9 +420,16 @@ export default function TripDetails() {
                   <p className="text-sm text-amber-900 mb-2 font-bold">Devis sélectionné : {trip.data.selectedBusQuote.providerName}</p>
                   {isDirection && trip.status === "PENDING_BUS_SIGNATURE" && (
                     <div className="flex flex-col gap-3 w-full">
-                       <button onClick={signBusQuote} disabled={loadingAction} className="bg-green-600 text-white px-6 py-4 rounded-xl font-bold shadow-xl hover:scale-105 transition-all disabled:opacity-50">
-                        ✍️ Signer & Commander
-                      </button>
+                      {canSign ? (
+                        <button onClick={signBusQuote} disabled={!!loadingAction} className="bg-green-600 text-white px-6 py-4 rounded-xl font-bold shadow-xl hover:scale-105 transition-all disabled:opacity-50">
+                          ✍️ Signer & Commander
+                        </button>
+                      ) : (
+                        <div className="bg-amber-100 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800 text-left">
+                          <p className="font-bold mb-1">Signature réservée</p>
+                          <p>Ce dossier concerne l&apos;<strong>{etabForSign || "ensemble du groupe"}</strong>. Seule la direction de cet établissement peut signer.</p>
+                        </div>
+                      )}
                       <button onClick={() => { const n = prompt("Pourquoi refusez-vous ce devis ?"); if(n) handleAction("PROF_LOGISTICS", n); }} className="text-xs font-bold text-red-600 underline">
                         Refuser ce choix
                       </button>
@@ -463,10 +509,10 @@ export default function TripDetails() {
                 </div>
             ) : (
                 <div className="flex flex-col gap-1">
-                  <span className="text-slate-700 font-medium">{trip.data.piqueNiqueDetails?.active ? "🥪 Pique-nique à prévoir" : "🍴 Pas de pique-nique"}</span>
+                  <span className="text-slate-700 font-medium">{trip.data.piqueNiqueDetails?.active ? "🥪 Commande cuisine configurée" : "🍴 Pas de commande cuisine"}</span>
                   {trip.data.piqueNiqueDetails?.active && (
                     <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full w-fit">
-                      {trip.data.piqueNiqueDetails.picnicTotal} repas demandés
+                      {Object.values(trip.data.piqueNiqueDetails.daysSelection || {}).filter(Boolean).length} jour(s) — {trip.data.piqueNiqueDetails.deliveryPlace || "Self"} à {trip.data.piqueNiqueDetails.deliveryTime || "—"}
                     </span>
                   )}
                 </div>
@@ -516,26 +562,35 @@ export default function TripDetails() {
             <p className="font-bold text-lg">Espace Décisionnaire</p>
             <p className="text-slate-400 text-sm italic">{isCompta ? "Comptabilité" : "Direction"}</p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {((isDirection && (trip.status === 'PENDING_DIR_INITIAL' || trip.status === 'PENDING_BUS_SIGNATURE' || trip.status === 'PENDING_DIR_FINAL')) || (isCompta && trip.status === 'PENDING_COMPTA')) && (
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Direction membre mais pas le bon établissement → message d'information */}
+            {isDirection && !canSign && (
+              <div className="bg-slate-800 border border-slate-600 rounded-2xl px-5 py-3 text-sm text-slate-300 max-w-xs text-left">
+                <p className="font-bold text-white mb-0.5">Accès en lecture seule</p>
+                <p>Ce dossier concerne <span className="font-semibold text-amber-300">{etabForSign || "le groupe scolaire"}</span>. Seule la direction de cet établissement peut valider ou rejeter.</p>
+              </div>
+            )}
+
+            {/* Actions disponibles uniquement pour la bonne direction */}
+            {((canSign && (trip.status === 'PENDING_DIR_INITIAL' || trip.status === 'PENDING_BUS_SIGNATURE' || trip.status === 'PENDING_DIR_FINAL')) || (isCompta && trip.status === 'PENDING_COMPTA')) && (
               <>
-                {isDirection && (
-                    <ActionButton label="Refus Définitif" color="bg-red-600" onClick={() => { const n = prompt("Motif du refus définitif :"); if(n) handleAction("REJECTED", n); }} />
+                {canSign && (
+                  <ActionButton label="Refus Définitif" color="bg-red-600" onClick={() => { const n = prompt("Motif du refus définitif :"); if(n) handleAction("REJECTED", n); }} />
                 )}
-                <ActionButton label="Demander Modifs" color="bg-orange-500" onClick={() => { 
-                    const n = prompt("Précisez les changements attendus :"); 
-                    if(n) {
-                      const returnTo = trip.status === "PENDING_DIR_FINAL" ? "PENDING_COMPTA" : trip.status;
-                      handleAction("NEED_MODIFICATION", n, { previousStatus: returnTo }); 
-                    }
+                <ActionButton label="Demander Modifs" color="bg-orange-500" onClick={() => {
+                  const n = prompt("Précisez les changements attendus :");
+                  if(n) {
+                    const returnTo = trip.status === "PENDING_DIR_FINAL" ? "PENDING_COMPTA" : trip.status;
+                    handleAction("NEED_MODIFICATION", n, { previousStatus: returnTo });
+                  }
                 }} />
               </>
             )}
-            {isDirection && trip.status === 'PENDING_DIR_INITIAL' && (
+            {canSign && trip.status === 'PENDING_DIR_INITIAL' && (
               <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction(trip.type === "COMPLEX" ? "PROF_LOGISTICS" : "PENDING_COMPTA", "Pédagogie validée")} />
             )}
             {isCompta && trip.status === 'PENDING_COMPTA' && (
-              <ActionButton label="Valider Budget Global" color="bg-green-600" onClick={() => { 
+              <ActionButton label="Valider Budget Global" color="bg-green-600" onClick={() => {
                 const total = prompt("Montant GLOBAL final (€) :");
                 if(total) {
                   const student = prompt("Coût par ÉLÈVE final (€) :");
@@ -543,11 +598,11 @@ export default function TripDetails() {
                 }
               }} />
             )}
-            {isDirection && trip.status === 'PENDING_DIR_FINAL' && (
-              <ActionButton 
-                label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"} 
-                color="bg-green-600" 
-                onClick={handleFinalValidation} 
+            {canSign && trip.status === 'PENDING_DIR_FINAL' && (
+              <ActionButton
+                label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"}
+                color="bg-green-600"
+                onClick={handleFinalValidation}
               />
             )}
           </div>

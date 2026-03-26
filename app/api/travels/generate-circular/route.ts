@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from "@clerk/nextjs/server";
 import { jsPDF } from 'jspdf';
-import { 
-  TextractClient, 
-  StartDocumentTextDetectionCommand, 
-  GetDocumentTextDetectionCommand 
-} from "@aws-sdk/client-textract";
+import fs from 'fs/promises';
+import path from 'path';
+import {  TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand} from "@aws-sdk/client-textract";
 
 const textractClient = new TextractClient({
   region: process.env.REGION,
@@ -20,16 +18,12 @@ export async function POST(req: Request) {
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
   try {
     const { tripData } = await req.json();
-    console.log("--- DÉBUT GÉNÉRATION CIRCULAIRE ---");
-    console.log("DEBUG TRIP DATA RECEIVED:", tripData);
     const d = tripData.data;
     const professorName = tripData.ownerName || "l'enseignant";
     const costPerStudent = d.costPerStudent || (d.coutTotal && d.nbEleves ? (d.coutTotal / d.nbEleves).toFixed(2) : 'À préciser');
     let ocrCombinedText = "";
     const documents = tripData.data?.attachments; 
-    if (documents && Array.isArray(documents)) {
-      console.log(`NB DOCUMENTS À ANALYSER : ${documents.length}`);
-      
+    if (documents && Array.isArray(documents)) {      
       for (const doc of documents) {
         try {
           let docKey = doc.key;
@@ -38,7 +32,6 @@ export async function POST(req: Request) {
             docKey = urlParts.length > 1 ? urlParts[1].split('?')[0] : doc.url.split('/').pop();
           }
           if (!docKey) continue;
-          console.log(`[OCR] Lancement du job pour : ${doc.name || docKey}`);
           const startCommand = new StartDocumentTextDetectionCommand({
             DocumentLocation: {
               S3Object: {
@@ -49,7 +42,6 @@ export async function POST(req: Request) {
           });
           const startResponse = await textractClient.send(startCommand);
           const jobId = startResponse.JobId;
-          console.log(`[OCR] JobId reçu : ${jobId}. Attente du traitement...`);
           let finished = false;
           let attempts = 0;
           const maxAttempts = 240;
@@ -60,7 +52,6 @@ export async function POST(req: Request) {
             const status = getResponse.JobStatus;
 
             if (status === "SUCCEEDED") {
-              console.log(`[OCR] Succès pour ${doc.name} ! Extraction du texte...`);
               const extractedText = getResponse.Blocks?.filter(b => b.BlockType === "LINE")
                 .map(b => b.Text)
                 .join(" ");
@@ -68,7 +59,6 @@ export async function POST(req: Request) {
               ocrCombinedText += `\n--- Contenu du document [${doc.name || docKey}] ---\n${extractedText}\n`;
               finished = true;
             } else if (status === "FAILED") {
-              console.error(`[OCR] Le job a échoué pour ${doc.name}`);
               finished = true;
             } else {
               attempts+=2;
@@ -85,10 +75,6 @@ export async function POST(req: Request) {
         }
       }
     }
-    
-    console.log("OCR TEXT FINAL RÉCUPÉRÉ :", ocrCombinedText ? "OUI (longueur: " + ocrCombinedText.length + ")" : "NON (vide)");
-
-    console.log("[MISTRAL] Envoi du contexte pour rédaction...");
     const superContext = `
       DONNÉES DU FORMULAIRE :
       - Titre : ${d.title}
@@ -127,7 +113,7 @@ export async function POST(req: Request) {
             role: "system", 
             content: `Tu es un assistant de communication scolaire. Ton but est de rédiger une circulaire qui donne envie aux parents et les rassure.
             SOURCES : On te donne un formulaire et des extraits OCR de documents.
-            CONSIGNES :
+            CONSIGNES : N'invente rien, ne te trompe pas de données.
             1. NE GARDE QUE ce qui est utile aux parents : Horaires, lieu de rendez-vous, équipement à prévoir (sac de couchage, pique-nique), activités phares.
             2. IGNORE TOUT LE RESTE : Détails d'assurance, clauses juridiques, contrats internes, montants financiers HT/TTC globaux, ou documents sans rapport (pranks). Les parents s'en foutent des détails de l'assurance voyage.
             3. TON : Enthousiaste, clair et professionnel.
@@ -144,164 +130,217 @@ export async function POST(req: Request) {
     const resData = await mistralResponse.json();
     let generatedText = resData.choices?.[0]?.message?.content || "Détails du voyage à venir...";
     generatedText = generatedText.replace(/[*#]/g, '').trim();
-    console.log("[MISTRAL] Texte généré avec succès.");
-    const docPdf = new jsPDF();
-    const pageWidth = docPdf.internal.pageSize.getWidth();
-    const pageHeight = docPdf.internal.pageSize.getHeight();
 
-    const marginX = 20;
-    const contentWidth = pageWidth - marginX * 2;
-    const headerBarHeight = 18;
-    const footerReserve = 95; // reserve area for coupon (avoid overlap)
+    // ── Logo (filesystem) ──────────────────────────────────────────────────
+    let logoDataUri: string | null = null;
+    try {
+      const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
+      const logoBuf = await fs.readFile(logoPath);
+      logoDataUri = `data:image/png;base64,${logoBuf.toString("base64")}`;
+    } catch (e) {
+      console.error("Logo load error:", e);
+    }
 
-    const renderTopBar = () => {
-      docPdf.setFillColor(24, 170, 226);
-      docPdf.rect(0, 0, pageWidth, headerBarHeight, "F");
-      docPdf.setTextColor(255, 255, 255);
+    // ── PDF setup ──────────────────────────────────────────────────────────
+    const docPdf = new jsPDF({ compress: true });
+    const W  = docPdf.internal.pageSize.getWidth();   // 210 mm
+    const H  = docPdf.internal.pageSize.getHeight();  // 297 mm
+    const ML = 15;
+    const MR = W - 15;
+    const CW = W - 30; // content width
+    const HEADER_H     = 38;
+    const BANNER_H     = 58; // full-width image band (~20% of page)
+    const FOOTER_RESV  = 88; // reserved for coupon at bottom
+
+    const nowStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    const startDate = d.startDate || d.date || "";
+    const endDate   = d.endDate   || d.date || "";
+    const dateLine  = (d.endDate && d.endDate !== d.startDate)
+      ? `du ${startDate} au ${endDate}`
+      : `le ${startDate}`;
+    const transportLine = d.needsBus
+      ? `Autocar — RDV : ${d.transportRequest?.pickupPoint || "à préciser"}`
+      : "Non précisé";
+
+    // ── Letterhead helper (called on each page) ────────────────────────────
+    const renderLetterhead = () => {
+      if (logoDataUri) docPdf.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
       docPdf.setFont("helvetica", "bold");
       docPdf.setFontSize(13);
-      docPdf.text("CIRCULAIRE PARENTS", marginX, 13);
-      docPdf.setTextColor(40, 40, 40);
+      docPdf.setTextColor(30, 41, 59);
+      docPdf.text("La Providence Nicolas Barré", MR, 13, { align: "right" });
       docPdf.setFont("helvetica", "normal");
+      docPdf.setFontSize(7.5);
+      docPdf.setTextColor(100, 116, 139);
+      docPdf.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
+      docPdf.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
+      docPdf.text("02 32 86 50 90", MR, 30, { align: "right" });
+      docPdf.setFillColor(30, 41, 59);
+      docPdf.rect(0, 35, W, 1.8, "F");
+      docPdf.setFillColor(37, 99, 235);
+      docPdf.rect(0, 36.8, W, 0.6, "F");
     };
 
-    const transportLine = d.needsBus
-      ? `Transport : Autocar (RDV : ${d.transportRequest?.pickupPoint || "À préciser"})`
-      : `Transport : Non coché (voir documents)`;
+    renderLetterhead();
+    let currentY = HEADER_H + 2;
 
-    const startDate = d.startDate || d.date || "";
-    const endDate = d.endDate || d.date || "";
-    const dateLine = d.endDate
-      ? `Dates : du ${startDate} au ${endDate}`
-      : `Date : ${startDate}`;
-
-    renderTopBar();
-    let currentY = headerBarHeight + 6;
-
-    // Optional header image
+    // ── FULL-WIDTH BANNER IMAGE ────────────────────────────────────────────
     if (tripData.imageUrl) {
       try {
-        const response = await fetch(tripData.imageUrl);
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const imgData = `data:image/jpeg;base64,${buffer.toString("base64")}`;
-
-        const imgProps = docPdf.getImageProperties(imgData);
-        const maxW = contentWidth;
-        const maxH = 48;
-        const ratio = Math.min(maxW / imgProps.width, maxH / imgProps.height);
-        const newWidth = imgProps.width * ratio;
-        const newHeight = imgProps.height * ratio;
-
-        const imgX = marginX + (contentWidth - newWidth) / 2;
-        docPdf.setDrawColor(226, 232, 240);
-        docPdf.rect(imgX - 6, currentY - 4, newWidth + 12, newHeight + 8);
-        docPdf.addImage(imgData, "JPEG", imgX, currentY, newWidth, newHeight);
-        currentY += newHeight + 10;
+        const imgRes = await fetch(tripData.imageUrl);
+        const imgBuf = Buffer.from(await imgRes.arrayBuffer());
+        const imgData = `data:image/jpeg;base64,${imgBuf.toString("base64")}`;
+        docPdf.addImage(imgData, "JPEG", 0, currentY, W, BANNER_H);
+        currentY += BANNER_H;
       } catch (e) {
-        console.error("Erreur image PDF:", e);
-        currentY += 8;
+        console.error("Erreur image circulaire:", e);
       }
     }
 
-    // Key facts box (parents-friendly)
-    const boxY = currentY;
-    const boxH = 52;
-    docPdf.setFillColor(248, 250, 252);
-    docPdf.setDrawColor(226, 232, 240);
-    docPdf.rect(marginX - 3, boxY - 2, contentWidth + 6, boxH, "FD");
+    // ── TITLE BAR (slate-800 + blue accent strip) ─────────────────────────
+    docPdf.setFillColor(30, 41, 59);
+    docPdf.rect(0, currentY, W, 13, "F");
+    docPdf.setFillColor(37, 99, 235);
+    docPdf.rect(0, currentY + 11, W, 2, "F");
 
-    docPdf.setTextColor(24, 170, 226);
     docPdf.setFont("helvetica", "bold");
     docPdf.setFontSize(12);
-    docPdf.text(String(d.title || "Voyage"), marginX, boxY + 8);
-
-    docPdf.setTextColor(40, 40, 40);
-    docPdf.setFontSize(9);
+    docPdf.setTextColor(255, 255, 255);
+    const titleStr = String(d.title || "Voyage").toUpperCase();
+    docPdf.text(titleStr, ML, currentY + 8.5, { maxWidth: CW - 30 });
     docPdf.setFont("helvetica", "normal");
+    docPdf.setFontSize(6.5);
+    docPdf.setTextColor(147, 197, 253);
+    docPdf.text("CIRCULAIRE PARENTS", MR, currentY + 8.5, { align: "right" });
+    currentY += 17;
 
-    docPdf.text(`Organisateur : ${professorName}`, marginX, boxY + 16);
-    docPdf.text(`Destination : ${d.destination || "—"}`, marginX, boxY + 23);
-    docPdf.text(dateLine, marginX, boxY + 30);
-    if (d.needsBus) {
-      docPdf.text(transportLine, marginX, boxY + 37);
-      docPdf.text(`Coût par élève : ${costPerStudent} €`, marginX, boxY + 44);
-    } else {
-      docPdf.text(`Coût par élève : ${costPerStudent} €`, marginX, boxY + 37);
-    }
+    // ── KEY INFO GRID ─────────────────────────────────────────────────────
+    const infoBoxH = 36;
+    docPdf.setFillColor(248, 250, 252);
+    docPdf.setDrawColor(226, 232, 240);
+    docPdf.rect(ML - 2, currentY, CW + 4, infoBoxH, "FD");
 
-    currentY = boxY + boxH + 10;
+    const halfW = CW / 2;
+    const infoRows = [
+      [["Organisateur", professorName],         ["Destination",     d.destination || "—"]],
+      [["Date(s)",      dateLine],               ["Effectif",        `${d.nbEleves || "—"} élèves, ${d.nbAccompagnateurs || "—"} accomp.`]],
+      [["Transport",    transportLine],           ["Participation",   `${costPerStudent} €`]],
+    ];
 
-    // --- Body text (Mistral output), paginated to avoid footer overlap ---
-    docPdf.setTextColor(55, 65, 81);
+    let infoY = currentY + 7;
+    infoRows.forEach(([left, right]) => {
+      [[left, ML], [right, ML + halfW]].forEach(([item, colX]) => {
+        const [label, value] = item as [string, string];
+        const x = colX as number;
+        docPdf.setFont("helvetica", "bold");
+        docPdf.setFontSize(6.5);
+        docPdf.setTextColor(100, 116, 139);
+        docPdf.text(label.toUpperCase(), x, infoY);
+        docPdf.setFont("helvetica", "normal");
+        docPdf.setFontSize(8);
+        docPdf.setTextColor(30, 41, 59);
+        const trimmed = docPdf.splitTextToSize(value, halfW - 3)[0] || "";
+        docPdf.text(trimmed, x, infoY + 4);
+      });
+      infoY += 11;
+    });
+    currentY += infoBoxH + 7;
+
+    // ── SECTION HEADER ────────────────────────────────────────────────────
     docPdf.setFont("helvetica", "bold");
-    docPdf.setFontSize(11);
-    docPdf.text("Programme et informations pour votre enfant", marginX, currentY);
-    currentY += 7;
-    docPdf.setFont("helvetica", "normal");
     docPdf.setFontSize(10);
+    docPdf.setTextColor(37, 99, 235);
+    docPdf.text("Programme et informations pour votre enfant", ML, currentY);
+    docPdf.setFillColor(37, 99, 235);
+    docPdf.rect(ML, currentY + 1.5, CW, 0.4, "F");
+    currentY += 8;
+
+    // ── MISTRAL BODY TEXT (paginated) ─────────────────────────────────────
+    docPdf.setTextColor(55, 65, 81);
+    docPdf.setFont("helvetica", "normal");
+    docPdf.setFontSize(9.5);
 
     const paragraphs = generatedText
       .replace(/\r\n/g, "\n")
       .split(/\n{2,}/g)
-      .map((p) => p.trim())
+      .map((p: string) => p.trim())
       .filter(Boolean);
 
-    const mainEndY = pageHeight - footerReserve;
-    const lineHeight = 5;
+    const mainEndY = H - FOOTER_RESV;
+    const lineH    = 5;
 
     const renderParagraph = (p: string) => {
-      const lines = docPdf.splitTextToSize(p, contentWidth);
+      const lines = docPdf.splitTextToSize(p, CW);
       for (const line of lines) {
-        if (currentY + lineHeight > mainEndY) {
+        if (currentY + lineH > mainEndY) {
           docPdf.addPage();
-          renderTopBar();
-          currentY = headerBarHeight + 12;
+          renderLetterhead();
+          currentY = HEADER_H + 10;
         }
-        docPdf.text(String(line), marginX, currentY);
-        currentY += lineHeight;
+        docPdf.text(String(line), ML, currentY);
+        currentY += lineH;
       }
     };
 
     for (const p of paragraphs) {
       renderParagraph(p);
-      // Small spacing between paragraphs
-      if (currentY + lineHeight < mainEndY) currentY += 2;
+      if (currentY + lineH < mainEndY) currentY += 2;
     }
 
-    // --- COUPON RÉPONSE (on the last page where we ended) ---
-    const couponStartY = pageHeight - 78;
-    docPdf.setDrawColor(245, 158, 11);
-    docPdf.setTextColor(0, 0, 0);
+    // ── COUPON RÉPONSE ────────────────────────────────────────────────────
+    const couponY = H - 82;
+
+    // Dashed cut line
+    docPdf.setDrawColor(180, 180, 180);
+    docPdf.setLineDashPattern([2, 2], 0);
+    docPdf.line(ML - 2, couponY - 5, MR + 2, couponY - 5);
+    docPdf.setLineDashPattern([], 0);
+    docPdf.setFont("helvetica", "normal");
+    docPdf.setFontSize(7);
+    docPdf.setTextColor(160, 160, 160);
+    docPdf.text("✂", ML - 2, couponY - 3);
+
+    // Coupon box
     docPdf.setFillColor(255, 251, 235);
-    docPdf.rect(marginX - 3, couponStartY - 2, contentWidth + 6, 74, "FD");
+    docPdf.setDrawColor(245, 158, 11);
+    docPdf.rect(ML - 2, couponY, CW + 4, 77, "FD");
 
     docPdf.setFont("helvetica", "bold");
-    docPdf.setFontSize(10);
-    docPdf.text("COUPON RÉPONSE - À retourner impérativement", marginX, couponStartY + 10);
+    docPdf.setFontSize(9);
+    docPdf.setTextColor(180, 83, 9);
+    docPdf.text("COUPON-RÉPONSE", ML + 3, couponY + 8);
 
     docPdf.setFont("helvetica", "normal");
-    docPdf.setFontSize(9);
+    docPdf.setFontSize(8.5);
     docPdf.setTextColor(40, 40, 40);
 
     const couponLines: string[] = [
-      `Je soussigné(e), ................................................., responsable légal de l'élève : ........................................`,
-      `autorise mon enfant à participer au voyage "${d.title}" organisé par ${professorName},`,
-      `et m'engage à régler la somme de ${costPerStudent} € correspondant aux frais de participation.`,
-      `Fait à : ....................................  le : ..../..../20...   Signature : ....................................`,
+      `Nom et prénom de l'élève : .....................................................   Classe : ...............`,
+      `Responsable légal (nom, prénom) : .....................................................................................................`,
+      ``,
+      `autorise mon enfant à participer au voyage "${d.title}" organisé par ${professorName}`,
+      `et m'engage à régler la somme de  ${costPerStudent} €  correspondant aux frais de participation.`,
+      ``,
+      `Fait à : ...................................   Le : ....../ ....../ 20......   Signature : ............................................`,
     ];
 
-    let couponY = couponStartY + 20;
+    let couponCY = couponY + 17;
     for (const line of couponLines) {
-      const wrapped = docPdf.splitTextToSize(line, contentWidth);
+      if (line === "") { couponCY += 2; continue; }
+      const wrapped = docPdf.splitTextToSize(line, CW - 4);
       for (const wl of wrapped) {
-        docPdf.text(String(wl), marginX, couponY);
-        couponY += 6;
+        docPdf.text(String(wl), ML + 2, couponCY);
+        couponCY += 5.5;
       }
     }
 
+    // ── PAGE FOOTER ───────────────────────────────────────────────────────
+    docPdf.setFont("helvetica", "normal");
+    docPdf.setFontSize(7);
+    docPdf.setTextColor(180, 190, 200);
+    docPdf.text(`Document généré le ${nowStr} — La Providence Nicolas Barré`, W / 2, H - 2, { align: "center" });
+
     const pdfBase64 = docPdf.output('datauristring');
-    console.log("--- FIN GÉNÉRATION CIRCULAIRE (SUCCÈS) ---");
     return NextResponse.json({ pdf: pdfBase64 });
 
   } catch (error) {

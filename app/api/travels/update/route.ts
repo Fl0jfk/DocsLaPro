@@ -124,6 +124,7 @@ export async function POST(req: Request) {
         transportRequest: innerData.transportRequest || null,
         objectifs: innerData.objectifs || innerData.pedagogicalObjectives || null,
         coutTotal: innerData.coutTotal,
+        etablissement: innerData.etablissement || null,
       }
     };
     const existingIndex = currentIndex.findIndex((t: any) => t.id === tripId);

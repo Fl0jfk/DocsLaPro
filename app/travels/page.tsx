@@ -11,6 +11,7 @@ export default function TripDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterEtab, setFilterEtab] = useState("");
 
   useEffect(() => {
     const fetchTrips = async () => {
@@ -47,6 +48,13 @@ export default function TripDashboard() {
     return isNaN(d.getTime()) ? val : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  const ETAB_STYLE: Record<string, { bg: string; text: string; border: string; stripe: string }> = {
+    "École":          { bg: "bg-yellow-50",  text: "text-yellow-800", border: "border-yellow-300", stripe: "bg-yellow-400" },
+    "Collège":        { bg: "bg-blue-50",    text: "text-blue-800",   border: "border-blue-300",   stripe: "bg-blue-500"   },
+    "Lycée":          { bg: "bg-pink-50",    text: "text-pink-800",   border: "border-pink-300",   stripe: "bg-pink-500"   },
+    "Groupe Scolaire":{ bg: "bg-violet-50",  text: "text-violet-800", border: "border-violet-300", stripe: "bg-violet-500" },
+  };
+
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'VALIDATED': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
@@ -71,14 +79,43 @@ export default function TripDashboard() {
           + Nouvelle demande
         </button>
       </div>
+      {/* ── Filter by établissement ────────────────────────────────── */}
+      <div className="flex gap-2 flex-wrap mb-6">
+        {["Tous", "École", "Collège", "Lycée", "Groupe Scolaire"].map((f) => {
+          const active = (f === "Tous" && !filterEtab) || filterEtab === f;
+          const s = f !== "Tous" ? ETAB_STYLE[f] : null;
+          return (
+            <button
+              key={f}
+              onClick={() => setFilterEtab(f === "Tous" ? "" : f)}
+              className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+                active
+                  ? s ? `${s.bg} ${s.text} ${s.border} shadow-sm` : "bg-slate-900 text-white border-slate-900"
+                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+              }`}
+            >
+              {f === "Tous" ? "🗂 Tous" : f === "École" ? `🏫 ${f}` : f === "Collège" ? `📚 ${f}` : f === "Lycée" ? `🎓 ${f}` : `🏛 ${f}`}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-8">
         {loading ? (
           <div className="col-span-full text-center py-20">Chargement des dossiers...</div>
         ) : trips.length > 0 ? (
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          trips.map((trip: any) => {
+          (filterEtab
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ? (trips as any[]).filter((t: any) => (t.data?.etablissement || "Groupe Scolaire") === filterEtab)
+            : trips
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ).map((trip: any) => {
             const isComplex = trip.type === "COMPLEX" || trip.data?.transport;
             const imageUrl = trip.imageUrl || trip.data?.imageUrl || trip.data?.data?.imageUrl;
+
+            const etabLabel = trip.data?.etablissement || "Groupe Scolaire";
+            const etabStyle = ETAB_STYLE[etabLabel] ?? ETAB_STYLE["Groupe Scolaire"];
 
             return (
               <div 
@@ -86,6 +123,9 @@ export default function TripDashboard() {
                 onClick={() => router.push(`/travels/${trip.id}`)}
                 className="group bg-white border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer transform-gpu"
               >
+                {/* Coloured top stripe — instantly identifies the établissement */}
+                <div className={`h-1.5 w-full ${etabStyle.stripe}`} />
+
                 <div className="h-44 w-full relative bg-slate-100 overflow-hidden isolate" style={{ maskImage: 'radial-gradient(white, black)' }}>
                   {imageUrl ? (
                     <Image 
@@ -100,14 +140,20 @@ export default function TripDashboard() {
                       {isComplex ? '🚌' : '🍦'}
                     </div>
                   )}
+                  {/* Status badge — top left */}
                   <div className="absolute top-4 left-4 flex gap-2">
                     <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-sm ${getStatusStyle(trip.status)}`}>
                       {trip.status?.replace('PENDING_', '').replace('_', ' ')}
                     </span>
                   </div>
+                  {/* Établissement badge — top right, large & prominent */}
+                  <div className={`absolute top-4 right-4 px-4 py-1.5 rounded-xl font-black text-sm border shadow-lg backdrop-blur-md ${etabStyle.bg} ${etabStyle.text} ${etabStyle.border}`}>
+                    {etabLabel === "École" ? "🏫" : etabLabel === "Collège" ? "📚" : etabLabel === "Lycée" ? "🎓" : "🏛"} {etabLabel}
+                  </div>
                 </div>
+
                 <div className="p-8">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                     <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isComplex ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
                       {isComplex ? 'Voyage Scolaire' : 'Sortie Locale'}
                     </span>

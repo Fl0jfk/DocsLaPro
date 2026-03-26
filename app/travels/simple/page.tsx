@@ -4,6 +4,27 @@ import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+const CUISINE_DAYS = [
+  { key: "lundi",    label: "Lun." },
+  { key: "mardi",    label: "Mar." },
+  { key: "mercredi", label: "Mer." },
+  { key: "jeudi",    label: "Jeu." },
+  { key: "vendredi", label: "Ven." },
+];
+
+const CUISINE_ROWS = [
+  { key: "picnicTotal",  label: "Pique-nique (total)",     type: "number" },
+  { key: "picnicNoPork", label: "dont Sans porc",           type: "number" },
+  { key: "picnicVeg",    label: "dont Végétarien",          type: "number" },
+  { key: "selfAdults",   label: "Repas au self (adultes)",  type: "number" },
+  { key: "selfStudents", label: "Repas au self (élèves)",   type: "number" },
+  { key: "coffee",       label: "Café / thé / chocolat",   type: "number" },
+  { key: "juice",        label: "Jus de fruits",            type: "number" },
+  { key: "cakes",        label: "Petits gâteaux",           type: "number" },
+  { key: "pastries",     label: "Viennoiserie",             type: "number" },
+  { key: "other",        label: "Autre",                    type: "text"   },
+];
+
 function SimpleTripFormContent() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -14,6 +35,7 @@ function SimpleTripFormContent() {
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
+    etablissement: "" as "" | "École" | "Collège" | "Lycée" | "Groupe Scolaire",
     destination: "",
     date: "",
     startTime: "",
@@ -23,23 +45,18 @@ function SimpleTripFormContent() {
     nbAccompagnateurs: 1,
     nomsAccompagnateurs: "",
     coutTotal: 0,
-    piqueNique: false,
-    // DONNÉES CUISINE DÉTAILLÉES
-    cuisineDetails: {
+    // COMMANDE CUISINE — quantités par jour (conforme au bon de commande chef)
+    piqueNiqueDetails: {
+      active: false,
       deliveryTime: "",
-      deliveryPlace: "Self", // Self ou Bosco
-      picnicTotal: "",
-      picnicNoPork: "",
-      picnicVeg: "",
-      selfAdults: "",
-      selfStudents: "",
-      breakCoffee: false,
-      breakJuice: false,
-      breakCakes: false,
-      breakViennoiseries: false,
-      breakOther: "",
-      daysSelection: {
-        lundi: false, mardi: false, mercredi: false, jeudi: false, vendredi: false
+      deliveryPlace: "Self",
+      daysSelection: { lundi: false, mardi: false, mercredi: false, jeudi: false, vendredi: false },
+      orders: {
+        lundi:    { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+        mardi:    { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+        mercredi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+        jeudi:    { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+        vendredi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
       }
     },
     description: "",
@@ -56,7 +73,7 @@ function SimpleTripFormContent() {
             setFormData({
               ...trip.data,
               attachments: trip.data.attachments || [],
-              cuisineDetails: trip.data.cuisineDetails || formData.cuisineDetails
+              piqueNiqueDetails: trip.data.piqueNiqueDetails || formData.piqueNiqueDetails
             });
           }
           setFetching(false);
@@ -166,6 +183,17 @@ function SimpleTripFormContent() {
           <input required value={formData.title} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Ex: Sortie Laser Game" onChange={e => setFormData({...formData, title: e.target.value})} />
         </div>
 
+        <div>
+          <label className="block text-sm font-semibold mb-2">Établissement concerné</label>
+          <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value as typeof formData.etablissement})}>
+            <option value="">— Sélectionner —</option>
+            <option value="École">🏫 École</option>
+            <option value="Collège">📚 Collège</option>
+            <option value="Lycée">🎓 Lycée</option>
+            <option value="Groupe Scolaire">🏛 Groupe Scolaire</option>
+          </select>
+        </div>
+
         <div className="md:col-span-2">
           <label className="block text-sm font-semibold mb-2">Lieu et programme (Champ libre)</label>
           <textarea required rows={2} value={formData.destination} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Détails du lieu..." onChange={e => setFormData({...formData, destination: e.target.value})} />
@@ -207,7 +235,7 @@ function SimpleTripFormContent() {
 
         <div className="md:col-span-2 mt-4">
           <div className="flex items-center gap-4 p-4 bg-orange-50 border border-orange-200 rounded-2xl">
-            <input type="checkbox" id="pique" checked={formData.piqueNique} className="w-6 h-6 accent-orange-600" onChange={e => setFormData({...formData, piqueNique: e.target.checked})} />
+            <input type="checkbox" id="pique" checked={formData.piqueNiqueDetails.active} className="w-6 h-6 accent-orange-600" onChange={e => setFormData({...formData, piqueNiqueDetails: {...formData.piqueNiqueDetails, active: e.target.checked}})} />
             <label htmlFor="pique" className="text-sm font-bold text-orange-900 cursor-pointer flex flex-col">
               Besoin de prestations fournies par la cantine ?
               <span className="text-xs font-normal text-orange-700">Pique-niques, repas self, goûters...</span>
@@ -215,68 +243,91 @@ function SimpleTripFormContent() {
           </div>
         </div>
 
-        {formData.piqueNique && (
-          <div className="md:col-span-2 space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-200 animate-in fade-in duration-300">
+        {formData.piqueNiqueDetails.active && (
+          <div className="md:col-span-2 space-y-5 bg-slate-50 p-6 rounded-3xl border border-slate-200 animate-in fade-in duration-300">
             <h3 className="font-bold text-slate-800 border-b pb-2">Bon de commande Cuisine</h3>
-            
+
+            {/* Livraison & Jours */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-               <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500">Heure de livraison</label>
-                  <input type="time" value={formData.cuisineDetails.deliveryTime} className="w-full p-2 border rounded-lg" onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, deliveryTime: e.target.value}})} />
-               </div>
-               <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500">Lieu de livraison</label>
-                  <select value={formData.cuisineDetails.deliveryPlace} className="w-full p-2 border rounded-lg" onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, deliveryPlace: e.target.value}})}>
-                    <option value="Self">Self</option>
-                    <option value="Bosco">Église Bosco</option>
-                  </select>
-               </div>
-               <div className="flex flex-col">
-                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Jours concernés</label>
-                  <div className="flex gap-1 text-[10px]">
-                    {['L', 'M', 'Me', 'J', 'V'].map((d, i) => {
-                      const dayKey = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'][i];
-                      return (
-                        <button key={d} type="button" 
-                          onClick={() => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, daysSelection: {...formData.cuisineDetails.daysSelection, [dayKey]: !formData.cuisineDetails.daysSelection[dayKey as keyof typeof formData.cuisineDetails.daysSelection]}}})}
-                          className={`w-7 h-7 rounded-md font-bold ${formData.cuisineDetails.daysSelection[dayKey as keyof typeof formData.cuisineDetails.daysSelection] ? 'bg-indigo-600 text-white' : 'bg-white border text-slate-400'}`}>
-                          {d}
-                        </button>
-                      )
-                    })}
-                  </div>
-               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-3">
-                <p className="text-xs font-bold text-indigo-600 uppercase tracking-tighter">Pique-Niques</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <div><label className="text-[10px]">Total</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.picnicTotal} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, picnicTotal: e.target.value}})} /></div>
-                  <div><label className="text-[10px]">Sans Porc</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.picnicNoPork} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, picnicNoPork: e.target.value}})} /></div>
-                  <div><label className="text-[10px]">Végé</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.picnicVeg} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, picnicVeg: e.target.value}})} /></div>
-                </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Heure récupération / livraison</label>
+                <input type="time" value={formData.piqueNiqueDetails.deliveryTime} className="w-full p-2 border rounded-lg" onChange={e => setFormData({...formData, piqueNiqueDetails: {...formData.piqueNiqueDetails, deliveryTime: e.target.value}})} />
               </div>
-
-              <div className="space-y-3">
-                <p className="text-xs font-bold text-indigo-600 uppercase tracking-tighter">Repas au Self</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-[10px]">Adultes</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.selfAdults} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, selfAdults: e.target.value}})} /></div>
-                  <div><label className="text-[10px]">Élèves</label><input type="number" className="w-full p-2 border rounded-lg" value={formData.cuisineDetails.selfStudents} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, selfStudents: e.target.value}})} /></div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Lieu de récupération</label>
+                <select value={formData.piqueNiqueDetails.deliveryPlace} className="w-full p-2 border rounded-lg" onChange={e => setFormData({...formData, piqueNiqueDetails: {...formData.piqueNiqueDetails, deliveryPlace: e.target.value}})}>
+                  <option value="Self">Au self</option>
+                  <option value="Bosco">Église Bosco</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Jours concernés</label>
+                <div className="flex gap-1.5">
+                  {CUISINE_DAYS.map(({ key: dayKey, label }) => {
+                    const isSelected = (formData.piqueNiqueDetails.daysSelection as Record<string, boolean>)[dayKey];
+                    return (
+                      <button key={dayKey} type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, piqueNiqueDetails: { ...prev.piqueNiqueDetails, daysSelection: { ...prev.piqueNiqueDetails.daysSelection, [dayKey]: !isSelected } } }))}
+                        className={`w-9 h-9 rounded-lg text-[11px] font-black transition-all ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border-2 text-slate-400 hover:border-indigo-300'}`}>
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-indigo-600 uppercase tracking-tighter">Suppléments / Pauses</p>
-              <div className="flex flex-wrap gap-4 text-xs font-medium">
-                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakCoffee} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakCoffee: e.target.checked}})} /> Café/Thé/Choco</label>
-                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakJuice} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakJuice: e.target.checked}})} /> Jus de fruits</label>
-                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakCakes} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakCakes: e.target.checked}})} /> Petits Gâteaux</label>
-                <label className="flex items-center gap-1"><input type="checkbox" checked={formData.cuisineDetails.breakViennoiseries} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakViennoiseries: e.target.checked}})} /> Viennoiseries</label>
-              </div>
-              <input type="text" placeholder="Autre (précisez...)" className="w-full p-2 text-xs border rounded-lg" value={formData.cuisineDetails.breakOther} onChange={e => setFormData({...formData, cuisineDetails: {...formData.cuisineDetails, breakOther: e.target.value}})} />
+            {/* Tableau par jour */}
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs border-collapse min-w-[480px]">
+                <thead>
+                  <tr className="bg-indigo-600 text-white">
+                    <th className="text-left p-2.5 font-semibold w-40">Désignation</th>
+                    {CUISINE_DAYS.map(({ key: dayKey, label }) => (
+                      <th key={dayKey} className={`p-2.5 text-center font-semibold transition-opacity ${(formData.piqueNiqueDetails.daysSelection as Record<string, boolean>)[dayKey] ? 'opacity-100' : 'opacity-30'}`}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {CUISINE_ROWS.map(({ key: rowKey, label, type }, rowIdx) => (
+                    <tr key={rowKey} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className={`p-2 font-medium text-slate-700 whitespace-nowrap ${rowKey === 'picnicNoPork' || rowKey === 'picnicVeg' ? 'pl-5 text-slate-500 italic' : ''}`}>{label}</td>
+                      {CUISINE_DAYS.map(({ key: dayKey }) => {
+                        const isActive = (formData.piqueNiqueDetails.daysSelection as Record<string, boolean>)[dayKey];
+                        const val = (formData.piqueNiqueDetails.orders as Record<string, Record<string, string>>)[dayKey][rowKey];
+                        return (
+                          <td key={dayKey} className="p-1">
+                            <input
+                              type={type}
+                              disabled={!isActive}
+                              value={val}
+                              onChange={e => setFormData(prev => ({
+                                ...prev,
+                                piqueNiqueDetails: {
+                                  ...prev.piqueNiqueDetails,
+                                  orders: {
+                                    ...prev.piqueNiqueDetails.orders,
+                                    [dayKey]: {
+                                      ...(prev.piqueNiqueDetails.orders as Record<string, Record<string, string>>)[dayKey],
+                                      [rowKey]: e.target.value
+                                    }
+                                  }
+                                }
+                              }))}
+                              className={`w-full p-1.5 border rounded text-center transition-all ${isActive ? 'bg-white hover:border-indigo-300 focus:border-indigo-500 outline-none' : 'bg-slate-100 text-slate-300 cursor-not-allowed border-transparent'}`}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+
+            <p className="text-[10px] text-slate-500 italic bg-amber-50 border border-amber-100 p-2.5 rounded-lg">
+              ⚠️ Fournir la liste des élèves et adultes <strong>15 jours avant</strong> la sortie. Affiner 24h avant (toute absence non signalée 24h avant sera facturée). Commande à envoyer à : <strong>chef.0056isi@newrest.eu</strong>
+            </p>
           </div>
         )}
 

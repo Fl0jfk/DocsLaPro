@@ -4,13 +4,14 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import fs from "fs/promises";
+import path from "path";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { tripData,  userName } = body;
     const { data } = tripData;
-
     const moisFR = [
       "janvier",
       "février",
@@ -117,121 +118,201 @@ export async function POST(req: Request) {
       { name: "Hangard", email: "hangard.autocars@outlook.fr" },
     ];
 
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const marginLeft = 14;
-    const headerHeight = 22;
     const effectifTotal = Number(data.nbEleves) + Number(data.nbAccompagnateurs);
 
-    // Header bar
-    doc.setFillColor(24, 170, 226);
-    doc.rect(0, 0, pageWidth, headerHeight, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("DEMANDE DE TRANSPORT", marginLeft, 15);
-
-    // Company logo (from /public)
+    // ── Load PNG logo directly from filesystem (no HTTP fetch needed) ──
+    let logoDataUri: string | null = null;
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-      const logoFile = "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp";
-      if (appUrl) {
-        const logoUrl = `${appUrl}${encodeURIComponent(logoFile)}`;
-        const logoRes = await fetch(logoUrl);
-        if (logoRes.ok) {
-          const arrayBuffer = await logoRes.arrayBuffer();
-          const base64 = Buffer.from(arrayBuffer).toString("base64");
-          const dataUri = `data:image/png;base64,${base64}`;
-          const imgProps = doc.getImageProperties(dataUri);
-          const targetW = 34;
-          const targetH = (imgProps.height * targetW) / imgProps.width;
-          const x = pageWidth - targetW - marginLeft;
-          const y = 2.5;
-          doc.addImage(dataUri, "PNG", x, y, targetW, targetH);
-          // Clickable logo (helps personalization when opening the PDF)
-          try {
-            doc.link(x, y, targetW, targetH, { url: appUrl });
-          } catch {
-            // `link` support may vary by jsPDF build; ignore if unsupported.
-          }
-        }
-      }
+      const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
+      const logoBuffer = await fs.readFile(logoPath);
+      logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
     } catch (e) {
-      console.error("Erreur ajout logo transport:", e);
+      console.error("Logo load error:", e);
     }
 
-    // Small trip metadata
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Référence : ${tripData.id}`, marginLeft, 32);
-    doc.text(`Demandeur : ${userName}`, marginLeft, 37);
-    doc.setTextColor(51, 65, 85);
-    doc.setFontSize(9);
-    doc.text(`Destination : ${data.destination}`, marginLeft, 44);
-    doc.text(
-      `Effectif total : ${effectifTotal} (dont ${data.nbAccompagnateurs} adultes)`,
-      marginLeft,
-      50
-    );
+    // ── Helper: build professional letter PDF per transporter ──────────
+    const buildDemandePDF = (transporteurName: string): Buffer => {
+      const doc = new jsPDF({ compress: true });
+      const W = doc.internal.pageSize.getWidth();   // 210 mm
+      const H = doc.internal.pageSize.getHeight();  // 297 mm
+      const ML = 15;
+      const MR = W - 15;
+      const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 
-    const tableStartY = 58;
-    autoTable(doc, {
-      startY: tableStartY,
-      head: [["Poste", "Information"]],
-      body: [
-        ["Projet", data.title || "—"],
-        ["Classes concernées", data.classes || "—"],
-        ['Destination', data.destination],
-        ["Départ", departText],
-        ["Lieu de RDV", data.transportRequest?.pickupPoint || "—"],
-        ["Retour prévu", returnText],
-        [
-          "Bus reste sur place",
-          data.transportRequest?.stayOnSite ? "OUI" : "NON",
-        ],
-      ],
-      theme: "grid",
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-        lineColor: [226, 232, 240],
-      },
-      headStyles: {
-        fillColor: [24, 170, 226],
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-      },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 0: { cellWidth: 55 } },
-    });
-    if (data.transportRequest.freeText) {
-      // @ts-ignore
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setTextColor(24, 170, 226);
+      // ── WHITE LETTERHEAD (0–38 mm) ───────────────────────────────────
+      // Logo in top-left — white background means transparency renders correctly
+      if (logoDataUri) {
+        doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
+      }
+
+      // School name + info — right-aligned
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("Informations complémentaires :", marginLeft, finalY);
-      doc.setTextColor(40, 40, 40);
+      doc.setFontSize(13);
+      doc.setTextColor(30, 41, 59);
+      doc.text("La Providence Nicolas Barré", MR, 13, { align: "right" });
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text(
-        doc.splitTextToSize(String(data.transportRequest.freeText), 180),
-        marginLeft,
-        finalY + 7
-      );
-    }
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
+      doc.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
+      doc.text("02 32 86 50 90", MR, 30, { align: "right" });
 
-    // Friendly footer (helps readability in printed emails)
-    doc.setTextColor(100, 116, 139);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(
-      "Document destiné au transporteur. Merci de répondre via le lien sécurisé fourni par email.",
-      marginLeft,
-      doc.internal.pageSize.getHeight() - 8
-    );
-    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      // Double accent bar (slate-800 thick + blue thin)
+      doc.setFillColor(30, 41, 59);
+      doc.rect(0, 35, W, 1.8, "F");
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 36.8, W, 0.6, "F");
+
+      // ── SENDER / RECIPIENT (44–65 mm) ─────────────────────────────────
+      // The school address is already in the letterhead — here we only show
+      // the teacher name (left) and the transporter / date (right).
+      const colA = ML;
+      const colB = W / 2 + 8;
+      let yA = 45;
+      let yB = 45;
+
+      // LEFT — teacher only
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Professeur demandeur :", colA, yA);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      doc.text(userName, colA, yA + 5);
+      yA += 5;
+
+      // RIGHT — transporter name + date
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("DESTINATAIRE", colB, yB);
+      yB += 5;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(30, 41, 59);
+      doc.text(transporteurName, colB, yB);
+      yB += 9;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("DATE D'ENVOI", colB, yB);
+      yB += 4.5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(dateStr, colB, yB);
+
+      // ── SEPARATOR ─────────────────────────────────────────────────────
+      const sepY = Math.max(yA, yB) + 9;
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.4);
+      doc.line(ML, sepY, MR, sepY);
+
+      // ── SUBJECT LINE ───────────────────────────────────────────────────
+      let sy = sepY + 10;
+      // Blue left-border accent
+      doc.setFillColor(37, 99, 235);
+      doc.rect(ML, sy - 5, 2.5, 13, "F");
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("OBJET", ML + 7, sy - 0.5);
+      sy += 5.5;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 41, 59);
+      doc.text("Demande de devis transport", ML + 7, sy);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Réf. ${tripData.id}`, MR, sy, { align: "right" });
+
+      // ── INTRO PARAGRAPH ───────────────────────────────────────────────
+      sy += 10;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      const intro = "Nous vous adressons, par la présente, une demande de devis pour la prestation de transport scolaire décrite ci-dessous. Nous vous remercions de bien vouloir nous faire parvenir votre offre tarifaire dans les meilleurs délais.";
+      const introLines = doc.splitTextToSize(intro, MR - ML);
+      doc.text(introLines, ML, sy);
+      sy += introLines.length * 4.5 + 9;
+
+      // ── DETAILS TABLE ─────────────────────────────────────────────────
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("DÉTAILS DE LA PRESTATION", ML, sy);
+      sy += 3.5;
+
+      autoTable(doc, {
+        startY: sy,
+        body: [
+          ["Projet", data.title || "—"],
+          ["Classes concernées", data.classes || "—"],
+          ["Destination", data.destination || "—"],
+          ["Date de départ", departText],
+          ["Date de retour", returnText],
+          ["Lieu de RDV / Départ", data.transportRequest?.pickupPoint || "—"],
+          ["Effectif total", `${effectifTotal} personnes (dont ${data.nbAccompagnateurs} adultes)`],
+          ["Bus reste sur place", data.transportRequest?.stayOnSite ? "Oui" : "Non"],
+        ],
+        theme: "plain",
+        styles: {
+          fontSize: 8.5,
+          cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+          lineColor: [226, 232, 240],
+          lineWidth: 0.2,
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 58, fontStyle: "bold", textColor: [30, 41, 59] as [number, number, number] },
+          1: { textColor: [71, 85, 105] as [number, number, number] },
+        },
+        tableLineColor: [226, 232, 240],
+        tableLineWidth: 0.2,
+      });
+
+      if (data.transportRequest?.freeText) {
+        const afterY = (doc as any).lastAutoTable.finalY + 8;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text("INFORMATIONS COMPLÉMENTAIRES", ML, afterY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(71, 85, 105);
+        const freeLines = doc.splitTextToSize(String(data.transportRequest.freeText), MR - ML);
+        doc.text(freeLines, ML, afterY + 5.5);
+      }
+
+      // ── CLOSING LINE ──────────────────────────────────────────────────
+      const closingY = (doc as any).lastAutoTable.finalY + 50;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text("Dans l'attente de votre retour, nous vous adressons nos cordiales salutations.", ML, closingY);
+
+      // ── FOOTER BAR ────────────────────────────────────────────────────
+      doc.setFillColor(241, 245, 249);
+      doc.rect(0, H - 14, W, 14, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(0, H - 14, W, H - 14);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        "Groupe Scolaire La Providence Nicolas Barré  ·  Établissement catholique sous contrat avec l'État",
+        ML, H - 7
+      );
+      doc.text("76240 Le Mesnil-Esnard", MR, H - 7, { align: "right" });
+
+      return Buffer.from(doc.output("arraybuffer"));
+    };
+
+    const pdfBuffer = buildDemandePDF("(tous transporteurs)");
     const attachments: any[] = [
       {
         filename: `Demande_Transport_${data.destination.replace(/\s+/g, '_')}.pdf`,
@@ -279,7 +360,18 @@ export async function POST(req: Request) {
       },
     });
     for (const transporteur of transporteurs) {
+      try {
       const uploadLink = `${process.env.NEXT_PUBLIC_APP_URL}/travels/devis/${tripData.id}?p=${encodeURIComponent(transporteur.name)}`;
+      // Generate a personalised PDF per transporter
+      const personalPdf = buildDemandePDF(transporteur.name);
+      const personalAttachments = [
+        {
+          filename: `Demande_Transport_${data.destination.replace(/\s+/g, "_")}.pdf`,
+          content: personalPdf,
+          contentType: "application/pdf",
+        },
+        ...attachments.slice(1), // keep programme de route if attached
+      ];
       await transporter.sendMail({
         from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
         to: transporteur.email,
@@ -302,8 +394,11 @@ export async function POST(req: Request) {
             <p>Cordialement,<br/>L'administration.</p>
           </div>
         `,
-        attachments: attachments,
+        attachments: personalAttachments,
       });
+      } catch (sendErr: any) {
+        console.error(`Erreur envoi à ${transporteur.name}:`, sendErr.message);
+      }
     }
     return NextResponse.json({ success: true });
   } catch (error: any) {
