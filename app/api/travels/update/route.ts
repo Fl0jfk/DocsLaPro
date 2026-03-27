@@ -128,6 +128,12 @@ const IMAGE_CATALOG = [
     label: "Trampoline Park Tourville-La-Rivière", 
     url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Trampoline+Park.jpg",
     keywords: "trampoline, park, tourville-la-rivière" 
+  },
+  { 
+    id: "Trampoline Park Tourville-La-Rivière", 
+    label: "Trampoline Park Tourville-La-Rivière", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Trampoline+Park.jpg",
+    keywords: "trampoline, park, tourville-la-rivière" 
   }
 ];
 
