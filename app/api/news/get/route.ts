@@ -79,7 +79,12 @@ export async function GET() {
     if (!text.trim()) return NextResponse.json([]);
 
     const parsed = JSON.parse(text);
-    return NextResponse.json(parseNewsPayload(parsed));
+    return NextResponse.json(parseNewsPayload(parsed), {
+      headers: {
+        // CDN/browser: serve fresh for 5 min, accept stale up to 10 min while revalidating
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+      },
+    });
   } catch (err: unknown) {
     console.error("Erreur chargement news JSON:", err);
     return NextResponse.json([]);

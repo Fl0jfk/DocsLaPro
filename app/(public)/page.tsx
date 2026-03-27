@@ -34,7 +34,6 @@ export default function HomePage() {
   const [isPaused, setIsPaused] = useState(false);
   const slideWidth = 90; 
   const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
     let cancelled = false;
     const loadNews = async () => {
@@ -63,7 +62,6 @@ export default function HomePage() {
     () => (newsCount > 0 ? [...newsItems, ...newsItems, ...newsItems] : []),
     [newsItems, newsCount]
   );
-
   useEffect(() => {
     if (newsCount > 0) setCurrentIndex(newsCount);
   }, [newsCount]);
@@ -85,17 +83,6 @@ export default function HomePage() {
       }
     }
   }, [currentIndex, isTransitioning, newsCount]);
-
-  if (newsLoading) {
-    return (
-      <div className="bg-[#f5f5f7] min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500 shadow-sm"></div>
-          <p className="mt-6 text-sm font-bold uppercase tracking-widest text-blue-500/80">Chargement</p>
-        </div>
-      </div>
-    );
-  }
   const handleInteraction = (index: number) => {
     setIsPaused(true);
     setIsTransitioning(true);
@@ -108,7 +95,13 @@ export default function HomePage() {
       <Header />
       <main className="bg-white overflow-hidden">
         <section className="py-10">
-          {newsCount === 0 ? (
+          {newsLoading ? (
+            <div className="relative w-full h-[500px] bg-slate-100 animate-pulse flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 opacity-30">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-300 border-t-slate-600" />
+              </div>
+            </div>
+          ) : newsCount === 0 ? (
             <div className="h-[500px] flex items-center justify-center text-slate-400 text-sm">
               Aucune actualité disponible pour le moment.
             </div>
@@ -147,7 +140,7 @@ export default function HomePage() {
                                 (index >= newsCount && index < newsCount * 2) ||
                                 shouldPreload
                               }
-                              quality={100}
+              
                             />
                           )}
                           <div className="absolute inset-0 pointer-events-none">

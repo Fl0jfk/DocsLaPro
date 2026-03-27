@@ -26,6 +26,108 @@ const IMAGE_CATALOG = [
     label: "Parc Astérix", 
     url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Parc+Asterix.webp",
     keywords: "asterix, paris, parc, attractions" 
+  },
+  { 
+    id: "Assemblée Nationale", 
+    label: "Assemblée Nationale", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/assemblee-nationale-2.jpg",
+    keywords: "assemblee, nationale, paris" 
+  },
+  { 
+    id: "Basilique Montligeon", 
+    label: "Basilique Montligeon", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/basilique-montligeon-800.webp",
+    keywords: "basilique, montligeon" 
+  },
+  { 
+    id: "Cathédrale Bayeux", 
+    label: "Cathédrale Bayeux", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/cath%C3%A9drale+bayeux.webp",
+    keywords: "cathédrale, bayeux" 
+  },
+  { 
+    id: "Cimetière Américain Colleville", 
+    label: "Cimetière Américain Colleville", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/cimetiere_americain_colleville.jpg",
+    keywords: "cimetière, américain, colleville" 
+  },
+  { 
+    id: "Etretat", 
+    label: "Etretat", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Etretat.webp",
+    keywords: "etretat, falaise" 
+  },
+  { 
+    id: "Forêt de brocéliande", 
+    label: "Forêt de brocéliande", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Foret+de+broceliande.jpg",
+    keywords: "forêt, brocéliande, bretagne" 
+  },
+  { 
+    id: "Honfleur", 
+    label: "Honfleur", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/honfleur.jpg",
+    keywords: "honfleur, port" 
+  },
+  { 
+    id: "Musée de la Monnaie de Paris", 
+    label: "Musée de la Monnaie de Paris", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/monnaie-de-paris.jpg",
+    keywords: "musée, monnaie, paris" 
+  },
+  { 
+    id: "Musée Grévin", 
+    label: "Musée Grévin", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Musee+Grevin.jpg",
+    keywords: "musée, grevin, paris" 
+  },
+  { 
+    id: "Musée Somme Albert 1914", 
+    label: "Musée Somme Albert 1914", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Musee+Somme+Albert+1916.png",
+    keywords: "musée, somme, albert 1916, 1ere guerre mondiale" 
+  },
+  { 
+    id: "Musée des Beaux Arts de Rouen", 
+    label: "Musée des Beaux Arts de Rouen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Mus%C3%A9e_Beaux_Arts_-_Rouen.jpg",
+    keywords: "musée, beaux-arts, rouen" 
+  },
+  { 
+    id: "Cinéma Omnia Rouen", 
+    label: "Cinéma Omnia Rouen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/OMNIA-ROUEN.jpg",
+    keywords: "cinéma, omnia, rouen" 
+  },
+  { 
+    id: "Opéra Garnier Paris", 
+    label: "Opéra Garnier Paris", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Opera+Garnier.jpg",
+    keywords: "opéra, garnier, paris" 
+  },
+  { 
+    id: "Parc du Bocasse", 
+    label: "Parc du Bocasse", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Parc+du+bocasse.jpg",
+    keywords: "parc, bocasse, attractions" 
+  },
+  { 
+    id: "Station de ski Riouclar Meolans", 
+    label: "Station de ski Riouclar Meolans", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Riouclar+Meolans.jpg",
+    keywords: "station, ski, riouclar, meolan" 
+  },
+  { 
+    id: "Tokyo", 
+    label: "Tokyo", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Tokyo.avif",
+    keywords: "tokyo, japon" 
+  },
+  { 
+    id: "Trampoline Park Tourville-La-Rivière", 
+    label: "Trampoline Park Tourville-La-Rivière", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Trampoline+Park.jpg",
+    keywords: "trampoline, park, tourville-la-rivière" 
   }
 ];
 
