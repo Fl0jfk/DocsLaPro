@@ -52,24 +52,6 @@ const IMAGE_CATALOG = [
     keywords: "cimetière, américain, colleville" 
   },
   { 
-    id: "Etretat", 
-    label: "Etretat", 
-    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Etretat.webp",
-    keywords: "etretat, falaise" 
-  },
-  { 
-    id: "Forêt de brocéliande", 
-    label: "Forêt de brocéliande", 
-    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Foret+de+broceliande.jpg",
-    keywords: "forêt, brocéliande, bretagne" 
-  },
-  { 
-    id: "Honfleur", 
-    label: "Honfleur", 
-    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/honfleur.jpg",
-    keywords: "honfleur, port" 
-  },
-  { 
     id: "Musée de la Monnaie de Paris", 
     label: "Musée de la Monnaie de Paris", 
     url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/monnaie-de-paris.jpg",
@@ -130,10 +112,178 @@ const IMAGE_CATALOG = [
     keywords: "trampoline, park, tourville-la-rivière" 
   },
   { 
-    id: "Trampoline Park Tourville-La-Rivière", 
-    label: "Trampoline Park Tourville-La-Rivière", 
-    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Trampoline+Park.jpg",
-    keywords: "trampoline, park, tourville-la-rivière" 
+    id: "Accrobranche", 
+    label: "Accrobranche", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Accrobranche.webp",
+    keywords: "accrobranche, parc, nature" 
+  },
+  { 
+    id: "Assemblée Nationale", 
+    label: "Assemblée Nationale", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/assemblee-nationale-2.jpg",
+    keywords: "assemblee, nationale, paris" 
+  },
+  { 
+    id: "Atrium", 
+    label: "Atrium", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Atrium.jpg",
+    keywords: "atrium, paris" 
+  },
+  { 
+    id: "Basilique Montligeon", 
+    label: "Basilique Montligeon", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/basilique-montligeon-800.webp",
+    keywords: "basilique, montligeon" 
+  },
+  { 
+    id: "Bowling Grand-Quevilly", 
+    label: "Bowling Grand-Quevilly", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Bowling+GQ.webp",
+    keywords: "bowling, grand-quevilly" 
+  },
+  { 
+    id: "Cathédrale Bayeux", 
+    label: "Cathédrale Bayeux", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/cath%C3%A9drale+bayeux.webp",
+    keywords: "cathédrale, bayeux" 
+  },
+  { 
+    id: "Parc animalier Cerza", 
+    label: "Parc animalier Cerza", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/CERZA.png",
+    keywords: "parc, animalier, cerza" 
+  },
+  { 
+    id: "Chapelle Corneille Rouen", 
+    label: "Chapelle Corneille Rouen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Chappelle+Corneille+Rouen.jpg",
+    keywords: "chapelle, corneille, rouen" 
+  },
+  { 
+    id: "Chateaux de la Loire", 
+    label: "Chateaux de la Loire", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Chateaux+de+la+Loire.webp",
+    keywords: "chateaux, loire" 
+  },
+  { 
+    id: "Cimetière Américain Colleville", 
+    label: "Cimetière Américain Colleville", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Cimetiere+Americain+Colleville.jpg",
+    keywords: "cimetière, américain, colleville" 
+  },
+  { 
+    id: "Cité Viking", 
+    label: "Cité Viking", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Cit%C3%A9+viking.jpg",
+    keywords: "cité, viking, rouen" 
+  },
+  { 
+    id: "Cologne Noël", 
+    label: "Cologne Noël", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Cologne+Noel.webp",
+    keywords: "cologne, noel, allemagne" 
+  },
+  { 
+    id: "Conservatoire de Rouen", 
+    label: "Conservatoire de Rouen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Conservatoire_de_Rouen.jpg",
+    keywords: "conservatoire, rouen" 
+  },
+  { 
+    id: "Dock's 76", 
+    label: "Dock's 76", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Docks+76.jpg",
+    keywords: "docks, 76, rouen, dock's" 
+  },
+  { 
+    id: "Falaise d'Etretat", 
+    label: "Falaise d'Etretat", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Etretat.webp",
+    keywords: "falaise, etretat" 
+  },
+  { 
+    id: "EVA Rouen VR", 
+    label: "EVA Rouen VR", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/EVA+Rouen.jpg",
+    keywords: "eva, rouen, vr, réalité, virtuelle" 
+  },
+  { 
+    id: "Foire-Saint-Romain", 
+    label: "Foire-Saint-Romain", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Foire+saint+romain.jpg",
+    keywords: "foire, saint-romain, rouen, manèges, attractions, saint, romain" 
+  },
+  { 
+    id: "Forêt de brocéliande", 
+    label: "Forêt de brocéliande", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Foret+de+broceliande.jpg",
+    keywords: "forêt, brocéliande, bretagne" 
+  },
+  { 
+    id: "Fujiya Sushi Le Mesnil-Esnard", 
+    label: "Fujiya Sushi Le Mesnil-Esnard", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Fujiya+Sushi+LME.jpg",
+    keywords: "fujiya, sushi, le mesnil-esnard, japon" 
+  },
+  { 
+    id: "Futuroscope", 
+    label: "Futuroscope", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Futuroscope.jpg",
+    keywords: "futuroscope, parc, manèges, attractions" 
+  },
+  { 
+    id: "Historial Jeanne d'Arc Rouen", 
+    label: "Historial Jeanne d'Arc Rouen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Historial+Jeanne+d'Arc.jpg",
+    keywords: "historial, jeanne d'arc, rouen" 
+  },
+  { 
+    id: "Honfleur", 
+    label: "Honfleur", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/honfleur.jpgg",
+    keywords: "honfleur, port" 
+  },
+  { 
+    id: "Hôtel de Ville Rouen", 
+    label: "Hôtel de Ville Rouen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Hotel-de-ville-de-rouen.jpg",
+    keywords: "hôtel de ville, rouen, mairie" 
+  },
+  { 
+    id: "Laser Game", 
+    label: "Laser Game", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Laser+Game.jpg",
+    keywords: "laser game, rouen, jeu de tir" 
+  },
+  { 
+    id: "Lillebonne Juliobona", 
+    label: "Lillebonne Juliobona", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Lillebonne+Juliobona.jpg",
+    keywords: "lillebonne, juliobona, romain" 
+  },
+  { 
+    id: "Madagascar", 
+    label: "Madagascar", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Madagascar.jpg",
+    keywords: "madagascar, parc, animaux, st2s, social, afrique" 
+  },
+  { 
+    id: "Marché de Noël Rouen", 
+    label: "Marché de Noël Rouen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/March%C3%A9+noel+rouen.webp",
+    keywords: "marché, noel, rouen" 
+  },
+  { 
+    id: "Mémorial de Caen", 
+    label: "Mémorial de Caen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Memorial+de+Caen.jpg",
+    keywords: "mémorial, caen, normandie, 2eme guerre mondiale" 
+  },
+  { 
+    id: "Mémorial de Caen", 
+    label: "Mémorial de Caen", 
+    url: "https://docslaproimage.s3.eu-west-3.amazonaws.com/travels/Memorial+de+Caen.jpg",
+    keywords: "mémorial, caen, normandie, 2eme guerre mondiale" 
   }
 ];
 

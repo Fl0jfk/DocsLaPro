@@ -4,7 +4,7 @@ import { useUser } from "@clerk/nextjs";
 
 const CLASSES_DATA: Record<string, string[]> = {
   "ÉCOLE": ["CP", "CE1", "CE2", "CM1", "CM2"],
-  "COLLÈGE": ["6A","6B","6C","6D","6E","5A","5B","5C","5D","5E","5F","4A","4B","4C","4D","4E","4F","3A","3B","3C","3D","3E"],
+  "COLLÈGE": ["6A","6B","6C","6D","6E","6F","5A","5B","5C","5D","5E","5F","4A","4B","4C","4D","4E","4F","3A","3B","3C","3D","3E","3F"],
   "LYCÉE": ["2A","2B","2C","2D","2E","1A","1B","1C","1D","1E","1F","TA","TB","TC","TD","TE","TF"],
   "MAINTENANCE": ["MAINTENANCE"],
 };
