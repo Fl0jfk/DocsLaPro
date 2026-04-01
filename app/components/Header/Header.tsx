@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp";
+import { SCHOOL } from "../../lib/school";
 
 const NAV = [
   { href: "/ecole",   label: "École",   activeColor: "text-yellow-500", hoverClass: "hover:text-yellow-500", dot: "bg-yellow-500" },
@@ -105,9 +106,9 @@ export default function SiteHeader() {
             ))}
           </nav>
           <div className="hidden md:flex items-center gap-2">
-            <Link href="/portesouvertes" className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all">
+            <a href={SCHOOL.preinscriptionUrl} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all">
               Pré-inscription
-            </Link>
+            </a>
             {isSignedIn ? (
               <div ref={popoverRef} className="relative">
                 <button
