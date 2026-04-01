@@ -8,9 +8,7 @@ import { SCHOOL } from '../lib/school';
 
 function resolveNewsImage(url: string): string | null {
   if (!url || !url.trim()) return null;
-  if (url.includes("docslapro.s3.") && !url.includes("docslaproimage.s3.")) {
-    return `/api/news/image-proxy?url=${encodeURIComponent(url)}`;
-  }
+  if (url.includes("docslapro.s3.") && !url.includes("docslaproimage.s3.")) { return `/api/news/image-proxy?url=${encodeURIComponent(url)}`}
   return url;
 }
 type NewsItem = {
@@ -41,7 +39,6 @@ export default function HomePage() {
         setNewsLoading(true);
         const res = await fetch("/api/news/get");
         const data = await res.json();
-        // Keep only the last 10 items for the slider.
         const all: NewsItem[] = Array.isArray(data) ? data : [];
         if (!cancelled) setNewsItems(all.slice(-10));
       } catch (e) {
@@ -56,7 +53,6 @@ export default function HomePage() {
       cancelled = true;
     };
   }, []);
-
   const newsCount = newsItems.length;
   const extendedNews = useMemo(
     () => (newsCount > 0 ? [...newsItems, ...newsItems, ...newsItems] : []),
@@ -65,7 +61,6 @@ export default function HomePage() {
   useEffect(() => {
     if (newsCount > 0) setCurrentIndex(newsCount);
   }, [newsCount]);
-
   useEffect(() => {
     if (isPaused || newsCount === 0) return;
     const interval = setInterval(() => {
@@ -140,7 +135,6 @@ export default function HomePage() {
                                 (index >= newsCount && index < newsCount * 2) ||
                                 shouldPreload
                               }
-              
                             />
                           )}
                           <div className="absolute inset-0 pointer-events-none">
@@ -180,8 +174,6 @@ export default function HomePage() {
           )}
         </section>
       </main>
-
-      {/* ── Three schools ── */}
       <section className="py-20 bg-[#f5f5f7]">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-blue-500 font-bold uppercase tracking-widest text-xs text-center mb-3">Le Mesnil-Esnard · Seine-Maritime</p>
@@ -221,7 +213,7 @@ export default function HomePage() {
                 desc: "5 labels d'excellence, un internat de 125 places, des options rares — le lycée qui prépare à l'avenir avec ambition.",
                 cta: "Découvrir le lycée →",
               },
-            ].map(({ href, color, light, text, label, title, desc, cta }) => (
+            ].map(({ href, color, text, label, title, desc, cta }) => (
               <Link key={href} href={href} className="group rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
                 <div className={`${color} transition-colors px-6 py-8`}>
                   <p className="text-white/80 font-bold uppercase tracking-widest text-xs mb-1">{label}</p>
@@ -236,8 +228,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Valeurs ── */}
       <section className="py-20 bg-white">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-slate-400 font-bold uppercase tracking-widest text-xs text-center mb-3">Inspiré de Nicolas Barré · XVIIe siècle</p>
@@ -264,8 +254,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Key facts ── */}
       <section className="bg-slate-900 py-16">
         <div className="max-w-[1200px] mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
@@ -281,8 +269,6 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-
-      {/* ── CTA Inscription ── */}
       <section className="py-24 bg-blue-600">
         <div className="max-w-[1200px] mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Rejoignez La Providence</h2>
@@ -302,8 +288,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Nous trouver ── */}
       <section className="bg-white py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <h2 className="text-3xl font-black text-slate-900 mb-2">Nous trouver</h2>
@@ -344,8 +328,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Footer ── */}
       <footer className="bg-slate-950 text-slate-400 py-10 text-center text-xs">
         <p className="font-bold text-slate-300 mb-2">{SCHOOL.name}</p>
         <p>{SCHOOL.address.fullCompact} · <Link href={SCHOOL.phone.tel} className="hover:text-white transition">{SCHOOL.phone.display}</Link></p>

@@ -11,9 +11,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider localization={frFR}>
-      <div>
-        {children}
-      </div>
+      <div>{children}</div>
     </ClerkProvider>
   );
 }

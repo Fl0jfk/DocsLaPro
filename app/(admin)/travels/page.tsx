@@ -12,7 +12,6 @@ export default function TripDashboard() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterEtab, setFilterEtab] = useState("");
-
   useEffect(() => {
     const fetchTrips = async () => {
       try {
@@ -27,22 +26,14 @@ export default function TripDashboard() {
         setLoading(false);
       }
     };
-
-    if (isLoaded && isSignedIn) {
-      fetchTrips();
-    }
+    if (isLoaded && isSignedIn) {fetchTrips()}
   }, [isLoaded, isSignedIn]);
-
   if (!isLoaded || !isSignedIn) return null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatDate = (trip: any, field: 'created' | 'travel') => {
     let val;
-    if (field === 'created') {
-      val = trip.createdAt || trip.updatedAt;
-    } else {
-      val = trip.data?.date;
-    }
-
+    if (field === 'created') { val = trip.createdAt || trip.updatedAt;
+    } else { val = trip.data?.date;}
     if (!val) return "À préciser";
     const d = new Date(val);
     return isNaN(d.getTime()) ? val : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -57,13 +48,12 @@ export default function TripDashboard() {
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'VALIDATED': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-      case 'REJECTED_MODIF': return 'bg-rose-50 text-rose-700 border-rose-100';
-      case 'PENDING_DIR_INITIAL': return 'bg-blue-50 text-blue-700 border-blue-100';
+      case 'VALIDE': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'REJET_MODIF': return 'bg-rose-50 text-rose-700 border-rose-100';
+      case 'EN_ATTENTE_DIR_INITIAL': return 'bg-blue-50 text-blue-700 border-blue-100';
       default: return 'bg-amber-50 text-amber-700 border-amber-100';
     }
   };
-
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen mt-[10vh]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
@@ -99,7 +89,6 @@ export default function TripDashboard() {
           );
         })}
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-8">
         {loading ? (
           <div className="col-span-full text-center py-20">Chargement des dossiers...</div>
@@ -113,19 +102,15 @@ export default function TripDashboard() {
           ).map((trip: any) => {
             const isComplex = trip.type === "COMPLEX" || trip.data?.transport;
             const imageUrl = trip.imageUrl || trip.data?.imageUrl || trip.data?.data?.imageUrl;
-
             const etabLabel = trip.data?.etablissement || "Groupe Scolaire";
             const etabStyle = ETAB_STYLE[etabLabel] ?? ETAB_STYLE["Groupe Scolaire"];
-
             return (
               <div 
                 key={trip.id} 
                 onClick={() => router.push(`/travels/${trip.id}`)}
                 className="group bg-white border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer transform-gpu"
               >
-                {/* Coloured top stripe — instantly identifies the établissement */}
                 <div className={`h-1.5 w-full ${etabStyle.stripe}`} />
-
                 <div className="h-44 w-full relative bg-slate-100 overflow-hidden isolate" style={{ maskImage: 'radial-gradient(white, black)' }}>
                   {imageUrl ? (
                     <Image 
@@ -140,18 +125,15 @@ export default function TripDashboard() {
                       {isComplex ? '🚌' : '🍦'}
                     </div>
                   )}
-                  {/* Status badge — top left */}
                   <div className="absolute top-4 left-4 flex gap-2">
                     <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-sm ${getStatusStyle(trip.status)}`}>
-                      {trip.status?.replace('PENDING_', '').replace('_', ' ')}
+                      {trip.status?.replace('EN_ATTENTE_', '').replace('_', ' ')}
                     </span>
                   </div>
-                  {/* Établissement badge — top right, large & prominent */}
                   <div className={`absolute top-4 right-4 px-4 py-1.5 rounded-xl font-black text-sm border shadow-lg backdrop-blur-md ${etabStyle.bg} ${etabStyle.text} ${etabStyle.border}`}>
                     {etabLabel === "École" ? "🏫" : etabLabel === "Collège" ? "📚" : etabLabel === "Lycée" ? "🎓" : "🏛"} {etabLabel}
                   </div>
                 </div>
-
                 <div className="p-8">
                   <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                     <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isComplex ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
@@ -163,9 +145,7 @@ export default function TripDashboard() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <h3 className="text-2xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                        {trip.data?.title || "Sans titre"}
-                      </h3>
+                      <h3 className="text-2xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-1">{trip.data?.title || "Sans titre"}</h3>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
                           <span className="text-lg">📍</span> {trip.data?.destination || "Non définie"}

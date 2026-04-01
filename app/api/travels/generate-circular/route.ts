@@ -45,34 +45,22 @@ export async function POST(req: Request) {
           let finished = false;
           let attempts = 0;
           const maxAttempts = 240;
-
           while (!finished && attempts < maxAttempts) {
             const getCommand = new GetDocumentTextDetectionCommand({ JobId: jobId });
             const getResponse = await textractClient.send(getCommand);
             const status = getResponse.JobStatus;
-
             if (status === "SUCCEEDED") {
-              const extractedText = getResponse.Blocks?.filter(b => b.BlockType === "LINE")
-                .map(b => b.Text)
-                .join(" ");
-              
+              const extractedText = getResponse.Blocks?.filter(b => b.BlockType === "LINE").map(b => b.Text).join(" ");
               ocrCombinedText += `\n--- Contenu du document [${doc.name || docKey}] ---\n${extractedText}\n`;
               finished = true;
-            } else if (status === "FAILED") {
-              finished = true;
+            } else if (status === "FAILED") { finished = true;
             } else {
               attempts+=2;
               await new Promise((resolve) => setTimeout(resolve, 1000));
             }
           }
-
-          if (attempts >= maxAttempts) {
-            console.warn(`[OCR] Timeout pour le document ${doc.name}`);
-          }
-
-        } catch (ocrErr) {
-          console.error(`Erreur OCR sur le document ${doc.name}:`, ocrErr);
-        }
+          if (attempts >= maxAttempts) { console.warn(`[OCR] Timeout pour le document ${doc.name}`)}
+        } catch (ocrErr) { console.error(`Erreur OCR sur le document ${doc.name}:`, ocrErr)}
       }
     }
     const superContext = `
@@ -90,16 +78,8 @@ export async function POST(req: Request) {
       - Bus sur place pour les visites : ${d.transportRequest?.stayOnSite ? "Oui" : "Non"}
       - Infos complémentaires transport : ${d.transportRequest?.freeText || "—"}
       - Pique-nique : ${(d.piqueNiqueDetails?.active || d.piqueNique) ? "Oui" : "Non"}
-      - Pique-nique (détails) : ${
-        d.piqueNiqueDetails?.active
-          ? `Livraison à ${d.piqueNiqueDetails.deliveryPlace} (${d.piqueNiqueDetails.deliveryTime || "heure à préciser"})`
-          : "—"
-      }
-
-      CONTENU DES PIÈCES JOINTES (ANALYSE OCR) :
-      ${ocrCombinedText || "Aucun document joint n'a pu être analysé."}
-    `;
-
+      - Pique-nique (détails) : ${d.piqueNiqueDetails?.active ? `Livraison à ${d.piqueNiqueDetails.deliveryPlace} (${d.piqueNiqueDetails.deliveryTime || "heure à préciser"})` : "—"}
+      CONTENU DES PIÈCES JOINTES (ANALYSE OCR) : ${ocrCombinedText || "Aucun document joint n'a pu être analysé."}`;
     const mistralResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -130,39 +110,26 @@ export async function POST(req: Request) {
     const resData = await mistralResponse.json();
     let generatedText = resData.choices?.[0]?.message?.content || "Détails du voyage à venir...";
     generatedText = generatedText.replace(/[*#]/g, '').trim();
-
-    // ── Logo (filesystem) ──────────────────────────────────────────────────
     let logoDataUri: string | null = null;
     try {
       const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
       const logoBuf = await fs.readFile(logoPath);
       logoDataUri = `data:image/png;base64,${logoBuf.toString("base64")}`;
-    } catch (e) {
-      console.error("Logo load error:", e);
-    }
-
-    // ── PDF setup ──────────────────────────────────────────────────────────
+    } catch (e) { console.error("Logo load error:", e)}
     const docPdf = new jsPDF({ compress: true });
-    const W  = docPdf.internal.pageSize.getWidth();   // 210 mm
-    const H  = docPdf.internal.pageSize.getHeight();  // 297 mm
+    const W  = docPdf.internal.pageSize.getWidth();  
+    const H  = docPdf.internal.pageSize.getHeight();
     const ML = 15;
     const MR = W - 15;
-    const CW = W - 30; // content width
+    const CW = W - 30; 
     const HEADER_H     = 38;
-    const BANNER_H     = 58; // full-width image band (~20% of page)
-    const FOOTER_RESV  = 88; // reserved for coupon at bottom
-
+    const BANNER_H     = 58; 
+    const FOOTER_RESV  = 88;
     const nowStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
     const startDate = d.startDate || d.date || "";
     const endDate   = d.endDate   || d.date || "";
-    const dateLine  = (d.endDate && d.endDate !== d.startDate)
-      ? `du ${startDate} au ${endDate}`
-      : `le ${startDate}`;
-    const transportLine = d.needsBus
-      ? `Autocar — RDV : ${d.transportRequest?.pickupPoint || "à préciser"}`
-      : "Non précisé";
-
-    // ── Letterhead helper (called on each page) ────────────────────────────
+    const dateLine  = (d.endDate && d.endDate !== d.startDate) ? `du ${startDate} au ${endDate}` : `le ${startDate}`;
+    const transportLine = d.needsBus ? `Autocar — RDV : ${d.transportRequest?.pickupPoint || "à préciser"}`: "Non précisé";
     const renderLetterhead = () => {
       if (logoDataUri) docPdf.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
       docPdf.setFont("helvetica", "bold");
@@ -180,11 +147,8 @@ export async function POST(req: Request) {
       docPdf.setFillColor(37, 99, 235);
       docPdf.rect(0, 36.8, W, 0.6, "F");
     };
-
     renderLetterhead();
     let currentY = HEADER_H + 2;
-
-    // ── FULL-WIDTH BANNER IMAGE ────────────────────────────────────────────
     if (tripData.imageUrl) {
       try {
         const imgRes = await fetch(tripData.imageUrl);
@@ -192,17 +156,12 @@ export async function POST(req: Request) {
         const imgData = `data:image/jpeg;base64,${imgBuf.toString("base64")}`;
         docPdf.addImage(imgData, "JPEG", 0, currentY, W, BANNER_H);
         currentY += BANNER_H;
-      } catch (e) {
-        console.error("Erreur image circulaire:", e);
-      }
+      } catch (e) {console.error("Erreur image circulaire:", e)}
     }
-
-    // ── TITLE BAR (slate-800 + blue accent strip) ─────────────────────────
     docPdf.setFillColor(30, 41, 59);
     docPdf.rect(0, currentY, W, 13, "F");
     docPdf.setFillColor(37, 99, 235);
     docPdf.rect(0, currentY + 11, W, 2, "F");
-
     docPdf.setFont("helvetica", "bold");
     docPdf.setFontSize(12);
     docPdf.setTextColor(255, 255, 255);
@@ -213,20 +172,16 @@ export async function POST(req: Request) {
     docPdf.setTextColor(147, 197, 253);
     docPdf.text("CIRCULAIRE PARENTS", MR, currentY + 8.5, { align: "right" });
     currentY += 17;
-
-    // ── KEY INFO GRID ─────────────────────────────────────────────────────
     const infoBoxH = 36;
     docPdf.setFillColor(248, 250, 252);
     docPdf.setDrawColor(226, 232, 240);
     docPdf.rect(ML - 2, currentY, CW + 4, infoBoxH, "FD");
-
     const halfW = CW / 2;
     const infoRows = [
       [["Organisateur", professorName],         ["Destination",     d.destination || "—"]],
       [["Date(s)",      dateLine],               ["Effectif",        `${d.nbEleves || "—"} élèves, ${d.nbAccompagnateurs || "—"} accomp.`]],
       [["Transport",    transportLine],           ["Participation",   `${costPerStudent} €`]],
     ];
-
     let infoY = currentY + 7;
     infoRows.forEach(([left, right]) => {
       [[left, ML], [right, ML + halfW]].forEach(([item, colX]) => {
@@ -245,8 +200,6 @@ export async function POST(req: Request) {
       infoY += 11;
     });
     currentY += infoBoxH + 7;
-
-    // ── SECTION HEADER ────────────────────────────────────────────────────
     docPdf.setFont("helvetica", "bold");
     docPdf.setFontSize(10);
     docPdf.setTextColor(37, 99, 235);
@@ -254,21 +207,12 @@ export async function POST(req: Request) {
     docPdf.setFillColor(37, 99, 235);
     docPdf.rect(ML, currentY + 1.5, CW, 0.4, "F");
     currentY += 8;
-
-    // ── MISTRAL BODY TEXT (paginated) ─────────────────────────────────────
     docPdf.setTextColor(55, 65, 81);
     docPdf.setFont("helvetica", "normal");
     docPdf.setFontSize(9.5);
-
-    const paragraphs = generatedText
-      .replace(/\r\n/g, "\n")
-      .split(/\n{2,}/g)
-      .map((p: string) => p.trim())
-      .filter(Boolean);
-
+    const paragraphs = generatedText.replace(/\r\n/g, "\n").split(/\n{2,}/g).map((p: string) => p.trim()).filter(Boolean);
     const mainEndY = H - FOOTER_RESV;
     const lineH    = 5;
-
     const renderParagraph = (p: string) => {
       const lines = docPdf.splitTextToSize(p, CW);
       for (const line of lines) {
@@ -281,16 +225,11 @@ export async function POST(req: Request) {
         currentY += lineH;
       }
     };
-
     for (const p of paragraphs) {
       renderParagraph(p);
       if (currentY + lineH < mainEndY) currentY += 2;
     }
-
-    // ── COUPON RÉPONSE ────────────────────────────────────────────────────
     const couponY = H - 82;
-
-    // Dashed cut line
     docPdf.setDrawColor(180, 180, 180);
     docPdf.setLineDashPattern([2, 2], 0);
     docPdf.line(ML - 2, couponY - 5, MR + 2, couponY - 5);
@@ -299,21 +238,16 @@ export async function POST(req: Request) {
     docPdf.setFontSize(7);
     docPdf.setTextColor(160, 160, 160);
     docPdf.text("✂", ML - 2, couponY - 3);
-
-    // Coupon box
     docPdf.setFillColor(255, 251, 235);
     docPdf.setDrawColor(245, 158, 11);
     docPdf.rect(ML - 2, couponY, CW + 4, 77, "FD");
-
     docPdf.setFont("helvetica", "bold");
     docPdf.setFontSize(9);
     docPdf.setTextColor(180, 83, 9);
     docPdf.text("COUPON-RÉPONSE", ML + 3, couponY + 8);
-
     docPdf.setFont("helvetica", "normal");
     docPdf.setFontSize(8.5);
     docPdf.setTextColor(40, 40, 40);
-
     const couponLines: string[] = [
       `Nom et prénom de l'élève : .....................................................   Classe : ...............`,
       `Responsable légal (nom, prénom) : .....................................................................................................`,
@@ -323,7 +257,6 @@ export async function POST(req: Request) {
       ``,
       `Fait à : ...................................   Le : ....../ ....../ 20......   Signature : ............................................`,
     ];
-
     let couponCY = couponY + 17;
     for (const line of couponLines) {
       if (line === "") { couponCY += 2; continue; }
@@ -333,16 +266,12 @@ export async function POST(req: Request) {
         couponCY += 5.5;
       }
     }
-
-    // ── PAGE FOOTER ───────────────────────────────────────────────────────
     docPdf.setFont("helvetica", "normal");
     docPdf.setFontSize(7);
     docPdf.setTextColor(180, 190, 200);
     docPdf.text(`Document généré le ${nowStr} — La Providence Nicolas Barré`, W / 2, H - 2, { align: "center" });
-
     const pdfBase64 = docPdf.output('datauristring');
     return NextResponse.json({ pdf: pdfBase64 });
-
   } catch (error) {
     console.error("Erreur générale dans la route :", error);
     return NextResponse.json({ error: "Échec génération" }, { status: 500 });

@@ -11,9 +11,7 @@ type SliderProps = {
 
 export default function Slide({ name, img, link, external, priority = false,}: SliderProps) {
   const ImageBlock = (
-    img && (
-      <Image src={img} fill alt={name} sizes="35vw" priority={priority} fetchPriority={priority ? "high" : "auto"} className="rounded-3xl select-none pointer-events-none object-contain"/>
-    )
+    img && (<Image src={img} fill alt={name} sizes="35vw" priority={priority} fetchPriority={priority ? "high" : "auto"} className="rounded-3xl select-none pointer-events-none object-contain"/>)
   );
   const content = (
     <>
@@ -25,12 +23,8 @@ export default function Slide({ name, img, link, external, priority = false,}: S
   );
   const baseClass ="bg-white border-1 shadow-xs hover:shadow-lg border-gray-200 select-none flex items-end h-[350px] md:max-lg:h-[300px] sm:max-md:h-[450px] min-w-[250px] rounded-3xl m-3 p-4 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-105";
   return external ? (
-    <a href={link} target="_blank" rel="noopener noreferrer" className={baseClass}>
-      {content}
-    </a>
+    <a href={link} target="_blank" rel="noopener noreferrer" className={baseClass}>{content}</a>
   ) : (
-    <Link href={link} className={baseClass}>
-      {content}
-    </Link>
+    <Link href={link} className={baseClass}>{content}</Link>
   );
 }

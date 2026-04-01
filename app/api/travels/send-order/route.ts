@@ -16,11 +16,8 @@ const textractClient = new TextractClient({
   },
 });
 
-/** Run Textract on an S3 key and return the extracted text (max ~30s wait). */
 async function ocrS3Key(bucket: string, key: string): Promise<string> {
-  const start = await textractClient.send(new StartDocumentTextDetectionCommand({
-    DocumentLocation: { S3Object: { Bucket: bucket, Name: key } },
-  }));
+  const start = await textractClient.send(new StartDocumentTextDetectionCommand({ DocumentLocation:{ S3Object:{ Bucket:bucket,Name:key}}}));
   const jobId = start.JobId;
   if (!jobId) return "";
   for (let i = 0; i < 30; i++) {
@@ -33,8 +30,6 @@ async function ocrS3Key(bucket: string, key: string): Promise<string> {
   }
   return "";
 }
-
-/** Ask Mistral to extract the total price from OCR text. Returns a price string or null. */
 async function extractPriceWithMistral(ocrText: string): Promise<string | null> {
   if (!ocrText || !process.env.MISTRAL_API_KEY) return null;
   try {
@@ -70,12 +65,8 @@ function buildConfirmationPDF(opts: {
   const { providerName, tripTitle, amount, reference, extractedPrice, logoDataUri, tripData } = opts;
   const d = tripData || {};
   const effectifTotal = (Number(d.nbEleves) || 0) + (Number(d.nbAccompagnateurs) || 0);
-  const effectifStr = effectifTotal > 0
-    ? `${effectifTotal} personnes (dont ${d.nbAccompagnateurs || 0} adultes)`
-    : null;
-  const datesStr = d.startDate && d.endDate
-    ? `Du ${new Date(d.startDate).toLocaleDateString("fr-FR")} au ${new Date(d.endDate).toLocaleDateString("fr-FR")}`
-    : d.date ? new Date(d.date).toLocaleDateString("fr-FR") : null;
+  const effectifStr = effectifTotal > 0 ? `${effectifTotal} personnes (dont ${d.nbAccompagnateurs || 0} adultes)` : null;
+  const datesStr = d.startDate && d.endDate ? `Du ${new Date(d.startDate).toLocaleDateString("fr-FR")} au ${new Date(d.endDate).toLocaleDateString("fr-FR")}` : d.date ? new Date(d.date).toLocaleDateString("fr-FR") : null;
   const agreedPrice = extractedPrice || amount || null;
   const doc = new jsPDF({ compress: true });
   const W = doc.internal.pageSize.getWidth();
@@ -83,14 +74,7 @@ function buildConfirmationPDF(opts: {
   const ML = 15;
   const MR = W - 15;
   const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
-
-  // ── WHITE LETTERHEAD (0–38 mm) ──────────────────────────────────
-  // Logo on white background — transparency renders correctly
-  if (logoDataUri) {
-    doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
-  }
-
-  // School name + info — right-aligned
+  if (logoDataUri) { doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24)}
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(30, 41, 59);
@@ -101,19 +85,14 @@ function buildConfirmationPDF(opts: {
   doc.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
   doc.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
   doc.text("02 32 86 50 90", MR, 30, { align: "right" });
-
-  // Double accent bar (slate-800 thick + blue thin)
   doc.setFillColor(30, 41, 59);
   doc.rect(0, 35, W, 1.8, "F");
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 36.8, W, 0.6, "F");
-
-  // ── SENDER / RECIPIENT (44–78 mm) ───────────────────────────────
   const colA = ML;
   const colB = W / 2 + 8;
   let yA = 45;
   let yB = 45;
-  // RIGHT — transporter name + date
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184);
@@ -133,19 +112,13 @@ function buildConfirmationPDF(opts: {
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
   doc.text(dateStr, colB, yB);
-
-  // ── SEPARATOR ──────────────────────────────────────────────────
   const sepY = Math.max(yA, yB) + 9;
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.4);
   doc.line(ML, sepY, MR, sepY);
-
-  // ── SUBJECT LINE ────────────────────────────────────────────────
   let sy = sepY + 10;
-  // Green left-border accent (signals confirmation)
   doc.setFillColor(22, 163, 74);
   doc.rect(ML, sy - 5, 2.5, 13, "F");
-
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184);
@@ -160,8 +133,6 @@ function buildConfirmationPDF(opts: {
     amount ? `  —  ${amount} €` : "",
   ].join("");
   doc.text(subjectLine, ML + 7, sy);
-
-  // ── INTRO PARAGRAPH ─────────────────────────────────────────────
   sy += 10;
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8.5);
@@ -170,14 +141,11 @@ function buildConfirmationPDF(opts: {
   const introLines = doc.splitTextToSize(intro, MR - ML);
   doc.text(introLines, ML, sy);
   sy += introLines.length * 4.5 + 9;
-
-  // ── RECAP TABLE ─────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184);
   doc.text("RÉCAPITULATIF", ML, sy);
   sy += 3.5;
-
   autoTable(doc, {
     startY: sy,
     body: [
@@ -205,15 +173,11 @@ function buildConfirmationPDF(opts: {
     tableLineColor: [226, 232, 240],
     tableLineWidth: 0.2,
   });
-
-  // ── CLOSING LINE ────────────────────────────────────────────────
   const closingY = (doc as any).lastAutoTable.finalY + 13;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
   doc.text("Dans l'attente de vous lire, nous vous adressons nos cordiales salutations.", ML, closingY);
-
-  // ── FOOTER BAR ──────────────────────────────────────────────────
   doc.setFillColor(241, 245, 249);
   doc.rect(0, H - 14, W, 14, "F");
   doc.setDrawColor(226, 232, 240);
@@ -222,12 +186,8 @@ function buildConfirmationPDF(opts: {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184);
-  doc.text(
-    "Groupe Scolaire La Providence Nicolas Barré  ·  Établissement catholique sous contrat avec l'État",
-    ML, H - 7
-  );
+  doc.text("Groupe Scolaire La Providence Nicolas Barré  ·  Établissement catholique sous contrat avec l'État", ML, H - 7);
   doc.text("76240 Le Mesnil-Esnard", MR, H - 7, { align: "right" });
-
   return Buffer.from(doc.output("arraybuffer"));
 }
 
@@ -235,34 +195,25 @@ export async function POST(req: Request) {
   try {
     const { providerEmail, signedQuoteUrl, providerName, tripTitle, tripData, amount, reference } = await req.json();
     if (!providerEmail) { return NextResponse.json({ error: "Email du transporteur manquant" }, { status: 400 })}
-
-    // Load PNG logo directly from filesystem (no HTTP fetch needed)
     let logoDataUri: string | null = null;
     try {
-      const logoPath = path.join(process.cwd(), "public", "Logo_La_Providence_JAPON no background.png");
+      const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
       const logoBuffer = await fs.readFile(logoPath);
       logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
     } catch (e) {
       console.error("Logo load error (send-order):", e);
     }
-
     const urlObj = new URL(signedQuoteUrl);
     const fileKey = decodeURIComponent(urlObj.pathname.substring(1));
-
-    // ── OCR + Mistral: extract price from signed quote ──────────────
     let extractedPrice: string | null = null;
     try {
-      console.log("[send-order] Lancement OCR Textract sur devis signé...");
       const ocrText = await ocrS3Key(process.env.BUCKET_NAME!, fileKey);
       if (ocrText) {
-        console.log("[send-order] OCR terminé, appel Mistral pour extraction du prix...");
         extractedPrice = await extractPriceWithMistral(ocrText);
-        console.log("[send-order] Prix extrait:", extractedPrice);
       }
     } catch (ocrErr) {
       console.error("[send-order] Erreur OCR/Mistral:", ocrErr);
     }
-
     const s3Client = new S3Client({
       region: process.env.REGION,
       credentials: {
@@ -276,9 +227,7 @@ export async function POST(req: Request) {
     });
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 120 });
     const pdfResponse = await fetch(presignedUrl);
-    if (!pdfResponse.ok) {
-      throw new Error(`Impossible d'accéder au PDF sur S3 : ${pdfResponse.statusText}`);
-    }
+    if (!pdfResponse.ok) { throw new Error(`Impossible d'accéder au PDF sur S3 : ${pdfResponse.statusText}`);}
     const pdfArrayBuffer = await pdfResponse.arrayBuffer();
     const pdfBuffer = Buffer.from(pdfArrayBuffer);
     const transporter = nodemailer.createTransport({
@@ -288,7 +237,6 @@ export async function POST(req: Request) {
         pass: process.env.SMTP_PASS,
       },
     });
-    // Generate the confirmation letter PDF with all available data
     const confirmationPdf = buildConfirmationPDF({
       providerName,
       tripTitle,
@@ -298,7 +246,6 @@ export async function POST(req: Request) {
       extractedPrice,
       logoDataUri,
     });
-
     const mailOptions = {
       from: `"Gestion Voyages" <${process.env.SMTP_USER}>`,
       to: providerEmail,

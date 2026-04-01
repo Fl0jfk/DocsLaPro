@@ -13,32 +13,64 @@ export default function TripDetails() {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<any>(null);
+  const [showCuisineModal, setShowCuisineModal] = useState(false);
+  const [draftMessage, setDraftMessage] = useState("");
   const [uploading, setUploading] = useState(false);
-
   const rawRoles = user?.publicMetadata?.role;
   const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
   const isDirectionLycee = userRoles.includes('direction_lycee');
   const isDirectionCollege = userRoles.includes('direction collège');
   const isDirectionEcole = userRoles.includes('direction école');
   const isDirection = isDirectionLycee || isDirectionCollege || isDirectionEcole;
-
-  // Returns true if the currently logged-in director is allowed to sign for this trip's établissement.
-  // École → direction école only · Collège → direction collège only
-  // Lycée or unset/multi → direction lycée only (coordinator of the whole group)
   const etabForSign = trip?.data?.etablissement || "";
-  // Normalise for accent/case-insensitive role comparison
   const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
   const isEcoleDir  = userRoles.some((r: string) => norm(r).includes("directionecole")  || norm(r).includes("directionecol") || (norm(r).includes("direction") && norm(r).includes("ecole")));
   const isCollegeDir = userRoles.some((r: string) => norm(r).includes("directioncollege") || (norm(r).includes("direction") && norm(r).includes("college")));
   const isLyceeDir  = userRoles.some((r: string) => norm(r).includes("directionlycee")  || (norm(r).includes("direction") && norm(r).includes("lycee")));
-  const canSign = etabForSign === "École" ? (isDirectionEcole  || isEcoleDir)
-    : etabForSign === "Collège"            ? (isDirectionCollege || isCollegeDir)
-    : etabForSign === "Lycée"              ? (isDirectionLycee  || isLyceeDir)
-    : isDirectionLycee || isLyceeDir; // Groupe Scolaire / unset → lycée coordinator
+  const canSign = etabForSign === "École" ? (isDirectionEcole  || isEcoleDir) : etabForSign === "Collège" ? (isDirectionCollege || isCollegeDir) : etabForSign === "Lycée" ? (isDirectionLycee  || isLyceeDir) : isDirectionLycee || isLyceeDir;
   const isCompta = userRoles.includes('comptabilité');
   const isOwner = user?.fullName === trip?.ownerName;
   const canManageFiles = isOwner || isDirection || isCompta;
-
+  const canUseInternalThread = isOwner || isDirection || isCompta;
+  const CUISINE_DAYS = [{ key: "lundi", label: "Lun." },{ key: "mardi", label: "Mar." },{ key: "mercredi", label: "Mer." },{ key: "jeudi", label: "Jeu." },{ key: "vendredi", label: "Ven." }];
+  const CUISINE_ROWS = [
+    { key: "picnicTotal", label: "Pique-nique (total)", type: "number" },
+    { key: "picnicNoPork", label: "dont Sans porc", type: "number" },
+    { key: "picnicVeg", label: "dont Végétarien", type: "number" },
+    { key: "selfAdults", label: "Repas au self (adultes)", type: "number" },
+    { key: "selfStudents", label: "Repas au self (élèves)", type: "number" },
+    { key: "coffee", label: "Café / thé / chocolat", type: "number" },
+    { key: "juice", label: "Jus de fruits", type: "number" },
+    { key: "cakes", label: "Petits gâteaux", type: "number" },
+    { key: "pastries", label: "Viennoiserie", type: "number" },
+    { key: "other", label: "Autre", type: "text" },
+  ];
+  const emptyCuisineDetails = () => ({
+    active: false,
+    deliveryTime: "",
+    deliveryPlace: "Self",
+    daysSelection: { lundi: false, mardi: false, mercredi: false, jeudi: false, vendredi: false },
+    orders: {
+      lundi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+      mardi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+      mercredi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+      jeudi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+      vendredi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
+    },
+  });
+  const getTotalMeals = (details: any): number => {
+    if (!details?.active) return 0;
+    if (details?.orders) {
+      return CUISINE_DAYS.reduce((sum, { key }) => {
+        const dayEnabled = details.daysSelection?.[key];
+        if (!dayEnabled) return sum;
+        const val = Number(details.orders?.[key]?.picnicTotal || 0);
+        return sum + (Number.isFinite(val) ? val : 0);
+      }, 0);
+    }
+    const legacy = Number(details?.picnicTotal || 0);
+    return Number.isFinite(legacy) ? legacy : 0;
+  };
   useEffect(() => {
     const fetchTrip = async () => {
       try {
@@ -46,7 +78,10 @@ export default function TripDetails() {
         if (res.ok) {
           const data = await res.json();
           setTrip(data);
-          setEditedData(data.data);
+          setEditedData({
+            ...data.data,
+            piqueNiqueDetails: data.data?.piqueNiqueDetails || emptyCuisineDetails(),
+          });
         }
       } catch (err) {
         console.error("Erreur lors de la récupération du dossier:", err);
@@ -54,10 +89,7 @@ export default function TripDetails() {
     };
     if (id) fetchTrip();
   }, [id]);
-
   const openSecureFile = async (fileUrl: string) => {
-    // Safari is stricter about popups: if `window.open` happens after an `await`,
-    // it may be blocked. We open a blank tab immediately, then redirect it.
     const newWindow = window.open("", "_blank");
     try {
       const res = await fetch('/api/travels/download', {
@@ -67,21 +99,16 @@ export default function TripDetails() {
       });
       const { signedUrl } = await res.json();
       if (!signedUrl) throw new Error("Lien signé manquant");
-
       if (newWindow) {
         newWindow.location.href = signedUrl;
         newWindow.focus();
-      } else {
-        // Popup blocked: fallback to current tab navigation.
-        window.location.href = signedUrl;
-      }
+      } else { window.location.href = signedUrl}
     } catch (err) {
       console.error(err);
       if (newWindow) newWindow.close();
       alert("Erreur lors de l'ouverture du fichier.");
     }
   };
-
   const saveUpdates = async (updatedTrip: any) => {
     try {
       const res = await fetch('/api/travels/update', {
@@ -97,39 +124,30 @@ export default function TripDetails() {
       console.error("Erreur sauvegarde:", err);
     }
   };
-
   const handleFinalValidation = async () => {
     if (!canSign) return alert("Vous n'êtes pas autorisé(e) à valider ce dossier.");
     setLoadingAction("circular");
     try {
       let finalAttachments = [...(trip.data.attachments || [])];
-      
-      // 1. Génération Circulaire
       const circRes = await fetch('/api/travels/generate-circular', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tripData: trip })
       });
-      
       if (circRes.ok) {
         const { pdf } = await circRes.json();
         const fileName = `Circulaire_${trip.data.title.replace(/\s+/g, '_')}.pdf`;
-        
         const uploadRes = await fetch('/api/travels/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName, fileType: "application/pdf" })
         });
-        
         const { uploadUrl, fileUrl } = await uploadRes.json();
         const base64Content = pdf.split(',')[1];
         const byteArray = new Uint8Array(atob(base64Content).split("").map(c => c.charCodeAt(0)));
         await fetch(uploadUrl, { method: 'PUT', body: new Blob([byteArray], { type: 'application/pdf' }) });
-        
         finalAttachments.push({ name: `📄 Circulaire Parents`, url: fileUrl });
       }
-
-      // 2. Cuisine
       if (trip.data.piqueNiqueDetails?.active) {
         await fetch('/api/travels/send-cuisine', {
           method: 'POST',
@@ -141,9 +159,7 @@ export default function TripDetails() {
           })
         });
       }
-
-      // 3. Valider définitivement le dossier
-      await handleAction("VALIDATED", "Dossier validé. Circulaire générée et commande cuisine envoyée.", { attachments: finalAttachments });
+      await handleAction("VALIDE", "Dossier validé. Circulaire générée et commande cuisine envoyée.", { attachments: finalAttachments });
       alert("Dossier validé ! La circulaire a été ajoutée aux documents.");
     } catch (err) {
       console.error(err);
@@ -152,7 +168,6 @@ export default function TripDetails() {
       setLoadingAction(null);
     }
   };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!canManageFiles) return;
     const file = e.target.files?.[0];
@@ -169,9 +184,7 @@ export default function TripDetails() {
       const newAttachment = { name: file.name, url: fileUrl };
       const currentAttachments = isEditing ? (editedData.attachments || []) : (trip.data.attachments || []);
       const updatedAttachments = [...currentAttachments, newAttachment];
-      
-      if (isEditing) {
-        setEditedData((prev: any) => ({ ...prev, attachments: updatedAttachments }));
+      if (isEditing) { setEditedData((prev: any) => ({ ...prev, attachments: updatedAttachments }));
       } else {
         const updatedTrip = { ...trip, data: { ...trip.data, attachments: updatedAttachments } };
         await saveUpdates(updatedTrip);
@@ -183,7 +196,6 @@ export default function TripDetails() {
       setUploading(false);
     }
   };
-
   const removeFile = async (index: number) => {
     if (!canManageFiles) return;
     const currentAttachments = isEditing ? (editedData.attachments || []) : (trip.data.attachments || []);
@@ -195,7 +207,24 @@ export default function TripDetails() {
       await saveUpdates(updatedTrip);
     }
   };
-
+  const postInternalMessage = async () => {
+    const text = draftMessage.trim();
+    if (!text || !canUseInternalThread) return;
+    const roleLabel = isDirection ? "Direction" : isCompta ? "Comptabilité" : "Créateur";
+    const newMsg = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      user: user?.fullName || "Utilisateur",
+      role: roleLabel,
+      text,
+      date: new Date().toISOString(),
+    };
+    const updatedTrip = {
+      ...trip,
+      messages: [...(trip.messages || []), newMsg],
+    };
+    await saveUpdates(updatedTrip);
+    setDraftMessage("");
+  };
   const handleAction = async (newStatus: string, note: string = "", extraData: any = null) => {
     if (!loadingAction) setLoadingAction("action");
     const baseData = isEditing ? { ...trip.data, ...editedData } : trip.data;
@@ -213,26 +242,20 @@ export default function TripDetails() {
     setIsEditing(false);
     setLoadingAction(null);
   };
-
   const selectBusQuote = async (quote: any) => {
     if (!confirm(`Confirmer le choix de ${quote.providerName} ? Cela informera la direction pour signature.`)) return;
-    const updatedTrip = { ...trip, status: "PENDING_BUS_SIGNATURE", data: { ...trip.data, selectedBusQuote: quote } };
+    const updatedTrip = { ...trip, status: "EN_ATTENTE_BUS_SIGNATURE", data: { ...trip.data, selectedBusQuote: quote } };
     await saveUpdates(updatedTrip);
   };
-
   const signBusQuote = async () => {
     if (!canSign) return alert("Vous n'êtes pas autorisé(e) à signer ce dossier.");
     if (!confirm("Voulez-vous signer le devis et envoyer la commande au transporteur ?")) return;
     const transporteurEmail = trip.data.selectedBusQuote?.email || trip.data.selectedBusQuote?.providerEmail;
     if (!transporteurEmail) return alert("Erreur : Email transporteur introuvable.");
-    
     setLoadingAction("signing");
-    // Determine signature from the trip's établissement field.
-    // If multiple classes / no etablissement → lycée director signs as group coordinator.
     const etab = trip.data?.etablissement || "";
     let sigType = etab === "École" ? "ecole" : etab === "Collège" ? "college" : "lycee";
     if (!sigType) return alert("Erreur de rôle.");
-
     try {
       const signRes = await fetch('/api/travels/sign-pdf', {
         method: 'POST',
@@ -249,7 +272,6 @@ export default function TripDetails() {
       const { uploadUrl, fileUrl } = await uploadRes.json();
       const byteArray = new Uint8Array(atob(signedPdfData.split(',')[1]).split("").map(c => c.charCodeAt(0)));
       await fetch(uploadUrl, { method: 'PUT', body: new Blob([byteArray], { type: 'application/pdf' }) });
-
       await fetch('/api/travels/send-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,43 +284,36 @@ export default function TripDetails() {
           providerName: trip.data.selectedBusQuote.providerName,
         })
       });
-
       const newAttachment = { name: `✅ ${fileName}`, url: fileUrl };
-      handleAction("PENDING_COMPTA", `Devis signé et commande envoyée`, { attachments: [...(trip.data.attachments || []), newAttachment], signedQuoteUrl: fileUrl });
+      handleAction("EN_ATTENTE_COMPTA", `Devis signé et commande envoyée`, { attachments: [...(trip.data.attachments || []), newAttachment], signedQuoteUrl: fileUrl });
     } catch (err) {
       alert("Erreur lors de la signature.");
     } finally {
       setLoadingAction(null);
     }
   };
-
   const formatSafeDate = (dateStr: any) => {
     if (!dateStr) return "N/C";
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? "Date à préciser" : d.toLocaleDateString('fr-FR');
   };
-
   if (!isUserLoaded || !trip) return <p className="p-10 text-center font-medium text-slate-500">Chargement du dossier...</p>;
-
   const currentSteps = trip.type === "COMPLEX" 
     ? [
-        { n: "1", label: "Pédagogie", key: "PENDING_DIR_INITIAL" }, 
+        { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" }, 
         { n: "2", label: "Logistique", key: "PROF_LOGISTICS" },
-        { n: "3", label: "Finances", key: "PENDING_COMPTA" }, 
-        { n: "4", label: "Validation", key: "PENDING_DIR_FINAL" }, 
-        { n: "5", label: "Finalisé", key: "VALIDATED" }
+        { n: "3", label: "Finances", key: "EN_ATTENTE_COMPTA" }, 
+        { n: "4", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" }, 
+        { n: "5", label: "Finalisé", key: "VALIDE" }
       ]
     : [
-        { n: "1", label: "Pédagogie", key: "PENDING_DIR_INITIAL" }, 
-        { n: "2", label: "Finances", key: "PENDING_COMPTA" }, 
-        { n: "3", label: "Validation", key: "PENDING_DIR_FINAL" }, 
-        { n: "4", label: "Finalisé", key: "VALIDATED" }
+        { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" }, 
+        { n: "2", label: "Finances", key: "EN_ATTENTE_COMPTA" }, 
+        { n: "3", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" }, 
+        { n: "4", label: "Finalisé", key: "VALIDE" }
       ];
-
   return (
     <div className="relative max-w-5xl mx-auto p-6 space-y-8">
-      
-      {/* LOADING OVERLAY */}
       {loadingAction && (
         <div className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in fade-in zoom-in duration-300">
@@ -335,8 +350,7 @@ export default function TripDetails() {
           </div>
         </div>
       )}
-
-      {trip.status === "NEED_MODIFICATION" && !isEditing && (
+      {trip.status === "BESOIN_MODIFICATION" && !isEditing && (
         <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 text-left">
             <span className="text-3xl">⚠️</span>
@@ -352,7 +366,6 @@ export default function TripDetails() {
           )}
         </div>
       )}
-
       <div className="flex justify-between items-center">
         <button onClick={() => router.push('/travels')} className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-2xl font-bold transition-all active:scale-95">
           ← Retour
@@ -361,7 +374,7 @@ export default function TripDetails() {
           <div className="flex gap-2">
             <button onClick={() => setIsEditing(false)} className="bg-slate-200 text-slate-700 px-6 py-2.5 rounded-2xl font-bold">Annuler</button>
             <button 
-              onClick={() => handleAction(trip.data.previousStatus || "PENDING_DIR_INITIAL", "Modifications effectuées")}
+              onClick={() => handleAction(trip.data.previousStatus || "EN_ATTENTE_DIR_INITIAL", "Modifications effectuées")}
               disabled={uploading}
               className="bg-green-600 text-white px-6 py-2.5 rounded-2xl font-bold shadow-lg disabled:opacity-50"
             >
@@ -370,25 +383,20 @@ export default function TripDetails() {
           </div>
         )}
       </div>
-
       <div className="flex justify-between items-start border-b pb-6 text-left">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">{trip.data.title}</h1>
-          <p className="text-slate-500 mt-1 uppercase text-xs font-black tracking-tighter">
-            {trip.type === "COMPLEX" ? "📁 Dossier Voyage Complexe" : "📄 Sortie Simple"} • Par {trip.ownerName}
-          </p>
+          <p className="text-slate-500 mt-1 uppercase text-xs font-black tracking-tighter"> {trip.type === "COMPLEX" ? "📁 Dossier Voyage Complexe" : "📄 Sortie Simple"} • Par {trip.ownerName}</p>
         </div>
-        <div className={`px-6 py-2 rounded-full font-bold text-sm uppercase tracking-wider ${trip.status === "NEED_MODIFICATION" ? "bg-orange-100 text-orange-700 animate-pulse" : "bg-indigo-100 text-indigo-700"}`}>
+        <div className={`px-6 py-2 rounded-full font-bold text-sm uppercase tracking-wider ${trip.status === "BESOIN_MODIFICATION" ? "bg-orange-100 text-orange-700 animate-pulse" : "bg-indigo-100 text-indigo-700"}`}>
           {trip.status}
         </div>
       </div>
-
       <div className={`grid gap-4 text-center ${trip.type === "COMPLEX" ? "grid-cols-5" : "grid-cols-3"}`}>
         {currentSteps.map((s) => (
-          <Step key={s.n} label={s.label} active={trip.status === s.key || (s.key === "VALIDATED" && trip.status === "VALIDATED") || (trip.status === "PENDING_BUS_SIGNATURE" && s.key === "PROF_LOGISTICS")} step={s.n} />
+          <Step key={s.n} label={s.label} active={trip.status === s.key || (s.key === "VALIDE" && trip.status === "VALIDE") || (trip.status === "EN_ATTENTE_BUS_SIGNATURE" && s.key === "PROF_LOGISTICS")} step={s.n} />
         ))}
       </div>
-
       {trip.data.needsBus && trip.type === "COMPLEX" && (
         <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-8 space-y-6 text-left">
           <h2 className="text-xl font-bold text-amber-900 flex items-center gap-2">🚌 Gestion des devis Transport</h2>
@@ -418,7 +426,7 @@ export default function TripDetails() {
               {trip.data.selectedBusQuote ? (
                 <>
                   <p className="text-sm text-amber-900 mb-2 font-bold">Devis sélectionné : {trip.data.selectedBusQuote.providerName}</p>
-                  {isDirection && trip.status === "PENDING_BUS_SIGNATURE" && (
+                  {isDirection && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && (
                     <div className="flex flex-col gap-3 w-full">
                       {canSign ? (
                         <button onClick={signBusQuote} disabled={!!loadingAction} className="bg-green-600 text-white px-6 py-4 rounded-xl font-bold shadow-xl hover:scale-105 transition-all disabled:opacity-50">
@@ -435,7 +443,7 @@ export default function TripDetails() {
                       </button>
                     </div>
                   )}
-                  {(trip.status === "PENDING_COMPTA" || trip.status === "PENDING_DIR_FINAL" || trip.status === "VALIDATED") && <p className="text-green-600 font-bold flex items-center gap-2 text-sm">✅ Commandé & Signé</p>}
+                  {(trip.status === "EN_ATTENTE_COMPTA" || trip.status === "EN_ATTENTE_DIR_FINAL" || trip.status === "VALIDE") && <p className="text-green-600 font-bold flex items-center gap-2 text-sm">✅ Commandé & Signé</p>}
                 </>
               ) : (
                 <p className="text-sm text-slate-400 italic font-medium">Le créateur sélectionnera un devis à l'étape Logistique.</p>
@@ -444,7 +452,6 @@ export default function TripDetails() {
           </div>
         </div>
       )}
-
       <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-left">
         <h2 className="text-xl font-bold mb-6 text-slate-800">Informations Logistiques</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
@@ -503,16 +510,27 @@ export default function TripDetails() {
           <div className="flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Restauration</span>
             {isEditing ? (
-                <div className="flex items-center gap-2 mt-1">
-                    <input type="checkbox" checked={editedData.piqueNique} onChange={(e) => setEditedData({...editedData, piqueNique: e.target.checked})} />
-                    <span className="text-sm font-medium text-slate-700">Pique-nique à prévoir</span>
-                </div>
+              <div className="mt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCuisineModal(true)}
+                  className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${editedData?.piqueNiqueDetails?.active ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}
+                >
+                  <div className="text-left">
+                    <h3 className="font-bold text-slate-900">Commande Restauration</h3>
+                    <p className="text-xs text-slate-500">
+                      {editedData?.piqueNiqueDetails?.active ? `✅ Configurée (${getTotalMeals(editedData.piqueNiqueDetails)} repas pique-nique)` : "Cliquer pour configurer"}
+                    </p>
+                  </div>
+                  <span className="text-xl">🥪</span>
+                </button>
+              </div>
             ) : (
                 <div className="flex flex-col gap-1">
                   <span className="text-slate-700 font-medium">{trip.data.piqueNiqueDetails?.active ? "🥪 Commande cuisine configurée" : "🍴 Pas de commande cuisine"}</span>
                   {trip.data.piqueNiqueDetails?.active && (
                     <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full w-fit">
-                      {Object.values(trip.data.piqueNiqueDetails.daysSelection || {}).filter(Boolean).length} jour(s) — {trip.data.piqueNiqueDetails.deliveryPlace || "Self"} à {trip.data.piqueNiqueDetails.deliveryTime || "—"}
+                      {getTotalMeals(trip.data.piqueNiqueDetails)} repas pique-nique — {Object.values(trip.data.piqueNiqueDetails.daysSelection || {}).filter(Boolean).length} jour(s)
                     </span>
                   )}
                 </div>
@@ -556,55 +574,237 @@ export default function TripDetails() {
         </div>
       </div>
 
-      {(isDirection || isCompta) && !isEditing && trip.status !== "NEED_MODIFICATION" && (
+      {canUseInternalThread && (
+        <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-left space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Fil interne (post-it)</h2>
+              <p className="text-xs text-slate-500 mt-1">Visible uniquement par le créateur, la direction et la comptabilité.</p>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              {(trip.messages || []).length} message(s)
+            </span>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+            {(trip.messages || []).length === 0 ? (
+              <p className="text-sm text-slate-400 italic">Aucun message interne pour le moment.</p>
+            ) : (
+              [...(trip.messages || [])]
+                .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                .map((msg: any) => (
+                  <div key={msg.id || `${msg.user}_${msg.date}`} className="bg-white border border-slate-100 rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-bold text-slate-700">{msg.user} <span className="text-slate-400 font-medium">({msg.role || "—"})</span></p>
+                      <p className="text-[10px] text-slate-400">{new Date(msg.date).toLocaleString("fr-FR")}</p>
+                    </div>
+                    <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{msg.text}</p>
+                  </div>
+                ))
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <textarea
+              value={draftMessage}
+              onChange={(e) => setDraftMessage(e.target.value)}
+              placeholder="Écrire un message interne... (ex: l'hôtel est trop cher, pouvez-vous proposer une alternative ?)"
+              className="w-full min-h-[90px] rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={postInternalMessage}
+                disabled={!draftMessage.trim()}
+                className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-indigo-700 transition"
+              >
+                Envoyer le message
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {(isDirection || isCompta) && !isEditing && trip.status !== "BESOIN_MODIFICATION" && (
         <div className="bg-slate-900 text-white p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl text-left">
           <div className="text-center md:text-left">
             <p className="font-bold text-lg">Espace Décisionnaire</p>
-            <p className="text-slate-400 text-sm italic">{isCompta ? "Comptabilité" : "Direction"}</p>
           </div>
           <div className="flex flex-wrap gap-3 items-center">
-            {/* Direction membre mais pas le bon établissement → message d'information */}
             {isDirection && !canSign && (
               <div className="bg-slate-800 border border-slate-600 rounded-2xl px-5 py-3 text-sm text-slate-300 max-w-xs text-left">
                 <p className="font-bold text-white mb-0.5">Accès en lecture seule</p>
                 <p>Ce dossier concerne <span className="font-semibold text-amber-300">{etabForSign || "le groupe scolaire"}</span>. Seule la direction de cet établissement peut valider ou rejeter.</p>
               </div>
             )}
-
-            {/* Actions disponibles uniquement pour la bonne direction */}
-            {((canSign && (trip.status === 'PENDING_DIR_INITIAL' || trip.status === 'PENDING_BUS_SIGNATURE' || trip.status === 'PENDING_DIR_FINAL')) || (isCompta && trip.status === 'PENDING_COMPTA')) && (
+            {((canSign && (trip.status === 'EN_ATTENTE_DIR_INITIAL' || trip.status === 'EN_ATTENTE_BUS_SIGNATURE' || trip.status === 'EN_ATTENTE_DIR_FINAL')) || (isCompta && trip.status === 'EN_ATTENTE_COMPTA')) && (
               <>
                 {canSign && (
-                  <ActionButton label="Refus Définitif" color="bg-red-600" onClick={() => { const n = prompt("Motif du refus définitif :"); if(n) handleAction("REJECTED", n); }} />
+                  <ActionButton label="Refus Définitif" color="bg-red-600" onClick={() => { const n = prompt("Motif du refus définitif :"); if(n) handleAction("REJETE", n); }} />
                 )}
                 <ActionButton label="Demander Modifs" color="bg-orange-500" onClick={() => {
                   const n = prompt("Précisez les changements attendus :");
                   if(n) {
-                    const returnTo = trip.status === "PENDING_DIR_FINAL" ? "PENDING_COMPTA" : trip.status;
-                    handleAction("NEED_MODIFICATION", n, { previousStatus: returnTo });
+                    const returnTo = trip.status === "EN_ATTENTE_DIR_FINAL" ? "EN_ATTENTE_COMPTA" : trip.status;
+                    handleAction("BESOIN_MODIFICATION", n, { previousStatus: returnTo });
                   }
                 }} />
               </>
             )}
-            {canSign && trip.status === 'PENDING_DIR_INITIAL' && (
-              <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction(trip.type === "COMPLEX" ? "PROF_LOGISTICS" : "PENDING_COMPTA", "Pédagogie validée")} />
+            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && (
+              <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction(trip.type === "COMPLEX" ? "PROF_LOGISTICS" : "EN_ATTENTE_COMPTA", "Pédagogie validée")} />
             )}
-            {isCompta && trip.status === 'PENDING_COMPTA' && (
+            {isCompta && trip.status === 'EN_ATTENTE_COMPTA' && (
               <ActionButton label="Valider Budget Global" color="bg-green-600" onClick={() => {
                 const total = prompt("Montant GLOBAL final (€) :");
                 if(total) {
                   const student = prompt("Coût par ÉLÈVE final (€) :");
-                  if(student) handleAction("PENDING_DIR_FINAL", "Budget validé", { finalTotalCost: total, costPerStudent: student });
+                  if(student) handleAction("EN_ATTENTE_DIR_FINAL", "Budget validé", { finalTotalCost: total, costPerStudent: student });
                 }
               }} />
             )}
-            {canSign && trip.status === 'PENDING_DIR_FINAL' && (
-              <ActionButton
-                label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"}
-                color="bg-green-600"
-                onClick={handleFinalValidation}
-              />
+            {canSign && trip.status === 'EN_ATTENTE_DIR_FINAL' && (
+              <ActionButton label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"} color="bg-green-600" onClick={handleFinalValidation}/>
             )}
+          </div>
+        </div>
+      )}
+      {showCuisineModal && isEditing && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-[2rem] p-8 max-w-5xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Bon de commande Cuisine</h2>
+                <p className="text-slate-500 text-sm">Modification de la commande restauration</p>
+              </div>
+              <button onClick={() => setShowCuisineModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+            </div>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Heure récupération / livraison</label>
+                  <input
+                    type="time"
+                    className="w-full p-2 border rounded-lg"
+                    value={editedData?.piqueNiqueDetails?.deliveryTime || ""}
+                    onChange={e => setEditedData((prev: any) => ({
+                      ...prev,
+                      piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: true, deliveryTime: e.target.value }
+                    }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Lieu de récupération</label>
+                  <select
+                    className="w-full p-2 border rounded-lg"
+                    value={editedData?.piqueNiqueDetails?.deliveryPlace || "Self"}
+                    onChange={e => setEditedData((prev: any) => ({
+                      ...prev,
+                      piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: true, deliveryPlace: e.target.value }
+                    }))}
+                  >
+                    <option value="Self">Au self</option>
+                    <option value="Bosco">Église Bosco</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 text-center">Jours concernés</label>
+                  <div className="flex gap-1.5 justify-center">
+                    {CUISINE_DAYS.map(({ key: dayKey, label }) => {
+                      const isSelected = !!editedData?.piqueNiqueDetails?.daysSelection?.[dayKey];
+                      return (
+                        <button
+                          key={dayKey}
+                          type="button"
+                          onClick={() => setEditedData((prev: any) => ({
+                            ...prev,
+                            piqueNiqueDetails: {
+                              ...(prev.piqueNiqueDetails || emptyCuisineDetails()),
+                              active: true,
+                              daysSelection: {
+                                ...(prev.piqueNiqueDetails?.daysSelection || emptyCuisineDetails().daysSelection),
+                                [dayKey]: !isSelected
+                              }
+                            }
+                          }))}
+                          className={`w-9 h-9 rounded-lg text-[11px] font-black transition-all ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border-2 text-slate-400 hover:border-indigo-300'}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-xs border-collapse min-w-[620px]">
+                  <thead>
+                    <tr className="bg-indigo-600 text-white">
+                      <th className="text-left p-2.5 font-semibold w-52">Désignation</th>
+                      {CUISINE_DAYS.map(({ key: dayKey, label }) => (
+                        <th key={dayKey} className={`p-2.5 text-center font-semibold transition-opacity ${editedData?.piqueNiqueDetails?.daysSelection?.[dayKey] ? 'opacity-100' : 'opacity-30'}`}>{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CUISINE_ROWS.map(({ key: rowKey, label, type }, rowIdx) => (
+                      <tr key={rowKey} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <td className={`p-2 font-medium text-slate-700 whitespace-nowrap ${rowKey === 'picnicNoPork' || rowKey === 'picnicVeg' ? 'pl-5 text-slate-500 italic' : ''}`}>{label}</td>
+                        {CUISINE_DAYS.map(({ key: dayKey }) => {
+                          const isActive = !!editedData?.piqueNiqueDetails?.daysSelection?.[dayKey];
+                          const val = editedData?.piqueNiqueDetails?.orders?.[dayKey]?.[rowKey] ?? "";
+                          return (
+                            <td key={dayKey} className="p-1">
+                              <input
+                                type={type}
+                                disabled={!isActive}
+                                value={val}
+                                onChange={e => setEditedData((prev: any) => ({
+                                  ...prev,
+                                  piqueNiqueDetails: {
+                                    ...(prev.piqueNiqueDetails || emptyCuisineDetails()),
+                                    active: true,
+                                    orders: {
+                                      ...(prev.piqueNiqueDetails?.orders || emptyCuisineDetails().orders),
+                                      [dayKey]: {
+                                        ...((prev.piqueNiqueDetails?.orders || emptyCuisineDetails().orders)[dayKey]),
+                                        [rowKey]: e.target.value
+                                      }
+                                    }
+                                  }
+                                }))}
+                                className={`w-full p-1.5 border rounded text-center transition-all ${isActive ? 'bg-white hover:border-indigo-300 focus:border-indigo-500 outline-none' : 'bg-slate-100 text-slate-300 cursor-not-allowed border-transparent'}`}
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10px] text-slate-500 italic bg-amber-50 border border-amber-100 p-2.5 rounded-lg">⚠️ Rappel : fournir la liste des élèves/adultes 15 jours avant, et l’affiner 24h avant.</p>
+            </div>
+            <div className="flex gap-3 mt-10">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditedData((prev: any) => ({
+                    ...prev,
+                    piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: false }
+                  }));
+                  setShowCuisineModal(false);
+                }}
+                className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold"
+              >
+                ANNULER LA COMMANDE
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCuisineModal(false)}
+                className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100"
+              >
+                ENREGISTRER LE BON
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -645,8 +845,6 @@ function EditableDetail({ isEditing, label, value, onChange, type = "text" }: { 
 
 function ActionButton({ label, color, onClick }: { label: string, color: string, onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`${color} px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:scale-105 transition-transform`}>
-      {label}
-    </button>
+    <button onClick={onClick} className={`${color} px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:scale-105 transition-transform`}>{label}</button>
   );
 }

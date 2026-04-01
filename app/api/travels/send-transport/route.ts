@@ -29,8 +29,7 @@ export async function POST(req: Request) {
 
     const moisIndexByName: Record<string, number> = {
       janvier: 0,
-      "janv": 0,
-      "janv.": 0,
+      janv: 0,
       february: 1,
       fév: 1,
       février: 1,
@@ -66,7 +65,6 @@ export async function POST(req: Request) {
     const formatDateFR = (input?: string | null) => {
       if (!input) return "—";
       const raw = String(input).trim();
-      // ISO: YYYY-MM-DD
       const isoFull = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (isoFull) {
         const [, y, mm, dd] = isoFull;
@@ -75,7 +73,6 @@ export async function POST(req: Request) {
         const monthName = moisFR[monthIdx] || "";
         return `${dayNum} ${monthName} ${y}`;
       }
-      // ISO month: YYYY-MM (no day provided -> use 1)
       const isoMonth = raw.match(/^(\d{4})-(\d{2})$/);
       if (isoMonth) {
         const [, y, mm] = isoMonth;
@@ -83,7 +80,6 @@ export async function POST(req: Request) {
         const monthName = moisFR[monthIdx] || "";
         return `1 ${monthName} ${y}`;
       }
-      // Month year in words: "March 2026" / "mars 2026"
       const monthYear = raw.match(/^([A-Za-zÀ-ÿœŒ]+)\s+(\d{4})$/);
       if (monthYear) {
         const [, m, y] = monthYear;
@@ -94,58 +90,31 @@ export async function POST(req: Request) {
       }
       return raw;
     };
-
     const departDateRaw = data.startDate || data.date;
     const returnDateRaw = data.endDate || data.date;
-    const departText = [
-      formatDateFR(departDateRaw),
-      data.startTime ? `à ${data.startTime}` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    const returnText = [
-      formatDateFR(returnDateRaw),
-      data.endTime ? `à ${data.endTime}` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    // Names must match app/travels/devis/[id]/page.tsx PROVIDER_EMAILS.
+    const departText = [ formatDateFR(departDateRaw), data.startTime ? `à ${data.startTime}` : "",].filter(Boolean).join(" ");
+    const returnText = [ formatDateFR(returnDateRaw), data.endTime ? `à ${data.endTime}` : "",].filter(Boolean).join(" ");
     const transporteurs = [
       { name: "Perrier", email: "perrier-voyages@orange.fr" },
       { name: "Reflexe", email: "florian.hacqueville-mathi@ac-normandie.fr" },
       { name: "Cars Bleus", email: "carbleus@mail.fr" },
       { name: "Hangard", email: "hangard.autocars@outlook.fr" },
     ];
-
     const effectifTotal = Number(data.nbEleves) + Number(data.nbAccompagnateurs);
-
-    // ── Load PNG logo directly from filesystem (no HTTP fetch needed) ──
     let logoDataUri: string | null = null;
     try {
       const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
       const logoBuffer = await fs.readFile(logoPath);
       logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
-    } catch (e) {
-      console.error("Logo load error:", e);
-    }
-
-    // ── Helper: build professional letter PDF per transporter ──────────
+    } catch (e) { console.error("Logo load error:", e)}
     const buildDemandePDF = (transporteurName: string): Buffer => {
       const doc = new jsPDF({ compress: true });
-      const W = doc.internal.pageSize.getWidth();   // 210 mm
-      const H = doc.internal.pageSize.getHeight();  // 297 mm
+      const W = doc.internal.pageSize.getWidth(); 
+      const H = doc.internal.pageSize.getHeight();
       const ML = 15;
       const MR = W - 15;
       const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
-
-      // ── WHITE LETTERHEAD (0–38 mm) ───────────────────────────────────
-      // Logo in top-left — white background means transparency renders correctly
-      if (logoDataUri) {
-        doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
-      }
-
-      // School name + info — right-aligned
+      if (logoDataUri) { doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24)}
       doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
       doc.setTextColor(30, 41, 59);
@@ -156,22 +125,14 @@ export async function POST(req: Request) {
       doc.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
       doc.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
       doc.text("02 32 86 50 90", MR, 30, { align: "right" });
-
-      // Double accent bar (slate-800 thick + blue thin)
       doc.setFillColor(30, 41, 59);
       doc.rect(0, 35, W, 1.8, "F");
       doc.setFillColor(37, 99, 235);
       doc.rect(0, 36.8, W, 0.6, "F");
-
-      // ── SENDER / RECIPIENT (44–65 mm) ─────────────────────────────────
-      // The school address is already in the letterhead — here we only show
-      // the teacher name (left) and the transporter / date (right).
       const colA = ML;
       const colB = W / 2 + 8;
       let yA = 45;
       let yB = 45;
-
-      // LEFT — teacher only
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(100, 116, 139);
@@ -181,8 +142,6 @@ export async function POST(req: Request) {
       doc.setTextColor(30, 41, 59);
       doc.text(userName, colA, yA + 5);
       yA += 5;
-
-      // RIGHT — transporter name + date
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       doc.setTextColor(148, 163, 184);
@@ -202,19 +161,13 @@ export async function POST(req: Request) {
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
       doc.text(dateStr, colB, yB);
-
-      // ── SEPARATOR ─────────────────────────────────────────────────────
       const sepY = Math.max(yA, yB) + 9;
       doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.4);
       doc.line(ML, sepY, MR, sepY);
-
-      // ── SUBJECT LINE ───────────────────────────────────────────────────
       let sy = sepY + 10;
-      // Blue left-border accent
       doc.setFillColor(37, 99, 235);
       doc.rect(ML, sy - 5, 2.5, 13, "F");
-
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       doc.setTextColor(148, 163, 184);
@@ -228,8 +181,6 @@ export async function POST(req: Request) {
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
       doc.text(`Réf. ${tripData.id}`, MR, sy, { align: "right" });
-
-      // ── INTRO PARAGRAPH ───────────────────────────────────────────────
       sy += 10;
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8.5);
@@ -238,14 +189,11 @@ export async function POST(req: Request) {
       const introLines = doc.splitTextToSize(intro, MR - ML);
       doc.text(introLines, ML, sy);
       sy += introLines.length * 4.5 + 9;
-
-      // ── DETAILS TABLE ─────────────────────────────────────────────────
       doc.setFont("helvetica", "bold");
       doc.setFontSize(6.5);
       doc.setTextColor(148, 163, 184);
       doc.text("DÉTAILS DE LA PRESTATION", ML, sy);
       sy += 3.5;
-
       autoTable(doc, {
         startY: sy,
         body: [
@@ -273,7 +221,6 @@ export async function POST(req: Request) {
         tableLineColor: [226, 232, 240],
         tableLineWidth: 0.2,
       });
-
       if (data.transportRequest?.freeText) {
         const afterY = (doc as any).lastAutoTable.finalY + 8;
         doc.setFont("helvetica", "bold");
@@ -286,15 +233,11 @@ export async function POST(req: Request) {
         const freeLines = doc.splitTextToSize(String(data.transportRequest.freeText), MR - ML);
         doc.text(freeLines, ML, afterY + 5.5);
       }
-
-      // ── CLOSING LINE ──────────────────────────────────────────────────
       const closingY = (doc as any).lastAutoTable.finalY + 50;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
       doc.text("Dans l'attente de votre retour, nous vous adressons nos cordiales salutations.", ML, closingY);
-
-      // ── FOOTER BAR ────────────────────────────────────────────────────
       doc.setFillColor(241, 245, 249);
       doc.rect(0, H - 14, W, 14, "F");
       doc.setDrawColor(226, 232, 240);
@@ -303,15 +246,10 @@ export async function POST(req: Request) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       doc.setTextColor(148, 163, 184);
-      doc.text(
-        "Groupe Scolaire La Providence Nicolas Barré  ·  Établissement catholique sous contrat avec l'État",
-        ML, H - 7
-      );
+      doc.text( "Groupe Scolaire La Providence Nicolas Barré  ·  Établissement catholique sous contrat avec l'État", ML, H - 7);
       doc.text("76240 Le Mesnil-Esnard", MR, H - 7, { align: "right" });
-
       return Buffer.from(doc.output("arraybuffer"));
     };
-
     const pdfBuffer = buildDemandePDF("(tous transporteurs)");
     const attachments: any[] = [
       {
@@ -345,12 +283,8 @@ export async function POST(req: Request) {
             content: Buffer.from(arrayBuffer),
             contentType: 'application/pdf'
           });
-        } else {
-          console.error("Erreur S3 response:", fileRes.status, fileRes.statusText);
-        }
-      } catch (e) {
-        console.error("Impossible de récupérer la PJ via URL présignée", e);
-      }
+        } else { console.error("Erreur S3 response:", fileRes.status, fileRes.statusText)}
+      } catch (e) { console.error("Impossible de récupérer la PJ via URL présignée", e)}
     }
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -362,7 +296,6 @@ export async function POST(req: Request) {
     for (const transporteur of transporteurs) {
       try {
       const uploadLink = `${process.env.NEXT_PUBLIC_APP_URL}/travels/devis/${tripData.id}?p=${encodeURIComponent(transporteur.name)}`;
-      // Generate a personalised PDF per transporter
       const personalPdf = buildDemandePDF(transporteur.name);
       const personalAttachments = [
         {
@@ -370,7 +303,7 @@ export async function POST(req: Request) {
           content: personalPdf,
           contentType: "application/pdf",
         },
-        ...attachments.slice(1), // keep programme de route if attached
+        ...attachments.slice(1),
       ];
       await transporter.sendMail({
         from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
@@ -381,7 +314,6 @@ export async function POST(req: Request) {
             <h2>Bonjour ${transporteur.name},</h2>
             <p>Veuillez trouver ci-joint une demande de devis pour un transport scolaire à destination de <strong>${data.destination}</strong>.</p>
             <p>Le récapitulatif complet ainsi que le programme éventuel sont joints à cet email.</p>
-            
             <div style="margin: 32px 0; padding: 24px; border: 2px dashed #f59e0b; border-radius: 16px; text-align: center; background-color: #fffbeb;">
               <p style="margin-bottom: 16px; font-weight: bold; color: #b45309;">Pour nous transmettre votre devis, merci d'utiliser le lien sécurisé :</p>
               <a href="${uploadLink}" 
@@ -390,19 +322,16 @@ export async function POST(req: Request) {
               </a>
               <p style="margin-top: 12px; font-size: 11px; color: #d97706;">Ce lien vous est personnel et identifie votre société.</p>
             </div>
-
             <p>Cordialement,<br/>L'administration.</p>
           </div>
         `,
         attachments: personalAttachments,
       });
-      } catch (sendErr: any) {
-        console.error(`Erreur envoi à ${transporteur.name}:`, sendErr.message);
-      }
+      } catch (sendErr: any) { console.error(`Erreur envoi à ${transporteur.name}:`, sendErr.message);}
     }
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Erreur API Gmail/Transport:", error);
+    console.error("Erreur API Gmail/Transport:", error.message);
     return NextResponse.json({ error: "Échec de l'envoi", details: error.message }, { status: 500 });
   }
 }

@@ -54,9 +54,7 @@ export default function SimulateurTarifs() {
       } else if (enfant.mode === "pension") {
         totalAutresFrais += 589;
       }
-      if (enfant.niveau === "maternelle" || enfant.niveau === "elementaire") {
-        totalAutresFrais += TARIF_GARDERIE[enfant.garderie] || 0;
-      }
+      if (enfant.niveau === "maternelle" || enfant.niveau === "elementaire") { totalAutresFrais += TARIF_GARDERIE[enfant.garderie] || 0}
     });
     const contributionFinale = enfants.length >= 3 ? totalContributionBase * 0.9 : totalContributionBase;
     setResultat({

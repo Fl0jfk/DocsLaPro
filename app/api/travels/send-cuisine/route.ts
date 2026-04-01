@@ -60,15 +60,12 @@ function formatDateFR(input?: string | null): string {
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
-
   try {
     const { tripData, userEmail, userName } = await req.json();
     const details = tripData.data.piqueNiqueDetails;
     if (!details || !details.active) {
       return NextResponse.json({ error: "Aucune commande cuisine à envoyer" }, { status: 400 });
     }
-
-    // ── Logo (PNG from filesystem) ───────────────────────────────────────────
     let logoDataUri: string | null = null;
     try {
       const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
@@ -77,23 +74,15 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("Logo load error:", e);
     }
-
-    // ── Build PDF ────────────────────────────────────────────────────────────
     const doc = new jsPDF({ compress: true });
     const W  = doc.internal.pageSize.getWidth();
     const ML = 15;
     const MR = W - 15;
-
     const dateStr     = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
     const startDateFR = formatDateFR(tripData.data.startDate ?? tripData.data.date);
     const endDateFR   = formatDateFR(tripData.data.endDate);
-    const dateRange   = endDateFR && endDateFR !== "—" && endDateFR !== startDateFR
-      ? `du ${startDateFR} au ${endDateFR}`
-      : `le ${startDateFR}`;
-
-    // ── LETTERHEAD ───────────────────────────────────────────────────────────
+    const dateRange   = endDateFR && endDateFR !== "—" && endDateFR !== startDateFR ? `du ${startDateFR} au ${endDateFR}` : `le ${startDateFR}`;
     if (logoDataUri) doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
-
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(30, 41, 59);
@@ -104,26 +93,20 @@ export async function POST(req: Request) {
     doc.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
     doc.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
     doc.text("02 32 86 50 90", MR, 30, { align: "right" });
-
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 35, W, 1.8, "F");
-    doc.setFillColor(16, 185, 129);  // emerald
+    doc.setFillColor(16, 185, 129);
     doc.rect(0, 36.8, W, 0.6, "F");
-
-    // ── TITLE BLOCK ──────────────────────────────────────────────────────────
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(30, 41, 59);
     doc.text("BON DE COMMANDE CUISINE", W / 2, 48, { align: "center" });
-
     doc.setFillColor(240, 253, 244);
     doc.roundedRect(ML, 52, W - 30, 7, 2, 2, "F");
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8);
     doc.setTextColor(5, 150, 105);
     doc.text("À déposer 15 jours avant la date au chef en cuisine ou envoyer par mail : chef.0056isi@newrest.eu", W / 2, 57, { align: "center" });
-
-    // ── INFO GRID ────────────────────────────────────────────────────────────
     let y = 67;
     const infoRows: [string, string][] = [
       ["Classe(s)",         tripData.data.classes      || "—"],
@@ -133,7 +116,6 @@ export async function POST(req: Request) {
       ["Nb élèves",         String(tripData.data.nbEleves          || "—")],
       ["Nb adultes",        String(tripData.data.nbAccompagnateurs || "—")],
     ];
-
     doc.setFontSize(8);
     const colW = (W - 30) / 2;
     infoRows.forEach(([label, value], i) => {
@@ -147,20 +129,12 @@ export async function POST(req: Request) {
       doc.text(value, col + 32, y);
     });
     y += 13;
-
-    // ── SEPARATOR ────────────────────────────────────────────────────────────
     doc.setDrawColor(226, 232, 240);
     doc.line(ML, y, MR, y);
     y += 6;
-
-    // ── TABLE — quantities per day ────────────────────────────────────────────
-    const selectedDays = CUISINE_DAYS.filter(d =>
-      (details.daysSelection as Record<string, boolean>)[d.key]
-    );
-
+    const selectedDays = CUISINE_DAYS.filter(d => (details.daysSelection as Record<string, boolean>)[d.key]);
     const head = [["Désignation", ...selectedDays.map(d => d.label)]];
     const orders = (details.orders || {}) as Record<string, Record<string, string>>;
-
     const body = CUISINE_ROWS.map(({ key: rowKey, label }) => {
       const cells = selectedDays.map(d => {
         const val = orders[d.key]?.[rowKey];
@@ -168,7 +142,6 @@ export async function POST(req: Request) {
       });
       return [label, ...cells];
     });
-
     autoTable(doc, {
       startY: y,
       head,
@@ -183,26 +156,17 @@ export async function POST(req: Request) {
       alternateRowStyles: { fillColor: [240, 253, 244] },
       styles: { cellPadding: 3 },
     });
-
-    // ── FOOTER NOTE ───────────────────────────────────────────────────────────
     const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
     doc.setFont("helvetica", "italic");
-    doc.text(
-      "Fournir la liste des élèves et adultes au moment de la commande (15 jours avant). Affiner la liste 24h avant.",
-      ML, finalY
-    );
+    doc.text("Fournir la liste des élèves et adultes au moment de la commande (15 jours avant). Affiner la liste 24h avant.", ML, finalY);
     doc.text("Toute absence non signalée 24h avant sera facturée.", ML, finalY + 4.5);
-
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(180, 190, 200);
     doc.text(`Document généré le ${dateStr}`, W / 2, 292, { align: "center" });
-
     const pdfBase64 = doc.output("datauristring").split(",")[1];
-
-    // ── SEND EMAIL ────────────────────────────────────────────────────────────
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -210,9 +174,7 @@ export async function POST(req: Request) {
         pass: process.env.SMTP_PASS,
       },
     });
-
     const selectedDayNames = selectedDays.map(d => d.label).join(", ");
-
     await transporter.sendMail({
       from: `"Gestion Sorties La Providence" <${process.env.EMAIL_USER}>`,
       to: "florian.hacqueville-mathi@ac-normandie.fr",
@@ -241,7 +203,6 @@ export async function POST(req: Request) {
         },
       ],
     });
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Erreur envoi mail cuisine:", error);

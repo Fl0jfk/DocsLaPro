@@ -45,7 +45,6 @@ function SimpleTripFormContent() {
     nbAccompagnateurs: 1,
     nomsAccompagnateurs: "",
     coutTotal: 0,
-    // COMMANDE CUISINE — quantités par jour (conforme au bon de commande chef)
     piqueNiqueDetails: {
       active: false,
       deliveryTime: "",
@@ -62,7 +61,6 @@ function SimpleTripFormContent() {
     description: "",
     attachments: [] as { name: string; url: string }[]
   });
-
   useEffect(() => {
     if (editId && isLoaded) {
       setFetching(true);
@@ -84,7 +82,6 @@ function SimpleTripFormContent() {
         });
     }
   }, [editId, isLoaded]);
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -112,14 +109,11 @@ function SimpleTripFormContent() {
       setUploading(false);
     }
   };
-
   const removeFile = (index: number) => {
     const updatedFiles = (formData.attachments || []).filter((_, i) => i !== index);
     setFormData({ ...formData, attachments: updatedFiles });
   };
-
   if (!isLoaded || fetching) return <div className="p-10 text-center font-medium">Chargement du dossier...</div>;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.coutTotal > 0 && (!formData.nbEleves || Number(formData.nbEleves) <= 0)) {
@@ -134,13 +128,12 @@ function SimpleTripFormContent() {
       ownerName: user?.fullName,
       ownerEmail: user?.primaryEmailAddress?.emailAddress,
       type: "SIMPLE",
-      status: "PENDING_DIR_INITIAL",
+      status: "EN_ATTENTE_DIR_INITIAL",
       data: formData,
       updatedAt: new Date().toISOString(),
       createdAt: editId ? undefined : new Date().toISOString(),
       history: []
     };
-
     try {
       const response = await fetch('/api/travels/update', {
         method: 'POST',
@@ -160,7 +153,6 @@ function SimpleTripFormContent() {
       setLoading(false);
     }
   };
-
   return (
     <main className="max-w-4xl mx-auto p-8 text-left">
       <div className="mb-8 flex justify-between items-end">
@@ -172,17 +164,14 @@ function SimpleTripFormContent() {
         </div>
         <button onClick={() => router.back()} className="text-sm font-bold text-indigo-600 hover:underline">Annuler</button>
       </div>
-
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 border rounded-3xl shadow-sm">
         <div className="md:col-span-2 space-y-4 border-b pb-4 text-slate-400 uppercase text-xs font-bold tracking-widest">
           Informations Générales
         </div>
-
         <div className="md:col-span-2">
           <label className="block text-sm font-semibold mb-2">Intitulé de la sortie</label>
           <input required value={formData.title} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Ex: Sortie Laser Game" onChange={e => setFormData({...formData, title: e.target.value})} />
         </div>
-
         <div>
           <label className="block text-sm font-semibold mb-2">Établissement concerné</label>
           <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value as typeof formData.etablissement})}>
@@ -193,12 +182,10 @@ function SimpleTripFormContent() {
             <option value="Groupe Scolaire">🏛 Groupe Scolaire</option>
           </select>
         </div>
-
         <div className="md:col-span-2">
           <label className="block text-sm font-semibold mb-2">Lieu et programme (Champ libre)</label>
           <textarea required rows={2} value={formData.destination} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Détails du lieu..." onChange={e => setFormData({...formData, destination: e.target.value})} />
         </div>
-
         <div>
           <label className="block text-sm font-semibold mb-2">Date de la sortie</label>
           <input required type="date" value={formData.date} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, date: e.target.value})} />
@@ -213,26 +200,21 @@ function SimpleTripFormContent() {
             <input required type="time" value={formData.endTime} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, endTime: e.target.value})} />
           </div>
         </div>
-
         <div>
           <label className="block text-sm font-semibold mb-2">Coût total estimé (€)</label>
           <input type="number" value={formData.coutTotal} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, coutTotal: Number(e.target.value)})} />
         </div>
-
         <div className="md:col-span-2 space-y-4 border-b pb-4 mt-4 text-slate-400 uppercase text-xs font-bold tracking-widest">
           Participants & Encadrement
         </div>
-
         <div>
           <label className="block text-sm font-semibold mb-2">Classes concernées</label>
           <input value={formData.classes} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Ex: 3A, 4B" onChange={e => setFormData({...formData, classes: e.target.value})} />
         </div>
-
         <div>
           <label className="block text-sm font-semibold mb-2">Nombre d&apos;élèves total</label>
           <input type="number" value={formData.nbEleves} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, nbEleves: e.target.value})} />
         </div>
-
         <div className="md:col-span-2 mt-4">
           <div className="flex items-center gap-4 p-4 bg-orange-50 border border-orange-200 rounded-2xl">
             <input type="checkbox" id="pique" checked={formData.piqueNiqueDetails.active} className="w-6 h-6 accent-orange-600" onChange={e => setFormData({...formData, piqueNiqueDetails: {...formData.piqueNiqueDetails, active: e.target.checked}})} />
@@ -242,12 +224,9 @@ function SimpleTripFormContent() {
             </label>
           </div>
         </div>
-
         {formData.piqueNiqueDetails.active && (
           <div className="md:col-span-2 space-y-5 bg-slate-50 p-6 rounded-3xl border border-slate-200 animate-in fade-in duration-300">
             <h3 className="font-bold text-slate-800 border-b pb-2">Bon de commande Cuisine</h3>
-
-            {/* Livraison & Jours */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Heure récupération / livraison</label>
@@ -276,8 +255,6 @@ function SimpleTripFormContent() {
                 </div>
               </div>
             </div>
-
-            {/* Tableau par jour */}
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full text-xs border-collapse min-w-[480px]">
                 <thead>
@@ -324,13 +301,11 @@ function SimpleTripFormContent() {
                 </tbody>
               </table>
             </div>
-
             <p className="text-[10px] text-slate-500 italic bg-amber-50 border border-amber-100 p-2.5 rounded-lg">
               ⚠️ Fournir la liste des élèves et adultes <strong>15 jours avant</strong> la sortie. Affiner 24h avant (toute absence non signalée 24h avant sera facturée). Commande à envoyer à : <strong>chef.0056isi@newrest.eu</strong>
             </p>
           </div>
         )}
-
         <div className="md:col-span-2 space-y-4 border-t pt-8 mt-4">
           <label className="block text-sm font-bold text-slate-700">Pièces jointes (Devis, Programme, liste des élèves...)</label>
           <div className="flex flex-wrap gap-4">

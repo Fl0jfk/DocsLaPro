@@ -6,7 +6,6 @@ import Image from "next/image";
 import Header from "../../components/Header/Header";
 import { SCHOOL } from "../../lib/school";
 
-/* ── Timeline data ─────────────────────────────────────────────────── */
 const CHAPTERS = [
   {
     id: "origines", label: "Les origines", period: "1928 – 1946", color: "amber",
@@ -80,12 +79,9 @@ export default function NotreIdentitePage() {
   const chapterIndex = CHAPTERS.findIndex((ch) => ch.id === activeChapter);
   const prevChapter = chapterIndex > 0 ? CHAPTERS[chapterIndex - 1] : null;
   const nextChapter = chapterIndex < CHAPTERS.length - 1 ? CHAPTERS[chapterIndex + 1] : null;
-
   return (
     <div className="bg-white min-h-screen">
       <Header />
-
-      {/* ── Hero ── */}
       <section className="relative h-[65vh] min-h-[440px] overflow-hidden bg-indigo-900">
         <Image src="/PigeonnierPagode.jpg" alt="Le pigeonnier de La Providence" fill sizes="100vw" className="object-cover opacity-20" />
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-800/50 to-indigo-950/95" />
@@ -99,8 +95,6 @@ export default function NotreIdentitePage() {
           </p>
         </div>
       </section>
-
-      {/* ── Piliers rapides ── */}
       <section className="bg-indigo-50 border-b border-indigo-100">
         <div className="max-w-[1200px] mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
@@ -116,8 +110,6 @@ export default function NotreIdentitePage() {
           ))}
         </div>
       </section>
-
-      {/* ── Nicolas Barré ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-start">
           <div>
@@ -155,17 +147,11 @@ export default function NotreIdentitePage() {
           </div>
         </div>
       </section>
-
-      {/* ══════════════════════════════════════════════════════════════════
-          NOTRE HISTOIRE — timeline interactive
-      ══════════════════════════════════════════════════════════════════ */}
       <section id="notre-histoire" className="bg-stone-900 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-3">Le Mesnil-Esnard · 1928 — 2021</p>
           <h2 className="text-4xl font-black text-white mb-2">Notre histoire</h2>
           <p className="text-stone-400 text-sm mb-8 max-w-xl">Près d&apos;un siècle de constructions, de rénovations et de croissance au service des familles.</p>
-
-          {/* Chapter tabs */}
           <div className="flex gap-2 overflow-x-auto pb-2 mb-10">
             {CHAPTERS.map((ch) => {
               const cc = COLOR[ch.color as ColorKey];
@@ -183,23 +169,17 @@ export default function NotreIdentitePage() {
               );
             })}
           </div>
-
-          {/* Timeline */}
           <div className="relative">
             <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-white/10 -translate-x-1/2" />
             <div className="space-y-8">
               {chapter.events.map((event, i) => {
                 const isLeft = i % 2 === 0;
-                const cardClass = event.highlight
-                  ? `${c.bg} border-2 ${c.border}`
-                  : "bg-white/5 border border-white/10";
+                const cardClass = event.highlight ? `${c.bg} border-2 ${c.border}` : "bg-white/5 border border-white/10";
                 const yearClass = event.highlight ? c.text : "text-stone-300";
                 const titleClass = event.highlight ? "text-stone-900" : "text-white";
                 const descClass = event.highlight ? "text-stone-600" : "text-stone-400";
-
                 return (
                   <div key={event.year} className="relative flex flex-col md:flex-row">
-                    {/* Left slot (desktop even items) */}
                     <div className={`hidden md:flex w-1/2 ${isLeft ? "justify-end pr-10" : "justify-start pl-10 order-last"}`}>
                       {isLeft && (
                         <div className={`max-w-sm w-full rounded-2xl p-5 ${cardClass}`}>
@@ -209,13 +189,9 @@ export default function NotreIdentitePage() {
                         </div>
                       )}
                     </div>
-
-                    {/* Dot */}
                     <div className="absolute left-4 md:left-1/2 -translate-x-1/2 z-10">
                       <div className={`w-4 h-4 rounded-full border-2 border-stone-900 shadow ${event.highlight ? c.badge : c.dot}`} />
                     </div>
-
-                    {/* Right slot (desktop odd items / all mobile) */}
                     <div className={`pl-12 md:pl-0 md:w-1/2 ${!isLeft ? "md:flex md:justify-end md:pr-10" : "md:flex md:justify-start md:pl-10"}`}>
                       <div className={`max-w-sm w-full rounded-2xl p-5 ${cardClass} ${isLeft ? "md:hidden" : ""}`}>
                         <p className={`text-xl font-black mb-1 ${yearClass}`}>{event.year}</p>
@@ -228,8 +204,6 @@ export default function NotreIdentitePage() {
               })}
             </div>
           </div>
-
-          {/* Chapter navigation */}
           <div className="flex items-center justify-between gap-4 mt-12">
             {prevChapter ? (
               <button
@@ -243,7 +217,6 @@ export default function NotreIdentitePage() {
                 </div>
               </button>
             ) : <div className="flex-1 max-w-xs" />}
-
             <div className="flex gap-2 items-center">
               {CHAPTERS.map((ch) => (
                 <button key={ch.id} onClick={() => setActiveChapter(ch.id)}
@@ -251,7 +224,6 @@ export default function NotreIdentitePage() {
                 />
               ))}
             </div>
-
             {nextChapter ? (
               <button
                 onClick={() => { setActiveChapter(nextChapter.id); document.getElementById("notre-histoire")?.scrollIntoView({ behavior: "smooth" }); }}
@@ -267,8 +239,6 @@ export default function NotreIdentitePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Projet pastoral ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <p className="text-indigo-500 font-bold uppercase tracking-widest text-xs mb-3">Au cœur de l&apos;établissement</p>
         <h2 className="text-4xl font-black text-slate-900 mb-4">Le projet pastoral</h2>
@@ -311,8 +281,6 @@ export default function NotreIdentitePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Citation centrale ── */}
       <section className="bg-indigo-600 py-16">
         <div className="max-w-[900px] mx-auto px-6 text-center">
           <p className="text-5xl text-indigo-300 font-serif mb-4">&ldquo;</p>
@@ -334,8 +302,6 @@ export default function NotreIdentitePage() {
           </div>
         </div>
       </section>
-
-      {/* ── CTA ── */}
       <section className="py-20 bg-white">
         <div className="max-w-[1200px] mx-auto px-6 text-center">
           <h2 className="text-4xl font-black text-slate-900 mb-4">Rejoindre La Providence</h2>

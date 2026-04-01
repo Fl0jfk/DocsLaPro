@@ -1,10 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import SiteHeader from "../../../components/Header/Header";
+import Header from "@/app/components/Header/Header";
 import type { NewsItem } from "@/app/api/news/get/route";
 
-// docslaproimage is public — use directly. docslapro (private) needs the proxy.
 function resolveNewsImage(url: string): string | null {
   if (!url || !url.trim()) return null;
   if (url.includes("docslapro.s3.") && !url.includes("docslaproimage.s3.")) {
@@ -43,17 +42,12 @@ async function getArticle(id: string): Promise<NewsItem | null> {
 export default async function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const article = await getArticle(id);
-
   if (!article) notFound();
-
   const categoryColor = article.category ? (CATEGORY_COLORS[article.category] ?? "bg-slate-100 text-slate-600") : null;
-
   return (
     <div className="bg-[#f5f5f7] min-h-screen">
-      <SiteHeader />
-
+      <Header />
       <main className="max-w-3xl mx-auto px-6 py-12">
-        {/* Hero image */}
         {resolveNewsImage(article.image) && (
           <div className="relative w-full h-72 md:h-96 rounded-3xl overflow-hidden mb-8 shadow-md">
             <Image
@@ -66,8 +60,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
             />
           </div>
         )}
-
-        {/* Category + subtitle */}
         <div className="flex items-center gap-3 mb-4">
           {categoryColor && article.category && (
             <span className={`text-xs font-bold px-3 py-1 rounded-full ${categoryColor}`}>
@@ -80,20 +72,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
             </span>
           )}
         </div>
-
-        {/* Title */}
-        <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight mb-4">
-          {article.title}
-        </h1>
-
-        {/* Description */}
+        <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight mb-4">{article.title}</h1>
         {article.description && (
-          <p className="text-lg text-slate-500 mb-8 leading-relaxed border-l-4 border-blue-200 pl-4">
-            {article.description}
-          </p>
+          <p className="text-lg text-slate-500 mb-8 leading-relaxed border-l-4 border-blue-200 pl-4">{article.description}</p>
         )}
-
-        {/* Body */}
         {article.body ? (
           <div className="prose prose-slate max-w-none">
             {article.body.split("\n").map((line, i) =>
@@ -109,8 +91,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
         ) : (
           <p className="text-slate-400 italic">Aucun contenu disponible pour cet article.</p>
         )}
-
-        {/* Gallery */}
         {article.images && article.images.length > 0 && (
           <div className="mt-10">
             <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Galerie</h2>
@@ -127,8 +107,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
             </div>
           </div>
         )}
-
-        {/* Back link */}
         <div className="mt-12 pt-8 border-t border-slate-200">
           <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition">
             ← Retour à l&apos;accueil

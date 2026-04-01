@@ -13,14 +13,11 @@ const NAV = [
   { href: "/lycee",   label: "Lycée",   activeColor: "text-pink-500",   hoverClass: "hover:text-pink-500",   dot: "bg-pink-500"   },
 ];
 
-/* ── User popover (desktop/tablet only) ────────────────────────────────── */
 function UserPopover({ onClose }: { onClose: () => void }) {
   const { user } = useUser();
   const { signOut, openUserProfile } = useClerk();
-
   return (
     <div className="absolute top-12 right-0 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in">
-      {/* User info */}
       <div className="px-4 py-4 flex items-center gap-3 border-b border-slate-100">
         {user?.imageUrl ? (
           <img src={user.imageUrl} alt={user.fullName ?? ""} className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-slate-100" />
@@ -34,8 +31,6 @@ function UserPopover({ onClose }: { onClose: () => void }) {
           <p className="text-xs text-slate-400 truncate">{user?.primaryEmailAddress?.emailAddress ?? user?.username ?? ""}</p>
         </div>
       </div>
-
-      {/* Actions */}
       <div className="p-2 flex flex-col gap-0.5">
         <button
           onClick={() => { openUserProfile(); onClose(); }}
@@ -64,8 +59,6 @@ function UserPopover({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-
-/* ── Main header ────────────────────────────────────────────────────────── */
 export default function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -73,17 +66,11 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const { isSignedIn } = useUser();
   const { signOut } = useClerk();
-
-  // Close mobile menu on navigation
   useEffect(() => { setMobileOpen(false); setPopoverOpen(false); }, [pathname]);
-
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
-
-  // Close popover on outside click
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
@@ -93,23 +80,16 @@ export default function SiteHeader() {
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, []);
-
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-
   return (
     <>
-      {/* ── Bar ─────────────────────────────────────────────────────────── */}
       <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
-
-          {/* Logo */}
           <Link href="/" className="hover:opacity-75 transition flex-shrink-0">
             <div className="w-[44px] h-[44px]">
-              <Image src={Logo} alt="La Providence Nicolas Barré" width={150} height={150} quality={100} style={{ width: "44px", height: "44px" }} />
+              <Image src={Logo} alt="La Providence Nicolas Barré" width={150} height={150}/>
             </div>
           </Link>
-
-          {/* Desktop nav */}
           <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
             {NAV.map(({ href, label, activeColor, hoverClass }) => (
               <Link
@@ -124,15 +104,11 @@ export default function SiteHeader() {
               </Link>
             ))}
           </nav>
-
-          {/* Desktop right */}
           <div className="hidden md:flex items-center gap-2">
             <Link href="/portesouvertes" className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all">
               Pré-inscription
             </Link>
-
             {isSignedIn ? (
-              /* Profile button + popover */
               <div ref={popoverRef} className="relative">
                 <button
                   onClick={() => setPopoverOpen((v) => !v)}
@@ -157,8 +133,6 @@ export default function SiteHeader() {
               </Link>
             )}
           </div>
-
-          {/* Mobile hamburger */}
           <button
             className="md:hidden relative z-50 flex flex-col justify-center items-center w-10 h-10 gap-[5px]"
             onClick={() => setMobileOpen((v) => !v)}
@@ -179,8 +153,6 @@ export default function SiteHeader() {
           </button>
         </div>
       </header>
-
-      {/* ── Mobile overlay ──────────────────────────────────────────────── */}
       <div
         className="fixed inset-0 z-40 md:hidden transition-all duration-500"
         style={{
@@ -191,8 +163,6 @@ export default function SiteHeader() {
         }}
         onClick={() => setMobileOpen(false)}
       />
-
-      {/* ── Mobile menu panel ───────────────────────────────────────────── */}
       <div
         className="fixed top-14 left-0 right-0 z-40 md:hidden bg-white/96 backdrop-blur-2xl border-b border-slate-100 shadow-2xl"
         style={{
@@ -224,8 +194,6 @@ export default function SiteHeader() {
                 </svg>
               </Link>
             ))}
-
-            {/* Internat — mobile only */}
             <Link
               href="/internat"
               className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-slate-500 ${isActive("/internat") ? "text-slate-600" : "text-slate-400"}`}
@@ -243,8 +211,6 @@ export default function SiteHeader() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
             </Link>
-
-            {/* Notre identité — mobile only */}
             <Link
               href="/notre-identite"
               className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-slate-500 ${isActive("/notre-identite") ? "text-slate-600" : "text-slate-400"}`}
@@ -262,9 +228,7 @@ export default function SiteHeader() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
             </Link>
-
           </nav>
-
           <div
             className="mt-5 flex flex-col gap-3"
             style={{

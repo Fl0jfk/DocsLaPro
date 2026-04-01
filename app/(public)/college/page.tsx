@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import SiteHeader from "../../components/Header/Header";
+import Header from "@/app/components/Header/Header";
 import { SCHOOL } from "../../lib/school";
 
 function Accordion({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -25,9 +25,7 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
 export default function CollegePage() {
   return (
     <div className="bg-white min-h-screen">
-      <SiteHeader />
-
-      {/* ── Hero ── */}
+      <Header />
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-blue-600">
         <Image src="/Labo.webp" alt="Collège La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-25" />
         <div className="absolute inset-0 bg-gradient-to-b from-blue-500/50 to-blue-800/90" />
@@ -39,8 +37,6 @@ export default function CollegePage() {
           </p>
         </div>
       </section>
-
-      {/* ── Stats ── */}
       <section className="bg-blue-50 border-b border-blue-100">
         <div className="max-w-[1200px] mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
@@ -56,8 +52,6 @@ export default function CollegePage() {
           ))}
         </div>
       </section>
-
-      {/* ── Philosophie ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-start">
           <div>
@@ -87,8 +81,6 @@ export default function CollegePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Enseignements ── */}
       <section className="bg-slate-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <h2 className="text-3xl font-black text-slate-900 mb-8">Enseignements & vie scolaire</h2>
@@ -121,8 +113,6 @@ export default function CollegePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Équipements ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <h2 className="text-3xl font-black text-slate-900 mb-8">Des équipements de qualité</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -140,8 +130,6 @@ export default function CollegePage() {
           ))}
         </div>
       </section>
-
-      {/* ── Infos pratiques ── */}
       <section className="bg-slate-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <h2 className="text-3xl font-black text-slate-900 mb-8">Informations pratiques</h2>
@@ -165,8 +153,6 @@ export default function CollegePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Internat CTA ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-10">
         <div className="bg-slate-900 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 justify-between">
           <div>
@@ -179,8 +165,6 @@ export default function CollegePage() {
           </Link>
         </div>
       </section>
-
-      {/* ── Identité CTA ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-10">
         <div className="bg-indigo-50 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 justify-between border border-indigo-100">
           <div>
@@ -193,8 +177,6 @@ export default function CollegePage() {
           </Link>
         </div>
       </section>
-
-      {/* ── CTA ── */}
       <section className="bg-blue-600 py-20">
         <div className="max-w-[1200px] mx-auto px-6 text-center">
           <h2 className="text-4xl font-black text-white mb-4">Votre enfant mérite le meilleur accompagnement</h2>
@@ -212,7 +194,6 @@ export default function CollegePage() {
           </div>
         </div>
       </section>
-
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-xs">
         <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3">

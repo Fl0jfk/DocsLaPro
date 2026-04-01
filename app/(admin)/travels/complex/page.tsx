@@ -54,7 +54,6 @@ function ComplexTripFormContent() {
       freeText: "", 
       busProgramFile: null as { name: string, url: string } | null,
     },
-    // COMMANDE CUISINE — quantités par jour (conforme au bon de commande chef)
     piqueNiqueDetails: {
       active: false,
       deliveryTime: "",
@@ -122,7 +121,7 @@ function ComplexTripFormContent() {
       id: tripId,
       ownerName: user?.fullName || "Professeur inconnu",
       ownerEmail: user?.primaryEmailAddress?.emailAddress,
-      status: "PENDING_DIR_INITIAL",
+      status: "EN_ATTENTE_DIR_INITIAL",
       type: "COMPLEX",
       createdAt: new Date().toISOString(),
       data: formData
@@ -134,7 +133,6 @@ function ComplexTripFormContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: tripId, data: payload }),
       });
-
       if (res.ok) {
         if (formData.needsBus) {
           await fetch("/api/travels/send-transport", {
@@ -158,7 +156,6 @@ function ComplexTripFormContent() {
       setLoading(false);
     }
   };
-
   const handleSubmitAttempt = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.needsBus) {
@@ -167,9 +164,7 @@ function ComplexTripFormContent() {
       executeSubmit();
     }
   };
-
   if (!isLoaded) return <div className="p-10 text-center font-medium">Chargement...</div>;
-
   return (
     <main className="max-w-5xl mx-auto p-8 pb-24 text-left">
       <div className="mb-8 flex justify-between items-end">
@@ -179,14 +174,12 @@ function ComplexTripFormContent() {
         </div>
         <button onClick={() => router.back()} className="text-sm font-bold text-indigo-600 hover:underline">Annuler</button>
       </div>
-
       <form onSubmit={handleSubmitAttempt} className="space-y-6">
-        {/* 1. PROJET */}
         <div className="bg-white p-8 border rounded-3xl shadow-sm space-y-6">
           <div className="text-slate-400 uppercase text-xs font-bold tracking-widest border-b pb-4">1. Projet Pédagogique</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="block text-sm font-semibold mb-2">Intitulé du voyage</label>
+              <label className="block text-sm font-semibold mb-2">Intitulé du séjour</label>
               <input required value={formData.title} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Ex: Séjour d'intégration en Auvergne" onChange={e => setFormData({...formData, title: e.target.value})} />
             </div>
             <div>
@@ -209,8 +202,6 @@ function ComplexTripFormContent() {
             </div>
           </div>
         </div>
-
-        {/* 2. PARTICIPANTS & BUDGET */}
         <div className="bg-white p-8 border rounded-3xl shadow-sm space-y-6">
           <div className="text-slate-400 uppercase text-xs font-bold tracking-widest border-b pb-4">2. Participants & Budget estimé</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -228,7 +219,7 @@ function ComplexTripFormContent() {
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold mb-2">Noms des accompagnateurs</label>
-              <input required value={formData.nomsAccompagnateurs} className="w-full p-3 bg-slate-50 border rounded-xl" placeholder="Liste des collègues..." onChange={e => setFormData({...formData, nomsAccompagnateurs: e.target.value})} />
+              <input required value={formData.nomsAccompagnateurs} className="w-full p-3 bg-slate-50 border rounded-xl" placeholder="Liste des accompagnateurs..." onChange={e => setFormData({...formData, nomsAccompagnateurs: e.target.value})} />
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2 text-indigo-600">Coût global estimé (€)</label>
@@ -236,8 +227,6 @@ function ComplexTripFormContent() {
             </div>
           </div>
         </div>
-
-        {/* 3. DATES & HORAIRES */}
         <div className="bg-white p-8 border rounded-3xl shadow-sm space-y-6">
           <div className="text-slate-400 uppercase text-xs font-bold tracking-widest border-b pb-4">3. Dates et Horaires</div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -247,11 +236,8 @@ function ComplexTripFormContent() {
             <div className="md:col-span-2"><label className="block text-xs font-bold mb-1">Heure retour prévue</label><input type="time" required className="w-full p-3 bg-slate-50 border rounded-xl" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} /></div>
           </div>
         </div>
-
-        {/* 4. LOGISTIQUE & TRANSPORT */}
         <div className="bg-white p-8 border rounded-3xl shadow-sm space-y-6">
           <div className="text-slate-400 uppercase text-xs font-bold tracking-widest border-b pb-4">4. Logistique & Restauration</div>
-          
           <div className={`p-6 rounded-2xl border-2 transition-all ${formData.needsBus ? 'border-amber-400 bg-amber-50' : 'border-slate-100 bg-slate-50'}`}>
             <div className="flex items-center justify-between">
               <div>
@@ -260,11 +246,9 @@ function ComplexTripFormContent() {
               </div>
               <input type="checkbox" className="w-6 h-6 accent-amber-600 cursor-pointer" checked={formData.needsBus} onChange={e => setFormData({...formData, needsBus: e.target.checked})} />
             </div>
-
             {formData.needsBus && (
               <div className="mt-6 p-4 bg-white border border-amber-200 rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2">
                 <h4 className="text-sm font-bold text-amber-800">Détails pour le transporteur</h4>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold mb-1">Lieu de prise en charge (RDV)</label>
@@ -275,12 +259,10 @@ function ComplexTripFormContent() {
                     <label htmlFor="stayOnSite" className="text-xs font-bold text-slate-600 cursor-pointer">Le bus reste sur place pour les visites</label>
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-xs font-bold mb-1">Informations complémentaires</label>
                   <textarea rows={2} className="w-full p-3 bg-slate-50 border rounded-xl text-sm" placeholder="Ex: Numéro de vol AF123..." value={formData.transportRequest.freeText} onChange={e => setFormData({...formData, transportRequest: {...formData.transportRequest, freeText: e.target.value}})} />
                 </div>
-
                 <div className="border-t pt-4">
                   <label className="block text-xs font-bold mb-2">Programme complet chauffeur</label>
                   <input type="file" ref={busProgramRef} className="hidden" onChange={(e) => handleFileUpload(e, true)} />
@@ -291,8 +273,6 @@ function ComplexTripFormContent() {
               </div>
             )}
           </div>
-
-          {/* SECTION RESTAURATION MODIFIÉE */}
           <button type="button" onClick={() => setShowPiqueNiqueModal(true)} className={`w-full p-6 rounded-2xl border-2 flex items-center justify-between transition-all ${formData.piqueNiqueDetails.active ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
             <div className="text-left">
               <h3 className="font-bold text-slate-900">Commande Restauration (Cantine)</h3>
@@ -301,7 +281,6 @@ function ComplexTripFormContent() {
             <span className="text-xl">🥪</span>
           </button>
         </div>
-
         <div className="bg-white p-8 border rounded-3xl shadow-sm space-y-6">
           <div className="text-slate-400 uppercase text-xs font-bold tracking-widest border-b pb-4">5. Autres documents</div>
           <div className="space-y-4">
@@ -319,13 +298,10 @@ function ComplexTripFormContent() {
             </div>
           </div>
         </div>
-
         <button disabled={loading || uploading} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
           {loading ? "Création du dossier..." : "Soumettre le dossier complet"}
         </button>
       </form>
-
-      {/* MODAL BUS RECAP */}
       {showBusRecapModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-2xl w-full shadow-2xl border border-amber-100">
@@ -351,8 +327,6 @@ function ComplexTripFormContent() {
           </div>
         </div>
       )}
-
-      {/* MODAL CUISINE / PIQUE-NIQUE (PDF ALIGNED) */}
       {showPiqueNiqueModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
           <div className="bg-white rounded-[2rem] p-8 max-w-2xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -363,9 +337,7 @@ function ComplexTripFormContent() {
               </div>
               <button onClick={() => setShowPiqueNiqueModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
             </div>
-
             <div className="space-y-5">
-              {/* Livraison & Jours */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl">
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Heure récupération / livraison</label>
@@ -394,8 +366,6 @@ function ComplexTripFormContent() {
                   </div>
                 </div>
               </div>
-
-              {/* Tableau par jour */}
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-xs border-collapse min-w-[480px]">
                   <thead>
@@ -443,12 +413,10 @@ function ComplexTripFormContent() {
                   </tbody>
                 </table>
               </div>
-
               <p className="text-[10px] text-slate-500 italic bg-amber-50 border border-amber-100 p-2.5 rounded-lg">
                 ⚠️ Fournir la liste des élèves et adultes <strong>15 jours avant</strong> la sortie. Affiner 24h avant (toute absence non signalée 24h avant sera facturée). Commande à envoyer à : <strong>chef.0056isi@newrest.eu</strong>
               </p>
             </div>
-
             <div className="flex gap-3 mt-10">
               <button type="button" onClick={() => { setFormData({...formData, piqueNiqueDetails: {...formData.piqueNiqueDetails, active: false}}); setShowPiqueNiqueModal(false); }} className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold">ANNULER LA COMMANDE</button>
               <button type="button" onClick={() => setShowPiqueNiqueModal(false)} className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100">ENREGISTRER LE BON</button>

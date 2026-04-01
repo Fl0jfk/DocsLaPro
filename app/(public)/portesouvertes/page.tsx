@@ -55,6 +55,8 @@ export default function PortesOuvertesPage() {
   }
   if (submittedData) {
     return (
+      <>
+      <Header />
       <div className="max-w-xl mx-auto p-8 text-center flex flex-col gap-6 mt-4 bg-white rounded-3xl shadow-sm border border-gray-100">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-gray-900">Merci 🙏</h1>
@@ -74,6 +76,7 @@ export default function PortesOuvertesPage() {
           <p className="text-[11px] text-gray-400 mt-3 italic">(Ouverture du dossier de candidature via ÉcoleDirecte)</p>
         </div>
       </div>
+      </> 
     );
   }
   return (

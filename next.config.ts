@@ -14,12 +14,8 @@ const ContentSecurityPolicy = `
 `;
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true, 
-  },
+  eslint: { ignoreDuringBuilds: true},
+  typescript: {ignoreBuildErrors: true},
   images: {
     formats : ['image/webp'],
     remotePatterns: [
