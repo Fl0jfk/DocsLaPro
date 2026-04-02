@@ -154,6 +154,14 @@ const STATIC_DATA: Data = {
       "link": "/add-news-site",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
+    },
+    {
+      "id": 15,
+      "name": "Déclaration d'absences",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
+      "link": "/absences",
+      "allowedRoles": ["professeur", "administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite", "education"],
+      "external": false
     }
   ],
   travels: [],

@@ -40,4 +40,9 @@ export const SCHOOL = {
     grades: "2nde · 1ère · Terminale",
     internPlaces: 125,
   },
+  absences: {
+    comptabilite: "florian.hacqueville-mathi@ac-normandie.fr",
+    secretariatEcole: "m.leblond@laprovidence-nicolasbarre.fr",
+    collegeLycee: ["sarah@laprovidence-nicolasbarre.fr", "florian@h-me.fr"],
+  },
 } as const;

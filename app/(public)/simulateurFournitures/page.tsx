@@ -23,19 +23,19 @@ type Child =
       stage: "college";
       niveau: CollegeNiveau;
       ebp: boolean;
-      langue: LangueSeconde; // LV2
-      optionBilingueAllemand: boolean; // uniquement en 6e
-      optionLatin: boolean; // dès 5e (affichable selon le simulateur)
+      langue: LangueSeconde; 
+      optionBilingueAllemand: boolean;
+      optionLatin: boolean;
     }
   | {
       id: string;
       stage: "lycee";
       niveau: LyceeNiveau;
       track: LyceeTrack;
-      langue: LangueSeconde; // LVB
-      anglaisEuro?: boolean; // 2nde seulement (option)
-      specialites: LyceeSpecialite[]; // 1re (max 2), Terminale (max 1)
-      latin: boolean; // option (General seulement)
+      langue: LangueSeconde;
+      anglaisEuro?: boolean;
+      specialites: LyceeSpecialite[];
+      latin: boolean;
     };
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 function dedupeStrings(items: string[]) {
@@ -169,7 +169,6 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
     "2 boîtes de mouchoirs",
     "1 stylo-plume ou stylo effaçable + cartouches + effaceur",
   ];
-
   const cm2 = [
     "1 stylo plume et des cartouches d’encre bleue effaçable",
     "1 effaceur",
@@ -196,33 +195,18 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
     "2 boîtes de mouchoirs en papier",
     "1 paire de rollers avec protections et casque",
   ];
-
-  if (niveau === "CM2") {
-    return [{ title: "À acheter (CM2)", items: cm2 }];
-  }
-  if (niveau === "CE2" || niveau === "CM1") {
-    return [{ title: "À acheter (CE2/CM1)", items: ce2Cm1 }];
-  }
-  if (niveau === "JE1MMEBAYEL") {
-    return [{ title: "À acheter (J.E.1 — Mme BAYEL Christine)", items: je1 }];
-  }
-  if (niveau === "JE2MMECARTIER") {
-    return [{ title: "À acheter (J.E.2 — Mme CARTIER Céline)", items: je2 }];
-  }
-  if (niveau === "JE3MMEDOUGHTY") {
-    return [{ title: "À acheter (J.E.3 — Mme DOUGHTY Sylvie)", items: je3 }];
-  }
-  if (niveau === "JE4") {
-    return [{ title: "À acheter (J.E.4)", items: je4 }];
-  }
+  if (niveau === "CM2") { return [{ title: "À acheter (CM2)", items: cm2 }];}
+  if (niveau === "CE2" || niveau === "CM1") { return [{ title: "À acheter (CE2/CM1)", items: ce2Cm1 }];}
+  if (niveau === "JE1MMEBAYEL") { return [{ title: "À acheter (J.E.1 — Mme BAYEL Christine)", items: je1 }];}
+  if (niveau === "JE2MMECARTIER") { return [{ title: "À acheter (J.E.2 — Mme CARTIER Céline)", items: je2 }];}
+  if (niveau === "JE3MMEDOUGHTY") { return [{ title: "À acheter (J.E.3 — Mme DOUGHTY Sylvie)", items: je3 }];}
+  if (niveau === "JE4") { return [{ title: "À acheter (J.E.4)", items: je4 }];}
   return [{ title: "À acheter (CP/CE1)", items: cpCe1 }];
 }
 
 function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): SupplySection[] {
   const { niveau, ebp, langue, optionBilingueAllemand, optionLatin } = child;
-
   const itemsUSB = ["1 clé USB 16 Go (durant tout le collège)"];
-
   const maths = [
     "Calculatrice Casio (collège)",
     "2 cahiers très grand format (24x32) grands carreaux 96 pages",
@@ -243,33 +227,27 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "d) Une vingtaine de feuilles blanches format A4 (ramette de papier)",
     "e) 4 pochettes transparents pour le classeur",
   ];
-
   const anglais = [
     "1 cahier 96 pages 24/32 grands carreaux, sans spirales",
     "1 cahier d’exercices fourni par le collège (facturé au 2e trimestre)",
     "1 lutin (40 vues) ou cahier-classeur avec pochettes transparentes",
   ];
-
   const espagnol = [
     "1 cahier 100 pages grand format (24/32), grands carreaux",
     "1 cahier de brouillon",
     "1 cahier d’exercices fourni par le collège (facturé au 2e trimestre)",
   ];
-
   const espagnol3e = [
     "1 cahier 100 pages grand format (24/32), grands carreaux",
     "1 cahier de brouillon",
   ];
-
   const allemand = [
     "1 cahier 96 pages 24x32 grands carreaux (sans spirales)",
     "1 carnet format A5 (ou petit cahier) de 100 pages maximum, pour le vocabulaire (à conserver pendant tout le collège)",
     "Avoir toujours quelques copies simples et doublespour les évaluations",
   ];
-
   const seconde = langue === "Espagnol" ? (niveau === "3e" ? espagnol3e : espagnol) : allemand;
   const secondeEnNiveau6e = optionBilingueAllemand ? allemand : [];
-
   const artsPlastiques = [
     "Matériel de dessin (carton à dessin A3 ou demi-raisin, calque A4, feuilles Canson A3 + A4)",
     "Gouache / peinture acrylique (couleurs de base) + pinceaux",
@@ -278,7 +256,6 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "Matériel marqué au nom de l’élève et de sa classe",
     "(Nouveaux élèves : alternance quadrillé + dessin). Les anciens élèves peuvent continuer sur le même cahier (ou ajouter un nouveau).",
   ];
-
   const Technologie = [
     "1 classeur grand format (21/29,7)",
     "50 protège-documents plastifiés",
@@ -286,13 +263,11 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "10 feuilles simples quadrillées (petits carreaux)",
     "Les cours de 5e et 4e doivent être conservés pour les années suivantes",
   ];
-
   const vieTerre = [
     "1 cahier 24/32 de 96 pages grands carreaux",
     "Dans une pochette cartonnée à élastiques : feuilles ordinateur (21x29,7) + pochettes plastiques perforées + copies simples et doubles",
     "1 boîte/sachet de gants latex",
   ];
-
   const physique = (() => {
     if (niveau === "5e" || niveau === "4e") {
       return [
@@ -307,7 +282,6 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
       "Peut servir pour tout le collège",
     ];
   })();
-
   const histoireGeo = (() => {
     if (niveau === "4e") {
       return [
@@ -328,29 +302,24 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
       "Livret fourni par le collège (facturé sur le 2e trimestre)",
     ];
   })();
-
   const catechese = (() => {
     if (niveau === "6e" || niveau === "5e") {
       return ["1 cahier 96 pages très grand format (24/32) grands carreaux"];
     }
     return ["Pas de cahier : lutin 100 vues minimum"];
   })();
-
   const eps = [
     "Chaussures extérieures + chaussures de salle (obligatoire)",
     "Tenue adaptée au sport",
     "Prévoir en fonction de la météo",
     "1 gourde (pas de bouteille d’eau)",
   ];
-
   const musique = [
     "Cahier de musique et chant (21/29,7) + protège-cahier",
     "Chemise à élastique (21/29,7) pour ranger le matériel de musique",
     "Documents divers + MémoArts (selon consignes du professeur).",
   ];
-
   const latin = ["1 cahier 96 pages grand format (grands carreaux)"];
-
   const francais = (() => {
     if (!ebp) {
       return [
@@ -390,7 +359,6 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     }
     return [];
   })();
-
   return [
     { title: "À préparer (commun)", items: itemsUSB },
     { title: "Mathématiques", items: maths },
@@ -415,13 +383,8 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
 
 function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySection[] {
   const { niveau, track, langue, anglaisEuro = false, specialites, latin } = child;
-
-  const lvbAllemand = [
-    "Allemand (LVB) : MitredEN / vocabulaire selon niveau (d'après votre PDF)",
-  ];
-  const lvbEspagnol = [
-    "Espagnol (LVB) : Via libre + La conjugaison espagnole (selon votre PDF)",
-  ];
+  const lvbAllemand = ["Allemand (LVB) : MitredEN / vocabulaire selon niveau (d'après votre PDF)"];
+  const lvbEspagnol = ["Espagnol (LVB) : Via libre + La conjugaison espagnole (selon votre PDF)"];
   if (niveau === "2nde") {
     return [
       {
@@ -439,8 +402,6 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
       },
     ];
   }
-
-  // 1re Général
   if (niveau === "1re" && track === "General") {
     const common = [
       "Hachette Les fondamentaux du lycée — Histoire/Géo/EMC (si applicable selon choix)",
@@ -448,7 +409,6 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
       "Hatier Histoire-Géographie 2019",
       "Hachette Enseignement scientifique 2024 (selon votre PDF)",
     ];
-
     const bySpec: Record<LyceeSpecialite, string[]> = {
       Maths: ["HACHETTE DÉCLIC 2019 (1° spécialité)"],
       "Physique-Chimie": ["HATIER PHYSIQUE-CHIMIE 2019 (1° spécialité)"],
@@ -456,17 +416,10 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
       SES: ["HATIER SCIENCES ÉCONOMIQUES ET SOCIALES 2023 (1° spécialité)"],
       "HG-GEO-GEOPOL": ["NATHAN HISTOIRE-GÉOGRAPHIE-GÉOPOLITIQUE-SCIENCES POLITIQUES 2019 (1° spécialité)"],
     };
-
     const specItems = (specialites || []).flatMap((s) => bySpec[s] || []);
-
     const latinItems = latin ? ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top)"] : [];
-
-    return [
-      { title: "Matériel obligatoire (1re — Général)", items: [...common, ...specItems, ...latinItems] },
-    ];
+    return [{ title: "Matériel obligatoire (1re — Général)", items: [...common, ...specItems, ...latinItems] }];
   }
-
-  // Terminale Général
   if (niveau === "Terminale" && track === "General") {
     const common = [
       "Magnard Philosophie 2020 (Terminale)",
@@ -475,7 +428,6 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
       "Hatier Géographie 2020 (Terminale)",
       "La Maison des Langues Blockbuster 2020 (Terminale)",
     ];
-
     const bySpec: Record<LyceeSpecialite, string[]> = {
       Maths: ["NATHAN HYPERBOLE — Maths spécialité 2020 (Terminale)"],
       "Physique-Chimie": ["HACHETTE PHYSIQUE-CHIMIE 2020 (Terminale spécialité)"],
@@ -483,18 +435,11 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
       SES: ["MAGNARD Sciences économiques et sociales 2020 (Terminale spécialité)"],
       "HG-GEO-GEOPOL": ["HATIER Histoire-Géographie-Géopolitique-Sciences politiques 2020 (Terminale)"],
     };
-
     const specItems = (specialites || []).flatMap((s) => bySpec[s] || []);
     const latinItems = latin ? ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top) — 2008 (Multiples)"] : [];
     const lvbItems = langue === "Allemand" ? lvbAllemand : lvbEspagnol;
-
-    return [
-      { title: "Matériel obligatoire (Terminale — Général)", items: [...common, ...lvbItems, ...specItems, ...latinItems] },
-    ];
+    return [{ title: "Matériel obligatoire (Terminale — Général)", items: [...common, ...lvbItems, ...specItems, ...latinItems] }];
   }
-
-  // ST2S (technologique) — liste simplifiée d'après l'extraction disponible.
-  // On garde volontairement une base, et on ajoute les livres présents dans le PDF.
   if (track === "ST2S") {
     const items: string[] = [];
     if (niveau === "1re") {
@@ -511,7 +456,6 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
         "Magnard Philosophie 2020 (Terminale Tech)",
         "I-MANUEL Histoire-Géographie-EMC 2020 (Terminale Tech)",
       );
-      // SPE (d'après votre texte extrait)
       items.push(
         "Delagrave Biologie & Physiopathologie humaines 2020 (Terminale ST2S)",
         "NATHAN I-MANUEL Chimie (livre + licence) 2020 (Terminale ST2S)",
@@ -544,9 +488,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
   const [lyceeAnglaisEuro, setLyceeAnglaisEuro] = useState(false);
   const [lyceeLatin, setLyceeLatin] = useState(false);
   const [lyceeSpecs, setLyceeSpecs] = useState<LyceeSpecialite[]>(["Maths"]);
-
   const lyceeSpecOptions: LyceeSpecialite[] = ["Maths", "Physique-Chimie", "SVT", "SES", "HG-GEO-GEOPOL"];
-
   const computed = useMemo(() => {
     const withSupplies = children.map((c) => {
       const supplies =
@@ -557,14 +499,11 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
             : getLyceeSupplies(c);
       return { child: c, supplies };
     });
-
     const allItems = withSupplies.flatMap((x) => x.supplies.flatMap((s) => s.items));
     const allDedupe = dedupeStrings(allItems);
     const suppliesByChild = Object.fromEntries(withSupplies.map((x) => [x.child.id, x.supplies]));
-
     return { withSupplies, allItems, allDedupe, suppliesByChild };
   }, [children]);
-
   const resetAddForm = () => {
     setStage("college");
     setEcoleNiveau("CP");
@@ -580,7 +519,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
     setLyceeLatin(false);
     setLyceeSpecs(["Maths"]);
   };
-
   const addChild = () => {
     if (stage === "ecole") {
       setChildren((prev) => [...prev, { id: uid(), stage: "ecole", niveau: ecoleNiveau }]);
@@ -606,8 +544,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
       setShowAdd(false);
       return;
     }
-
-    // lycée
     const maxSpecs = lyceeNiveau === "Terminale" ? 1 : lyceeNiveau === "1re" ? 2 : 0;
     const specs = maxSpecs === 0 ? [] : lyceeSpecs.slice(0, maxSpecs);
     setChildren((prev) => [
@@ -625,11 +561,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
     ]);
     setShowAdd(false);
   };
-
-  const removeChild = (id: string) => {
-    setChildren((prev) => prev.filter((c) => c.id !== id));
-  };
-
+  const removeChild = (id: string) => { setChildren((prev) => prev.filter((c) => c.id !== id))};
   const sendByEmail = async () => {
     setEmailError(null);
     setEmailSuccess(null);
@@ -665,7 +597,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
       setSendingEmail(false);
     }
   };
-
   return (
     <>
       <Header />
@@ -769,7 +700,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
               </div>
             </div>
           </div>
-
           {showEmail && (
             <div className="fixed inset-0 z-[90] bg-black/60 flex items-center justify-center p-4 print:hidden">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl p-6">
@@ -797,7 +727,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                       className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200"
                     />
                   </label>
-
                   {emailError && (
                     <div className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
                       {emailError}
@@ -808,7 +737,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                       {emailSuccess}
                     </div>
                   )}
-
                   <div className="flex items-center justify-end gap-3 pt-2">
                     <button
                       onClick={() => setShowEmail(false)}
@@ -829,7 +757,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
               </div>
             </div>
           )}
-
           {showAdd && (
             <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6">
@@ -842,7 +769,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                     ✕
                   </button>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {(
                     [
@@ -863,8 +789,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                     </button>
                   ))}
                 </div>
-
-                {/* Stage forms */}
                 <div className="mt-5 space-y-6">
                   {stage === "ecole" && (
                     <div className="space-y-3">
@@ -897,7 +821,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                       </div>
                     </div>
                   )}
-
                   {stage === "college" && (
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -917,7 +840,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           ))}
                         </div>
                       </div>
-
                       {collegeNiveau !== "6e" ? (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option E.B.P (si concerné)</p>
@@ -935,7 +857,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           </label>
                         </div>
                       ) : null}
-
                       {collegeNiveau === "6e" ? (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option bilingue allemand</p>
@@ -972,7 +893,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           </div>
                         </div>
                       )}
-
                       {collegeNiveau !== "6e" && (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option Latin</p>
@@ -989,7 +909,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                       )}
                     </div>
                   )}
-
                   {stage === "lycee" && (
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -1009,7 +928,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           ))}
                         </div>
                       </div>
-
                       <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filière</p>
                         <div className="flex flex-wrap gap-2">
@@ -1027,7 +945,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           ))}
                         </div>
                       </div>
-
                       <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">LVB</p>
                         <div className="flex flex-wrap gap-2">
@@ -1045,7 +962,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           ))}
                         </div>
                       </div>
-
                       {lyceeNiveau === "2nde" && (
                         <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
                           <input
@@ -1057,7 +973,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           <span className="font-bold text-sm text-slate-800">Anglais Section Euro (option)</span>
                         </label>
                       )}
-
                       {lyceeTrack === "General" && (lyceeNiveau === "1re" || lyceeNiveau === "Terminale") && (
                         <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
                           <input
@@ -1069,7 +984,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           <span className="font-bold text-sm text-slate-800">Option Latin (si concerné)</span>
                         </label>
                       )}
-
                       {lyceeTrack === "General" && lyceeNiveau !== "2nde" && (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1106,7 +1020,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                     </div>
                   )}
                 </div>
-
                 <div className="flex gap-3 mt-6">
                   <button
                     onClick={() => {
@@ -1128,7 +1041,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
             </div>
           )}
         </div>
-
         <style jsx global>{`
           @media print {
             @page {
