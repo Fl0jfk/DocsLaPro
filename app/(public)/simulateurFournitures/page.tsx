@@ -540,6 +540,11 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
 export default function SimulateurFournituresEcoleCollegeLycee() {
   const [children, setChildren] = useState<Child[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const [email, setEmail] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("college");
   const [ecoleNiveau, setEcoleNiveau] = useState<EcoleNiveau>("CP");
   const [collegeNiveau, setCollegeNiveau] = useState<CollegeNiveau>("6e");
@@ -569,8 +574,9 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
 
     const allItems = withSupplies.flatMap((x) => x.supplies.flatMap((s) => s.items));
     const allDedupe = dedupeStrings(allItems);
+    const suppliesByChild = Object.fromEntries(withSupplies.map((x) => [x.child.id, x.supplies]));
 
-    return { withSupplies, allItems, allDedupe };
+    return { withSupplies, allItems, allDedupe, suppliesByChild };
   }, [children]);
 
   const resetAddForm = () => {
@@ -638,6 +644,42 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
     setChildren((prev) => prev.filter((c) => c.id !== id));
   };
 
+  const sendByEmail = async () => {
+    setEmailError(null);
+    setEmailSuccess(null);
+    const target = email.trim();
+    if (children.length === 0) {
+      setEmailError("Ajoutez au moins un enfant.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      setEmailError("Adresse email invalide.");
+      return;
+    }
+    try {
+      setSendingEmail(true);
+      const res = await fetch("/api/supplies/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: target,
+          children,
+          suppliesByChild: computed.suppliesByChild,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setEmailError(data?.error || "Échec de l'envoi.");
+        return;
+      }
+      setEmailSuccess("Email envoyé (PDF en pièce jointe).");
+    } catch (e: any) {
+      setEmailError(e?.message || "Échec de l'envoi.");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   return (
     <>
       <Header />
@@ -661,6 +703,16 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                 className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition print:hidden"
               >
                 🖨️ Imprimer
+              </button>
+              <button
+                onClick={() => {
+                  setEmailError(null);
+                  setEmailSuccess(null);
+                  setShowEmail(true);
+                }}
+                className="bg-white text-indigo-700 border border-indigo-200 font-bold px-6 py-3 rounded-xl hover:bg-indigo-50 transition print:hidden"
+              >
+                ✉️ Envoyer par email
               </button>
             </div>
           </div>
@@ -731,6 +783,66 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
               </div>
             </div>
           </div>
+
+          {showEmail && (
+            <div className="fixed inset-0 z-[90] bg-black/60 flex items-center justify-center p-4 print:hidden">
+              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900">Envoyer la liste par email</h3>
+                    <p className="text-sm text-slate-500 mt-1">Vous recevrez un PDF en pièce jointe.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowEmail(false)}
+                    className="text-slate-400 hover:text-slate-600 text-2xl font-black"
+                    aria-label="Fermer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <label className="block">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Adresse email</span>
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="ex: parent@gmail.com"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                  </label>
+
+                  {emailError && (
+                    <div className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+                      {emailError}
+                    </div>
+                  )}
+                  {emailSuccess && (
+                    <div className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3">
+                      {emailSuccess}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      onClick={() => setShowEmail(false)}
+                      className="px-5 py-3 rounded-xl font-bold text-slate-700 hover:bg-slate-50 border border-slate-200"
+                      disabled={sendingEmail}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={sendByEmail}
+                      className="px-5 py-3 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60"
+                      disabled={sendingEmail}
+                    >
+                      {sendingEmail ? "Envoi..." : "Envoyer"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {showAdd && (
             <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4">

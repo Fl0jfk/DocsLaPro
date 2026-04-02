@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/travels/confirm-devis',
   '/api/news/get',
   '/api/news/image-proxy',
+  '/api/supplies/send',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/portesouvertes(.*)',
