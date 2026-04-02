@@ -72,7 +72,7 @@ const STATIC_DATA: Data = {
       "name": "Sortie scolaire",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
       "link": "/travels",
-      "allowedRoles": ["administratif", "comptabilite"],
+      "allowedRoles": ["administratif", "comptabilite","direction_ecole","direction_lycee","direction_college"],
       "external": false
     },
     {
@@ -161,6 +161,14 @@ const STATIC_DATA: Data = {
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
       "link": "/absences",
       "allowedRoles": ["professeur", "administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite", "education"],
+      "external": false
+    },
+    {
+      "id": 16,
+      "name": "Organigramme interne",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
+      "link": "/organigramme",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite", "education", "professeur", "infirmerie"],
       "external": false
     }
   ],
