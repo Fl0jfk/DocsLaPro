@@ -14,6 +14,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/portesouvertes(.*)',
   '/simulateurTarifs(.*)',
+  '/simulateurFournitures(.*)',
+  '/simulateurFournituresEcoleCollegeLycee(.*)',
   '/articles/(.*)',
   '/drafts/(.*)',
   '/ecole(.*)',

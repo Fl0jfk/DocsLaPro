@@ -10,7 +10,7 @@ export default function PartnerTennisPage() {
     slogan: "Le Tennis s'adapte à Tous",
     location: { city: "Le Mesnil-Esnard", place: "SIVOM (Rue Pierre de Coubertin)" },
     contact: {
-      alban: "06 24 04 48 68",
+      alban: "06 67 19 34 95",
       email: "contact@etpe.net"
     },
     url: "https://etpe.net/"
@@ -61,7 +61,7 @@ export default function PartnerTennisPage() {
         {/* ── MAIN BANNER ── */}
         <div className="relative h-[70mm] overflow-hidden bg-slate-800">
           <Image 
-            src="/Tennis.jpg" 
+            src="/Tennis.webp" 
             alt="Tennis Court" 
             fill 
             style={{ objectPosition: 'center center' }}
@@ -117,8 +117,6 @@ export default function PartnerTennisPage() {
               </p>
             </section>
           </div>
-
-          {/* RIGHT COL: Location & Info */}
           <div className="space-y-6">
             <section>
               <h3 className="text-xl font-black text-slate-900 border-l-[8px] border-lime-500 pl-5 mb-4 uppercase tracking-tighter">
@@ -134,7 +132,6 @@ export default function PartnerTennisPage() {
                 </div>
               </div>
             </section>
-
             <div className="grid grid-cols-1 gap-4">
               {[
                 { emoji: "🎓", title: "Équilibre scolaire", desc: "Un sport qui favorise la concentration et la gestion du stress en classe." },
@@ -152,8 +149,6 @@ export default function PartnerTennisPage() {
             </div>
           </div>
         </div>
-
-        {/* ── FOOTER HORIZONTAL CONTACT BLOCK ── */}
         <div className="mt-auto bg-slate-950 px-8 py-4 border-t-[8px] border-lime-500">
           <div className="flex justify-between items-center gap-12">
             <div className="flex-1">
@@ -161,7 +156,7 @@ export default function PartnerTennisPage() {
               <div className="flex gap-16">
                 <div>
                   <p className="text-[11px] text-slate-500 uppercase font-bold tracking-widest mb-1">Responsable ETPE</p>
-                  <p className="text-md font-black text-white">Alban : {ETPE.contact.alban}</p>
+                  <p className="text-md font-black text-white">Xavier : {ETPE.contact.alban}</p>
                 </div>
                 <div>
                   <p className="text-[11px] text-slate-500 uppercase font-bold tracking-widest mb-1">Contact Club</p>
