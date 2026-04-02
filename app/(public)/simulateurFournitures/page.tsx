@@ -11,9 +11,7 @@ type LyceeNiveau = "2nde" | "1re" | "Terminale";
 type LyceeTrack = "General" | "ST2S";
 type LangueSeconde = "Espagnol" | "Allemand";
 type LyceeSpecialite = "Maths" | "Physique-Chimie" | "SVT" | "SES" | "HG-GEO-GEOPOL";
-
 type SupplySection = { title: string; items: string[] };
-
 type Child =
   | {
       id: string;
@@ -39,14 +37,11 @@ type Child =
       specialites: LyceeSpecialite[]; // 1re (max 2), Terminale (max 1)
       latin: boolean; // option (General seulement)
     };
-
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
 function dedupeStrings(items: string[]) {
   const set = new Set(items.map((s) => s.trim()).filter(Boolean));
   return Array.from(set);
 }
-
 function formatChildLabel(child: Child) {
   if (child.stage === "ecole") {
     const ecoleLabels: Record<EcoleNiveau, string> = {
@@ -66,10 +61,8 @@ function formatChildLabel(child: Child) {
     if (child.niveau === "6e") return `Collège — 6e (bilingue allemand: ${child.optionBilingueAllemand ? "oui" : "non"})`;
     return `Collège — ${child.niveau} (${child.langue}${child.ebp ? " • E.B.P" : ""}${child.optionLatin ? " • Latin" : ""})`;
   }
-  // lycee
   return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • ${child.langue})`;
 }
-
 function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
   const je1 = [
     "1 change complet marqué dans un petit sac (à renouveler quand nécessaire).",
@@ -83,7 +76,6 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
     "1 pochette Canson de couleurs vives.",
     "1 paire de chaussons.",
   ];
-
   const je2 = [
     "1 classeur souple.",
     "2 photos d’identité pour le jour de la rentrée.",
@@ -101,7 +93,6 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
     "Chaque objet (même les sacs) devra être marqué au nom de l’enfant.",
     "Pour les enfants qui ont une tétine pour dormir : elle doit être mise dans une boîte uniquement prévue à cet effet pour éviter la propagation des microbes.",
   ];
-
   const je3 = [
     "2 photos d’identité (pour le jour de la rentrée).",
     "2 boîtes de mouchoirs en papier.",
@@ -112,7 +103,6 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
     "1 ardoise Velleda + effaceur.",
     "MS : prévoir oreiller + duvet pour les enfants qui font la sieste.",
   ];
-
   const je4 = [
     "2 photos d’identité.",
     "2 boîtes de mouchoirs en papier.",
@@ -127,7 +117,6 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
     "1 pochette de feuilles Canson blanches.",
     "1 pochette de feuilles Canson de couleurs vives.",
   ];
-
   const cpCe1 = [
     "1 agenda une page par jour",
     "4 crayons à papier HB",
@@ -154,7 +143,6 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
     "1 pochette papier Canson couleurs",
     "1 pochette de réserve (type sac congélation) contenant crayons à papier, colle, feutre Velleda…",
   ];
-
   const ce2Cm1 = [
     "1 crayon à papier HB + 1 critérium + mines",
     "1 taille-crayons",
@@ -434,8 +422,6 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
   const lvbEspagnol = [
     "Espagnol (LVB) : Via libre + La conjugaison espagnole (selon votre PDF)",
   ];
-
-  // 2nde Général (d'après le texte extrait)
   if (niveau === "2nde") {
     return [
       {
@@ -884,16 +870,28 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                     <div className="space-y-3">
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Niveau</p>
                       <div className="flex flex-wrap gap-2">
-                        {(["JE1 MME BAYEL", "JE2 MME CARTIER", "JE3 MME DOUGHTY", "JE4", "CP", "CE1", "CE2", "CM1", "CM2"] as EcoleNiveau[]).map((n) => (
+                        {(
+                          [
+                            { value: "JE1MMEBAYEL", label: "JE1 Mme BAYEL" },
+                            { value: "JE2MMECARTIER", label: "JE2 Mme CARTIER" },
+                            { value: "JE3MMEDOUGHTY", label: "JE3 Mme DOUGHTY" },
+                            { value: "JE4", label: "JE4" },
+                            { value: "CP", label: "CP" },
+                            { value: "CE1", label: "CE1" },
+                            { value: "CE2", label: "CE2" },
+                            { value: "CM1", label: "CM1" },
+                            { value: "CM2", label: "CM2" },
+                          ] as Array<{ value: EcoleNiveau; label: string }>
+                        ).map(({ value, label }) => (
                           <button
-                            key={n}
+                            key={value}
                             type="button"
-                            onClick={() => setEcoleNiveau(n)}
+                            onClick={() => setEcoleNiveau(value)}
                             className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
-                              ecoleNiveau === n ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
+                              ecoleNiveau === value ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
                             }`}
                           >
-                            {n}
+                            {label}
                           </button>
                         ))}
                       </div>
