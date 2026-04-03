@@ -168,7 +168,7 @@ const STATIC_DATA: Data = {
       "name": "Organigramme interne",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
       "link": "/organigramme",
-      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite", "education", "professeur", "infirmerie"],
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
     }
   ],
