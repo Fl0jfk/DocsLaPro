@@ -138,8 +138,8 @@ export default function HomePage() {
                             />
                           )}
                           <div className="absolute inset-0 pointer-events-none">
-                            <div className="absolute bottom-12 left-24 right-24 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                              <div className="max-w-xl text-white">
+                            <div className="absolute bottom-8 md:bottom-12 left-4 right-4 sm:left-8 sm:right-8 md:left-24 md:right-24 flex flex-col items-center text-center md:flex-row md:items-end md:justify-between md:text-left gap-4 md:gap-6">
+                              <div className="max-w-xl text-white w-full md:w-auto">
                                 <span className="text-blue-400 font-bold uppercase tracking-widest text-xs">{actu.subtitle}</span>
                                 <h2 className="text-4xl md:text-5xl font-black mt-2 mb-4 leading-tight">{actu.title}</h2>
                                 <p className="text-lg text-slate-200 font-medium line-clamp-2">{actu.description}</p>
@@ -147,7 +147,7 @@ export default function HomePage() {
                               <Link
                                 href={actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#")}
                                 onClick={(e) => e.stopPropagation()}
-                                className="pointer-events-auto bg-white text-black px-10 py-4 rounded-full font-bold text-lg hover:scale-105 transition-all"
+                                className="pointer-events-auto inline-flex shrink-0 items-center justify-center bg-white text-black px-10 py-4 rounded-full font-bold text-lg hover:scale-105 transition-all max-md:self-center"
                               >
                                 {actu.buttonText}
                               </Link>
