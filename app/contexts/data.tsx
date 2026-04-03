@@ -150,7 +150,7 @@ const STATIC_DATA: Data = {
     {
       "id": 14,
       "name": "Ajout d'actualités sur le site",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/News.jpg",
       "link": "/add-news-site",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
@@ -166,7 +166,7 @@ const STATIC_DATA: Data = {
     {
       "id": 16,
       "name": "Organigramme interne",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Organigramme.jpg",
       "link": "/organigramme",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
