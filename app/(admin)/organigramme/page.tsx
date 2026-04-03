@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ORGANIGRAM_DIRECTORS,
   ORGANIGRAM_ADMIN,
@@ -16,6 +16,14 @@ import {
   type OrganigramPerson,
 } from "@/app/lib/organigramme";
 import { SCHOOL } from "@/app/lib/school";
+import { OrganigramServiceFrame, OrganigramPoleColumn } from "./OrganigramServiceFrame";
+import { OrganigramPrintDocument } from "./OrganigramPrintDocument";
+
+function poleVariantFor(id: string): "poleEcole" | "poleCollege" | "poleLycee" {
+  if (id === "pole-ecole") return "poleEcole";
+  if (id === "pole-college") return "poleCollege";
+  return "poleLycee";
+}
 
 function initials(p: OrganigramPerson): string {
   const f = (p.firstName ?? "").trim();
@@ -91,80 +99,6 @@ function PersonCard({
   );
 }
 
-function SectionTitle({
-  title,
-  description,
-  dark,
-}: {
-  title: string;
-  description?: string;
-  dark?: boolean;
-}) {
-  return (
-    <div className="mb-4">
-      <h2
-        className={`text-lg sm:text-xl font-bold tracking-tight ${dark ? "text-amber-950" : "text-slate-900"}`}
-      >
-        {title}
-      </h2>
-      {description ? (
-        <p className={`text-sm mt-1 max-w-3xl leading-relaxed ${dark ? "text-amber-950/85" : "text-slate-600"}`}>
-          {description}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/** Ornement bouclier pour la section tutelle (distinct visuellement de l’OGEC). */
-function TutelleShieldBackdrop({ className }: { className?: string }) {
-  const gid = useId().replace(/:/g, "");
-  const gradId = `organigramme-shield-grad-${gid}`;
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 140 168"
-      aria-hidden
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#d97706" stopOpacity="0.12" />
-          <stop offset="50%" stopColor="#78350f" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="#d97706" stopOpacity="0.1" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M70 6 L124 28 v46 c0 28-18 52-54 84 C18 126 16 102 16 74 V28 Z"
-        fill={`url(#${gradId})`}
-        stroke="rgb(120 53 15 / 0.35)"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M70 22 L106 38 v32 c0 20-12 40-36 64 C26 110 34 90 34 70 V38 Z"
-        fill="none"
-        stroke="rgb(180 83 9 / 0.25)"
-        strokeWidth="1.25"
-      />
-    </svg>
-  );
-}
-
-function ShieldIconSmall({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 28" aria-hidden xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M12 2 L20 5.2 V14.2 C20 18.5 17 22.3 12 26 C7 22.3 4 18.5 4 14.2 V5.2 Z"
-        fill="rgb(251 191 36 / 0.95)"
-        stroke="rgb(120 53 15 / 0.85)"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function OrganigrammePage() {
   const [selected, setSelected] = useState<OrganigramPerson | null>(null);
 
@@ -174,96 +108,100 @@ export default function OrganigrammePage() {
   }, [selected]);
 
   return (
-    <main className="relative min-h-screen w-full max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-[10vh]">
-      <header className="mb-10">
-        <p className="text-xs font-semibold uppercase tracking-widest text-sky-600 mb-2">Espace administration</p>
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Organigramme interne</h1>
-        <p className="text-slate-600 mt-3 max-w-2xl text-sm sm:text-base leading-relaxed">
-          Vue d&apos;ensemble des fonctions au {SCHOOL.shortName}. Cliquez sur une fiche pour afficher les missions
-          détaillées. Les noms et photos sont à compléter dans le fichier{" "}
-          <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">app/lib/organigramme.ts</code>.
-        </p>
+    <main className="relative min-h-screen w-full max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-[10vh] overflow-x-clip print:max-w-none print:mx-0 print:px-4 print:pb-0 print:pt-2 print:overflow-visible">
+      <div className="print:hidden">
+      <header className="mb-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-sky-600 mb-2">Espace administration</p>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Organigramme interne</h1>
+          <p className="text-slate-600 mt-3 max-w-2xl text-sm sm:text-base leading-relaxed">
+            Vue d&apos;ensemble des fonctions au {SCHOOL.shortName}. Chaque bloc présente le rôle du service, cliquez sur
+            une fiche pour afficher les missions détaillées.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="shrink-0 self-start sm:mt-8 px-5 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold shadow-lg hover:bg-slate-800 transition-colors border border-slate-700"
+        >
+          Imprimer / PDF (A4)
+        </button>
       </header>
-
-      {/* Direction */}
-      <section className="mb-12">
-        <SectionTitle
-          title="Direction du groupe scolaire"
-          description="Les trois directions de l'école, du collège et du lycée pilotent chacune leur cycle et coordonnent les projets communs."
-        />
-        <div className="grid sm:grid-cols-3 gap-4">
+      <div className="relative flex flex-col gap-4 sm:gap-6 md:gap-9 lg:gap-12">
+      <OrganigramServiceFrame
+        variant="direction"
+        slotIndex={0}
+        title="Direction du groupe scolaire"
+        description="Les trois directions de l'école, du collège et du lycée pilotent chacune leur cycle et coordonnent les projets communs."
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {ORGANIGRAM_DIRECTORS.map((p) => (
             <PersonCard key={p.id} person={p} onSelect={setSelected} />
           ))}
         </div>
-      </section>
-
-      {/* Administration transverse */}
-      <section className="mb-12 rounded-3xl border border-slate-200/80 bg-slate-50/60 p-6 sm:p-8">
-        <SectionTitle title={ORGANIGRAM_ADMIN.title} description={ORGANIGRAM_ADMIN.description} />
-        <div className="grid md:grid-cols-3 gap-4">
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame slotIndex={1} variant="admin" title={ORGANIGRAM_ADMIN.title} description={ORGANIGRAM_ADMIN.description}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {ORGANIGRAM_ADMIN.people.map((p) => (
             <PersonCard key={p.id} person={p} onSelect={setSelected} />
           ))}
         </div>
-      </section>
-
-      {/* Comptabilité */}
-      <section className="mb-12">
-        <SectionTitle title={ORGANIGRAM_ACCOUNTING.title} description={ORGANIGRAM_ACCOUNTING.description} />
-        <div className="grid md:grid-cols-3 gap-3">
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame
+        slotIndex={2}
+        variant="accounting"
+        title={ORGANIGRAM_ACCOUNTING.title}
+        description={ORGANIGRAM_ACCOUNTING.description}
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {ORGANIGRAM_ACCOUNTING.people.map((p) => (
             <PersonCard key={p.id} person={p} onSelect={setSelected} compact />
           ))}
         </div>
-      </section>
-
-      {/* Accueil / standard : seul, non regroupé avec le pôle santé */}
-      <section className="mb-12 max-w-md mx-auto">
-        <SectionTitle title={ORGANIGRAM_RECEPTION.title} description={ORGANIGRAM_RECEPTION.description} />
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame
+        slotIndex={3}
+        variant="reception"
+        title={ORGANIGRAM_RECEPTION.title}
+        description={ORGANIGRAM_RECEPTION.description}
+      >
         {ORGANIGRAM_RECEPTION.people.map((p) => (
           <PersonCard key={p.id} person={p} onSelect={setSelected} />
         ))}
-      </section>
-
-      {/* Pôle santé (infirmière, psychologue, extensions futures) */}
-      <section className="mb-12 rounded-3xl border border-emerald-100 bg-emerald-50/35 p-6 sm:p-8">
-        <SectionTitle title={ORGANIGRAM_HEALTH.title} description={ORGANIGRAM_HEALTH.description} />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame slotIndex={4} variant="health" title={ORGANIGRAM_HEALTH.title} description={ORGANIGRAM_HEALTH.description}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           {ORGANIGRAM_HEALTH.people.map((p) => (
             <PersonCard key={p.id} person={p} onSelect={setSelected} />
           ))}
         </div>
-      </section>
-
-      {/* Pôle maintenance */}
-      <section className="mb-12 rounded-3xl border border-amber-200/80 bg-amber-50/50 p-6 sm:p-8">
-        <SectionTitle title={ORGANIGRAM_MAINTENANCE.title} description={ORGANIGRAM_MAINTENANCE.description} />
-        <div className="grid sm:grid-cols-2 gap-4">
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame
+        slotIndex={5}
+        variant="maintenance"
+        title={ORGANIGRAM_MAINTENANCE.title}
+        description={ORGANIGRAM_MAINTENANCE.description}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {ORGANIGRAM_MAINTENANCE.people.map((p) => (
             <PersonCard key={p.id} person={p} onSelect={setSelected} />
           ))}
         </div>
-      </section>
+      </OrganigramServiceFrame>
 
-      {/* Pôles éducatifs par cycle */}
-      <section className="mb-12">
-        <SectionTitle
-          title="Pôles éducatifs & vie scolaire"
-          description="Équipes présentées par cycle pour distinguer clairement les CPE et les fonctions, sans les fondre dans un seul bloc « secrétariat »."
-        />
-        <div className="grid lg:grid-cols-3 gap-6">
+      <OrganigramServiceFrame
+        slotIndex={6}
+        variant="poles"
+        bareContent
+        title="Pôles éducatifs & vie scolaire"
+        description="Équipes par cycle — CPE et accompagnement, distincts du seul pôle administratif."
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
           {ORGANIGRAM_POLES.map((pole) => (
-            <div
-              key={pole.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col gap-4"
-            >
-              <h3 className="text-sm font-bold uppercase tracking-wide text-sky-700 border-b border-slate-100 pb-2">
-                {pole.label}
-              </h3>
+            <OrganigramPoleColumn key={pole.id} poleVariant={poleVariantFor(pole.id)} label={pole.label}>
               {pole.blocks.map((block) => (
-                <div key={block.id}>
-                  <p className="text-xs font-semibold text-slate-500 mb-1">{block.title}</p>
+                <div key={block.id} className="mb-3 last:mb-0">
+                  <p className="text-xs font-semibold text-slate-600 mb-1">{block.title}</p>
                   {block.description ? (
                     <p className="text-[11px] text-slate-500 mb-2">{block.description}</p>
                   ) : null}
@@ -274,60 +212,44 @@ export default function OrganigrammePage() {
                   </div>
                 </div>
               ))}
-            </div>
+            </OrganigramPoleColumn>
           ))}
         </div>
-      </section>
-
-      {/* Pastorale */}
-      <section className="mb-12 rounded-3xl border border-amber-100 bg-amber-50/40 p-6 sm:p-8">
-        <SectionTitle title={ORGANIGRAM_PASTORAL.title} description={ORGANIGRAM_PASTORAL.description} />
-        <div className="grid sm:grid-cols-3 gap-4">
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame
+        slotIndex={7}
+        variant="pastoral"
+        title={ORGANIGRAM_PASTORAL.title}
+        description={ORGANIGRAM_PASTORAL.description}
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {ORGANIGRAM_PASTORAL.people.map((p) => (
             <PersonCard key={p.id} person={p} onSelect={setSelected} />
           ))}
         </div>
-      </section>
-
-      {/* OGEC — distinct de la tutelle */}
-      <section className="mb-10 rounded-3xl border border-slate-200 bg-slate-50/90 p-6 sm:p-8 shadow-sm">
-        <SectionTitle title={ORGANIGRAM_OGEC.title} description={ORGANIGRAM_OGEC.description} />
-        <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame slotIndex={8} variant="ogec" title={ORGANIGRAM_OGEC.title} description={ORGANIGRAM_OGEC.description}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           {ORGANIGRAM_OGEC.people.map((p) => (
             <PersonCard key={p.id} person={p} onSelect={setSelected} />
           ))}
         </div>
-      </section>
-
-      {/* Tutelle congrégation — traitement « bouclier », instance à part */}
-      <section className="mb-8 relative">
-        <div className="relative overflow-hidden rounded-[1.75rem] border-[3px] border-amber-900/25 bg-gradient-to-b from-amber-50 via-amber-50/95 to-amber-100/50 p-6 sm:p-10 shadow-[0_1px_0_rgba(255,255,255,0.85)_inset,0_20px_45px_-24px_rgba(120,53,15,0.35)]">
-          <TutelleShieldBackdrop className="absolute -right-4 top-1/2 -translate-y-1/2 w-[min(42vw,220px)] h-auto opacity-90 pointer-events-none select-none" />
-          <TutelleShieldBackdrop className="absolute -left-8 top-8 w-32 h-auto opacity-40 pointer-events-none select-none rotate-[-8deg]" />
-          <div className="relative z-10 max-w-xl">
-            <div className="flex items-center gap-3 mb-1">
-              <span
-                className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-amber-950 shadow-md"
-                aria-hidden
-              >
-                <ShieldIconSmall className="w-5 h-6" />
-              </span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-900/70">Tutelle</p>
-            </div>
-            <SectionTitle dark title={ORGANIGRAM_TUTELLE.title} description={ORGANIGRAM_TUTELLE.description} />
-            <div className="grid gap-4 mt-6">
-              {ORGANIGRAM_TUTELLE.people.map((p) => (
-                <PersonCard key={p.id} person={p} onSelect={setSelected} />
-              ))}
-            </div>
-          </div>
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame slotIndex={9} variant="tutelle" title={ORGANIGRAM_TUTELLE.title} description={ORGANIGRAM_TUTELLE.description}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          {ORGANIGRAM_TUTELLE.people.map((p) => (
+            <PersonCard key={p.id} person={p} onSelect={setSelected} />
+          ))}
         </div>
-      </section>
-
-      {/* Modal */}
+      </OrganigramServiceFrame>
+      </div>
+      </div>
+      <div className="hidden print:block print:p-0">
+        <OrganigramPrintDocument />
+      </div>
       {selected ? (
         <div
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          className="print:hidden fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="organigramme-modal-title"
@@ -371,8 +293,10 @@ export default function OrganigrammePage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Missions & périmètre</p>
               <ul className="space-y-2">
                 {modalMissions.map((line, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-slate-700 leading-relaxed">
-                    <span className="shrink-0 w-4 h-4 mt-0.5 rounded border border-slate-300 bg-white" aria-hidden />
+                  <li key={i} className="flex gap-2.5 text-sm text-slate-700 leading-relaxed">
+                    <span className="shrink-0 text-slate-400 select-none" aria-hidden>
+                      •
+                    </span>
                     <span>{line}</span>
                   </li>
                 ))}
@@ -381,6 +305,21 @@ export default function OrganigrammePage() {
           </div>
         </div>
       ) : null}
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+          html,
+          body {
+            background: white !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}</style>
     </main>
   );
 }
