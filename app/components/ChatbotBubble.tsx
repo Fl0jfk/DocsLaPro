@@ -19,33 +19,53 @@ export default function ChatbotBubble() {
   const [input, setInput] = useState("");
   const [mounted, setMounted] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [messages, setMessages] = useState<BubbleMessage[]>([{ role: "assistant", content: "Bonjour, je suis l'assistant IA. Posez votre question." }]);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const scrollYRef = useRef(0);
   const hidden = useMemo(() => { return pathname?.startsWith("/sign-in") || pathname?.startsWith("/sso-callback")}, [pathname]);
   useEffect(() => {
     setMounted(true);
     const supported = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
     setSpeechSupported(supported);
-    const setViewport = () => {
-      setIsSmallScreen(window.innerWidth < 768);
-      setViewportHeight(Math.floor(window.visualViewport?.height || window.innerHeight));
-    };
-    setViewport();
-    window.addEventListener("resize", setViewport);
-    window.visualViewport?.addEventListener("resize", setViewport);
-    return () => {
-      window.removeEventListener("resize", setViewport);
-      window.visualViewport?.removeEventListener("resize", setViewport);
-    };
   }, []);
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previousOverflow}}, [open]);
+    const body = document.body;
+    const html = document.documentElement;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyPosition = body.style.position;
+    const previousBodyTop = body.style.top;
+    const previousBodyLeft = body.style.left;
+    const previousBodyRight = body.style.right;
+    const previousBodyWidth = body.style.width;
+    const previousHtmlOverscroll = html.style.overscrollBehavior;
+    scrollYRef.current = window.scrollY;
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollYRef.current}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    html.style.overscrollBehavior = "none";
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      body.style.position = previousBodyPosition;
+      body.style.top = previousBodyTop;
+      body.style.left = previousBodyLeft;
+      body.style.right = previousBodyRight;
+      body.style.width = previousBodyWidth;
+      html.style.overscrollBehavior = previousHtmlOverscroll;
+      window.scrollTo(0, scrollYRef.current);
+    };
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages, loading, open]);
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
@@ -112,7 +132,6 @@ export default function ChatbotBubble() {
             ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
             : "opacity-0 scale-95 translate-y-2 pointer-events-none"
         }`}
-        style={open && isSmallScreen && viewportHeight ? { height: `${Math.max(320, viewportHeight)}px` } : undefined}
       >
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[130%] h-44 bg-white/35 blur-2xl" />
@@ -126,7 +145,7 @@ export default function ChatbotBubble() {
                 Fermer
               </button>
             </div>
-            <div className="relative flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white/26 via-white/14 to-slate-100/18">
+            <div ref={messagesRef} className="relative flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white/26 via-white/14 to-slate-100/18">
               {messages.map((m, i) => (
                 <div
                   key={i}
