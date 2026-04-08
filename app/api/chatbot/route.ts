@@ -9,6 +9,30 @@ type ChatRequest = {
   history?: Array<{ role: "user" | "assistant"; content: string }>;
 };
 
+const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
+
+function sleep(ms: number) {return new Promise((resolve) => setTimeout(resolve, ms))}
+
+async function fetchMistralWithRetry(body: unknown, attempts = 3) {
+  let lastResponse: Response | null = null;
+  for (let i = 0; i < attempts; i += 1) {
+    const res = await fetch(MISTRAL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return res;
+    lastResponse = res;
+    if (![429, 500, 502, 503, 504].includes(res.status) || i === attempts - 1) {
+      return res;
+    }
+    await sleep(350 * (i + 1));
+  }
+  return lastResponse;
+}
 async function classifyDomainWithMistral(message: string, domains: Array<{ id: string; label: string }>) {
   if (!process.env.MISTRAL_API_KEY) return null;
   const domainList = domains.map((d) => `- ${d.id}: ${d.label}`).join("\n");
@@ -17,19 +41,13 @@ async function classifyDomainWithMistral(message: string, domains: Array<{ id: s
     `Réponds uniquement en JSON: {"domainId":"..."}\n` +
     `Domaine possibles:\n${domainList}\n\n` +
     `Question:\n${message}`;
-  const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`,
-    },
-    body: JSON.stringify({
+  const res = await fetchMistralWithRetry({
       model: "mistral-small-latest",
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
-    }),
-  });
+    });
+  if (!res) return null;
   if (!res.ok) return null;
   const data = await res.json();
   try {
@@ -111,22 +129,33 @@ export async function POST(req: Request) {
       `Historique récent de la conversation:\n${historyText || "(aucun)"}\n\n` +
       `Contexte principal (${domain.label}) + domaines associés:\n${context}\n\n` +
       `Question utilisateur: ${message}`;
-    const llm = await fetch("https://api.mistral.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`,
-      },
-      body: JSON.stringify({
+    const llm = await fetchMistralWithRetry({
         model: "mistral-small-latest",
         temperature: 0.2,
         messages: [
           { role: "system", content: "Assistant institutionnel, factuel, français." },
           { role: "user", content: prompt },
         ],
-      }),
-    });
+      });
+    if (!llm) {
+      return NextResponse.json(
+        {
+          answer:
+            "Le service IA est temporairement indisponible. Réessaie dans quelques secondes.",
+        },
+        { status: 503 }
+      );
+    }
     if (!llm.ok) {
+      if ([429, 500, 502, 503, 504].includes(llm.status)) {
+        return NextResponse.json(
+          {
+            answer:
+              "Le service IA est temporairement indisponible. Réessaie dans quelques secondes.",
+          },
+          { status: 503 }
+        );
+      }
       const err = await llm.text();
       return NextResponse.json({ error: `Erreur Mistral: ${err}` }, { status: llm.status });
     }
