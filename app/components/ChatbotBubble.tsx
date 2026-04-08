@@ -19,6 +19,8 @@ export default function ChatbotBubble() {
   const [input, setInput] = useState("");
   const [mounted, setMounted] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [messages, setMessages] = useState<BubbleMessage[]>([{ role: "assistant", content: "Bonjour, je suis l'assistant IA. Posez votre question." }]);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -28,7 +30,26 @@ export default function ChatbotBubble() {
     const supported =
       "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
     setSpeechSupported(supported);
+    const setViewport = () => {
+      setIsSmallScreen(window.innerWidth < 768);
+      setViewportHeight(Math.floor(window.visualViewport?.height || window.innerHeight));
+    };
+    setViewport();
+    window.addEventListener("resize", setViewport);
+    window.visualViewport?.addEventListener("resize", setViewport);
+    return () => {
+      window.removeEventListener("resize", setViewport);
+      window.visualViewport?.removeEventListener("resize", setViewport);
+    };
   }, []);
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
@@ -88,6 +109,13 @@ export default function ChatbotBubble() {
   if (hidden) return null;
   return (
     <div className="fixed inset-0 z-[120] pointer-events-none">
+      {open ? (
+        <div
+          className="absolute inset-0 bg-slate-900/20 pointer-events-auto md:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      ) : null}
       <div
         ref={panelRef}
         className={`absolute inset-0 h-[100dvh] rounded-none border-0 md:inset-auto md:right-4 md:bottom-20 md:w-[min(92vw,390px)] md:h-[570px] md:rounded-[30px] md:border md:border-white/50 bg-white/22 backdrop-blur-3xl md:shadow-[0_30px_80px_rgba(15,23,42,0.30)] overflow-hidden transition-all duration-200 pointer-events-auto ${
@@ -95,6 +123,7 @@ export default function ChatbotBubble() {
             ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
             : "opacity-0 scale-95 translate-y-2 pointer-events-none"
         }`}
+        style={open && isSmallScreen && viewportHeight ? { height: `${Math.max(320, viewportHeight)}px` } : undefined}
       >
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[130%] h-44 bg-white/35 blur-2xl" />
@@ -166,7 +195,7 @@ export default function ChatbotBubble() {
           ref={buttonRef}
           type="button"
           onClick={() => setOpen(true)}
-          className="pointer-events-auto absolute bottom-4 right-4 group relative w-14 h-14 rounded-full border border-white/50 shadow-[0_14px_30px_rgba(15,23,42,0.38)] hover:scale-[1.05] active:scale-[0.98] transition-all overflow-hidden"
+          className="pointer-events-auto fixed bottom-4 right-4 group w-14 h-14 rounded-full border border-white/50 shadow-[0_14px_30px_rgba(15,23,42,0.38)] hover:scale-[1.05] active:scale-[0.98] transition-all overflow-hidden"
           aria-label="Ouvrir l'assistant IA"
         >
           <span className="absolute inset-[2px] rounded-full backdrop-blur-xl bg-black/10" />
