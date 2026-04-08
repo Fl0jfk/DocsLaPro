@@ -17,7 +17,6 @@ export default function ChatbotKnowledgePage() {
   const [loading, setLoading] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [lastUpdates, setLastUpdates] = useState<IngestUpdate[]>([]);
-
   const injectText = async (payloadText: string, payloadSource?: string) => {
     const res = await fetch("/api/chatbot/ingest", {
       method: "POST",
@@ -33,7 +32,6 @@ export default function ChatbotKnowledgePage() {
     setLastUpdates(Array.isArray(data.updates) ? data.updates : []);
     return data;
   };
-
   const submitManual = async () => {
     if (!text.trim()) return;
     setLoading(true);
@@ -49,7 +47,6 @@ export default function ChatbotKnowledgePage() {
       setLoading(false);
     }
   };
-
   const submitPdfWithOcr = async () => {
     if (!pdfFile) return;
     setLoading(true);
@@ -62,14 +59,12 @@ export default function ChatbotKnowledgePage() {
       });
       const upData = await up.json();
       if (!up.ok) throw new Error(upData.error || "Erreur URL signée");
-
       const put = await fetch(upData.url, {
         method: "PUT",
         headers: { "Content-Type": pdfFile.type || "application/pdf" },
         body: pdfFile,
       });
       if (!put.ok) throw new Error("Erreur upload S3");
-
       setStatus("OCR en cours...");
       const start = await fetch("/api/agentIAOCR/ocr-process", {
         method: "POST",
@@ -78,7 +73,6 @@ export default function ChatbotKnowledgePage() {
       });
       const startData = await start.json();
       if (!start.ok) throw new Error(startData.error || "Erreur lancement OCR");
-
       let extractedText = "";
       for (let i = 0; i < 30; i++) {
         const poll = await fetch("/api/agentIAOCR/ocr-result", {
@@ -94,26 +88,20 @@ export default function ChatbotKnowledgePage() {
         await new Promise((r) => setTimeout(r, 3000));
       }
       if (!extractedText) throw new Error("OCR vide ou timeout");
-
       setStatus("Injection knowledge...");
       const data = await injectText(extractedText, `OCR PDF: ${pdfFile.name}`);
       const count = Array.isArray(data.updates) ? data.updates.length : 0;
       setStatus(`OK PDF: ${count} entrée(s) créée(s)`);
       setPdfFile(null);
-    } catch (e) {
-      setStatus(`Erreur: ${String(e)}`);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) {setStatus(`Erreur: ${String(e)}`);
+    } finally {setLoading(false)}
   };
-
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-black text-slate-900 mb-2">Brain AI (training engine)</h1>
       <p className="text-sm text-slate-600 mb-6">
         Injectez du texte ou des PDF. Le système classe automatiquement vers le bon JSON knowledge sur S3.
       </p>
-
       <section className="rounded-2xl border border-slate-200 bg-white p-5 mb-6">
         <h2 className="font-bold mb-3">Injection texte</h2>
         <input
@@ -139,7 +127,6 @@ export default function ChatbotKnowledgePage() {
           className="text-sm"
         />
       </section>
-
       <div className="flex items-center gap-3 mb-4">
         <label className="text-sm font-medium">Audience</label>
         <select
@@ -152,7 +139,6 @@ export default function ChatbotKnowledgePage() {
           <option value="private">Privé</option>
         </select>
       </div>
-
       <div className="flex gap-3">
         <button
           type="button"
@@ -171,7 +157,6 @@ export default function ChatbotKnowledgePage() {
           OCR + Injecter PDF
         </button>
       </div>
-
       {status ? <p className="mt-4 text-sm text-slate-700">{status}</p> : null}
       {lastUpdates.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">

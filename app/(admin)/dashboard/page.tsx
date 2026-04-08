@@ -47,7 +47,7 @@ export default function Home() {
             <div className="bg-white p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-center max-w-sm w-full mx-4">
               <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-3xl mb-6 shadow-lg shadow-blue-200">🔒</div>
               <h2 className="text-2xl font-black text-gray-800 mb-2">Espace Privé</h2>
-              <p className="text-gray-500 text-sm text-center mb-8 leading-relaxed">Veuillez vous identifier pour accéder à vos services Providence.</p> 
+              <p className="text-gray-500 text-sm text-center mb-8 leading-relaxed">Veuillez vous identifier pour accéder à vos services La Providence Nicolas Barré.</p> 
               <button onClick={() => window.location.href = '/sign-in'} className="w-full py-4 px-8 bg-gray-900 text-white rounded-2xl font-bold hover:bg-black transition-all hover:scale-[1.02] active:scale-95 shadow-xl">Se connecter</button>
             </div>
           </div>

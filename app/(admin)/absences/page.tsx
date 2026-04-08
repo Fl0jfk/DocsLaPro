@@ -7,7 +7,6 @@ type AbsenceScope = "professeur" | "ogec";
 type Etablissement = "École" | "Collège" | "Lycée";
 type AbsenceWorkflowStatus = "OUVERTE" | "JUSTIFICATIF_DEPOSE" | "CLOTUREE";
 type AbsenceDecision = "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
-
 type AbsenceItem = {
   id: string;
   createdAt: string;
@@ -38,12 +37,7 @@ type AbsenceItem = {
   managerNote?: string;
 };
 
-const norm = (s: string) =>
-  String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[_\s-]+/g, "");
+const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
 
 export default function AbsencesPage() {
   const { user, isLoaded } = useUser();
@@ -75,17 +69,13 @@ export default function AbsencesPage() {
       if (!res.ok) throw new Error("Chargement impossible");
       const data = await res.json();
       setItems(data || []);
-    } catch (e: any) {
-      setError(e?.message || "Erreur de chargement.");
-    } finally {
-      setLoading(false);
+    } catch (e: any) { setError(e?.message || "Erreur de chargement.");
+    } finally { setLoading(false);
     }
   };
-
   useEffect(() => {
     if (isLoaded && user) fetchItems();
   }, [isLoaded, user]);
-
   const submitAbsence = async () => {
     setError(null);
     if (!startDate || !endDate || !reason.trim()) {
@@ -109,9 +99,7 @@ export default function AbsencesPage() {
           }),
         });
         const presignPayload = await presignRes.json();
-        if (!presignRes.ok || !presignPayload?.uploadUrl || !presignPayload?.fileUrl) {
-          throw new Error("Impossible de préparer l'upload du justificatif.");
-        }
+        if (!presignRes.ok || !presignPayload?.uploadUrl || !presignPayload?.fileUrl) { throw new Error("Impossible de préparer l'upload du justificatif.")}
         await fetch(presignPayload.uploadUrl, {
           method: "PUT",
           body: justificationFile,
@@ -122,7 +110,6 @@ export default function AbsencesPage() {
           fileUrl: presignPayload.fileUrl,
         };
       }
-
       const res = await fetch("/api/absences", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -145,13 +132,10 @@ export default function AbsencesPage() {
       setDetails("");
       setJustificationFile(null);
       await fetchItems();
-    } catch (e: any) {
-      setError(e?.message || "Erreur de création.");
-    } finally {
-      setSaving(false);
+    } catch (e: any) { setError(e?.message || "Erreur de création.");
+    } finally { setSaving(false);
     }
   };
-
   const canManageItem = (item: AbsenceItem) => {
     if (item.data.scope === "ogec") return canManageSome;
     if (item.data.etablissement === "École") return isDirectionEcole;
@@ -159,7 +143,6 @@ export default function AbsencesPage() {
     if (item.data.etablissement === "Lycée") return isDirectionLycee;
     return false;
   };
-
   const updateWorkflow = async (id: string, action: "VALIDER" | "REFUSER" | "RELANCER_JUSTIFICATIF") => {
     try {
       const res = await fetch("/api/absences", {
@@ -174,11 +157,8 @@ export default function AbsencesPage() {
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload?.error || "Échec mise à jour");
       await fetchItems();
-    } catch (e: any) {
-      alert(e?.message || "Erreur mise à jour.");
-    }
+    } catch (e: any) { alert(e?.message || "Erreur mise à jour.")}
   };
-
   const uploadJustification = async (id: string, file: File) => {
     try {
       setUploadingJustificationId(id);
@@ -188,16 +168,12 @@ export default function AbsencesPage() {
         body: JSON.stringify({ fileName: file.name, fileType: file.type || "application/octet-stream" }),
       });
       const presignPayload = await presignRes.json();
-      if (!presignRes.ok || !presignPayload?.uploadUrl || !presignPayload?.fileUrl) {
-        throw new Error("Impossible de préparer l'upload du justificatif.");
-      }
-
+      if (!presignRes.ok || !presignPayload?.uploadUrl || !presignPayload?.fileUrl) { throw new Error("Impossible de préparer l'upload du justificatif.")}
       await fetch(presignPayload.uploadUrl, {
         method: "PUT",
         body: file,
         headers: { "Content-Type": file.type || "application/octet-stream" },
       });
-
       const patchRes = await fetch("/api/absences", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -213,13 +189,9 @@ export default function AbsencesPage() {
       const payload = await patchRes.json().catch(() => ({}));
       if (!patchRes.ok) throw new Error(payload?.error || "Échec dépôt justificatif.");
       await fetchItems();
-    } catch (e: any) {
-      alert(e?.message || "Erreur dépôt justificatif.");
-    } finally {
-      setUploadingJustificationId(null);
-    }
+    } catch (e: any) { alert(e?.message || "Erreur dépôt justificatif.");
+    } finally { setUploadingJustificationId(null)}
   };
-
   const openSecureFile = async (fileUrl: string) => {
     const newWindow = window.open("", "_blank");
     try {
@@ -230,17 +202,13 @@ export default function AbsencesPage() {
       });
       const data = await res.json();
       if (!res.ok || !data?.signedUrl) throw new Error("Impossible d'ouvrir le justificatif.");
-      if (newWindow) {
-        newWindow.location.href = data.signedUrl;
-      } else {
-        window.location.href = data.signedUrl;
-      }
+      if (newWindow) { newWindow.location.href = data.signedUrl;
+      } else { window.location.href = data.signedUrl}
     } catch (e: any) {
       if (newWindow) newWindow.close();
       alert(e?.message || "Erreur d'accès au justificatif.");
     }
   };
-
   const statusStyle = (s: AbsenceWorkflowStatus) =>
     s === "CLOTUREE"
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -253,20 +221,16 @@ export default function AbsencesPage() {
       : d === "REFUSEE"
       ? "bg-rose-50 text-rose-700 border-rose-200"
       : "bg-slate-50 text-slate-700 border-slate-200";
-
   const sorted = useMemo(() => [...items].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)), [items]);
   const openItems = sorted.filter((i) => i.workflowStatus !== "CLOTUREE");
   const closedItems = sorted.filter((i) => i.workflowStatus === "CLOTUREE");
-
   if (!isLoaded) return null;
-
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-8">
         <h1 className="text-4xl font-black text-slate-900">Déclaration des absences</h1>
         <p className="text-slate-500 font-medium mt-2">Une absence reste ouverte jusqu'au dépôt du justificatif puis clôture par direction/comptabilité.</p>
       </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit">
           <h2 className="text-xl font-black text-slate-900 mb-4">Nouvelle absence</h2>
@@ -275,22 +239,16 @@ export default function AbsencesPage() {
               <span className="font-black text-slate-700">Type détecté automatiquement :</span>{" "}
               <span className="font-semibold text-slate-800">{scope === "professeur" ? "Professeur" : "Personnel OGEC"}</span>
             </div>
-
             {scope === "professeur" && (
               <div>
                 <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">Établissement</label>
-                <select
-                  value={etablissement}
-                  onChange={(e) => setEtablissement(e.target.value as Etablissement)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"
-                >
+                <select value={etablissement} onChange={(e) => setEtablissement(e.target.value as Etablissement)} className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white">
                   <option>École</option>
                   <option>Collège</option>
                   <option>Lycée</option>
                 </select>
               </div>
             )}
-
             <div>
               <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">Date début</label>
               <input value={startDate} onChange={(e) => setStartDate(e.target.value)} type="date" className="w-full rounded-xl border border-slate-200 px-3 py-2" />
@@ -322,20 +280,14 @@ export default function AbsencesPage() {
               <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
                 Pièce justificative (optionnel)
               </label>
-              <input
-                type="file"
-                onChange={(e) => setJustificationFile(e.target.files?.[0] || null)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"
-              />
+              <input type="file" onChange={(e) => setJustificationFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"/>
               {justificationFile && (
                 <p className="text-xs text-slate-500 mt-1">
                   Fichier sélectionné: <span className="font-semibold">{justificationFile.name}</span>
                 </p>
               )}
             </div>
-
             {error && <div className="text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{error}</div>}
-
             <button
               type="button"
               onClick={submitAbsence}
@@ -346,7 +298,6 @@ export default function AbsencesPage() {
             </button>
           </div>
         </div>
-
         <div className="xl:col-span-2 space-y-4">
           <div className="bg-white border border-slate-200 rounded-3xl p-4">
             <h3 className="font-black text-slate-900">Absences ouvertes</h3>
@@ -370,11 +321,7 @@ export default function AbsencesPage() {
                   </div>
                   <div className="flex gap-2">
                     <span className={`text-xs font-black px-3 py-1.5 rounded-xl border ${statusStyle(item.workflowStatus)}`}>
-                      {item.workflowStatus === "OUVERTE"
-                        ? "OUVERTE"
-                        : item.workflowStatus === "JUSTIFICATIF_DEPOSE"
-                        ? "JUSTIFICATIF DÉPOSÉ"
-                        : "CLOTURÉE"}
+                      {item.workflowStatus === "OUVERTE" ? "OUVERTE" : item.workflowStatus === "JUSTIFICATIF_DEPOSE" ? "JUSTIFICATIF DÉPOSÉ" : "CLOTURÉE"}
                     </span>
                     <span className={`text-xs font-black px-3 py-1.5 rounded-xl border ${decisionStyle(item.managerDecision || "EN_ATTENTE")}`}>
                       {item.managerDecision === "VALIDEE" ? "VALIDÉE" : item.managerDecision === "REFUSEE" ? "REFUSÉE" : "DÉCISION EN ATTENTE"}
@@ -397,18 +344,13 @@ export default function AbsencesPage() {
                 {item.justification?.fileUrl ? (
                   <p className="text-sm text-slate-700 mb-3">
                     <span className="font-bold">Justificatif:</span>{" "}
-                    <button
-                      type="button"
-                      onClick={() => openSecureFile(item.justification!.fileUrl)}
-                      className="text-indigo-700 underline font-semibold"
-                    >
+                    <button type="button" onClick={() => openSecureFile(item.justification!.fileUrl)} className="text-indigo-700 underline font-semibold">
                       {item.justification.fileName || "Voir le fichier"}
                     </button>
                   </p>
                 ) : (
                   <p className="text-sm text-amber-700 mb-3 font-semibold">Justificatif en attente</p>
                 )}
-
                 {item.createdBy.userId === user?.id && !item.justification?.fileUrl && (
                   <div className="mb-3">
                     <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold cursor-pointer hover:bg-slate-50">
@@ -426,7 +368,6 @@ export default function AbsencesPage() {
                     </label>
                   </div>
                 )}
-
                 {canManageItem(item) && (
                   <div className="mt-3 pt-3 border-t border-slate-100">
                     <textarea
@@ -464,7 +405,6 @@ export default function AbsencesPage() {
               </div>
             ))
           )}
-
           {closedItems.length > 0 && (
             <div className="mt-8">
               <div className="bg-white border border-slate-200 rounded-3xl p-4 mb-3">
@@ -490,4 +430,3 @@ export default function AbsencesPage() {
     </div>
   );
 }
-
