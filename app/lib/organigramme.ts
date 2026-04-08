@@ -322,7 +322,6 @@ export const ORGANIGRAM_PASTORAL: OrganigramBlock = {
   ],
 };
 
-/** OGEC : employeur du personnel de fonctionnement (administration, comptabilité, services…), distinct de la tutelle. */
 export const ORGANIGRAM_OGEC: OrganigramBlock = {
   id: "ogec",
   title: "OGEC",
@@ -350,7 +349,6 @@ export const ORGANIGRAM_OGEC: OrganigramBlock = {
   ],
 };
 
-/** Tutelle de la congrégation : instance distincte de l'OGEC (lien canonique / gouvernance). */
 export const ORGANIGRAM_TUTELLE: OrganigramBlock = {
   id: "tutelle",
   title: "Tutelle de la congrégation",

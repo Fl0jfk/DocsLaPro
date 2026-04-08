@@ -27,8 +27,7 @@ export default function ChatbotBubble() {
   const hidden = useMemo(() => { return pathname?.startsWith("/sign-in") || pathname?.startsWith("/sso-callback")}, [pathname]);
   useEffect(() => {
     setMounted(true);
-    const supported =
-      "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+    const supported = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
     setSpeechSupported(supported);
     const setViewport = () => {
       setIsSmallScreen(window.innerWidth < 768);
@@ -46,10 +45,7 @@ export default function ChatbotBubble() {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
+    return () => { document.body.style.overflow = previousOverflow}}, [open]);
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
@@ -98,10 +94,7 @@ export default function ChatbotBubble() {
         }),
       });
       const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.answer || data.error || "Je ne peux pas répondre pour le moment." },
-      ]);
+      setMessages((prev) => [ ...prev, { role: "assistant", content: data.answer || data.error || "Je ne peux pas répondre pour le moment." }]);
     } catch {setMessages((prev) => [...prev, { role: "assistant", content: "Erreur réseau, merci de réessayer." }]);
     } finally {setLoading(false);
     }
@@ -110,11 +103,7 @@ export default function ChatbotBubble() {
   return (
     <div className="fixed inset-0 z-[120] pointer-events-none">
       {open ? (
-        <div
-          className="absolute inset-0 bg-slate-900/20 pointer-events-auto md:hidden"
-          onClick={() => setOpen(false)}
-          aria-hidden="true"
-        />
+        <div className="absolute inset-0 bg-slate-900/20 pointer-events-auto md:hidden" onClick={() => setOpen(false)} aria-hidden="true"/>
       ) : null}
       <div
         ref={panelRef}
@@ -199,14 +188,7 @@ export default function ChatbotBubble() {
           aria-label="Ouvrir l'assistant IA"
         >
           <span className="absolute inset-[2px] rounded-full backdrop-blur-xl bg-black/10" />
-          <Image
-            src="/Nicolia.jpg"
-            alt="Assistant IA"
-            fill
-            sizes="56px"
-            className="object-cover object-top"
-            priority
-          />
+          <Image src="/Nicolia.jpg" alt="Assistant IA" fill sizes="56px" className="object-cover object-top" priority/>
         </button>
       ) : null}
     </div>

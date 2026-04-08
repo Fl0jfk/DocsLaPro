@@ -1,8 +1,4 @@
-import {
-  S3Client,
-  GetObjectCommand,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand,} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export type KnowledgeDomain = {
@@ -60,15 +56,9 @@ async function readKnowledgeJsonFromS3<T>(file: string): Promise<T> {
   const s3 = getS3Client();
   const bucket = getKnowledgeBucket();
   const key = knowledgeKey(file);
-  const signed = await getSignedUrl(
-    s3,
-    new GetObjectCommand({ Bucket: bucket, Key: key }),
-    { expiresIn: 120 }
-  );
+  const signed = await getSignedUrl( s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 120 });
   const res = await fetch(signed, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Lecture knowledge S3 impossible (${res.status}) pour ${key}`);
-  }
+  if (!res.ok) { throw new Error(`Lecture knowledge S3 impossible (${res.status}) pour ${key}`)}
   return (await res.json()) as T;
 }
 
@@ -76,33 +66,19 @@ async function writeKnowledgeJsonToS3(file: string, data: unknown) {
   const s3 = getS3Client();
   const bucket = getKnowledgeBucket();
   const key = knowledgeKey(file);
-  const signed = await getSignedUrl(
-    s3,
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      ContentType: "application/json; charset=utf-8",
-    }),
-    { expiresIn: 120 }
-  );
+  const signed = await getSignedUrl( s3,new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: "application/json; charset=utf-8",}),{ expiresIn: 120 });
   const payload = JSON.stringify(data, null, 2);
   const res = await fetch(signed, {
     method: "PUT",
     headers: { "Content-Type": "application/json; charset=utf-8" },
     body: payload,
   });
-  if (!res.ok) {
-    throw new Error(`Ecriture knowledge S3 impossible (${res.status})`);
-  }
+  if (!res.ok) { throw new Error(`Ecriture knowledge S3 impossible (${res.status})`);}
 }
 
-export async function readKnowledgeIndex(): Promise<KnowledgeIndex> {
-  return readKnowledgeJsonFromS3<KnowledgeIndex>("index.json");
-}
+export async function readKnowledgeIndex(): Promise<KnowledgeIndex> {  return readKnowledgeJsonFromS3<KnowledgeIndex>("index.json")}
 
-export async function readKnowledgeDocument(file: string): Promise<KnowledgeDocument> {
-  return readKnowledgeJsonFromS3<KnowledgeDocument>(file);
-}
+export async function readKnowledgeDocument(file: string): Promise<KnowledgeDocument> { return readKnowledgeJsonFromS3<KnowledgeDocument>(file)}
 
 export function selectDomainByMessage(domains: KnowledgeDomain[], message: string): KnowledgeDomain {
   const text = message.toLowerCase();
@@ -119,10 +95,7 @@ export function selectDomainByMessage(domains: KnowledgeDomain[], message: strin
 }
 
 function relevanceScore(query: string, entry: KnowledgeEntry) {
-  const tokens = query
-    .toLowerCase()
-    .split(/[^a-z0-9à-ÿ]+/i)
-    .filter((t) => t.length > 2);
+  const tokens = query.toLowerCase().split(/[^a-z0-9à-ÿ]+/i).filter((t) => t.length > 2);
   const hay = `${entry.title} ${entry.content}`.toLowerCase();
   const keywordHits = tokens.reduce((acc, t) => (hay.includes(t) ? acc + 1 : acc), 0);
   const recencyBonus = entry.updatedAt ? 1 : 0;
@@ -169,9 +142,7 @@ export async function appendEntryToKnowledgeFile(
   entry: { title: string; content: string; source: string; audiences?: Array<"public" | "private"> }
 ) {
   const doc = await readKnowledgeDocument(file);
-  if (!Array.isArray(doc.entries)) {
-    doc.entries = [];
-  }
+  if (!Array.isArray(doc.entries)) { doc.entries = []}
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   doc.entries.unshift({
     id,

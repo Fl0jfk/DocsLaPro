@@ -1,7 +1,7 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import { frFR } from '@clerk/localizations';
 import './globals.css';
-import ChatbotBubble from './components/ChatbotBubble';
+import ChatbotBubbleClient from "./components/ChatbotBubbleClient";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,7 +9,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="fr">
         <body>
           {children}
-          <ChatbotBubble />
+          <ChatbotBubbleClient />
         </body>
       </html>
     </ClerkProvider>
