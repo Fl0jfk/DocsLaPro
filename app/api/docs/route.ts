@@ -20,10 +20,14 @@ export async function GET() {
     const raw = await fs.readFile(filePath, "utf-8");
     data = JSON.parse(raw) as SpaceFile;
   } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") { return NextResponse.json({ error: "Provisioning not configured" }, { status: 404 })}
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return NextResponse.json({ docsUrl: null, configured: false });
+    }
     return NextResponse.json({ error: "Invalid provisioning file" }, { status: 500 });
   }
   const found = data.users.find((u) => u.clerkUserId === userId);
-  if (!found?.docsUrl) {  return NextResponse.json({ error: "Docs space not found" }, { status: 404 })}
+  if (!found?.docsUrl) {
+    return NextResponse.json({ docsUrl: null, configured: true });
+  }
   return NextResponse.json({ docsUrl: found.docsUrl });
 }
