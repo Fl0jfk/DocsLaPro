@@ -23,7 +23,6 @@ export default function ChatbotBubble() {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const hidden = useMemo(() => { return pathname?.startsWith("/sign-in") || pathname?.startsWith("/sso-callback")}, [pathname]);
-  if (hidden) return null;
   useEffect(() => {
     setMounted(true);
     const supported =
@@ -86,6 +85,7 @@ export default function ChatbotBubble() {
     } finally {setLoading(false);
     }
   };
+  if (hidden) return null;
   return (
     <div className="fixed inset-0 z-[120] pointer-events-none">
       <div
