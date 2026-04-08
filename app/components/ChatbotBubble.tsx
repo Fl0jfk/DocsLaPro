@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import Image from "next/image";
 
 type BubbleMessage = {
   role: "user" | "assistant";
@@ -17,12 +18,18 @@ export default function ChatbotBubble() {
   const [listening, setListening] = useState(false);
   const [input, setInput] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
   const [messages, setMessages] = useState<BubbleMessage[]>([{ role: "assistant", content: "Bonjour, je suis l'assistant IA. Posez votre question." }]);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const hidden = useMemo(() => { return pathname?.startsWith("/sign-in") || pathname?.startsWith("/sso-callback")}, [pathname]);
   if (hidden) return null;
-  useEffect(() => { setMounted(true);}, []);
+  useEffect(() => {
+    setMounted(true);
+    const supported =
+      "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+    setSpeechSupported(supported);
+  }, []);
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
@@ -33,7 +40,7 @@ export default function ChatbotBubble() {
     };
     document.addEventListener("mousedown", onPointerDown);
     return () => { document.removeEventListener("mousedown", onPointerDown)}}, [open]);
-  const canUseSpeech = typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+  const canUseSpeech = speechSupported;
   const startVoiceInput = () => {
     if (!canUseSpeech || listening || loading) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,6 +74,7 @@ export default function ChatbotBubble() {
         body: JSON.stringify({
           message,
           audience: isSignedIn ? "private" : "public",
+          history: messages.slice(-10),
         }),
       });
       const data = await res.json();
@@ -80,20 +88,21 @@ export default function ChatbotBubble() {
   };
   return (
     <div className="fixed bottom-4 right-4 z-[120]">
-      {open ? (
-        <div
-          ref={panelRef}
-          className={`relative w-[min(92vw,390px)] h-[570px] rounded-[30px] border border-white/50 bg-white/22 backdrop-blur-3xl shadow-[0_30px_80px_rgba(15,23,42,0.30)] overflow-hidden transition-all duration-200 ${
-            mounted ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2"
-          }`}
-        >
+      <div
+        ref={panelRef}
+        className={`absolute bottom-20 right-0 w-[min(92vw,390px)] h-[570px] rounded-[30px] border border-white/50 bg-white/22 backdrop-blur-3xl shadow-[0_30px_80px_rgba(15,23,42,0.30)] overflow-hidden transition-all duration-200 ${
+          open && mounted
+            ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 scale-95 translate-y-2 pointer-events-none"
+        }`}
+      >
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[130%] h-44 bg-white/35 blur-2xl" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.34),transparent_48%),radial-gradient(circle_at_100%_100%,rgba(125,211,252,0.20),transparent_35%)]" />
             <div className="absolute inset-[1px] rounded-[29px] border border-white/35" />
           </div>
           <div className="relative px-4 py-3 bg-gradient-to-r from-slate-950/88 via-slate-900/86 to-slate-950/88 text-white flex items-center justify-between backdrop-blur-xl border-b border-white/20">
-            <p className="text-sm font-semibold tracking-wide">Assistant IA</p>
+            <p className="text-sm font-semibold tracking-wide">Nico l'assistant IA</p>
             <button type="button" onClick={() => setOpen(false)} className="text-xs opacity-80 hover:opacity-100 transition-opacity">
               Fermer
             </button>
@@ -129,7 +138,7 @@ export default function ChatbotBubble() {
                 if (e.key === "Enter") send();
               }}
               placeholder="Écrivez votre question..."
-              className="flex-1 rounded-xl border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
+              className="flex-1 rounded-xl border border-white/60 bg-white/60 px-3 py-2 text-base sm:text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
             />
             <button
               type="button"
@@ -149,25 +158,24 @@ export default function ChatbotBubble() {
               {loading ? "..." : "Envoyer"}
             </button>
           </div>
-        </div>
-      ) : (
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => setOpen(true)}
-          className="group relative w-14 h-14 rounded-full border border-white/50 shadow-[0_14px_30px_rgba(15,23,42,0.38)] hover:scale-[1.05] active:scale-[0.98] transition-all overflow-hidden"
-          aria-label="Ouvrir l'assistant IA"
-        >
-          <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#7dd3fc_0%,#6366f1_42%,#0f172a_100%)]" />
-          <span className="absolute inset-0 opacity-60 bg-[conic-gradient(from_180deg_at_50%_50%,#22d3ee,transparent,#a78bfa,transparent,#22d3ee)] animate-spin [animation-duration:6s]" />
-          <span className="absolute inset-[2px] rounded-full backdrop-blur-xl bg-black/10" />
-          <span className="relative z-10 flex items-center justify-center w-full h-full text-white">
-            <svg viewBox="0 0 24 24" className="w-6 h-6 drop-shadow-[0_0_8px_rgba(255,255,255,0.45)]">
-              <path d="M12 3c1.1 0 2 .9 2 2v2.3a4.7 4.7 0 0 1 3.7 3.7H20a2 2 0 1 1 0 4h-2.3a4.7 4.7 0 0 1-3.7 3.7V21a2 2 0 1 1-4 0v-2.3a4.7 4.7 0 0 1-3.7-3.7H4a2 2 0 1 1 0-4h2.3a4.7 4.7 0 0 1 3.7-3.7V5c0-1.1.9-2 2-2Z" fill="currentColor"/>
-            </svg>
-          </span>
-        </button>
-      )}
+      </div>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="group relative w-14 h-14 rounded-full border border-white/50 shadow-[0_14px_30px_rgba(15,23,42,0.38)] hover:scale-[1.05] active:scale-[0.98] transition-all overflow-hidden"
+        aria-label={open ? "Fermer l'assistant IA" : "Ouvrir l'assistant IA"}
+      >
+        <span className="absolute inset-[2px] rounded-full backdrop-blur-xl bg-black/10" />
+        <Image
+          src="/Nicolia.jpg"
+          alt="Assistant IA"
+          fill
+          sizes="56px"
+          className="object-cover object-top"
+          priority
+        />
+      </button>
     </div>
   );
 }

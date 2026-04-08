@@ -173,8 +173,8 @@ const STATIC_DATA: Data = {
     },
     {
       "id": 18,
-      "name": "Base IA (PDF/OCR)",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
+      "name": "Brain AI (training engine)",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Brain+iA.jpg",
       "link": "/chatbot-knowledge",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false

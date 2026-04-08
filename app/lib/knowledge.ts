@@ -25,6 +25,7 @@ type KnowledgeEntry = {
   content: string;
   source: string;
   audiences?: Array<"public" | "private">;
+  updatedAt?: string;
 };
 
 export type KnowledgeDocument = {
@@ -117,9 +118,47 @@ export function selectDomainByMessage(domains: KnowledgeDomain[], message: strin
   return best;
 }
 
-export function buildContextFromEntries(doc: KnowledgeDocument, audience: "public" | "private", maxEntries = 8): string {
+function relevanceScore(query: string, entry: KnowledgeEntry) {
+  const tokens = query
+    .toLowerCase()
+    .split(/[^a-z0-9à-ÿ]+/i)
+    .filter((t) => t.length > 2);
+  const hay = `${entry.title} ${entry.content}`.toLowerCase();
+  const keywordHits = tokens.reduce((acc, t) => (hay.includes(t) ? acc + 1 : acc), 0);
+  const recencyBonus = entry.updatedAt ? 1 : 0;
+  return keywordHits * 2 + recencyBonus;
+}
+
+function hasPastIntent(query: string) {
+  const q = query.toLowerCase();
+  return /(\b(année dernière|an dernier|l'an dernier|passé|passée|mois dernier|semaine dernière|historique|archive)\b|\b\d{4}\b|\b\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?\b)/i.test(
+    q
+  );
+}
+
+function isRecentEntry(entry: KnowledgeEntry, recentDays: number) {
+  const raw = entry.updatedAt;
+  if (!raw) return false;
+  const ts = Date.parse(raw);
+  if (Number.isNaN(ts)) return false;
+  const ageMs = Date.now() - ts;
+  return ageMs <= recentDays * 24 * 60 * 60 * 1000;
+}
+
+export function buildContextFromEntries(
+  domain: KnowledgeDomain,
+  doc: KnowledgeDocument,
+  audience: "public" | "private",
+  maxEntries = 8,
+  query = "",
+  recentDays = 90
+): string {
+  const keepHistorical = hasPastIntent(query);
+  const applyRecencyFilter = domain.isYearlyReset && !keepHistorical;
   const rows = doc.entries
     .filter((entry) => !entry.audiences || entry.audiences.includes(audience))
+    .filter((entry) => !applyRecencyFilter || isRecentEntry(entry, recentDays))
+    .sort((a, b) => relevanceScore(query, b) - relevanceScore(query, a))
     .slice(0, maxEntries)
     .map((entry) => `- [${entry.title}] ${entry.content} (source: ${entry.source})`);
   return rows.join("\n");
@@ -130,6 +169,9 @@ export async function appendEntryToKnowledgeFile(
   entry: { title: string; content: string; source: string; audiences?: Array<"public" | "private"> }
 ) {
   const doc = await readKnowledgeDocument(file);
+  if (!Array.isArray(doc.entries)) {
+    doc.entries = [];
+  }
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   doc.entries.unshift({
     id,
@@ -137,6 +179,7 @@ export async function appendEntryToKnowledgeFile(
     content: entry.content,
     source: entry.source,
     audiences: entry.audiences ?? ["public", "private"],
+    updatedAt: new Date().toISOString(),
   });
   doc.updatedAt = new Date().toISOString().slice(0, 10);
   await writeKnowledgeJsonToS3(file, doc);

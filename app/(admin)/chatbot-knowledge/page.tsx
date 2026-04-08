@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 
+type IngestUpdate = {
+  domain: string;
+  file?: string;
+  title: string;
+  contentPreview?: string;
+};
+
 export default function ChatbotKnowledgePage() {
   const [text, setText] = useState("");
   const [source, setSource] = useState("");
@@ -9,6 +16,7 @@ export default function ChatbotKnowledgePage() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [lastUpdates, setLastUpdates] = useState<IngestUpdate[]>([]);
 
   const injectText = async (payloadText: string, payloadSource?: string) => {
     const res = await fetch("/api/chatbot/ingest", {
@@ -22,6 +30,7 @@ export default function ChatbotKnowledgePage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erreur inconnue");
+    setLastUpdates(Array.isArray(data.updates) ? data.updates : []);
     return data;
   };
 
@@ -31,7 +40,8 @@ export default function ChatbotKnowledgePage() {
     setStatus("Injection en cours...");
     try {
       const data = await injectText(text.trim());
-      setStatus(`OK: ajouté dans ${data.file} (${data.domain})`);
+      const count = Array.isArray(data.updates) ? data.updates.length : 0;
+      setStatus(`OK: ${count} entrée(s) créée(s)`);
       setText("");
     } catch (e) {
       setStatus(`Erreur: ${String(e)}`);
@@ -87,7 +97,8 @@ export default function ChatbotKnowledgePage() {
 
       setStatus("Injection knowledge...");
       const data = await injectText(extractedText, `OCR PDF: ${pdfFile.name}`);
-      setStatus(`OK PDF: ajouté dans ${data.file} (${data.domain})`);
+      const count = Array.isArray(data.updates) ? data.updates.length : 0;
+      setStatus(`OK PDF: ${count} entrée(s) créée(s)`);
       setPdfFile(null);
     } catch (e) {
       setStatus(`Erreur: ${String(e)}`);
@@ -98,7 +109,7 @@ export default function ChatbotKnowledgePage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-black text-slate-900 mb-2">Base IA (PDF/OCR)</h1>
+      <h1 className="text-2xl font-black text-slate-900 mb-2">Brain AI (training engine)</h1>
       <p className="text-sm text-slate-600 mb-6">
         Injectez du texte ou des PDF. Le système classe automatiquement vers le bon JSON knowledge sur S3.
       </p>
@@ -162,6 +173,25 @@ export default function ChatbotKnowledgePage() {
       </div>
 
       {status ? <p className="mt-4 text-sm text-slate-700">{status}</p> : null}
+      {lastUpdates.length > 0 ? (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="font-bold mb-3">Dernier classement IA</h2>
+          <div className="space-y-3">
+            {lastUpdates.map((u, i) => (
+              <div key={`${u.domain}-${i}`} className="rounded-xl border border-slate-200 p-3">
+                <p className="text-sm font-bold text-slate-900">{u.title}</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Domaine: <span className="font-semibold">{u.domain}</span>
+                  {u.file ? ` • Fichier: ${u.file}` : ""}
+                </p>
+                {u.contentPreview ? (
+                  <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{u.contentPreview}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

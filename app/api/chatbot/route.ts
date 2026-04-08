@@ -6,18 +6,87 @@ export const runtime = "nodejs";
 type ChatRequest = {
   message?: string;
   audience?: "public" | "private";
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
 };
+
+async function classifyDomainWithMistral(message: string, domains: Array<{ id: string; label: string }>) {
+  if (!process.env.MISTRAL_API_KEY) return null;
+  const domainList = domains.map((d) => `- ${d.id}: ${d.label}`).join("\n");
+  const prompt =
+    `Tu dois classer une question utilisateur dans UN SEUL domaine.\n` +
+    `Réponds uniquement en JSON: {"domainId":"..."}\n` +
+    `Domaine possibles:\n${domainList}\n\n` +
+    `Question:\n${message}`;
+  const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "mistral-small-latest",
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  try {
+    const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? "{}") as { domainId?: string };
+    return typeof parsed.domainId === "string" ? parsed.domainId.trim() : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ChatRequest;
     const message = (body.message ?? "").trim();
     const audience = body.audience === "private" ? "private" : "public";
+    const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
     if (!message) { return NextResponse.json({ error: "message requis" }, { status: 400 });}
     const index = await readKnowledgeIndex();
-    const domain = selectDomainByMessage(index.domains, message);
-    const doc = await readKnowledgeDocument(domain.file);
-    const context = buildContextFromEntries(doc, audience);
+    let domain = selectDomainByMessage(index.domains, message);
+    const selectedByKeywords = domain;
+    const mistralDomainId = await classifyDomainWithMistral(
+      message,
+      index.domains.map((d) => ({ id: d.id, label: d.label }))
+    );
+    if (mistralDomainId) {
+      const found = index.domains.find((d) => d.id === mistralDomainId);
+      if (found) domain = found;
+    }
+    const text = message.toLowerCase();
+    const keywordRanked = index.domains
+      .map((d) => ({
+        domain: d,
+        score: d.keywords.reduce((acc, kw) => (text.includes(kw.toLowerCase()) ? acc + 1 : acc), 0),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.domain);
+
+    const selectedDomains: typeof index.domains = [];
+    const pushUnique = (d?: (typeof index.domains)[number]) => {
+      if (!d) return;
+      if (selectedDomains.some((x) => x.id === d.id)) return;
+      selectedDomains.push(d);
+    };
+
+    pushUnique(domain);
+    pushUnique(keywordRanked[0]);
+    pushUnique(keywordRanked[1]);
+    pushUnique(keywordRanked[2]);
+
+    const finalDomains = selectedDomains.slice(0, 3);
+    const docs = await Promise.all(finalDomains.map((d) => readKnowledgeDocument(d.file)));
+    const context = docs
+      .map(
+        (doc, i) =>
+          `### Domaine: ${finalDomains[i].label}\n${buildContextFromEntries(finalDomains[i], doc, audience, 8, message, 90)}`
+      )
+      .join("\n\n");
     if (!process.env.MISTRAL_API_KEY) {
       return NextResponse.json({
         answer: "Le service IA n'est pas configuré (MISTRAL_API_KEY).",
@@ -25,10 +94,23 @@ export async function POST(req: Request) {
         usedFile: domain.file,
       });
     }
-    const prompt = `Tu es l'assistant de La Providence. Réponds en français, clairement, sans inventer.\n` +
-      `Tu dois t'appuyer uniquement sur le contexte fourni.\n` +
-      `Si l'information n'est pas dans le contexte, dis-le explicitement et propose de contacter l'établissement.\n\n` +
-      `Contexte (${domain.label}) :\n${context}\n\nQuestion utilisateur: ${message}`;
+    const historyText = history
+      .map((m) => `${m.role === "user" ? "Utilisateur" : "Assistant"}: ${m.content}`)
+      .join("\n");
+
+    const prompt =
+      `Tu es l'assistant de La Providence.\n` +
+      `Réponds en français, de manière précise, utile et concise.\n` +
+      `Tu dois t'appuyer UNIQUEMENT sur le contexte fourni (pas d'invention).\n\n` +
+      `Règles de réponse:\n` +
+      `1) Si l'information est présente, donne la réponse directement (pas de phrase inutile).\n` +
+      `2) Si la question porte sur une personne/date/événement, cite explicitement les éléments clés (nom, classe, date, heure, statut).\n` +
+      `3) Si le contexte contient d'autres éléments proches et pertinents, ajoute-les brièvement en complément.\n` +
+      `4) N'écris "contactez l'établissement" QUE si l'information demandée est absente du contexte.\n` +
+      `5) Ton: professionnel, clair, sans jargon.\n\n` +
+      `Historique récent de la conversation:\n${historyText || "(aucun)"}\n\n` +
+      `Contexte principal (${domain.label}) + domaines associés:\n${context}\n\n` +
+      `Question utilisateur: ${message}`;
     const llm = await fetch("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -54,6 +136,8 @@ export async function POST(req: Request) {
       answer: answer || "Je n'ai pas pu formuler de réponse pour le moment.",
       domain: domain.id,
       usedFile: domain.file,
+      usedDomains: finalDomains.map((d) => ({ id: d.id, file: d.file, label: d.label })),
+      fallbackFrom: selectedByKeywords.id !== domain.id ? selectedByKeywords.id : undefined,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
