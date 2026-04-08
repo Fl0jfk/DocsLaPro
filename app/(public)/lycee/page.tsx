@@ -204,8 +204,6 @@ export default function LyceePage() {
               </div>
             </div>
           )}
-
-          {/* Bac ST2S */}
           {activeTab === "st2s" && (
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
               <div className="flex items-start gap-4 mb-8">
@@ -279,8 +277,6 @@ export default function LyceePage() {
           )}
         </div>
       </section>
-
-      {/* ── Les + du lycée ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <p className="text-pink-500 font-bold uppercase tracking-widest text-xs mb-3">Ce qui nous distingue</p>
         <h2 className="text-4xl font-black text-slate-900 mb-10">Les + du lycée</h2>
@@ -305,8 +301,6 @@ export default function LyceePage() {
           ))}
         </div>
       </section>
-
-      {/* ── Labels ── */}
       <section className="bg-slate-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-pink-500 font-bold uppercase tracking-widest text-xs mb-3">Reconnaissance nationale</p>
@@ -322,8 +316,6 @@ export default function LyceePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Internat ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="relative h-64 rounded-3xl overflow-hidden bg-pink-100">
@@ -348,8 +340,6 @@ export default function LyceePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Infos pratiques ── */}
       <section className="bg-slate-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <h2 className="text-3xl font-black text-slate-900 mb-8">Informations pratiques</h2>
@@ -373,8 +363,6 @@ export default function LyceePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Identité CTA ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-10">
         <div className="bg-indigo-50 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 justify-between border border-indigo-100">
           <div>

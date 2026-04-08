@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-08",
+  "domains": [
+    {
+      "id": "static",
+      "label": "Informations générales",
+      "file": "static.json",
+      "isYearlyReset": false,
+      "keywords": [
+        "inscription",
+        "pré-inscription",
+        "horaires",
+        "contact",
+        "adresse",
+        "tarif",
+        "internat",
+        "cantine"
+      ]
+    },
+    {
+      "id": "voyages",
+      "label": "Voyages scolaires",
+      "file": "voyages.json",
+      "isYearlyReset": true,
+      "keywords": [
+        "voyage",
+        "sortie",
+        "transport",
+        "autocar",
+        "séjour",
+        "circular"
+      ]
+    }
+  ]
+}

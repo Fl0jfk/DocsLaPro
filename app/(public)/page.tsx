@@ -54,10 +54,7 @@ export default function HomePage() {
     };
   }, []);
   const newsCount = newsItems.length;
-  const extendedNews = useMemo(
-    () => (newsCount > 0 ? [...newsItems, ...newsItems, ...newsItems] : []),
-    [newsItems, newsCount]
-  );
+  const extendedNews = useMemo(() => (newsCount > 0 ? [...newsItems, ...newsItems, ...newsItems] : []),[newsItems, newsCount]);
   useEffect(() => {
     if (newsCount > 0) setCurrentIndex(newsCount);
   }, [newsCount]);
@@ -97,9 +94,7 @@ export default function HomePage() {
               </div>
             </div>
           ) : newsCount === 0 ? (
-            <div className="h-[500px] flex items-center justify-center text-slate-400 text-sm">
-              Aucune actualité disponible pour le moment.
-            </div>
+            <div className="h-[500px] flex items-center justify-center text-slate-400 text-sm">Aucune actualité disponible pour le moment.</div>
           ) : (
             <>
               <div className="relative w-full">
@@ -117,19 +112,14 @@ export default function HomePage() {
                     const baseIndex = index % newsCount;
                     const shouldPreload = baseIndex === 0 || baseIndex === newsCount - 1;
                     return (
-                      <div
-                        key={`slide-fixed-${index}`}
-                        className="relative h-full flex-shrink-0 px-2"
-                        style={{ width: `${slideWidth}vw` }}
-                        onClick={() => !isActive && handleInteraction(index)}
-                      >
+                      <div key={`slide-fixed-${index}`} className="relative h-full flex-shrink-0 px-2" style={{ width: `${slideWidth}vw` }} onClick={() => !isActive && handleInteraction(index)}>
                         <div className="relative w-full h-[500px] overflow-hidden bg-slate-100 shadow-sm">
                           {resolveNewsImage(actu.image) && (
                             <Image
                               src={resolveNewsImage(actu.image)!}
                               alt={actu.title}
                               fill
-                              sizes="90vw"
+                              sizes="70vw"
                               className={`object-cover ${isActive ? "opacity-100" : "opacity-30"}`}
                               priority={
                                 (index >= newsCount && index < newsCount * 2) ||
@@ -161,13 +151,7 @@ export default function HomePage() {
               </div>
               <div className="flex justify-center gap-3 mt-8">
                 {newsItems.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleInteraction(i + newsCount)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                      i === currentIndex % newsCount ? "w-8 bg-slate-900" : "w-2 bg-slate-300"
-                    }`}
-                  />
+                  <button key={i} onClick={() => handleInteraction(i + newsCount)} className={`h-1.5 rounded-full transition-all duration-300 ${ i === currentIndex % newsCount ? "w-8 bg-slate-900" : "w-2 bg-slate-300"}`}/>
                 ))}
               </div>
             </>

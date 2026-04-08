@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, PropsWithChildren } from "react";
+import { createContext, useContext, PropsWithChildren, useEffect, useMemo, useState } from "react";
 
 type Categories = {
   id: number;
@@ -170,6 +170,14 @@ const STATIC_DATA: Data = {
       "link": "/organigramme",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
+    },
+    {
+      "id": 18,
+      "name": "Base IA (PDF/OCR)",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
+      "link": "/chatbot-knowledge",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+      "external": false
     }
   ],
   travels: [],
@@ -178,13 +186,71 @@ const STATIC_DATA: Data = {
 };
 
 const DataContext = createContext<Data | undefined>(undefined);
-
 export const DataProvider = ({ children }: PropsWithChildren<object>) => {
-  return (
-    <DataContext.Provider value={STATIC_DATA}>{children}</DataContext.Provider>
+  const [dynamicCategories, setDynamicCategories] = useState<Categories[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const commonAllowedRoles = ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"];
+    const loadGristCategory = async () => {
+      try {
+        const res = await fetch("/api/grist", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { gristUrl?: string };
+        const gristUrl = data?.gristUrl;
+        if (!gristUrl || cancelled) return;
+        setDynamicCategories((prev) => {
+          const withoutExisting = prev.filter((c) => c.name !== "Grist");
+          return [
+            ...withoutExisting,
+            {
+              id: 999,
+              name: "Grist",
+              img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Grist.jpg",
+              link: gristUrl,
+              allowedRoles: commonAllowedRoles,
+              external: true,
+            },
+          ];
+        });
+      } catch {
+      }
+    };
+    const loadDocsCategory = async () => {
+      try {
+        const res = await fetch("/api/docs", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { docsUrl?: string };
+        const docsUrl = data?.docsUrl;
+        if (!docsUrl || cancelled) return;
+        setDynamicCategories((prev) => {
+          const withoutExisting = prev.filter((c) => c.name !== "Docs");
+          return [
+            ...withoutExisting,
+            {
+              id: 1000,
+              name: "Docs",
+              img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Docs.jpg",
+              link: docsUrl,
+              allowedRoles: commonAllowedRoles,
+              external: true,
+            },
+          ];
+        });
+      } catch {
+      }
+    };
+    loadGristCategory();
+    loadDocsCategory();
+    return () => { cancelled = true; }}, []);
+  const value = useMemo<Data>(
+    () => ({
+      ...STATIC_DATA,
+      categories: [...STATIC_DATA.categories, ...dynamicCategories],
+    }),
+    [dynamicCategories]
   );
+  return ( <DataContext.Provider value={value}>{children}</DataContext.Provider>);
 };
-
 export const useData = () => {
   const context = useContext(DataContext);
   if (!context) {throw new Error("useData must be used within a DataProvider")}
