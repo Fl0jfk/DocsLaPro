@@ -87,10 +87,10 @@ export default function ChatbotBubble() {
     }
   };
   return (
-    <div className="fixed bottom-4 right-4 z-[120]">
+    <div className="fixed inset-0 z-[120] pointer-events-none">
       <div
         ref={panelRef}
-        className={`absolute bottom-20 right-0 w-[min(92vw,390px)] h-[570px] rounded-[30px] border border-white/50 bg-white/22 backdrop-blur-3xl shadow-[0_30px_80px_rgba(15,23,42,0.30)] overflow-hidden transition-all duration-200 ${
+        className={`absolute inset-0 h-[100dvh] rounded-none border-0 md:inset-auto md:right-4 md:bottom-20 md:w-[min(92vw,390px)] md:h-[570px] md:rounded-[30px] md:border md:border-white/50 bg-white/22 backdrop-blur-3xl md:shadow-[0_30px_80px_rgba(15,23,42,0.30)] overflow-hidden transition-all duration-200 pointer-events-auto ${
           open && mounted
             ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
             : "opacity-0 scale-95 translate-y-2 pointer-events-none"
@@ -101,81 +101,85 @@ export default function ChatbotBubble() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.34),transparent_48%),radial-gradient(circle_at_100%_100%,rgba(125,211,252,0.20),transparent_35%)]" />
             <div className="absolute inset-[1px] rounded-[29px] border border-white/35" />
           </div>
-          <div className="relative px-4 py-3 bg-gradient-to-r from-slate-950/88 via-slate-900/86 to-slate-950/88 text-white flex items-center justify-between backdrop-blur-xl border-b border-white/20">
-            <p className="text-sm font-semibold tracking-wide">Nico l'assistant IA</p>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs opacity-80 hover:opacity-100 transition-opacity">
-              Fermer
-            </button>
-          </div>
-          <div className="relative h-[465px] overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white/26 via-white/14 to-slate-100/18">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                  m.role === "user"
-                    ? "bg-sky-200/55 text-sky-950 ml-8 border border-sky-200/65 backdrop-blur-md"
-                    : "bg-white/55 text-slate-800 mr-8 border border-white/60 backdrop-blur-md"
-                }`}
-              >
-                {m.content}
-              </div>
-            ))}
-            {loading ? (
-              <div className="rounded-xl px-3 py-2 text-sm bg-white mr-8 border border-slate-200">
-                <div className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.2s]" />
-                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.1s]" />
-                  <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
+          <div className="relative h-full flex flex-col">
+            <div className="px-4 py-3 pt-[max(12px,env(safe-area-inset-top))] bg-gradient-to-r from-slate-950/88 via-slate-900/86 to-slate-950/88 text-white flex items-center justify-between backdrop-blur-xl border-b border-white/20">
+              <p className="text-sm font-semibold tracking-wide">Nico l'assistant IA</p>
+              <button type="button" onClick={() => setOpen(false)} className="text-xs opacity-80 hover:opacity-100 transition-opacity">
+                Fermer
+              </button>
+            </div>
+            <div className="relative flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white/26 via-white/14 to-slate-100/18">
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={`rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                    m.role === "user"
+                      ? "bg-sky-200/55 text-sky-950 ml-8 border border-sky-200/65 backdrop-blur-md"
+                      : "bg-white/55 text-slate-800 mr-8 border border-white/60 backdrop-blur-md"
+                  }`}
+                >
+                  {m.content}
                 </div>
-              </div>
-            ) : null}
-          </div>
-          <div className="relative p-3 border-t border-white/35 bg-white/20 backdrop-blur-xl flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") send();
-              }}
-              placeholder="Écrivez votre question..."
-              className="flex-1 rounded-xl border border-white/60 bg-white/60 px-3 py-2 text-base sm:text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
-            />
-            <button
-              type="button"
-              onClick={startVoiceInput}
-              disabled={!canUseSpeech || loading || listening}
-              title={canUseSpeech ? "Dicter une question" : "Dictée vocale non supportée"}
-              className="rounded-xl border border-white/60 bg-white/55 px-3 py-2 text-sm font-bold disabled:opacity-40"
-            >
-              {listening ? "..." : "🎤"}
-            </button>
-            <button
-              type="button"
-              onClick={send}
-              disabled={loading}
-              className="rounded-xl bg-slate-900/92 text-white px-3 py-2 text-sm font-semibold disabled:opacity-50 hover:bg-black transition-colors"
-            >
-              {loading ? "..." : "Envoyer"}
-            </button>
+              ))}
+              {loading ? (
+                <div className="rounded-xl px-3 py-2 text-sm bg-white mr-8 border border-slate-200">
+                  <div className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.2s]" />
+                    <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.1s]" />
+                    <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="p-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-white/35 bg-white/20 backdrop-blur-xl flex gap-2">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") send();
+                }}
+                placeholder="Écrivez votre question..."
+                className="flex-1 rounded-xl border border-white/60 bg-white/60 px-3 py-2 text-base sm:text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
+              />
+              <button
+                type="button"
+                onClick={startVoiceInput}
+                disabled={!canUseSpeech || loading || listening}
+                title={canUseSpeech ? "Dicter une question" : "Dictée vocale non supportée"}
+                className="rounded-xl border border-white/60 bg-white/55 px-3 py-2 text-sm font-bold disabled:opacity-40"
+              >
+                {listening ? "..." : "🎤"}
+              </button>
+              <button
+                type="button"
+                onClick={send}
+                disabled={loading}
+                className="rounded-xl bg-slate-900/92 text-white px-3 py-2 text-sm font-semibold disabled:opacity-50 hover:bg-black transition-colors"
+              >
+                {loading ? "..." : "Envoyer"}
+              </button>
+            </div>
           </div>
       </div>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="group relative w-14 h-14 rounded-full border border-white/50 shadow-[0_14px_30px_rgba(15,23,42,0.38)] hover:scale-[1.05] active:scale-[0.98] transition-all overflow-hidden"
-        aria-label={open ? "Fermer l'assistant IA" : "Ouvrir l'assistant IA"}
-      >
-        <span className="absolute inset-[2px] rounded-full backdrop-blur-xl bg-black/10" />
-        <Image
-          src="/Nicolia.jpg"
-          alt="Assistant IA"
-          fill
-          sizes="56px"
-          className="object-cover object-top"
-          priority
-        />
-      </button>
+      {!open ? (
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => setOpen(true)}
+          className="pointer-events-auto absolute bottom-4 right-4 group relative w-14 h-14 rounded-full border border-white/50 shadow-[0_14px_30px_rgba(15,23,42,0.38)] hover:scale-[1.05] active:scale-[0.98] transition-all overflow-hidden"
+          aria-label="Ouvrir l'assistant IA"
+        >
+          <span className="absolute inset-[2px] rounded-full backdrop-blur-xl bg-black/10" />
+          <Image
+            src="/Nicolia.jpg"
+            alt="Assistant IA"
+            fill
+            sizes="56px"
+            className="object-cover object-top"
+            priority
+          />
+        </button>
+      ) : null}
     </div>
   );
 }
