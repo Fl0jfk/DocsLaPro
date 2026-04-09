@@ -10,6 +10,34 @@ type BubbleMessage = {
   content: string;
 };
 
+const DRAFT_PATH_PREFIXES = [
+  "/affiche",
+  "/annexeautorisationsoinsnuit",
+  "/autorisationpsychologue",
+  "/autorisationsortie",
+  "/cardjapon",
+  "/cardjapon2",
+  "/cartereseau",
+  "/conventionscolarisation",
+  "/conventionstagelycee",
+  "/depliantrecto",
+  "/depliantrectohealth",
+  "/depliantverso",
+  "/depliantversohealth",
+  "/devistransport",
+  "/ficheinscription",
+  "/fichesanitaire",
+  "/formulaire",
+  "/grilletarifaire",
+  "/navetterotomagus",
+  "/partnertennis",
+  "/portesouvertes",
+  "/preparationrentreeprofs",
+  "/qrpo",
+  "/recapitulatifscolarite",
+  "/reglementfinancier",
+];
+
 export default function ChatbotBubble() {
   const pathname = usePathname();
   const { isSignedIn } = useUser();
@@ -24,7 +52,11 @@ export default function ChatbotBubble() {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const scrollYRef = useRef(0);
-  const hidden = useMemo(() => { return pathname?.startsWith("/sign-in") || pathname?.startsWith("/sso-callback")}, [pathname]);
+  const hidden = useMemo(() => {
+    const normalized = (pathname ?? "").toLowerCase();
+    if (normalized.startsWith("/sign-in") || normalized.startsWith("/sso-callback")) return true;
+    return DRAFT_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+  }, [pathname]);
   useEffect(() => {
     setMounted(true);
     const supported = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
