@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import RollingSlider from "../../components/Slider/SectionSlider";
 import { useData } from "@/app/contexts/data";
-import { useUser, SignedOut } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 
 export default function Home() {
   const { isLoaded, user } = useUser();
@@ -42,7 +42,7 @@ export default function Home() {
             </div>
           )
         )}
-        <SignedOut>
+        {!user && (
           <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px] z-50">
             <div className="bg-white p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-center max-w-sm w-full mx-4">
               <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-3xl mb-6 shadow-lg shadow-blue-200">🔒</div>
@@ -51,7 +51,7 @@ export default function Home() {
               <button onClick={() => window.location.href = '/sign-in'} className="w-full py-4 px-8 bg-gray-900 text-white rounded-2xl font-bold hover:bg-black transition-all hover:scale-[1.02] active:scale-95 shadow-xl">Se connecter</button>
             </div>
           </div>
-        </SignedOut>
+        )}
       </div>
     </main>
   );
