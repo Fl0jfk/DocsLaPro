@@ -45,4 +45,127 @@ export const SCHOOL = {
     secretariatEcole: "m.leblond@laprovidence-nicolasbarre.fr",
     collegeLycee: ["sarah@laprovidence-nicolasbarre.fr", "florian@h-me.fr"],
   },
+  /**
+   * Emails pour le routage des demandes chatbot (routeId → boîtes réelles).
+   * Ajustez selon votre organigramme : terrain vs chef, accueil photocopieur, CPE, etc.
+   */
+  requestsRouting: {
+    /** Petits travaux, lampes, papier/toner, réappro salle */
+    maintenanceTerrain: "sarah@laprovidence-nicolasbarre.fr",
+    /**
+     * File maintenance partagée : même demande visible par les deux jusqu'à prise en charge.
+     * Ajustez les deux emails (ordre libre).
+     */
+    maintenancePool: [
+      "sarah@laprovidence-nicolasbarre.fr",
+      "florian@h-me.fr",
+    ] as const,
+    /** Copie systématique sur les routes maintenance.* (chef / coordinateur) */
+    maintenanceChefCc: "florian@h-me.fr",
+    /** Pannes photocopieur / lien prestataire — souvent accueil ou secrétariat */
+    accueilPhotocopieur: "m.leblond@laprovidence-nicolasbarre.fr",
+    /** Postes, comptes, messagerie, réseau */
+    informatique: "florian@h-me.fr",
+    /** CPE / vie scolaire collège (discipline, suivi élève) */
+    cpeCollege: "sarah@laprovidence-nicolasbarre.fr",
+    /** File de tri si la demande est ambiguë ou confiance IA basse */
+    fileTri: "florian@h-me.fr",
+  },
+  /**
+   * Grandes branches métier (module demandes) : libellés, catégorie et mots-clés de routage.
+   * Les personnes (leaders / exécutants) sont dans `app/lib/staff-directory.ts`.
+   */
+  requestsBranches: {
+    corbeille: {
+      roleLabel: "Corbeille établissement",
+      category: "Établissement",
+      promptLine:
+        "Demande floue, non classée ou renvoyée par un responsable : visible par toute l’équipe dans la corbeille jusqu’à prise en charge.",
+      keywords: [] as const,
+    },
+    maintenance: {
+      roleLabel: "Maintenance",
+      category: "Établissement",
+      promptLine:
+        "Bâtiment, lampes, petits travaux, consommables (papier, toner), réseau, postes, comptes, matériel informatique — tout regroupé sous maintenance.",
+      keywords: [
+        "papier",
+        "toner",
+        "lampe",
+        "ampoule",
+        "fuite",
+        "chauffage",
+        "porte",
+        "fenetre",
+        "reparation",
+        "photocopieur",
+        "copieur",
+        "bourrage",
+        "mot de passe",
+        "compte",
+        "mail",
+        "wifi",
+        "ordinateur",
+        "pc",
+        "ent",
+        "ecoledirecte",
+        "imprimante",
+        "connexion",
+      ] as const,
+    },
+    admin_ecole: {
+      roleLabel: "Administratif — école",
+      category: "Scolarité",
+      promptLine: "Secrétariat et administratif de l’école (maternelle / élémentaire), inscriptions côté école.",
+      keywords: ["ecole", "maternelle", "elementaire", "primaire", "secretariat ecole", "inscription", "reinscription", "cp", "ce1", "ce2", "cm1", "cm2"] as const,
+    },
+    admin_college: {
+      roleLabel: "Administratif — collège",
+      category: "Scolarité",
+      promptLine: "Secrétariat et administratif collège (bulletins, certificats, dossiers hors CPE pur).",
+      keywords: ["bulletin", "certificat", "secretariat college", "6eme", "5eme", "4eme", "3eme", "college"] as const,
+    },
+    admin_lycee: {
+      roleLabel: "Administratif — lycée",
+      category: "Scolarité",
+      promptLine: "Secrétariat et administratif lycée (2nde, 1re, Tale, baccalauréat).",
+      keywords: ["lycee", "seconde", "premiere", "terminale", "bac", "baccalaureat", "secretariat lycee"] as const,
+    },
+    cpe_lycee: {
+      roleLabel: "CPE — lycée",
+      category: "Vie scolaire",
+      promptLine: "CPE et vie scolaire au lycée.",
+      keywords: ["cpe lycee", "vie scolaire lycee", "discipline lycee"] as const,
+    },
+    cpe_3e4e: {
+      roleLabel: "CPE — 3e / 4e",
+      category: "Vie scolaire",
+      promptLine: "CPE collège — niveaux 3e et 4e.",
+      keywords: ["cpe 3e", "cpe 4e", "4eme cpe", "3eme cpe"] as const,
+    },
+    cpe_5e6e: {
+      roleLabel: "CPE — 5e / 6e",
+      category: "Vie scolaire",
+      promptLine: "CPE collège — niveaux 5e et 6e, discipline et suivi.",
+      keywords: ["cpe", "discipline", "sanction", "retard", "5eme", "6eme", "vie scolaire college"] as const,
+    },
+    vie_scolaire_infirmerie: {
+      roleLabel: "Vie scolaire & infirmerie",
+      category: "Élèves",
+      promptLine: "Absences, justificatifs, appels, santé / infirmerie, présence.",
+      keywords: ["absence", "justificatif", "appel", "presence", "infirmerie", "sante", "medicament"] as const,
+    },
+    accueil: {
+      roleLabel: "Accueil",
+      category: "Établissement",
+      promptLine: "Accueil, orientation des familles, photocopieur / prestataire si besoin.",
+      keywords: ["accueil", "photocopieur accueil", "prestataire", "orientation"] as const,
+    },
+    comptabilite: {
+      roleLabel: "Comptabilité",
+      category: "Finances",
+      promptLine: "Factures, paiements, tarifs, remboursements, règlement financier.",
+      keywords: ["facture", "paiement", "reglement", "compta", "tarif", "remboursement", "budget", "frais"] as const,
+    },
+  },
 } as const;

@@ -111,9 +111,7 @@ export default function AfficheUSMEFPage() {
             fill
             style={{ objectPosition: "center 45%" }}
             className="object-cover"
-            priority
-            quality={100}
-            sizes="210mm"
+           
             unoptimized
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/35 to-transparent" />

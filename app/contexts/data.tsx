@@ -172,6 +172,22 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
+      "id": 17,
+      "name": "Demandes (équipe)",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
+      "link": "/requests",
+      "allowedRoles": ["direction_college", "administratif", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+      "external": false
+    },
+    {
+      "id": 19,
+      "name": "Suivi de mes demandes",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
+      "link": "/mes-demandes",
+      "allowedRoles": ["professeur"],
+      "external": false
+    },
+    {
       "id": 18,
       "name": "Brain AI (training engine)",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Brain+iA.jpg",

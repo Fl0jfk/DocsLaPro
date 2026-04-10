@@ -62,16 +62,14 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ChatRequest;
     const message = (body.message ?? "").trim();
+    const wantsRequest = /\b(demande|ticket|requete|requête|support|incident)\b/i.test(message);
     const audience = body.audience === "private" ? "private" : "public";
     const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
     if (!message) { return NextResponse.json({ error: "message requis" }, { status: 400 });}
     const index = await readKnowledgeIndex();
     let domain = selectDomainByMessage(index.domains, message);
     const selectedByKeywords = domain;
-    const mistralDomainId = await classifyDomainWithMistral(
-      message,
-      index.domains.map((d) => ({ id: d.id, label: d.label }))
-    );
+    const mistralDomainId = await classifyDomainWithMistral( message, index.domains.map((d) => ({ id: d.id, label: d.label })));
     if (mistralDomainId) {
       const found = index.domains.find((d) => d.id === mistralDomainId);
       if (found) domain = found;
@@ -161,8 +159,11 @@ export async function POST(req: Request) {
     }
     const data = await llm.json();
     const answer = data?.choices?.[0]?.message?.content?.trim();
+    const withActionHint = wantsRequest
+      ? `${answer || "Je n'ai pas pu formuler de réponse pour le moment."}\n\nSi vous souhaitez un suivi interne, utilisez le bouton "Créer une demande" dans le chatbot (nom, prénom, email, téléphone, sujet, détail).`
+      : answer || "Je n'ai pas pu formuler de réponse pour le moment.";
     return NextResponse.json({
-      answer: answer || "Je n'ai pas pu formuler de réponse pour le moment.",
+      answer: withActionHint,
       domain: domain.id,
       usedFile: domain.file,
       usedDomains: finalDomains.map((d) => ({ id: d.id, file: d.file, label: d.label })),

@@ -28,7 +28,7 @@ export default function PartnerTennisPage() {
       >
         <span>🖨️</span> Imprimer (4 cartes sur A3)
       </button>
-      <div className="bg-white shadow-2xl w-[297mm] h-[420mm] p-0 grid grid-cols-2 grid-rows-2 gap-0 print:shadow-none print:w-full print:h-full print:border-none">
+      <div className="bg-white shadow-2xl w-[297mm] h-[420mm] p-4 grid grid-cols-2 grid-rows-2 gap-0 print:shadow-none print:w-full print:h-full print:border-none">
         {Array.from({ length: 4 }).map((_, i) => (
           <article key={i} className="relative overflow-hidden flex flex-col h-full">
             <div className="relative h-[56.5mm] bg-slate-800">

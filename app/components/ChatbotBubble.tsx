@@ -10,6 +10,15 @@ type BubbleMessage = {
   content: string;
 };
 
+type RequestDraft = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  subject: string;
+  description: string;
+};
+
 const DRAFT_PATH_PREFIXES = [
   "/affiche",
   "/annexeautorisationsoinsnuit",
@@ -40,13 +49,24 @@ const DRAFT_PATH_PREFIXES = [
 
 export default function ChatbotBubble() {
   const pathname = usePathname();
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [input, setInput] = useState("");
   const [mounted, setMounted] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestSending, setRequestSending] = useState(false);
+  const [requestFiles, setRequestFiles] = useState<File[]>([]);
+  const [requestDraft, setRequestDraft] = useState<RequestDraft>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    subject: "",
+    description: "",
+  });
   const [messages, setMessages] = useState<BubbleMessage[]>([{ role: "assistant", content: "Bonjour, je suis l'assistant IA. Posez votre question." }]);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -62,6 +82,15 @@ export default function ChatbotBubble() {
     const supported = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
     setSpeechSupported(supported);
   }, []);
+  useEffect(() => {
+    if (!user) return;
+    setRequestDraft((prev) => ({
+      ...prev,
+      firstName: prev.firstName || user.firstName || "",
+      lastName: prev.lastName || user.lastName || "",
+      email: prev.email || user.primaryEmailAddress?.emailAddress || "",
+    }));
+  }, [user]);
   useEffect(() => {
     if (!open) return;
     const body = document.body;
@@ -151,6 +180,63 @@ export default function ChatbotBubble() {
     } finally {setLoading(false);
     }
   };
+  const submitRequest = async () => {
+    if (requestSending) return;
+    setRequestSending(true);
+    try {
+      const fd = new FormData();
+      fd.append("firstName", requestDraft.firstName);
+      fd.append("lastName", requestDraft.lastName);
+      fd.append("email", requestDraft.email);
+      fd.append("phone", requestDraft.phone);
+      fd.append("subject", requestDraft.subject);
+      fd.append("description", requestDraft.description);
+      requestFiles.forEach((f) => fd.append("files", f));
+      const res = await fetch("/api/requests/create", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessages((prev) => [...prev, { role: "assistant", content: data.error || "Impossible de créer la demande pour le moment." }]);
+        return;
+      }
+      if (data.needsEmailVerification) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              typeof data.message === "string"
+                ? data.message
+                : "Un e-mail de confirmation vous a été envoyé. Ouvrez-le et cliquez sur le lien pour valider votre demande (sans ce clic, rien n’est transmis à l’équipe). Pensez à vérifier les courriers indésirables.",
+          },
+        ]);
+        setShowRequestForm(false);
+        setRequestFiles([]);
+        setRequestDraft((prev) => ({ ...prev, subject: "", description: "" }));
+        return;
+      }
+      const pj =
+        typeof data.attachmentCount === "number" && data.attachmentCount > 0
+          ? ` ${data.attachmentCount} pièce(s) jointe(s) incluse(s).`
+          : "";
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Demande créée (${data.id}). Service destinataire: ${data?.assignedTo?.roleLabel || "à confirmer"}.${pj} Vous recevrez un email de suivi.`,
+        },
+      ]);
+      setShowRequestForm(false);
+      setRequestFiles([]);
+      setRequestDraft((prev) => ({ ...prev, subject: "", description: "" }));
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "Erreur réseau lors de la création de la demande." }]);
+    } finally {
+      setRequestSending(false);
+    }
+  };
   if (hidden) return null;
   return (
     <div className="fixed inset-0 z-[120] pointer-events-none">
@@ -178,6 +264,69 @@ export default function ChatbotBubble() {
               </button>
             </div>
             <div ref={messagesRef} className="relative flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white/26 via-white/14 to-slate-100/18">
+              <div className="rounded-xl border border-sky-200/60 bg-white/60 p-2.5">
+                <p className="text-[11px] font-semibold text-slate-800">Faire une demande (tâche)</p>
+                <ol className="text-[10px] text-slate-600 mt-1.5 space-y-0.5 list-decimal list-inside">
+                  <li>Touchez « Créer une demande » ci-dessous.</li>
+                  <li>Remplissez identité, sujet et description.</li>
+                  <li>Joignez des fichiers si besoin (plusieurs : images, PDF, Word, Excel).</li>
+                  <li>Envoyez — vous recevrez un email de suivi.</li>
+                </ol>
+                <button
+                  type="button"
+                  onClick={() => setShowRequestForm((v) => !v)}
+                  className="mt-2 text-xs rounded-lg bg-sky-700 text-white px-2.5 py-1.5 font-semibold hover:bg-sky-800"
+                >
+                  {showRequestForm ? "Masquer le formulaire" : "Créer une demande"}
+                </button>
+              </div>
+              {showRequestForm ? (
+                <div className="rounded-xl border border-slate-200 bg-white/75 p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={requestDraft.firstName} onChange={(e) => setRequestDraft((p) => ({ ...p, firstName: e.target.value }))} placeholder="Prénom" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
+                    <input value={requestDraft.lastName} onChange={(e) => setRequestDraft((p) => ({ ...p, lastName: e.target.value }))} placeholder="Nom" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={requestDraft.email} onChange={(e) => setRequestDraft((p) => ({ ...p, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
+                    <input value={requestDraft.phone} onChange={(e) => setRequestDraft((p) => ({ ...p, phone: e.target.value }))} placeholder="Téléphone" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
+                  </div>
+                  <input value={requestDraft.subject} onChange={(e) => setRequestDraft((p) => ({ ...p, subject: e.target.value }))} placeholder="Sujet" className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
+                  <textarea value={requestDraft.description} onChange={(e) => setRequestDraft((p) => ({ ...p, description: e.target.value }))} placeholder="Décrivez précisément votre demande..." rows={3} className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs resize-none" />
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Pièces jointes (facultatif, plusieurs possibles)</label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,application/pdf"
+                      className="w-full text-[10px] text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1"
+                      onChange={(e) => {
+                        const list = e.target.files ? Array.from(e.target.files) : [];
+                        setRequestFiles((prev) => [...prev, ...list].slice(0, 12));
+                        e.target.value = "";
+                      }}
+                    />
+                    {requestFiles.length > 0 ? (
+                      <ul className="mt-1.5 space-y-1">
+                        {requestFiles.map((f, i) => (
+                          <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-[10px] text-slate-700 bg-slate-100/80 rounded px-2 py-1">
+                            <span className="truncate">{f.name}</span>
+                            <button
+                              type="button"
+                              className="shrink-0 text-red-700 font-bold"
+                              onClick={() => setRequestFiles((prev) => prev.filter((_, j) => j !== i))}
+                            >
+                              ×
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                  <button type="button" onClick={submitRequest} disabled={requestSending} className="rounded-lg bg-slate-900 text-white px-3 py-2 text-xs font-bold disabled:opacity-50">
+                    {requestSending ? "Envoi..." : "Envoyer la demande"}
+                  </button>
+                </div>
+              ) : null}
               {messages.map((m, i) => (
                 <div
                   key={i}
