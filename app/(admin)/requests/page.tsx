@@ -45,7 +45,6 @@ type RequestRecord = {
     content: string;
     attachments?: Array<{ id: string; fileName: string; size: number }>;
   }>;
-  /** Renseigné par l’API liste (scope board) */
   boardColumn?: BoardColumnKey;
   boardCanReassign?: boolean;
   boardCanDelegate?: boolean;
@@ -164,15 +163,11 @@ export default function RequestsPage() {
   const [dropTarget, setDropTarget] = useState<BoardColumnKey | null>(null);
   const [commentFilesInternalById, setCommentFilesInternalById] = useState<Record<string, File[]>>({});
   const [commentFilesRequesterById, setCommentFilesRequesterById] = useState<Record<string, File[]>>({});
-  /** Fiche « épinglée » ouverte (clic sur la carte ou ⋯) ; le survol ouvre aussi sur md+ */
   const [pinnedCardId, setPinnedCardId] = useState<string | null>(null);
   const draggedRequestIdRef = useRef<string | null>(null);
-  /** Tableau équipe : déterminé après appel API (rôles Clerk OU table staff-directory côté serveur). */
   const [hasStaffBoard, setHasStaffBoard] = useState(false);
   const [delegateEmailById, setDelegateEmailById] = useState<Record<string, string>>({});
-
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
-
   const { isProfesseur } = useMemo(() => {
     if (!user) {
       return { isProfesseur: false };
@@ -239,8 +234,6 @@ export default function RequestsPage() {
     };
     loadRoutes();
   }, [isLoaded, user, hasStaffBoard, loading]);
-
-  /** Délai minimum d’affichage du retour visuel après un glisser-déposer (API parfois très rapide). */
   const BOARD_MOVE_MIN_VISIBLE_MS = 520;
   const waitBoardMutationMinVisible = async (startedAt: number) => {
     const elapsed = Date.now() - startedAt;
@@ -441,27 +434,7 @@ export default function RequestsPage() {
   return (
     <main className="max-w-[1500px] mx-auto px-4 py-8 mt-[9vh]">
       <h1 className="text-2xl font-black text-slate-900">Récapitulatif des demandes</h1>
-      <p className="text-sm text-slate-600 mt-1 max-w-3xl">
-        <strong>Corbeille</strong> : demandes non prises en charge, visibles par toute l’équipe habilitée — tout le monde peut les attraper vers{" "}
-        <span className="font-semibold text-slate-800">En cours</span>. Les demandes déjà routées vers un service n’apparaissent que pour ce service,
-        jusqu’à ce que quelqu’un les prenne. Le <strong>responsable</strong> d’un service peut renvoyer une fiche à la corbeille, l’envoyer vers un autre
-        service ou <strong>déléguer</strong> la prise en charge à un membre de la file. Les autres membres traitent et clôturent. Statut : glisser-déposer.
-        Les demandes <strong>terminées</strong> sont conservées <strong>30 jours</strong> puis supprimées automatiquement de la liste.
-      </p>
-      <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/90 px-4 py-3 text-sm text-slate-700">
-        <p className="font-bold text-slate-900">Créer une demande avec pièces jointes</p>
-        <ol className="list-decimal list-inside mt-2 space-y-1 text-xs">
-          <li>Ouvrir la bulle d’assistant (en bas à droite sur le site).</li>
-          <li>Choisir <strong>Créer une demande</strong>, remplir le formulaire.</li>
-          <li>Ajouter des fichiers : photos, PDF, Word, Excel (plusieurs fichiers possibles).</li>
-          <li>En réponse, utilisez le champ fichier sous le commentaire sur cette page.</li>
-        </ol>
-      </div>
-      <p className="mt-2 text-[11px] text-slate-400">
-        Sur grand écran, le détail se déploie au survol (animation lente).{" "}
-        <span className="font-semibold text-slate-500">Clic sur la carte</span> ou <span className="font-semibold text-slate-500">⋯</span> pour
-        l’épingler. Si vous avez réduit les animations dans le système, utilisez surtout le clic.
-      </p>
+     
       {loading ? <p className="mt-6 text-sm text-slate-500">Chargement des demandes...</p> : null}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
         {BOARD_COLUMNS.map((col) => (
