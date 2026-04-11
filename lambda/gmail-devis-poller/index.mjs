@@ -115,7 +115,10 @@ export async function handler() {
           break;
         }
 
-        const safeName = att.filename.replace(/[^\w.\-()+ ]/g, "_");
+        const safeName = att.filename
+          .replace(/[/\\]/g, "_")
+          .replace(/\s+/g, "_")
+          .replace(/\.\./g, "_");
         const s3Key = `devis-incoming/${messageId}/${att.attachmentId}_${safeName}`;
 
         await s3.send(

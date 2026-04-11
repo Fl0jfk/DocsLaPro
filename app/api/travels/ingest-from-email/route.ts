@@ -7,9 +7,10 @@ import { extractDevisMetadataWithMistral, ocrS3Key} from "@/app/lib/travel-devis
 const INCOMING_PREFIX = "devis-incoming/";
 const UNMATCHED_KEY = "travels/email-devis-unmatched.json";
 
+/** Clés émises par la Lambda : devis-incoming/{messageId}/{attachmentId}_{nom}.pdf — le nom peut contenir espaces, accents, etc. */
 function isAllowedIncomingKey(key: string): boolean {
   if (!key.startsWith(INCOMING_PREFIX) || key.includes("..")) return false;
-  return /^devis-incoming\/[a-zA-Z0-9._/-]+$/.test(key);
+  return key.length <= 2048;
 }
 
 function extractTripIdFromText(...chunks: (string | undefined | null)[]): string | null {

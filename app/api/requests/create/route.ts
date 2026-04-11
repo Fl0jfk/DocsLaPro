@@ -72,19 +72,13 @@ export async function POST(req: Request) {
       userId: payload.userId || null,
     });
     if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
-
     if (payload.files.length > MAX_REQUEST_ATTACHMENTS_PER_UPLOAD) {
-      return NextResponse.json(
-        { error: `Maximum ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} fichiers par envoi.` },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: `Maximum ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} fichiers par envoi.` },{ status: 400 });
     }
     for (const f of payload.files) {
       const check = assertEligibleRequestAttachment(f.name, f.type, f.size);
       if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
     }
-
-    /** Visiteurs sans compte Clerk : brouillon sur S3 + e-mail avec lien ; la fiche n’est créée qu’après clic. */
     if (!userId) {
       if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return NextResponse.json(
@@ -97,13 +91,7 @@ export async function POST(req: Request) {
       }
       const base = getPublicAppBaseUrl();
       if (!base) {
-        return NextResponse.json(
-          {
-            error:
-              "Configuration incomplète (NEXT_PUBLIC_APP_URL). Les demandes anonymes ne peuvent pas être confirmées par e-mail pour le moment.",
-          },
-          { status: 503 },
-        );
+        return NextResponse.json({error:"Configuration incomplète (NEXT_PUBLIC_APP_URL). Les demandes anonymes ne peuvent pas être confirmées par e-mail pour le moment.",},{ status: 503 });
       }
       const { firstName, lastName, email, phone, subject, description } = validated.value;
       let token: string | undefined;
@@ -144,12 +132,10 @@ export async function POST(req: Request) {
           "Un e-mail vient de vous être envoyé à l’adresse indiquée. Cliquez sur le lien qu’il contient pour valider votre demande et confirmer que l’e-mail est bien le vôtre.",
       });
     }
-
     const now = new Date().toISOString();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const { firstName, lastName, email, phone, subject, description } = validated.value;
     const routing = await resolveRequestRouting(subject, description);
-
     let attachments: RequestRecord["attachments"];
     if (payload.files.length > 0) {
       const bufs = await Promise.all(
@@ -161,7 +147,6 @@ export async function POST(req: Request) {
       );
       attachments = await uploadBuffersAsRequestAttachments(id, bufs);
     }
-
     const record: RequestRecord = {
       id,
       createdAt: now,
@@ -202,9 +187,7 @@ export async function POST(req: Request) {
     await saveRequestsIndex(index);
     try {
       await notifyRequestCreated(record);
-    } catch (mailError) {
-      console.error("Request create notification error:", mailError);
-    }
+    } catch (mailError) { console.error("Request create notification error:", mailError)}
     return NextResponse.json({
       success: true,
       id: record.id,

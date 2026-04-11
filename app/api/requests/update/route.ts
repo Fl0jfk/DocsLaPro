@@ -1,35 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import {
-  REQUEST_STATUSES,
-  RequestAttachment,
-  RequestComment,
-  RequestRecord,
-  RequestStatus,
-  assertEligibleRequestAttachment,
-  finalizeRequestPurgeMetadata,
-  getDefaultRequestBranchForStaffEmail,
-  getRequestPoolEmails,
-  getRequestsIndex,
-  isLeaderForRequestBranch,
-  isUserInRequestPool,
-  notifyRequesterOnly,
-  notifyRequestStatusMilestone,
-  resolveRequestRouteById,
-  saveRequestFile,
-  saveRequestsIndex,
-  uploadBuffersAsRequestAttachments,
-  MAX_REQUEST_ATTACHMENTS_PER_UPLOAD,
-} from "@/app/lib/requests";
-import {
-  isCorbeilleBranchId,
-  normalizeRequestBranchId,
-  normalizeRequestEmail,
-} from "@/app/lib/requests-board";
+import { REQUEST_STATUSES, RequestAttachment, RequestComment, RequestRecord, RequestStatus, assertEligibleRequestAttachment, finalizeRequestPurgeMetadata, getDefaultRequestBranchForStaffEmail, getRequestPoolEmails, getRequestsIndex, isLeaderForRequestBranch, isUserInRequestPool, notifyRequesterOnly, notifyRequestStatusMilestone, resolveRequestRouteById, saveRequestFile, saveRequestsIndex, uploadBuffersAsRequestAttachments, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";
+import { isCorbeilleBranchId, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 import { isStaffInBranchPool } from "@/app/lib/staff-directory";
 
-/** Anciens libellés UI (unit) → branche actuelle */
 const LEGACY_ASSIGN_UNIT_TO_ROUTE: Record<string, string> = {
   comptabilite: "comptabilite",
   maintenance: "maintenance",
@@ -47,12 +22,10 @@ export async function PATCH(req: Request) {
     const actorEmail = user?.primaryEmailAddress?.emailAddress || "";
     const roleRaw = user?.publicMetadata?.role;
     const actorRoles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
-
   try {
     const contentType = req.headers.get("content-type") || "";
     let body: Record<string, unknown>;
     let multipartFiles: File[] = [];
-
     if (contentType.includes("multipart/form-data")) {
       const form = await req.formData();
       const get = (k: string) => {
@@ -70,62 +43,36 @@ export async function PATCH(req: Request) {
         toCorbeille: get("toCorbeille"),
         targetEmail: get("targetEmail"),
       };
-      multipartFiles = form
-        .getAll("files")
-        .filter((x): x is File => x instanceof File && x.size > 0)
-        .slice(0, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD);
+      multipartFiles = form.getAll("files").filter((x): x is File => x instanceof File && x.size > 0).slice(0, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD);
     } else {
       body = await req.json();
     }
-
     const action = String(body?.action ?? "").trim();
     const id = String(body?.id || "");
     const status = String(body?.status || "") as RequestStatus;
     const comment = String(body?.comment || "").trim();
-    const toRequester = contentType.includes("multipart/form-data")
-      ? String(body?.toRequester || "") === "true" || String(body?.toRequester || "") === "on"
-      : Boolean(body?.toRequester);
+    const toRequester = contentType.includes("multipart/form-data") ? String(body?.toRequester || "") === "true" || String(body?.toRequester || "") === "on" : Boolean(body?.toRequester);
     const assignRouteIdRaw = String(body?.assignRouteId || "").trim();
     const assignUnit = String(body?.assignUnit || "").trim();
-    const toCorbeille =
-      contentType.includes("multipart/form-data")
-        ? String(body?.toCorbeille || "") === "true" || String(body?.toCorbeille || "") === "on"
-        : Boolean(body?.toCorbeille);
-
-    if (multipartFiles.length > 0 && ["claim", "release_claim", "claim_self", "delegate_claim"].includes(action)) {
-      return NextResponse.json({ error: "Retirez les pièces jointes pour cette action." }, { status: 400 });
-    }
-
+    const toCorbeille = contentType.includes("multipart/form-data") ? String(body?.toCorbeille || "") === "true" || String(body?.toCorbeille || "") === "on" : Boolean(body?.toCorbeille);
+    if (multipartFiles.length > 0 && ["claim", "release_claim", "claim_self", "delegate_claim"].includes(action)) { return NextResponse.json({ error: "Retirez les pièces jointes pour cette action." }, { status: 400 });}
     if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
-
     const index = await getRequestsIndex();
     const pos = index.findIndex((r) => r.id === id);
     if (pos < 0) return NextResponse.json({ error: "Demande introuvable" }, { status: 404 });
-
     const current = index[pos] as RequestRecord;
     const now = new Date().toISOString();
-
     if (action === "delegate_claim") {
       const targetEmail = normalizeRequestEmail(String(body?.targetEmail ?? ""));
       if (!actorEmail) return NextResponse.json({ error: "Email requis" }, { status: 400 });
       if (!targetEmail) return NextResponse.json({ error: "Collaborateur cible requis (targetEmail)" }, { status: 400 });
-      if (!isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail)) {
-        return NextResponse.json({ error: "Seul le responsable du service peut déléguer." }, { status: 403 });
-      }
+      if (!isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail)) { return NextResponse.json({ error: "Seul le responsable du service peut déléguer." }, { status: 403 })}
       const branch = normalizeRequestBranchId(current.assignedTo.routeId, current.assignedTo.unit);
-      if (isCorbeilleBranchId(branch)) {
-        return NextResponse.json({ error: "Délégation impossible pour une fiche en corbeille." }, { status: 400 });
-      }
-      if (!isStaffInBranchPool(branch, targetEmail)) {
-        return NextResponse.json({ error: "Ce collaborateur n’est pas dans le service (table équipe)." }, { status: 403 });
-      }
+      if (isCorbeilleBranchId(branch)) { return NextResponse.json({ error: "Délégation impossible pour une fiche en corbeille." }, { status: 400 })}
+      if (!isStaffInBranchPool(branch, targetEmail)) { return NextResponse.json({ error: "Ce collaborateur n’est pas dans le service (table équipe)." }, { status: 403 })}
       const pool = getRequestPoolEmails(current).map(normalizeRequestEmail);
-      if (!pool.includes(targetEmail)) {
-        return NextResponse.json({ error: "Ce collaborateur ne figure pas sur la file de cette fiche." }, { status: 403 });
-      }
-      if (normalizeRequestEmail(actorEmail) === targetEmail) {
-        return NextResponse.json({ error: "Choisissez un autre collaborateur que vous-même." }, { status: 400 });
-      }
+      if (!pool.includes(targetEmail)) { return NextResponse.json({ error: "Ce collaborateur ne figure pas sur la file de cette fiche." }, { status: 403 })}
+      if (normalizeRequestEmail(actorEmail) === targetEmail) { return NextResponse.json({ error: "Choisissez un autre collaborateur que vous-même." }, { status: 400 })}
       const delegated: RequestRecord = {
         ...current,
         updatedAt: now,
@@ -155,7 +102,6 @@ export async function PATCH(req: Request) {
       await saveRequestsIndex(index);
       return NextResponse.json({ success: true, request: finalized });
     }
-
     if (action === "claim" || action === "release_claim") {
       if (action === "claim") {
         if (!actorEmail) return NextResponse.json({ error: "Email requis pour prendre en charge" }, { status: 400 });
@@ -214,10 +160,7 @@ export async function PATCH(req: Request) {
       }
       if (toCorbeille) {
         if (!isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail)) {
-          return NextResponse.json(
-            { error: "Seul le responsable du service peut renvoyer la demande à la corbeille." },
-            { status: 403 },
-          );
+          return NextResponse.json({ error: "Seul le responsable du service peut renvoyer la demande à la corbeille." },{ status: 403 });
         }
         const corb = resolveRequestRouteById("corbeille");
         if (!corb) return NextResponse.json({ error: "Configuration corbeille manquante" }, { status: 500 });
@@ -252,9 +195,7 @@ export async function PATCH(req: Request) {
       }
       const existing = current.assignedTo.claimedBy;
       if (!existing?.email) return NextResponse.json({ error: "Aucune prise en charge active" }, { status: 400 });
-      if (normalizeRequestEmail(existing.email) !== normalizeRequestEmail(actorEmail)) {
-        return NextResponse.json({ error: "Seul le collaborateur assigné peut libérer la fiche" }, { status: 403 });
-      }
+      if (normalizeRequestEmail(existing.email) !== normalizeRequestEmail(actorEmail)) { return NextResponse.json({ error: "Seul le collaborateur assigné peut libérer la fiche" }, { status: 403 })}
       const updatedRel: RequestRecord = {
         ...current,
         updatedAt: now,
@@ -270,32 +211,21 @@ export async function PATCH(req: Request) {
       await saveRequestsIndex(index);
       return NextResponse.json({ success: true, request: finalizedRel });
     }
-
     if (action === "claim_self") {
       if (!actorEmail) return NextResponse.json({ error: "Email requis pour prendre en charge" }, { status: 400 });
-      if (!canAccessRequestsStaffBoard(actorRoles, actorEmail)) {
-        return NextResponse.json({ error: "Réservé au personnel habilité aux demandes" }, { status: 403 });
-      }
+      if (!canAccessRequestsStaffBoard(actorRoles, actorEmail)) { return NextResponse.json({ error: "Réservé au personnel habilité aux demandes" }, { status: 403 })}
       const existingClaim = current.assignedTo.claimedBy?.email;
-      if (!existingClaim && !isUserInRequestPool(current, actorEmail)) {
-        return NextResponse.json({ error: "Vous ne pouvez pas prendre cette demande." }, { status: 403 });
-      }
+      if (!existingClaim && !isUserInRequestPool(current, actorEmail)) { return NextResponse.json({ error: "Vous ne pouvez pas prendre cette demande." }, { status: 403 })}
       const statusOpt = String(body?.status || "").trim() as RequestStatus;
       let nextStatus = current.status;
       if (statusOpt && REQUEST_STATUSES.includes(statusOpt)) nextStatus = statusOpt;
       else if (current.status === "NOUVELLE") nextStatus = "EN_COURS";
       const existing = current.assignedTo.claimedBy;
-      const hadOther =
-        existing?.email && normalizeRequestEmail(existing.email) !== normalizeRequestEmail(actorEmail);
-      const note = hadOther
-        ? `Prise en charge personnelle — réattribution (avant : ${existing!.name || existing!.email}).`
-        : "Prise en charge personnelle (y compris hors file d’origine ou si l’IA s’est trompée).";
+      const hadOther = existing?.email && normalizeRequestEmail(existing.email) !== normalizeRequestEmail(actorEmail);
+      const note = hadOther ? `Prise en charge personnelle — réattribution (avant : ${existing!.name || existing!.email}).` : "Prise en charge personnelle (y compris hors file d’origine ou si l’IA s’est trompée).";
       const fromBr = normalizeRequestBranchId(current.assignedTo.routeId, current.assignedTo.unit);
       let nextCategory = current.category;
-      let nextAssignedTo: RequestRecord["assignedTo"] = {
-        ...current.assignedTo,
-        claimedBy: { email: actorEmail, name: actorName, userId: userId ?? null, at: now },
-      };
+      let nextAssignedTo: RequestRecord["assignedTo"] = { ...current.assignedTo, claimedBy: { email: actorEmail, name: actorName, userId: userId ?? null, at: now }};
       if (isCorbeilleBranchId(fromBr)) {
         const dest = getDefaultRequestBranchForStaffEmail(actorEmail);
         if (dest) {
@@ -333,21 +263,12 @@ export async function PATCH(req: Request) {
       await saveRequestsIndex(index);
       return NextResponse.json({ success: true, request: finalizedSelf });
     }
-
     const priorStatusForNotify = current.status;
-
-    let updated: RequestRecord = {
-      ...current,
-      updatedAt: now,
-    };
-
+    let updated: RequestRecord = { ...current, updatedAt: now};
     if (status && REQUEST_STATUSES.includes(status)) {
-      if (!canAccessRequestsStaffBoard(actorRoles, actorEmail)) {
-        return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
-      }
+      if (!canAccessRequestsStaffBoard(actorRoles, actorEmail)) {  return NextResponse.json({ error: "Non autorisé" }, { status: 403 });}
       const claimedBy = current.assignedTo.claimedBy?.email;
-      const claimedMe =
-        Boolean(claimedBy) && normalizeRequestEmail(claimedBy!) === normalizeRequestEmail(actorEmail);
+      const claimedMe = Boolean(claimedBy) && normalizeRequestEmail(claimedBy!) === normalizeRequestEmail(actorEmail);
       const inPool = isUserInRequestPool(current, actorEmail);
       if (!claimedMe && !inPool) {
         return NextResponse.json({ error: "Vous n'avez pas accès à cette demande." }, { status: 403 });
@@ -379,10 +300,7 @@ export async function PATCH(req: Request) {
     }
     if (targetRouteId) {
       if (!isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail)) {
-        return NextResponse.json(
-          { error: "Seul le responsable du service peut renvoyer la demande vers un autre service." },
-          { status: 403 },
-        );
+        return NextResponse.json({ error: "Seul le responsable du service peut renvoyer la demande vers un autre service." },{ status: 403 });
       }
       const resolved = resolveRequestRouteById(targetRouteId);
       if (!resolved) return NextResponse.json({ error: "Route d'assignation invalide" }, { status: 400 });
@@ -408,15 +326,10 @@ export async function PATCH(req: Request) {
         ],
       };
     }
-
     let noteForEmail: string | undefined;
-
     if (comment.trim() || multipartFiles.length > 0) {
       if (multipartFiles.length > 0 && !canAccessRequestsStaffBoard(actorRoles, actorEmail)) {
-        return NextResponse.json(
-          { error: "Seul le personnel habilité peut joindre des fichiers aux réponses." },
-          { status: 403 },
-        );
+        return NextResponse.json({ error: "Seul le personnel habilité peut joindre des fichiers aux réponses." }, { status: 403 });
       }
       let commentText = comment.trim();
       let commentAttachments: RequestAttachment[] = [];
@@ -458,26 +371,15 @@ export async function PATCH(req: Request) {
             },
           ],
         };
-        noteForEmail = [
-          commentText,
-          commentAttachments.length > 0
-            ? `Fichiers : ${commentAttachments.map((a) => a.fileName).join(", ")}`
-            : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
+        noteForEmail = [ commentText, commentAttachments.length > 0 ? `Fichiers : ${commentAttachments.map((a) => a.fileName).join(", ")}` : ""].filter(Boolean).join("\n");
       }
     }
-
     const finalized = finalizeRequestPurgeMetadata(current, updated, now);
     index[pos] = finalized;
     await saveRequestFile(finalized);
     await saveRequestsIndex(index);
-
     try {
-      const reachedMilestone =
-        finalized.status !== priorStatusForNotify &&
-        (finalized.status === "EN_ATTENTE" || finalized.status === "TERMINEE");
+      const reachedMilestone = finalized.status !== priorStatusForNotify && (finalized.status === "EN_ATTENTE" || finalized.status === "TERMINEE");
       if (reachedMilestone) {
         const publicNote = toRequester ? noteForEmail : undefined;
         await notifyRequestStatusMilestone(finalized, priorStatusForNotify, publicNote);
@@ -487,11 +389,9 @@ export async function PATCH(req: Request) {
     } catch (mailError) {
       console.error("Request update notification error:", mailError);
     }
-
     return NextResponse.json({ success: true, request: finalized });
   } catch (error) {
     console.error("Request update error:", error);
     return NextResponse.json({ error: "Erreur mise à jour demande" }, { status: 500 });
   }
 }
-
