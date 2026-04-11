@@ -2,56 +2,11 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand } from "@aws-sdk/client-textract";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import fs from "fs/promises";
 import path from "path";
-
-const textractClient = new TextractClient({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
-async function ocrS3Key(bucket: string, key: string): Promise<string> {
-  const start = await textractClient.send(new StartDocumentTextDetectionCommand({ DocumentLocation:{ S3Object:{ Bucket:bucket,Name:key}}}));
-  const jobId = start.JobId;
-  if (!jobId) return "";
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 1000));
-    const res = await textractClient.send(new GetDocumentTextDetectionCommand({ JobId: jobId }));
-    if (res.JobStatus === "SUCCEEDED") {
-      return res.Blocks?.filter(b => b.BlockType === "LINE").map(b => b.Text).join(" ") || "";
-    }
-    if (res.JobStatus === "FAILED") break;
-  }
-  return "";
-}
-async function extractPriceWithMistral(ocrText: string): Promise<string | null> {
-  if (!ocrText || !process.env.MISTRAL_API_KEY) return null;
-  try {
-    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}` },
-      body: JSON.stringify({
-        model: "mistral-small-latest",
-        messages: [
-          { role: "system", content: "Tu analyses le texte OCR d'un devis de transport scolaire. Trouve le montant total TTC ou le prix final proposé. Réponds UNIQUEMENT avec le montant en chiffres et devise, ex: '1 250,00 €'. Si tu ne trouves pas de montant clair, réponds exactement: non trouvé" },
-          { role: "user", content: `Texte du devis:\n${ocrText.slice(0, 3000)}` }
-        ],
-        temperature: 0.1,
-      }),
-    });
-    const data = await res.json();
-    const answer = data.choices?.[0]?.message?.content?.trim() || "";
-    return answer && answer !== "non trouvé" ? answer : null;
-  } catch {
-    return null;
-  }
-}
+import { extractDevisMetadataWithMistral, ocrS3Key } from "@/app/lib/travel-devis-ocr";
 
 function buildConfirmationPDF(opts: {
   providerName: string;
@@ -209,7 +164,8 @@ export async function POST(req: Request) {
     try {
       const ocrText = await ocrS3Key(process.env.BUCKET_NAME!, fileKey);
       if (ocrText) {
-        extractedPrice = await extractPriceWithMistral(ocrText);
+        const meta = await extractDevisMetadataWithMistral(ocrText);
+        extractedPrice = meta.price;
       }
     } catch (ocrErr) {
       console.error("[send-order] Erreur OCR/Mistral:", ocrErr);

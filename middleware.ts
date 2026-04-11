@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/travels/send-transport',
   '/api/travels/upload-devis',
   '/api/travels/confirm-devis',
+  '/api/travels/ingest-from-email',
   '/api/news/get',
   '/api/news/image-proxy',
   '/api/supplies/send',

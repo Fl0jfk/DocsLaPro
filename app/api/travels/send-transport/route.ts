@@ -6,6 +6,7 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs/promises";
 import path from "path";
+import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
 
 export async function POST(req: Request) {
   try {
@@ -94,12 +95,7 @@ export async function POST(req: Request) {
     const returnDateRaw = data.endDate || data.date;
     const departText = [ formatDateFR(departDateRaw), data.startTime ? `à ${data.startTime}` : "",].filter(Boolean).join(" ");
     const returnText = [ formatDateFR(returnDateRaw), data.endTime ? `à ${data.endTime}` : "",].filter(Boolean).join(" ");
-    const transporteurs = [
-      { name: "Perrier", email: "perrier-voyages@orange.fr" },
-      { name: "Reflexe", email: "florian.hacqueville-mathi@ac-normandie.fr" },
-      { name: "Cars Bleus", email: "carbleus@mail.fr" },
-      { name: "Hangard", email: "hangard.autocars@outlook.fr" },
-    ];
+    const transporteurs = TRANSPORT_PROVIDERS;
     const effectifTotal = Number(data.nbEleves) + Number(data.nbAccompagnateurs);
     let logoDataUri: string | null = null;
     try {
@@ -198,6 +194,7 @@ export async function POST(req: Request) {
         startY: sy,
         body: [
           ["Projet", data.title || "—"],
+          ["Réf. dossier (à rappeler par e-mail)", String(tripData.id)],
           ["Classes concernées", data.classes || "—"],
           ["Destination", data.destination || "—"],
           ["Date de départ", departText],
@@ -314,8 +311,12 @@ export async function POST(req: Request) {
             <h2>Bonjour ${transporteur.name},</h2>
             <p>Veuillez trouver ci-joint une demande de devis pour un transport scolaire à destination de <strong>${data.destination}</strong>.</p>
             <p>Le récapitulatif complet ainsi que le programme éventuel sont joints à cet email.</p>
+            <div style="margin: 24px 0; padding: 16px; border-radius: 12px; background-color: #f0fdf4; border: 1px solid #86efac;">
+              <p style="margin: 0 0 8px; font-weight: bold; color: #166534;">Réponse par e-mail (recommandé)</p>
+              <p style="margin: 0; font-size: 14px; color: #14532d;">Vous pouvez répondre à cet e-mail ou écrire à la boîte indiquée par l'établissement en <strong>joignant votre devis en PDF</strong>. Indiquez dans l'<strong>objet</strong> la référence : <strong>Réf. ${tripData.id}</strong> — elle figure aussi sur le PDF joint.</p>
+            </div>
             <div style="margin: 32px 0; padding: 24px; border: 2px dashed #f59e0b; border-radius: 16px; text-align: center; background-color: #fffbeb;">
-              <p style="margin-bottom: 16px; font-weight: bold; color: #b45309;">Pour nous transmettre votre devis, merci d'utiliser le lien sécurisé :</p>
+              <p style="margin-bottom: 16px; font-weight: bold; color: #b45309;">Vous pouvez aussi déposer votre devis via le lien sécurisé :</p>
               <a href="${uploadLink}" 
                  style="background-color: #f59e0b; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; display: inline-block;">
                   DÉPOSER MON DEVIS
