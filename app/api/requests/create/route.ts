@@ -1,24 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import {
-  RequestRecord,
-  getPublicAppBaseUrl,
-  notifyRequestCreated,
-  notifyRequestPendingVerification,
-  resolveRequestRouting,
-  saveRequestFile,
-  saveRequestsIndex,
-  getRequestsIndex,
-  validateRequestInput,
-  uploadBuffersAsRequestAttachments,
-  assertEligibleRequestAttachment,
-  MAX_REQUEST_ATTACHMENTS_PER_UPLOAD,
-} from "@/app/lib/requests";
-import {
-  deletePendingRequestPrefix,
-  generatePendingRequestToken,
-  savePendingRequestWithFiles,
-} from "@/app/lib/request-pending-verify";
+import { RequestRecord, getPublicAppBaseUrl, notifyRequestCreated, notifyRequestPendingVerification, resolveRequestRouting, saveRequestFile, saveRequestsIndex, getRequestsIndex, validateRequestInput, uploadBuffersAsRequestAttachments, assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";
+import { deletePendingRequestPrefix, generatePendingRequestToken, savePendingRequestWithFiles} from "@/app/lib/request-pending-verify";
 
 export const runtime = "nodejs";
 
@@ -71,7 +54,6 @@ export async function POST(req: Request) {
     const { userId } = await auth();
     const contentType = req.headers.get("content-type") || "";
     let payload: ReturnType<typeof parseCreatePayload>;
-
     if (contentType.includes("multipart/form-data")) {
       const form = await req.formData();
       payload = parseCreatePayload(contentType, null, form);
@@ -79,9 +61,7 @@ export async function POST(req: Request) {
       const body = await req.json();
       payload = parseCreatePayload(contentType, body, null);
     }
-    /** Uniquement Clerk : ne jamais prendre un userId fourni dans le JSON. */
     payload.userId = userId ?? null;
-
     const validated = validateRequestInput({
       firstName: payload.firstName,
       lastName: payload.lastName,

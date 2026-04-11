@@ -61,16 +61,28 @@ async function appendUnmatched(client: S3Client, bucket: string, item: Unmatched
   );
 }
 
+function ingestSecretFromEnv(): string | undefined {
+  const raw =
+    process.env.TRAVEL_EMAIL_INGEST_SECRET?.trim() ||
+    process.env.INGEST_SECRET?.trim();
+  return raw || undefined;
+}
+
 export async function POST(req: Request) {
-  const secret = process.env.TRAVEL_EMAIL_INGEST_SECRET;
+  const secret = ingestSecretFromEnv();
   if (!secret) {
-    return NextResponse.json({ error: "TRAVEL_EMAIL_INGEST_SECRET non configuré" },{ status: 503 });
+    return NextResponse.json(
+      {
+        error:
+          "Secret d'ingestion non configuré côté serveur. Sur Amplify, définir TRAVEL_EMAIL_INGEST_SECRET (ou INGEST_SECRET) pour la branche qui déploie ce build, puis redéployer.",
+      },
+      { status: 503 }
+    );
   }
-  const hdr = req.headers.get("x-travel-email-ingest-secret");
+  const hdr = (req.headers.get("x-travel-email-ingest-secret") || "").trim();
   if (hdr !== secret) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
-
   let body: {
     s3Key?: string;
     fromEmail?: string;
@@ -81,43 +93,25 @@ export async function POST(req: Request) {
   };
   try {
     body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
-  }
-
+  } catch { return NextResponse.json({ error: "JSON invalide" }, { status: 400 })}
   const { s3Key, fromEmail, subject, snippet, gmailMessageId, originalFilename } = body;
   if (!s3Key || !fromEmail || !gmailMessageId) {
-    return NextResponse.json(
-      { error: "s3Key, fromEmail et gmailMessageId requis" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "s3Key, fromEmail et gmailMessageId requis" },{ status: 400 });
   }
-  if (!isAllowedIncomingKey(s3Key)) {
-    return NextResponse.json({ error: "Clé S3 non autorisée" }, { status: 400 });
-  }
-
+  if (!isAllowedIncomingKey(s3Key)) { return NextResponse.json({ error: "Clé S3 non autorisée" }, { status: 400 })}
   const bucket = process.env.BUCKET_NAME!;
   const client = s3();
-
   const tripId = extractTripIdFromText(subject, snippet);
   const providerName = providerNameFromEmail(fromEmail) ?? "Transporteur (e-mail)";
-
   let ocrText = "";
   let meta = { price: null as string | null, company: null as string | null };
   try {
     ocrText = await ocrS3Key(bucket, s3Key);
-    if (ocrText) {
-      meta = await extractDevisMetadataWithMistral(ocrText);
-    }
-  } catch (e) {
-    console.error("[ingest-from-email] OCR/Mistral:", e);
-  }
-
+    if (ocrText) { meta = await extractDevisMetadataWithMistral(ocrText)}
+  } catch (e) { console.error("[ingest-from-email] OCR/Mistral:", e)}
   const getCmd = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
   const fileViewUrl = await getSignedUrl(client, getCmd, { expiresIn: 604800 });
-
   const now = new Date().toISOString();
-
   if (!tripId) {
     await appendUnmatched(client, bucket, {
       id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
@@ -150,32 +144,10 @@ export async function POST(req: Request) {
     const tripRaw = await tripRes.Body?.transformToString();
     tripData = tripRaw ? JSON.parse(tripRaw) : {};
   } catch {
-    await appendUnmatched(client, bucket, {
-      id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
-      s3Key,
-      fromEmail,
-      subject: subject || "",
-      gmailMessageId,
-      snippet,
-      originalFilename,
-      createdAt: now,
-      extractedPrice: meta.price,
-      extractedCompany: meta.company,
-      guessedTripId: tripId,
-    });
-    return NextResponse.json({
-      ok: true,
-      matched: false,
-      reason: "voyage_introuvable",
-      tripId,
-      extractedPrice: meta.price,
-      extractedCompany: meta.company,
-    });
+    await appendUnmatched(client, bucket, { id: `${Date.now()}-${gmailMessageId.slice(-8)}`, s3Key,  fromEmail,  subject: subject || "",  gmailMessageId,  snippet,  originalFilename,  createdAt: now,  extractedPrice: meta.price, extractedCompany: meta.company,guessedTripId: tripId });
+    return NextResponse.json({  ok: true,  matched: false,  reason: "voyage_introuvable",  tripId,  extractedPrice: meta.price,  extractedCompany: meta.company});
   }
-
-  const received = Array.isArray(tripData.receivedDevis)
-    ? tripData.receivedDevis
-    : [];
+  const received = Array.isArray(tripData.receivedDevis) ? tripData.receivedDevis : [];
   const newDevis = {
     id: Date.now().toString(),
     providerName,
@@ -191,7 +163,6 @@ export async function POST(req: Request) {
   };
   received.push(newDevis);
   tripData.receivedDevis = received;
-
   await client.send(
     new PutObjectCommand({
       Bucket: bucket,
@@ -200,13 +171,5 @@ export async function POST(req: Request) {
       ContentType: "application/json",
     })
   );
-
-  return NextResponse.json({
-    ok: true,
-    matched: true,
-    tripId,
-    extractedPrice: meta.price,
-    extractedCompany: meta.company,
-    devisId: newDevis.id,
-  });
+  return NextResponse.json({ ok: true, matched: true, tripId, extractedPrice: meta.price, extractedCompany: meta.company, devisId: newDevis.id});
 }

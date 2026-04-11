@@ -17,42 +17,24 @@ const s3 = new S3Client({
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-
   const user = await currentUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const roleRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
-
   const requestId = req.nextUrl.searchParams.get("requestId")?.trim() ?? "";
   const attachmentId = req.nextUrl.searchParams.get("attachmentId")?.trim() ?? "";
-  if (!requestId || !attachmentId) {
-    return NextResponse.json({ error: "requestId et attachmentId requis" }, { status: 400 });
-  }
-
+  if (!requestId || !attachmentId) {  return NextResponse.json({ error: "requestId et attachmentId requis" }, { status: 400 });}
   try {
     const index = await getRequestsIndex();
     const record = index.find((r) => r.id === requestId);
     if (!record) return NextResponse.json({ error: "Demande introuvable" }, { status: 404 });
-
     const att = findRequestAttachment(record, attachmentId);
     if (!att) return NextResponse.json({ error: "Pièce jointe introuvable" }, { status: 404 });
-
     const staff = canAccessRequestsStaffBoard(roles, userEmail);
-    const isRequester =
-      record.requester.userId === userId ||
-      (userEmail && normalizeRequestEmail(record.requester.email) === normalizeRequestEmail(userEmail));
-    if (!staff && !isRequester) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    if (!att.key.startsWith(`requests/${requestId}/files/`)) {
-      return NextResponse.json({ error: "Clé invalide" }, { status: 400 });
-    }
-
-    const command = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME!,
-      Key: att.key,
-    });
+    const isRequester = record.requester.userId === userId || (userEmail && normalizeRequestEmail(record.requester.email) === normalizeRequestEmail(userEmail));
+    if (!staff && !isRequester) { return NextResponse.json({ error: "Accès refusé" }, { status: 403 })}
+    if (!att.key.startsWith(`requests/${requestId}/files/`)) {  return NextResponse.json({ error: "Clé invalide" }, { status: 400 });}
+    const command = new GetObjectCommand({  Bucket: process.env.BUCKET_NAME!, Key: att.key});
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     return NextResponse.json({ url, fileName: att.fileName, contentType: att.contentType });
   } catch (e) {
