@@ -1,12 +1,5 @@
 import { randomBytes } from "crypto";
-import {
-  CopyObjectCommand,
-  DeleteObjectsCommand,
-  GetObjectCommand,
-  ListObjectsV2Command,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import { assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD, sanitizeRequestFileName } from "@/app/lib/requests";
 
 const s3Client = new S3Client({
@@ -17,7 +10,6 @@ const s3Client = new S3Client({
   },
 });
 
-/** Délai pour cliquer sur le lien de confirmation (ms) */
 export const PENDING_REQUEST_TTL_MS = 72 * 60 * 60 * 1000;
 
 export type PendingRequestMeta = {
@@ -30,7 +22,6 @@ export type PendingRequestMeta = {
   description: string;
   createdAt: string;
   expiresAt: string;
-  /** Clés S3 complètes des fichiers déjà uploadés */
   attachmentKeys: string[];
   attachmentMeta: Array<{
     id: string;
@@ -41,17 +32,11 @@ export type PendingRequestMeta = {
   }>;
 };
 
-function pendingPrefix(token: string) {
-  return `requests/pending/${token}/`;
-}
+function pendingPrefix(token: string) { return `requests/pending/${token}/`}
 
-function metaKey(token: string) {
-  return `${pendingPrefix(token)}meta.json`;
-}
+function metaKey(token: string) { return `${pendingPrefix(token)}meta.json`}
 
-export function generatePendingRequestToken(): string {
-  return randomBytes(32).toString("base64url");
-}
+export function generatePendingRequestToken(): string { return randomBytes(32).toString("base64url")}
 
 export async function savePendingRequestWithFiles(
   token: string,
@@ -65,15 +50,12 @@ export async function savePendingRequestWithFiles(
   },
   files: { buffer: Buffer; fileName: string; contentType: string }[],
 ): Promise<void> {
-  if (files.length > MAX_REQUEST_ATTACHMENTS_PER_UPLOAD) {
-    throw new Error(`Maximum ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} fichiers.`);
-  }
+  if (files.length > MAX_REQUEST_ATTACHMENTS_PER_UPLOAD) { throw new Error(`Maximum ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} fichiers.`)}
   const bucket = process.env.BUCKET_NAME!;
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + PENDING_REQUEST_TTL_MS).toISOString();
   const attachmentKeys: string[] = [];
   const attachmentMeta: PendingRequestMeta["attachmentMeta"] = [];
-
   for (const f of files) {
     const check = assertEligibleRequestAttachment(f.fileName, f.contentType, f.buffer.length);
     if (!check.ok) throw new Error(check.error);
@@ -97,7 +79,6 @@ export async function savePendingRequestWithFiles(
       uploadedAt: now,
     });
   }
-
   const meta: PendingRequestMeta = {
     version: 1,
     ...fields,
@@ -106,7 +87,6 @@ export async function savePendingRequestWithFiles(
     attachmentKeys,
     attachmentMeta,
   };
-
   await s3Client.send(
     new PutObjectCommand({
       Bucket: bucket,
@@ -145,11 +125,7 @@ export async function deletePendingRequestPrefix(token: string): Promise<void> {
   let continuationToken: string | undefined;
   do {
     const list = await s3Client.send(
-      new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: prefix,
-        ContinuationToken: continuationToken,
-      }),
+      new ListObjectsV2Command({  Bucket: bucket, Prefix: prefix, ContinuationToken: continuationToken}),
     );
     const keys = (list.Contents ?? []).map((c) => c.Key).filter(Boolean) as string[];
     if (keys.length > 0) {
@@ -164,16 +140,7 @@ export async function deletePendingRequestPrefix(token: string): Promise<void> {
   } while (continuationToken);
 }
 
-/** Copie une PJ depuis le dossier pending vers la fiche définitive. Retourne l’entrée RequestAttachment. */
-export async function copyPendingFileToRequest(
-  sourceKey: string,
-  requestId: string,
-  attId: string,
-  fileName: string,
-  contentType: string,
-  size: number,
-  uploadedAt: string,
-): Promise<{ id: string; key: string; fileName: string; contentType: string; size: number; uploadedAt: string }> {
+export async function copyPendingFileToRequest( sourceKey: string,requestId: string, attId: string, fileName: string, contentType: string, size: number, uploadedAt: string): Promise<{ id: string; key: string; fileName: string; contentType: string; size: number; uploadedAt: string }> {
   const bucket = process.env.BUCKET_NAME!;
   const safe = sanitizeRequestFileName(fileName);
   const destKey = `requests/${requestId}/files/${attId}_${safe}`;
@@ -186,12 +153,5 @@ export async function copyPendingFileToRequest(
       ContentType: contentType || "application/octet-stream",
     }),
   );
-  return {
-    id: attId,
-    key: destKey,
-    fileName,
-    contentType: contentType || "application/octet-stream",
-    size,
-    uploadedAt,
-  };
+  return { id: attId, key: destKey, fileName, contentType: contentType || "application/octet-stream", size, uploadedAt};
 }

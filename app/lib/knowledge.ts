@@ -128,19 +128,11 @@ export function buildContextFromEntries(
 ): string {
   const keepHistorical = hasPastIntent(query);
   const applyRecencyFilter = domain.isYearlyReset && !keepHistorical;
-  const rows = doc.entries
-    .filter((entry) => !entry.audiences || entry.audiences.includes(audience))
-    .filter((entry) => !applyRecencyFilter || isRecentEntry(entry, recentDays))
-    .sort((a, b) => relevanceScore(query, b) - relevanceScore(query, a))
-    .slice(0, maxEntries)
-    .map((entry) => `- [${entry.title}] ${entry.content} (source: ${entry.source})`);
+  const rows = doc.entries.filter((entry) => !entry.audiences || entry.audiences.includes(audience)).filter((entry) => !applyRecencyFilter || isRecentEntry(entry, recentDays)).sort((a, b) => relevanceScore(query, b) - relevanceScore(query, a)).slice(0, maxEntries).map((entry) => `- [${entry.title}] ${entry.content} (source: ${entry.source})`);
   return rows.join("\n");
 }
 
-export async function appendEntryToKnowledgeFile(
-  file: string,
-  entry: { title: string; content: string; source: string; audiences?: Array<"public" | "private"> }
-) {
+export async function appendEntryToKnowledgeFile( file: string, entry: { title: string; content: string; source: string; audiences?: Array<"public" | "private"> }) {
   const doc = await readKnowledgeDocument(file);
   if (!Array.isArray(doc.entries)) { doc.entries = []}
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -1,11 +1,5 @@
-/**
- * Logique pure du tableau des demandes (colonnes, visibilité, migration des anciens routeId).
- * Utilisable côté serveur ; ne pas importer de modules Node-only.
- */
-
 export type StaffBoardColumn = "CORBEILLE" | "NOUVELLES" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
 
-/** Anciens identifiants techniques → branche métier unique */
 export const LEGACY_ROUTE_TO_BRANCH: Record<string, string> = {
   "maintenance.consommables": "maintenance",
   "maintenance.batiment": "maintenance",
@@ -41,14 +35,8 @@ export type MinimalAssigned = {
   claimedBy?: { email: string } | null;
 };
 
-export function normalizeRequestEmail(e: string) {
-  return e.trim().toLowerCase();
-}
+export function normalizeRequestEmail(e: string) { return e.trim().toLowerCase()}
 
-/**
- * Visible sur le tableau staff : corbeille non prise, file de mon service non prise, prise par moi,
- * ou prise par un collègue si je suis responsable de la branche (vue chef d’équipe).
- */
 export function isVisibleOnStaffBoard(
   assigned: MinimalAssigned,
   userEmail: string,
@@ -60,9 +48,7 @@ export function isVisibleOnStaffBoard(
   const branch = normalizeRequestBranchId(assigned.routeId, assigned.unit);
   const claimed = assigned.claimedBy?.email;
   if (!claimed) {
-    if (isCorbeilleBranchId(branch)) {
-      return allStaffEmails.includes(u);
-    }
+    if (isCorbeilleBranchId(branch)) { return allStaffEmails.includes(u)}
     const pool = getEffectivePoolEmails(assigned, branch, allStaffEmails);
     return pool.includes(u);
   }
@@ -76,32 +62,20 @@ function getEffectivePoolEmails(assigned: MinimalAssigned, branch: string, allSt
   return [...new Set(raw.map(normalizeRequestEmail).filter(Boolean))];
 }
 
-export function isUserInBranchPool(
-  assigned: MinimalAssigned,
-  userEmail: string,
-  allStaffEmails: string[],
-): boolean {
+export function isUserInBranchPool( assigned: MinimalAssigned, userEmail: string, allStaffEmails: string[]): boolean {
   const u = normalizeRequestEmail(userEmail);
   const branch = normalizeRequestBranchId(assigned.routeId, assigned.unit);
   return getEffectivePoolEmails(assigned, branch, allStaffEmails).includes(u);
 }
 
-export function computeStaffBoardColumn(
-  assigned: MinimalAssigned,
-  status: string,
-  userEmail: string,
-  allStaffEmails: string[],
-  viewerIsLeaderOfThisBranch: boolean,
-): StaffBoardColumn | null {
+export function computeStaffBoardColumn( assigned: MinimalAssigned, status: string, userEmail: string, allStaffEmails: string[], viewerIsLeaderOfThisBranch: boolean): StaffBoardColumn | null {
   const st = status;
   if (st === "TERMINEE") return "TERMINEE";
   if (st === "EN_ATTENTE") return "EN_ATTENTE";
-
   const branch = normalizeRequestBranchId(assigned.routeId, assigned.unit);
   const claimed = assigned.claimedBy?.email;
   const u = normalizeRequestEmail(userEmail);
   const inPool = isUserInBranchPool(assigned, userEmail, allStaffEmails);
-
   if (!claimed) {
     if (isCorbeilleBranchId(branch)) return "CORBEILLE";
     if (inPool) return "NOUVELLES";

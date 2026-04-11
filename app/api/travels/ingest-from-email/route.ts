@@ -14,11 +14,7 @@ function isAllowedIncomingKey(key: string): boolean {
 
 function extractTripIdFromText(...chunks: (string | undefined | null)[]): string | null {
   const combined = chunks.filter(Boolean).join("\n");
-  const patterns = [
-    /Réf\.\s*([^\s<]+)/gi,
-    /ref\.\s*([^\s<]+)/gi,
-    /référence\s+dossier[^:]*:\s*([^\s<]+)/gi,
-  ];
+  const patterns = [/Réf\.\s*([^\s<]+)/gi,/ref\.\s*([^\s<]+)/gi,/référence\s+dossier[^:]*:\s*([^\s<]+)/gi];
   for (const re of patterns) {
     re.lastIndex = 0;
     const m = re.exec(combined);
@@ -39,26 +35,12 @@ function s3() {
   });
 }
 
-type UnmatchedItem = {
-  id: string;
-  s3Key: string;
-  fromEmail: string;
-  subject: string;
-  gmailMessageId: string;
-  snippet?: string;
-  originalFilename?: string;
-  createdAt: string;
-  extractedPrice?: string | null;
-  extractedCompany?: string | null;
-  guessedTripId?: string | null;
-};
+type UnmatchedItem = { id: string; s3Key: string; fromEmail: string; subject: string; gmailMessageId: string; snippet?: string; originalFilename?: string; createdAt: string; extractedPrice?: string | null; extractedCompany?: string | null; guessedTripId?: string | null;};
 
 async function appendUnmatched(client: S3Client, bucket: string, item: UnmatchedItem) {
   let items: UnmatchedItem[] = [];
   try {
-    const res = await client.send(
-      new GetObjectCommand({ Bucket: bucket, Key: UNMATCHED_KEY })
-    );
+    const res = await client.send( new GetObjectCommand({ Bucket: bucket, Key: UNMATCHED_KEY }));
     const raw = await res.Body?.transformToString();
     if (raw) {
       const parsed = JSON.parse(raw) as { items?: UnmatchedItem[] };
@@ -82,10 +64,7 @@ async function appendUnmatched(client: S3Client, bucket: string, item: Unmatched
 export async function POST(req: Request) {
   const secret = process.env.TRAVEL_EMAIL_INGEST_SECRET;
   if (!secret) {
-    return NextResponse.json(
-      { error: "TRAVEL_EMAIL_INGEST_SECRET non configuré" },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: "TRAVEL_EMAIL_INGEST_SECRET non configuré" },{ status: 503 });
   }
   const hdr = req.headers.get("x-travel-email-ingest-secret");
   if (hdr !== secret) {

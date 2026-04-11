@@ -1,17 +1,6 @@
 import { normalizeRequestEmail } from "@/app/lib/requests-board";
 
-export type StaffRequestBranchId =
-  | "corbeille"
-  | "maintenance"
-  | "admin_ecole"
-  | "admin_college"
-  | "admin_lycee"
-  | "cpe_lycee"
-  | "cpe_3e4e"
-  | "cpe_5e6e"
-  | "vie_scolaire_infirmerie"
-  | "accueil"
-  | "comptabilite";
+export type StaffRequestBranchId = | "corbeille" | "maintenance"| "admin_ecole" | "admin_college" | "admin_lycee" | "cpe_lycee" | "cpe_3e4e" | "cpe_5e6e" | "vie_scolaire_infirmerie" | "accueil" | "comptabilite";
 
 export type StaffDirectoryRow = {
   email: string;
@@ -47,9 +36,7 @@ export function isStaffRowActive(row: StaffDirectoryRow, now = new Date()): bool
   return now.getTime() <= end.getTime();
 }
 
-function activeRows(now = new Date()) {
-  return STAFF_DIRECTORY.filter((r) => isStaffRowActive(r, now));
-}
+function activeRows(now = new Date()) { return STAFF_DIRECTORY.filter((r) => isStaffRowActive(r, now))}
 
 export function getStaffLeadersForBranch(branchId: string, now = new Date()): string[] {
   const b = branchId.trim();
@@ -91,7 +78,6 @@ export function isStaffInBranchPool(branchId: string, actorEmail: string, now = 
   return getStaffPoolForBranch(branchId, now).includes(normalizeRequestEmail(actorEmail));
 }
 
-/** Tous les e-mails qui apparaissent dans au moins une branche (hors corbeille seule). */
 export function getAllStaffEmailsFromDirectory(now = new Date()): string[] {
   const s = new Set<string>();
   for (const r of activeRows(now)) {
@@ -101,14 +87,12 @@ export function getAllStaffEmailsFromDirectory(now = new Date()): string[] {
   return [...s];
 }
 
-/** Accès au module demandes (tableau équipe) : présent dans la table sur une branche terrain. */
 export function isListedAsRequestsStaff(actorEmail: string, now = new Date()): boolean {
   if (!actorEmail) return false;
   const u = normalizeRequestEmail(actorEmail);
   return activeRows(now).some((r) => r.branchId !== "corbeille" && normalizeRequestEmail(r.email) === u);
 }
 
-/** Première branche trouvée pour la prise en charge depuis la corbeille (ordre du tableau). */
 export function getFirstBranchForStaffEmailFromDirectory(actorEmail: string, now = new Date()): string | null {
   const u = normalizeRequestEmail(actorEmail);
   for (const r of activeRows(now)) {

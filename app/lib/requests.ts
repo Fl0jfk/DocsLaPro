@@ -1,24 +1,8 @@
-import {
-  DeleteObjectCommand,
-  DeleteObjectsCommand,
-  GetObjectCommand,
-  ListObjectsV2Command,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
 import { SCHOOL } from "@/app/lib/school";
-import {
-  LEGACY_ROUTE_TO_BRANCH,
-  normalizeRequestBranchId,
-  normalizeRequestEmail,
-  isCorbeilleBranchId,
-} from "@/app/lib/requests-board";
-import {
-  getFirstBranchForStaffEmailFromDirectory,
-  getStaffExecutorsForBranch,
-  getStaffLeadersForBranch,
-} from "@/app/lib/staff-directory";
+import { LEGACY_ROUTE_TO_BRANCH, normalizeRequestBranchId, normalizeRequestEmail, isCorbeilleBranchId} from "@/app/lib/requests-board";
+import { getFirstBranchForStaffEmailFromDirectory, getStaffExecutorsForBranch, getStaffLeadersForBranch} from "@/app/lib/staff-directory";
 
 const s3Client = new S3Client({
   region: process.env.REGION,
@@ -29,8 +13,6 @@ const s3Client = new S3Client({
 });
 
 export type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
-
-/** Pièce jointe stockée sur S3 sous requests/{requestId}/files/… */
 export type RequestAttachment = {
   id: string;
   key: string;
@@ -39,12 +21,9 @@ export type RequestAttachment = {
   size: number;
   uploadedAt: string;
 };
-
 export const MAX_REQUEST_ATTACHMENT_BYTES = 12 * 1024 * 1024;
 export const MAX_REQUEST_ATTACHMENTS_PER_UPLOAD = 12;
-
 const ATTACHMENT_EXT_OK = /\.(pdf|png|jpe?g|gif|webp|heic|doc|docx|xls|xlsx)$/i;
-
 const ATTACHMENT_MIME_OK = new Set([
   "image/jpeg",
   "image/png",
@@ -63,9 +42,7 @@ export function assertEligibleRequestAttachment(
   contentType: string,
   size: number,
 ): { ok: true } | { ok: false; error: string } {
-  if (size > MAX_REQUEST_ATTACHMENT_BYTES) {
-    return { ok: false, error: `Chaque fichier doit faire au plus ${MAX_REQUEST_ATTACHMENT_BYTES / 1024 / 1024} Mo.` };
-  }
+  if (size > MAX_REQUEST_ATTACHMENT_BYTES) {  return { ok: false, error: `Chaque fichier doit faire au plus ${MAX_REQUEST_ATTACHMENT_BYTES / 1024 / 1024} Mo.` }}
   if (size <= 0) return { ok: false, error: "Fichier vide." };
   const mime = (contentType || "").toLowerCase().split(";")[0].trim();
   if (ATTACHMENT_MIME_OK.has(mime)) return { ok: true };
@@ -79,11 +56,7 @@ export function assertEligibleRequestAttachment(
 }
 
 export function sanitizeRequestFileName(name: string): string {
-  const base = name
-    .replace(/[/\\?*]/g, "_")
-    .replace(/[^\w.\- ()éàèùïöüÄÉÀÈçÇ]+/gi, "_")
-    .trim()
-    .slice(0, 180);
+  const base = name.replace(/[/\\?*]/g, "_").replace(/[^\w.\- ()éàèùïöüÄÉÀÈçÇ]+/gi, "_").trim().slice(0, 180);
   return base || "fichier";
 }
 
@@ -91,9 +64,7 @@ export async function uploadBuffersAsRequestAttachments(
   requestId: string,
   items: { buffer: Buffer; fileName: string; contentType: string }[],
 ): Promise<RequestAttachment[]> {
-  if (items.length > MAX_REQUEST_ATTACHMENTS_PER_UPLOAD) {
-    throw new Error(`Trop de fichiers (max ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD}).`);
-  }
+  if (items.length > MAX_REQUEST_ATTACHMENTS_PER_UPLOAD) { throw new Error(`Trop de fichiers (max ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD}).`)}
   const out: RequestAttachment[] = [];
   const now = new Date().toISOString();
   for (const item of items) {
@@ -159,12 +130,9 @@ export type RequestRecord = {
     routeId?: string;
     unit: string;
     roleLabel: string;
-    /** Boîte « principale » (compat notifications) — souvent le 1er du pool */
     email: string;
     ccEmails?: string[];
-    /** File partagée : plusieurs personnes voient la même tâche jusqu'à prise en charge */
     poolEmails?: string[];
-    /** Quand un membre du pool prend la main, les autres ne la voient plus dans « Ma file » */
     claimedBy?: {
       email: string;
       name: string;
@@ -178,11 +146,9 @@ export type RequestRecord = {
     reason: string;
     suggestedRouteId?: string;
   };
-  /** Fichiers joints à la création de la demande */
   attachments?: RequestAttachment[];
   comments: RequestComment[];
   history: RequestHistoryItem[];
-  /** Après cette date ISO, la fiche terminée est purgée (index + fichier détail). */
   purgeAt?: string | null;
 };
 
@@ -210,24 +176,16 @@ export type RequestCreateInput = {
 
 const INDEX_KEY = "requests/index.json";
 const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
-
 export const REQUEST_STATUSES: RequestStatus[] = ["NOUVELLE", "EN_COURS", "EN_ATTENTE", "TERMINEE"];
-
-/** Durée de conservation des demandes clôturées avant suppression automatique */
 export const REQUEST_TERMINATED_RETENTION_DAYS = 30;
-
 export function computePurgeAtForTerminated(fromIso: string): string {
   const d = new Date(fromIso);
   d.setUTCDate(d.getUTCDate() + REQUEST_TERMINATED_RETENTION_DAYS);
   return d.toISOString();
 }
-
-/** À appeler avant sauvegarde : purge programmée à la clôture, effacée si la fiche n’est plus terminée. */
 export function finalizeRequestPurgeMetadata(prev: RequestRecord, next: RequestRecord, nowIso: string): RequestRecord {
   if (next.status === "TERMINEE") {
-    if (prev.status !== "TERMINEE") {
-      return { ...next, purgeAt: computePurgeAtForTerminated(nowIso) };
-    }
+    if (prev.status !== "TERMINEE") { return { ...next, purgeAt: computePurgeAtForTerminated(nowIso) }}
     return next;
   }
   return { ...next, purgeAt: null };
@@ -241,7 +199,6 @@ export function requestShouldBePurged(record: RequestRecord, now = new Date()): 
   return now >= legacy;
 }
 
-/** Retire de l’index les fiches terminées expirées et supprime le JSON détail sur S3. */
 export async function purgeExpiredRequests(): Promise<{ removed: number }> {
   const index = await getRequestsIndex();
   const now = new Date();
@@ -268,9 +225,7 @@ export async function purgeExpiredRequests(): Promise<{ removed: number }> {
       let token: string | undefined;
       const prefix = `requests/${r.id}/`;
       do {
-        const list = await s3Client.send(
-          new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
-        );
+        const list = await s3Client.send( new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }));
         const keys = (list.Contents ?? []).map((c) => c.Key).filter(Boolean) as string[];
         if (keys.length > 0) {
           await s3Client.send(
@@ -389,22 +344,8 @@ function buildRouteFromBranch(id: BranchId): RequestRouteDef {
   };
 }
 
-const ROUTE_BRANCH_IDS: BranchId[] = [
-  "corbeille",
-  "maintenance",
-  "admin_ecole",
-  "admin_college",
-  "admin_lycee",
-  "cpe_lycee",
-  "cpe_3e4e",
-  "cpe_5e6e",
-  "vie_scolaire_infirmerie",
-  "accueil",
-  "comptabilite",
-];
-
+const ROUTE_BRANCH_IDS: BranchId[] = [ "corbeille","maintenance","admin_ecole","admin_college","admin_lycee","cpe_lycee","cpe_3e4e","cpe_5e6e","vie_scolaire_infirmerie","accueil","comptabilite"];
 const REQUEST_ROUTES: RequestRouteDef[] = ROUTE_BRANCH_IDS.map((id) => buildRouteFromBranch(id));
-
 const ROUTE_BY_ID = new Map(REQUEST_ROUTES.map((r) => [r.id, r]));
 
 export function getAllBranchStaffEmails(): string[] {
@@ -450,7 +391,6 @@ export function listRequestRoutesForPicker(): Array<{ id: string; label: string;
   }));
 }
 
-/** Responsable de la branche actuelle de la fiche : peut réaffecter vers un autre service ou renvoyer à la corbeille. */
 export function isLeaderForRequestBranch(routeId: string | undefined, unit: string | undefined, actorEmail: string): boolean {
   if (!actorEmail) return false;
   const b = normalizeRequestBranchId(routeId, unit);
@@ -460,40 +400,26 @@ export function isLeaderForRequestBranch(routeId: string | undefined, unit: stri
   return def.leaderEmails().map(normalizeRequestEmail).includes(u);
 }
 
-/** Première branche dont l’utilisateur fait partie (prise en charge depuis la corbeille). */
 export function getDefaultRequestBranchForStaffEmail(actorEmail: string): string | null {
   return getFirstBranchForStaffEmailFromDirectory(actorEmail);
 }
 
-/** Destinataires de la file (pool ou email principal seul). Corbeille = tout le personnel des branches. */
 export function getRequestPoolEmails(record: RequestRecord): string[] {
   const branch = normalizeRequestBranchId(record.assignedTo.routeId, record.assignedTo.unit);
-  if (isCorbeilleBranchId(branch)) {
-    return getAllBranchStaffEmails();
-  }
+  if (isCorbeilleBranchId(branch)) { return getAllBranchStaffEmails()}
   const a = record.assignedTo;
-  if (a.poolEmails && a.poolEmails.length > 0) {
-    return [...new Set(a.poolEmails.map(normalizeRequestEmail).filter(Boolean))];
-  }
+  if (a.poolEmails && a.poolEmails.length > 0) { return [...new Set(a.poolEmails.map(normalizeRequestEmail).filter(Boolean))]}
   return [normalizeRequestEmail(a.email)];
 }
 
-/** Cibles possibles pour une délégation (membres de la file sur la fiche, hors responsable connecté). */
 export function getDelegateTargetEmailsForRequest(record: RequestRecord, leaderEmail: string): string[] {
   const u = normalizeRequestEmail(leaderEmail);
-  return getRequestPoolEmails(record)
-    .map(normalizeRequestEmail)
-    .filter((e) => e && e !== u)
-    .sort();
+  return getRequestPoolEmails(record).map(normalizeRequestEmail).filter((e) => e && e !== u).sort();
 }
 
-export function isUserInRequestPool(record: RequestRecord, userEmail: string) {
-  return getRequestPoolEmails(record).includes(normalizeRequestEmail(userEmail));
-}
+export function isUserInRequestPool(record: RequestRecord, userEmail: string) {return getRequestPoolEmails(record).includes(normalizeRequestEmail(userEmail))}
 
-export function isSharedRequestPool(record: RequestRecord): boolean {
-  return (record.assignedTo.poolEmails?.length ?? 0) > 1;
-}
+export function isSharedRequestPool(record: RequestRecord): boolean { return (record.assignedTo.poolEmails?.length ?? 0) > 1}
 
 export function isVisibleInMyQueue(record: RequestRecord, userEmail: string) {
   if (!userEmail) return false;
@@ -538,10 +464,7 @@ function computeFallbackRouting(subject: string, description: string) {
     assignedTo: materializeAssigned(chosen),
     source: "fallback" as const,
     confidence: bestScore > 0 ? Math.min(0.75, 0.45 + bestScore * 0.08) : 0.32,
-    reason:
-      bestScore > 0
-        ? `Routage par mots-clés (score ${bestScore}) vers ${chosen.id}.`
-        : "Aucun mot-clé fort : file de tri.",
+    reason: bestScore > 0 ? `Routage par mots-clés (score ${bestScore}) vers ${chosen.id}.` : "Aucun mot-clé fort : file de tri.",
   };
 }
 
@@ -558,17 +481,14 @@ async function routeWithMistral(subject: string, description: string): Promise<M
   if (!process.env.MISTRAL_API_KEY) return null;
   const routeList = REQUEST_ROUTES.map((r) => `- ${r.id}: ${r.promptLine}`).join("\n");
   const prompt = `Tu es un classificateur pour un établissement scolaire. Choisis UNE SEULE routeId parmi la liste (identifiant exact).
-
 Routes possibles:
 ${routeList}
-
 Réponds uniquement en JSON:
 {
   "routeId": "l'identifiant exact",
   "confidence": 0.0,
   "reason": "une courte phrase en français"
 }
-
 Règles (identifiants exacts):
 - papier, toner, lampe, fuite, salle, bricolage, PC, mot de passe, Wi‑Fi, imprimante => maintenance
 - facture, paiement, compta => comptabilite
@@ -578,10 +498,8 @@ Règles (identifiants exacts):
 - accueil, photocopieur panne côté accueil => accueil
 - inscription / réinscription globale => admin_ecole ou admin_lycee selon le texte ; doute => corbeille
 - si doute ou texte trop vague => corbeille avec confidence <= 0.4
-
 Sujet: ${subject}
 Demande: ${description}`;
-
   const res = await fetch(MISTRAL_URL, {
     method: "POST",
     headers: {
@@ -607,8 +525,7 @@ Demande: ${description}`;
     const routeId = LEGACY_ROUTE_TO_BRANCH[rawId] ?? rawId;
     const def = ROUTE_BY_ID.get(routeId);
     if (!def) return null;
-    const confidence =
-      typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.65;
+    const confidence = typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.65;
     const corb = ROUTE_BY_ID.get("corbeille")!;
     let chosen = def;
     let suggestedRouteId: string | undefined;
@@ -679,7 +596,6 @@ function getMailer() {
   });
 }
 
-/** URL publique du site (liens dans les e-mails, redirections). */
 export function getPublicAppBaseUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
   if (fromEnv) return fromEnv;
@@ -688,15 +604,12 @@ export function getPublicAppBaseUrl(): string {
   return "";
 }
 
-/** E-mail avec lien à cliquer avant création définitive de la demande (visiteurs non connectés). */
 export async function notifyRequestPendingVerification(
   email: string,
   firstName: string,
   confirmUrl: string,
 ): Promise<void> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    throw new Error("SMTP non configuré");
-  }
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) { throw new Error("SMTP non configuré")}
   const transporter = getMailer();
   await transporter.sendMail({
     from: `"Demandes La Providence" <${process.env.SMTP_USER}>`,
@@ -741,9 +654,7 @@ export async function notifyRequestCreated(record: RequestRecord) {
         ? `Pièces jointes (${record.attachments.length}): ${record.attachments.map((a) => a.fileName).join(", ")}`
         : "",
       `Tableau des demandes: ${(process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "")}/requests`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    ].filter(Boolean).join("\n"),
   });
   await transporter.sendMail({
     from: `"Demandes" <${process.env.SMTP_USER}>`,
@@ -766,24 +677,13 @@ export async function notifyRequestCreated(record: RequestRecord) {
 
 const NOTIFY_STATUSES: RequestStatus[] = ["EN_ATTENTE", "TERMINEE"];
 
-export async function notifyRequestStatusMilestone(
-  record: RequestRecord,
-  previousStatus: RequestStatus,
-  extraNote?: string,
-) {
+export async function notifyRequestStatusMilestone( record: RequestRecord,previousStatus: RequestStatus, extraNote?: string) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
   const now = record.status;
   if (now === previousStatus) return;
   if (!NOTIFY_STATUSES.includes(now)) return;
   const transporter = getMailer();
-  const base = [
-    `Demande : ${record.id}`,
-    `Évolution : ${previousStatus.replace("_", " ")} → ${now.replace("_", " ")}`,
-    `Sujet : ${record.subject}`,
-    extraNote ? `Précision : ${extraNote}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const base = [ `Demande : ${record.id}`,`Évolution : ${previousStatus.replace("_", " ")} → ${now.replace("_", " ")}`,`Sujet : ${record.subject}`,extraNote ? `Précision : ${extraNote}` : ""].filter(Boolean).join("\n");
   await transporter.sendMail({
     from: `"Demandes" <${process.env.SMTP_USER}>`,
     to: record.requester.email,
@@ -817,4 +717,3 @@ export async function notifyRequesterOnly(record: RequestRecord, note: string) {
     ].join("\n"),
   });
 }
-
