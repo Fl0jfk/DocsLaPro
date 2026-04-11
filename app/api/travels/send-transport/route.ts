@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import nodemailer from "nodemailer";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -9,6 +10,10 @@ import path from "path";
 import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
 
 export async function POST(req: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
   try {
     const body = await req.json();
     const { tripData,  userName } = body;
@@ -292,7 +297,6 @@ export async function POST(req: Request) {
     });
     for (const transporteur of transporteurs) {
       try {
-      const uploadLink = `${process.env.NEXT_PUBLIC_APP_URL}/travels/devis/${tripData.id}?p=${encodeURIComponent(transporteur.name)}`;
       const personalPdf = buildDemandePDF(transporteur.name);
       const personalAttachments = [
         {
@@ -312,16 +316,8 @@ export async function POST(req: Request) {
             <p>Veuillez trouver ci-joint une demande de devis pour un transport scolaire à destination de <strong>${data.destination}</strong>.</p>
             <p>Le récapitulatif complet ainsi que le programme éventuel sont joints à cet email.</p>
             <div style="margin: 24px 0; padding: 16px; border-radius: 12px; background-color: #f0fdf4; border: 1px solid #86efac;">
-              <p style="margin: 0 0 8px; font-weight: bold; color: #166534;">Réponse par e-mail (recommandé)</p>
-              <p style="margin: 0; font-size: 14px; color: #14532d;">Vous pouvez répondre à cet e-mail ou écrire à la boîte indiquée par l'établissement en <strong>joignant votre devis en PDF</strong>. Indiquez dans l'<strong>objet</strong> la référence : <strong>Réf. ${tripData.id}</strong> — elle figure aussi sur le PDF joint.</p>
-            </div>
-            <div style="margin: 32px 0; padding: 24px; border: 2px dashed #f59e0b; border-radius: 16px; text-align: center; background-color: #fffbeb;">
-              <p style="margin-bottom: 16px; font-weight: bold; color: #b45309;">Vous pouvez aussi déposer votre devis via le lien sécurisé :</p>
-              <a href="${uploadLink}" 
-                 style="background-color: #f59e0b; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; display: inline-block;">
-                  DÉPOSER MON DEVIS
-              </a>
-              <p style="margin-top: 12px; font-size: 11px; color: #d97706;">Ce lien vous est personnel et identifie votre société.</p>
+              <p style="margin: 0 0 8px; font-weight: bold; color: #166534;">Réponse par e-mail</p>
+              <p style="margin: 0; font-size: 14px; color: #14532d;">Répondez à cet e-mail ou écrivez à la boîte dédiée aux devis de l'établissement en <strong>joignant votre devis en PDF</strong>. Indiquez dans l'<strong>objet</strong> la référence : <strong>Réf. ${tripData.id}</strong> — elle figure aussi sur le PDF joint.</p>
             </div>
             <p>Cordialement,<br/>L'administration.</p>
           </div>

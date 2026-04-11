@@ -4,7 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-/** E-mail utilisé pour « Signer & commander » : d’abord celui lu sur le devis (Mistral), sinon expéditeur Gmail, sinon lien public. */
+/** E-mail utilisé pour « Signer & commander » : d’abord celui lu sur le devis (Mistral), sinon expéditeur Gmail, sinon champ transporteur. */
 function orderEmailForQuote(quote: {
   extractedContactEmail?: string | null;
   providerEmail?: string | null;
@@ -266,7 +266,7 @@ export default function TripDetails() {
     const transporteurEmail = orderEmailForQuote(trip.data.selectedBusQuote);
     if (!transporteurEmail) {
       return alert(
-        "Erreur : aucun e-mail pour envoyer la commande (ni adresse lue sur le devis, ni expéditeur du mail, ni formulaire public)."
+        "Erreur : aucun e-mail pour envoyer la commande (ni adresse lue sur le devis, ni expéditeur du mail, ni e-mail transporteur enregistré)."
       );
     }
     setLoadingAction("signing");
@@ -480,7 +480,7 @@ export default function TripDetails() {
                   );
                 })
               ) : (
-                <p className="text-xs text-slate-400 italic">En attente de devis (lien public ou boîte e-mail)...</p>
+                <p className="text-xs text-slate-400 italic">En attente de devis par e-mail...</p>
               )}
             </div>
             <div className="bg-white/60 rounded-2xl p-6 border border-amber-200 flex flex-col justify-center items-center text-center">

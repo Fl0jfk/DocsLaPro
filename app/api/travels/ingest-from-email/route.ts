@@ -183,19 +183,6 @@ function ingestSecretFromEnv(): string | undefined {
   return raw || undefined;
 }
 
-const ingestDebug =
-  process.env.DEBUG_TRAVEL_EMAIL_INGEST === "1" ||
-  process.env.DEBUG_TRAVEL_EMAIL_INGEST === "true";
-
-function logIngest(msg: string, data?: Record<string, unknown>) {
-  if (!ingestDebug) return;
-  if (data) {
-    console.log(`[ingest-from-email] ${msg}`, data);
-  } else {
-    console.log(`[ingest-from-email] ${msg}`);
-  }
-}
-
 type IngestJobParams = {
   bucket: string;
   markerKey: string;
@@ -214,21 +201,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
   const { bucket, markerKey, s3Key, fromEmail, subject, snippet, gmailMessageId, originalFilename, candidates, providerName } = p;
 
   try {
-    console.info("[ingest-from-email] job arrière-plan démarré", {
-      s3KeyTail: s3Key.length > 48 ? `…${s3Key.slice(-48)}` : s3Key,
-      gmailMessageIdTail: gmailMessageId.slice(-10),
-    });
-
-    logIngest("requête (async)", {
-      s3Key,
-      fromEmail,
-      subject: subject ?? "",
-      snippetPreview: (snippet || "").slice(0, 120),
-      gmailMessageId,
-      candidatesCount: candidates.length,
-      providerName,
-    });
-
     let ocrText = "";
     let match = {
       price: null as string | null,
@@ -251,35 +223,10 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
       console.error("[ingest-from-email] OCR/Mistral:", e);
     }
 
-    logIngest("après OCR/Mistral", {
-      ocrChars: ocrText.length,
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-      matchedTripId: match.matchedTripId,
-      matchConfidence: match.matchConfidence,
-      suggestedTripId: match.suggestedTripId,
-      matchReviewRequired: match.matchReviewRequired,
-    });
-
     const getCmd = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
     const fileViewUrl = await getSignedUrl(client, getCmd, { expiresIn: 604800 });
     const now = new Date().toISOString();
     const tripId = match.matchedTripId;
-
-    if (!tripId && candidates.length > 0) {
-      console.warn("[ingest-from-email] pas de voyage matché", {
-        s3Key,
-        gmailMessageId: gmailMessageId.slice(-12),
-        candidatesCount: candidates.length,
-        ocrChars: ocrText.length,
-        extractedPrice: match.price,
-        extractedCompany: match.company,
-        suggestedTripId: match.suggestedTripId,
-        matchMotif: match.matchMotif,
-        matchConfidence: match.matchConfidence,
-        hint: "Activer DEBUG_TRAVEL_EMAIL_INGEST=1 pour OCR + Mistral détaillés dans les logs.",
-      });
-    }
 
     const finishMarker = async (m: IngestMarker) => {
       await writeIngestMarker(client, bucket, markerKey, { ...m, pending: false, completed: true });
@@ -302,7 +249,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
         matchConfidence: match.matchConfidence,
         reason: "aucun_voyage_liste",
       });
-      logIngest("résultat", { matched: false, reason: "aucun_voyage_liste" });
       await finishMarker({ matched: false, reason: "aucun_voyage_liste", tripId: null });
       return;
     }
@@ -324,7 +270,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
         matchConfidence: match.matchConfidence,
         reason: "pas_de_correspondance_mistral",
       });
-      logIngest("résultat", { matched: false, reason: "pas_de_correspondance_mistral" });
       await finishMarker({ matched: false, reason: "pas_de_correspondance_mistral", tripId: null });
       return;
     }
@@ -352,7 +297,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
         matchConfidence: match.matchConfidence,
         reason: "voyage_introuvable_s3",
       });
-      logIngest("résultat", { matched: false, reason: "voyage_introuvable_s3", tripId });
       await finishMarker({ matched: false, reason: "voyage_introuvable_s3", tripId });
       return;
     }
@@ -363,7 +307,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
         d.gmailMessageId === gmailMessageId && d.s3KeyIncoming === s3Key
     );
     if (already) {
-      logIngest("résultat", { matched: true, duplicate: true, tripId });
       await finishMarker({
         matched: true,
         tripId,
@@ -401,13 +344,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
         ContentType: "application/json",
       })
     );
-    logIngest("résultat", {
-      matched: true,
-      tripId,
-      devisId: newDevis.id,
-      receivedDevisCount: received.length,
-      matchReviewRequired: match.matchReviewRequired,
-    });
     await finishMarker({
       matched: true,
       tripId,
@@ -424,9 +360,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
 export async function POST(req: Request) {
   const secret = ingestSecretFromEnv();
   if (!secret) {
-    console.warn(
-      "[ingest-from-email] 503 — TRAVEL_EMAIL_INGEST_SECRET absent (voir terminal du serveur Next, pas le navigateur)"
-    );
     return NextResponse.json(
       {
         error:
@@ -437,9 +370,6 @@ export async function POST(req: Request) {
   }
   const hdr = (req.headers.get("x-travel-email-ingest-secret") || "").trim();
   if (hdr !== secret) {
-    console.warn(
-      "[ingest-from-email] 401 — header x-travel-email-ingest-secret incorrect ou manquant (les logs API sont dans le terminal où tourne npm run dev)"
-    );
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
   let body: {
@@ -505,13 +435,6 @@ export async function POST(req: Request) {
 
   const candidates = await loadTripCandidates(client, bucket);
   const providerName = providerNameFromEmail(fromEmail) ?? "Transporteur (e-mail)";
-
-  console.info("[ingest-from-email] accepté → arrière-plan (évite timeout 504 Amplify)", {
-    candidatesCount: candidates.length,
-    s3KeyTail: s3Key.length > 48 ? `…${s3Key.slice(-48)}` : s3Key,
-    gmailMessageIdTail: gmailMessageId.slice(-10),
-    debugDetail: ingestDebug ? "DEBUG_TRAVEL_EMAIL_INGEST actif" : "détail: DEBUG_TRAVEL_EMAIL_INGEST=true",
-  });
 
   after(() =>
     runIngestBackgroundJob({
