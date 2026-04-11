@@ -77,7 +77,7 @@ export async function handler() {
   });
 
   const messages = listRes.data.messages || [];
-  const summary = { scanned: messages.length, processed: 0, errors: [] };
+  const summary = { scanned: messages.length, processed: 0, pendingIngest: 0, errors: [] };
 
   for (const { id: messageId } of messages) {
     let allOk = true;
@@ -146,13 +146,40 @@ export async function handler() {
           }),
         });
 
+        const text = await res.text().catch(() => "");
+        let data = {};
+        try {
+          data = JSON.parse(text);
+        } catch {
+          /* corps non JSON */
+        }
+
         if (!res.ok) {
-          const text = await res.text().catch(() => "");
           allOk = false;
           summary.errors.push({
             messageId,
             file: att.filename,
             err: `ingest ${res.status}: ${text.slice(0, 200)}`,
+          });
+          break;
+        }
+
+        const waiting =
+          (res.status === 202 && data.accepted === true && data.completed === false) ||
+          data.pending === true;
+        if (waiting) {
+          allOk = false;
+          summary.pendingIngest = (summary.pendingIngest || 0) + 1;
+          continue;
+        }
+
+        const attachmentDone = data.completed === true;
+        if (!attachmentDone) {
+          allOk = false;
+          summary.errors.push({
+            messageId,
+            file: att.filename,
+            err: `ingest: réponse inattendue (${text.slice(0, 160)})`,
           });
           break;
         }

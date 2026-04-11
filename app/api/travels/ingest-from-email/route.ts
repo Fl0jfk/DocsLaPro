@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { createHash } from "crypto";
+import { NextResponse, after } from "next/server";
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { providerNameFromEmail } from "@/app/lib/transport-providers";
 import {
@@ -12,6 +13,62 @@ const INCOMING_PREFIX = "devis-incoming/";
 const UNMATCHED_KEY = "travels/email-devis-unmatched.json";
 const INDEX_KEY = "travels/index.json";
 const MAX_CANDIDATES = 45;
+/** Évite les 504 Amplify (~30 s) : réponse HTTP immédiate + traitement via after(). */
+const MARKER_PREFIX = "travels/email-ingest-markers/";
+const PENDING_STALE_MS = 12 * 60 * 1000;
+
+export const maxDuration = 300;
+
+function ingestMarkerKey(gmailMessageId: string, s3Key: string): string {
+  const h = createHash("sha256").update(`${gmailMessageId}\0${s3Key}`, "utf8").digest("hex");
+  return `${MARKER_PREFIX}${h}.json`;
+}
+
+type IngestMarker = {
+  pending?: boolean;
+  startedAt?: string;
+  completed?: boolean;
+  duplicate?: boolean;
+  matched?: boolean;
+  tripId?: string | null;
+  reason?: string | null;
+  devisId?: string | null;
+  updatedAt?: string;
+};
+
+async function readIngestMarker(
+  client: S3Client,
+  bucket: string,
+  key: string
+): Promise<IngestMarker | null> {
+  try {
+    const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const raw = await res.Body?.transformToString();
+    if (!raw) return null;
+    return JSON.parse(raw) as IngestMarker;
+  } catch {
+    return null;
+  }
+}
+
+async function writeIngestMarker(client: S3Client, bucket: string, key: string, data: IngestMarker) {
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2),
+      ContentType: "application/json",
+    })
+  );
+}
+
+async function deleteIngestMarker(client: S3Client, bucket: string, key: string) {
+  try {
+    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  } catch {
+    /* ignore */
+  }
+}
 
 function isAllowedIncomingKey(key: string): boolean {
   if (!key.startsWith(INCOMING_PREFIX) || key.includes("..")) return false;
@@ -139,6 +196,231 @@ function logIngest(msg: string, data?: Record<string, unknown>) {
   }
 }
 
+type IngestJobParams = {
+  bucket: string;
+  markerKey: string;
+  s3Key: string;
+  fromEmail: string;
+  subject: string;
+  snippet: string;
+  gmailMessageId: string;
+  originalFilename: string | undefined;
+  candidates: TripCandidateForMatch[];
+  providerName: string;
+};
+
+async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
+  const client = s3();
+  const { bucket, markerKey, s3Key, fromEmail, subject, snippet, gmailMessageId, originalFilename, candidates, providerName } = p;
+
+  try {
+    console.info("[ingest-from-email] job arrière-plan démarré", {
+      s3KeyTail: s3Key.length > 48 ? `…${s3Key.slice(-48)}` : s3Key,
+      gmailMessageIdTail: gmailMessageId.slice(-10),
+    });
+
+    logIngest("requête (async)", {
+      s3Key,
+      fromEmail,
+      subject: subject ?? "",
+      snippetPreview: (snippet || "").slice(0, 120),
+      gmailMessageId,
+      candidatesCount: candidates.length,
+      providerName,
+    });
+
+    let ocrText = "";
+    let match = {
+      price: null as string | null,
+      company: null as string | null,
+      contactEmail: null as string | null,
+      matchedTripId: null as string | null,
+      matchConfidence: null as "high" | "medium" | "low" | null,
+      matchMotif: null as string | null,
+      suggestedTripId: null as string | null,
+      matchReviewRequired: false,
+    };
+    try {
+      ocrText = await ocrS3Key(bucket, s3Key);
+      match = await extractDevisAndMatchTripWithMistral(
+        ocrText,
+        { subject: subject || "", snippet: snippet || "" },
+        candidates
+      );
+    } catch (e) {
+      console.error("[ingest-from-email] OCR/Mistral:", e);
+    }
+
+    logIngest("après OCR/Mistral", {
+      ocrChars: ocrText.length,
+      extractedPrice: match.price,
+      extractedCompany: match.company,
+      matchedTripId: match.matchedTripId,
+      matchConfidence: match.matchConfidence,
+      suggestedTripId: match.suggestedTripId,
+      matchReviewRequired: match.matchReviewRequired,
+    });
+
+    const getCmd = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
+    const fileViewUrl = await getSignedUrl(client, getCmd, { expiresIn: 604800 });
+    const now = new Date().toISOString();
+    const tripId = match.matchedTripId;
+
+    if (!tripId && candidates.length > 0) {
+      console.warn("[ingest-from-email] pas de voyage matché", {
+        s3Key,
+        gmailMessageId: gmailMessageId.slice(-12),
+        candidatesCount: candidates.length,
+        ocrChars: ocrText.length,
+        extractedPrice: match.price,
+        extractedCompany: match.company,
+        suggestedTripId: match.suggestedTripId,
+        matchMotif: match.matchMotif,
+        matchConfidence: match.matchConfidence,
+        hint: "Activer DEBUG_TRAVEL_EMAIL_INGEST=1 pour OCR + Mistral détaillés dans les logs.",
+      });
+    }
+
+    const finishMarker = async (m: IngestMarker) => {
+      await writeIngestMarker(client, bucket, markerKey, { ...m, pending: false, completed: true });
+    };
+
+    if (!candidates.length) {
+      await appendUnmatched(client, bucket, {
+        id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
+        s3Key,
+        fromEmail,
+        subject: subject || "",
+        gmailMessageId,
+        snippet,
+        originalFilename,
+        createdAt: now,
+        extractedPrice: match.price,
+        extractedCompany: match.company,
+        guessedTripId: match.suggestedTripId,
+        matchMotif: match.matchMotif,
+        matchConfidence: match.matchConfidence,
+        reason: "aucun_voyage_liste",
+      });
+      logIngest("résultat", { matched: false, reason: "aucun_voyage_liste" });
+      await finishMarker({ matched: false, reason: "aucun_voyage_liste", tripId: null });
+      return;
+    }
+
+    if (!tripId) {
+      await appendUnmatched(client, bucket, {
+        id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
+        s3Key,
+        fromEmail,
+        subject: subject || "",
+        gmailMessageId,
+        snippet,
+        originalFilename,
+        createdAt: now,
+        extractedPrice: match.price,
+        extractedCompany: match.company,
+        guessedTripId: match.suggestedTripId,
+        matchMotif: match.matchMotif,
+        matchConfidence: match.matchConfidence,
+        reason: "pas_de_correspondance_mistral",
+      });
+      logIngest("résultat", { matched: false, reason: "pas_de_correspondance_mistral" });
+      await finishMarker({ matched: false, reason: "pas_de_correspondance_mistral", tripId: null });
+      return;
+    }
+
+    const tripKey = `travels/${tripId}.json`;
+    let tripData: Record<string, unknown>;
+    try {
+      const tripRes = await client.send(new GetObjectCommand({ Bucket: bucket, Key: tripKey }));
+      const tripRaw = await tripRes.Body?.transformToString();
+      tripData = tripRaw ? JSON.parse(tripRaw) : {};
+    } catch {
+      await appendUnmatched(client, bucket, {
+        id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
+        s3Key,
+        fromEmail,
+        subject: subject || "",
+        gmailMessageId,
+        snippet,
+        originalFilename,
+        createdAt: now,
+        extractedPrice: match.price,
+        extractedCompany: match.company,
+        guessedTripId: tripId,
+        matchMotif: match.matchMotif,
+        matchConfidence: match.matchConfidence,
+        reason: "voyage_introuvable_s3",
+      });
+      logIngest("résultat", { matched: false, reason: "voyage_introuvable_s3", tripId });
+      await finishMarker({ matched: false, reason: "voyage_introuvable_s3", tripId });
+      return;
+    }
+
+    const received = Array.isArray(tripData.receivedDevis) ? tripData.receivedDevis : [];
+    const already = received.some(
+      (d: { gmailMessageId?: string; s3KeyIncoming?: string }) =>
+        d.gmailMessageId === gmailMessageId && d.s3KeyIncoming === s3Key
+    );
+    if (already) {
+      logIngest("résultat", { matched: true, duplicate: true, tripId });
+      await finishMarker({
+        matched: true,
+        tripId,
+        duplicate: true,
+        reason: "deja_enregistre",
+      });
+      return;
+    }
+
+    const newDevis = {
+      id: Date.now().toString(),
+      providerName,
+      fileUrl: fileViewUrl,
+      providerEmail: fromEmail.trim(),
+      createdAt: now,
+      source: "email",
+      gmailMessageId,
+      originalFilename: originalFilename ?? null,
+      extractedPrice: match.price,
+      extractedCompany: match.company,
+      s3KeyIncoming: s3Key,
+      matchMethod: "mistral",
+      matchConfidence: match.matchConfidence,
+      matchMotif: match.matchMotif,
+      matchReviewRequired: match.matchReviewRequired,
+      extractedContactEmail: match.contactEmail,
+    };
+    received.push(newDevis);
+    tripData.receivedDevis = received;
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: tripKey,
+        Body: JSON.stringify(tripData),
+        ContentType: "application/json",
+      })
+    );
+    logIngest("résultat", {
+      matched: true,
+      tripId,
+      devisId: newDevis.id,
+      receivedDevisCount: received.length,
+      matchReviewRequired: match.matchReviewRequired,
+    });
+    await finishMarker({
+      matched: true,
+      tripId,
+      devisId: newDevis.id,
+      duplicate: false,
+    });
+  } catch (e) {
+    console.error("[ingest-from-email] job arrière-plan:", e);
+    await deleteIngestMarker(client, bucket, markerKey);
+    throw e;
+  }
+}
+
 export async function POST(req: Request) {
   const secret = ingestSecretFromEnv();
   if (!secret) {
@@ -185,211 +467,75 @@ export async function POST(req: Request) {
   }
   const bucket = process.env.BUCKET_NAME!;
   const client = s3();
+  const markerKey = ingestMarkerKey(gmailMessageId, s3Key);
+  const existing = await readIngestMarker(client, bucket, markerKey);
+
+  if (existing?.completed) {
+    return NextResponse.json({
+      ok: true,
+      completed: true,
+      duplicate: true,
+      matched: existing.matched ?? false,
+      tripId: existing.tripId ?? null,
+      reason: existing.reason ?? null,
+      devisId: existing.devisId ?? null,
+    });
+  }
+
+  if (existing?.pending && existing.startedAt) {
+    const age = Date.now() - new Date(existing.startedAt).getTime();
+    if (!Number.isNaN(age) && age < PENDING_STALE_MS) {
+      return NextResponse.json(
+        {
+          ok: true,
+          accepted: true,
+          completed: false,
+          pending: true,
+          detail: "Traitement déjà en cours pour ce PDF.",
+        },
+        { status: 202 }
+      );
+    }
+  }
+
+  await writeIngestMarker(client, bucket, markerKey, {
+    pending: true,
+    startedAt: new Date().toISOString(),
+  });
+
   const candidates = await loadTripCandidates(client, bucket);
   const providerName = providerNameFromEmail(fromEmail) ?? "Transporteur (e-mail)";
 
-  console.info("[ingest-from-email] traitement démarré (logs serveur → ce terminal, pas la console F12)", {
+  console.info("[ingest-from-email] accepté → arrière-plan (évite timeout 504 Amplify)", {
     candidatesCount: candidates.length,
     s3KeyTail: s3Key.length > 48 ? `…${s3Key.slice(-48)}` : s3Key,
     gmailMessageIdTail: gmailMessageId.slice(-10),
-    debugDetail: ingestDebug ? "DEBUG_TRAVEL_EMAIL_INGEST actif" : "détail OCR/Mistral: DEBUG_TRAVEL_EMAIL_INGEST=true + redémarrer next dev",
+    debugDetail: ingestDebug ? "DEBUG_TRAVEL_EMAIL_INGEST actif" : "détail: DEBUG_TRAVEL_EMAIL_INGEST=true",
   });
 
-  logIngest("requête", {
-    s3Key,
-    fromEmail,
-    subject: subject ?? "",
-    snippetPreview: (snippet || "").slice(0, 120),
-    gmailMessageId,
-    candidatesCount: candidates.length,
-    providerName,
-  });
-
-  let ocrText = "";
-  let match = {
-    price: null as string | null,
-    company: null as string | null,
-    contactEmail: null as string | null,
-    matchedTripId: null as string | null,
-    matchConfidence: null as "high" | "medium" | "low" | null,
-    matchMotif: null as string | null,
-    suggestedTripId: null as string | null,
-    matchReviewRequired: false,
-  };
-  try {
-    ocrText = await ocrS3Key(bucket, s3Key);
-    match = await extractDevisAndMatchTripWithMistral(ocrText, { subject: subject || "", snippet: snippet || "" }, candidates);
-  } catch (e) {
-    console.error("[ingest-from-email] OCR/Mistral:", e);
-  }
-
-  logIngest("après OCR/Mistral", {
-    ocrChars: ocrText.length,
-    extractedPrice: match.price,
-    extractedCompany: match.company,
-    matchedTripId: match.matchedTripId,
-    matchConfidence: match.matchConfidence,
-    suggestedTripId: match.suggestedTripId,
-    matchReviewRequired: match.matchReviewRequired,
-  });
-
-  const getCmd = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
-  const fileViewUrl = await getSignedUrl(client, getCmd, { expiresIn: 604800 });
-  const now = new Date().toISOString();
-
-  const tripId = match.matchedTripId;
-
-  if (!tripId && candidates.length > 0) {
-    console.warn("[ingest-from-email] pas de voyage matché", {
-      s3Key,
-      gmailMessageId: gmailMessageId.slice(-12),
-      candidatesCount: candidates.length,
-      ocrChars: ocrText.length,
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-      suggestedTripId: match.suggestedTripId,
-      matchMotif: match.matchMotif,
-      matchConfidence: match.matchConfidence,
-      hint: "Activer DEBUG_TRAVEL_EMAIL_INGEST=1 pour OCR + Mistral détaillés dans les logs.",
-    });
-  }
-
-  if (!candidates.length) {
-    await appendUnmatched(client, bucket, {
-      id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
+  after(() =>
+    runIngestBackgroundJob({
+      bucket,
+      markerKey,
       s3Key,
       fromEmail,
-      subject: subject || "",
+      subject: subject ?? "",
+      snippet: snippet ?? "",
       gmailMessageId,
-      snippet,
       originalFilename,
-      createdAt: now,
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-      guessedTripId: match.suggestedTripId,
-      matchMotif: match.matchMotif,
-      matchConfidence: match.matchConfidence,
-      reason: "aucun_voyage_liste",
-    });
-    logIngest("résultat", { matched: false, reason: "aucun_voyage_liste" });
-    return NextResponse.json({
-      ok: true,
-      matched: false,
-      reason: "aucun_voyage_liste",
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-    });
-  }
-
-  if (!tripId) {
-    await appendUnmatched(client, bucket, {
-      id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
-      s3Key,
-      fromEmail,
-      subject: subject || "",
-      gmailMessageId,
-      snippet,
-      originalFilename,
-      createdAt: now,
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-      guessedTripId: match.suggestedTripId,
-      matchMotif: match.matchMotif,
-      matchConfidence: match.matchConfidence,
-      reason: "pas_de_correspondance_mistral",
-    });
-    logIngest("résultat", { matched: false, reason: "pas_de_correspondance_mistral" });
-    return NextResponse.json({
-      ok: true,
-      matched: false,
-      reason: "pas_de_correspondance_mistral",
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-      suggestedTripId: match.suggestedTripId,
-      matchMotif: match.matchMotif,
-      matchConfidence: match.matchConfidence,
-    });
-  }
-
-  const tripKey = `travels/${tripId}.json`;
-  let tripData: Record<string, unknown>;
-  try {
-    const tripRes = await client.send(new GetObjectCommand({ Bucket: bucket, Key: tripKey }));
-    const tripRaw = await tripRes.Body?.transformToString();
-    tripData = tripRaw ? JSON.parse(tripRaw) : {};
-  } catch {
-    await appendUnmatched(client, bucket, {
-      id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
-      s3Key,
-      fromEmail,
-      subject: subject || "",
-      gmailMessageId,
-      snippet,
-      originalFilename,
-      createdAt: now,
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-      guessedTripId: tripId,
-      matchMotif: match.matchMotif,
-      matchConfidence: match.matchConfidence,
-      reason: "voyage_introuvable_s3",
-    });
-    logIngest("résultat", { matched: false, reason: "voyage_introuvable_s3", tripId });
-    return NextResponse.json({
-      ok: true,
-      matched: false,
-      reason: "voyage_introuvable_s3",
-      tripId,
-      extractedPrice: match.price,
-      extractedCompany: match.company,
-    });
-  }
-
-  const received = Array.isArray(tripData.receivedDevis) ? tripData.receivedDevis : [];
-  const newDevis = {
-    id: Date.now().toString(),
-    providerName,
-    fileUrl: fileViewUrl,
-    providerEmail: fromEmail.trim(),
-    createdAt: now,
-    source: "email",
-    gmailMessageId,
-    originalFilename: originalFilename ?? null,
-    extractedPrice: match.price,
-    extractedCompany: match.company,
-    s3KeyIncoming: s3Key,
-    matchMethod: "mistral",
-    matchConfidence: match.matchConfidence,
-    matchMotif: match.matchMotif,
-    matchReviewRequired: match.matchReviewRequired,
-    extractedContactEmail: match.contactEmail,
-  };
-  received.push(newDevis);
-  tripData.receivedDevis = received;
-  await client.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: tripKey,
-      Body: JSON.stringify(tripData),
-      ContentType: "application/json",
-    })
+      candidates,
+      providerName,
+    }).catch((err) => console.error("[ingest-from-email] after() job:", err))
   );
-  logIngest("résultat", {
-    matched: true,
-    tripId,
-    devisId: newDevis.id,
-    receivedDevisCount: received.length,
-    matchReviewRequired: match.matchReviewRequired,
-  });
-  return NextResponse.json({
-    ok: true,
-    matched: true,
-    tripId,
-    extractedPrice: match.price,
-    extractedCompany: match.company,
-    devisId: newDevis.id,
-    matchConfidence: match.matchConfidence,
-    matchMotif: match.matchMotif,
-    matchReviewRequired: match.matchReviewRequired,
-  });
+
+  return NextResponse.json(
+    {
+      ok: true,
+      accepted: true,
+      completed: false,
+      detail:
+        "Textract + Mistral s'exécutent après la réponse HTTP. Relance la Lambda une fois terminé : le 2e appel verra completed:true et pourra marquer le mail lu.",
+    },
+    { status: 202 }
+  );
 }

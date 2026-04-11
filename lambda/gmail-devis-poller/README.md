@@ -28,13 +28,14 @@ Compte utilisé : boîte **dédiée** aux devis (ex. `devis-transport@…`), pou
 
 1. `cd lambda/gmail-devis-poller && npm install && zip -r function.zip .` (sans `node_modules` de dev inutiles ; inclure `node_modules` pour déploiement zip classique).
 2. Runtime **Node.js 20+**, handler **`index.handler`** (fichier `index.mjs`, package `"type": "module"`).
-3. **Rôle IAM** : `s3:PutObject` sur `arn:aws:s3:::VOTRE_BUCKET/devis-incoming/*`.
+3. **Rôle IAM** : `s3:PutObject` sur `arn:aws:s3:::VOTRE_BUCKET/devis-incoming/*` ; l’app Amplify doit pouvoir lire/écrire aussi `travels/email-ingest-markers/*` (jetons d’ingestion async).
 4. Variables : `GMAIL_*`, `S3_BUCKET`, `INGEST_URL`, `INGEST_SECRET`.
 
 ## Comportement
 
 - Ne traite que les **PDF** en pièce jointe (nom se terminant par `.pdf`).
-- Après traitement réussi de **toutes** les PJ d’un message, le message est **marqué comme lu** (retire `UNREAD`).
-- Si l’API renvoie une erreur, le message reste non lu pour **nouvel essai** au prochain cycle.
+- L’API d’ingestion répond vite (**202**) et enchaîne Textract + Mistral **en arrière-plan** (évite les **504** du timeout ~30 s Amplify). Tant que le traitement n’est pas fini, la Lambda voit `pendingIngest` et **ne marque pas** le mail lu.
+- **Deuxième passage** (relance manuelle de la Lambda ou prochain cron) : l’API renvoie **200** avec `completed: true` (souvent `duplicate: true`) → la Lambda peut alors marquer le message lu si toutes les PJ sont OK.
+- Si l’API renvoie une erreur HTTP (4xx/5xx), le message reste non lu pour **nouvel essai** au prochain cycle.
 
 Les transporteurs doivent mettre la **référence du dossier** (ex. `Réf. 1712345678900`) dans l’objet ou le corps du mail, comme indiqué sur le PDF de demande.
