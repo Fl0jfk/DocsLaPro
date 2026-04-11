@@ -4,6 +4,19 @@ import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+/** E-mail utilisé pour « Signer & commander » : d’abord celui lu sur le devis (Mistral), sinon expéditeur Gmail, sinon lien public. */
+function orderEmailForQuote(quote: {
+  extractedContactEmail?: string | null;
+  providerEmail?: string | null;
+  email?: string | null;
+} | null | undefined): string {
+  if (!quote) return "";
+  const a = quote.extractedContactEmail?.trim();
+  const b = quote.providerEmail?.trim();
+  const c = quote.email?.trim();
+  return (a || b || c || "").trim();
+}
+
 export default function TripDetails() {
   const { id } = useParams();
   const router = useRouter();
@@ -250,8 +263,12 @@ export default function TripDetails() {
   const signBusQuote = async () => {
     if (!canSign) return alert("Vous n'êtes pas autorisé(e) à signer ce dossier.");
     if (!confirm("Voulez-vous signer le devis et envoyer la commande au transporteur ?")) return;
-    const transporteurEmail = trip.data.selectedBusQuote?.email || trip.data.selectedBusQuote?.providerEmail;
-    if (!transporteurEmail) return alert("Erreur : Email transporteur introuvable.");
+    const transporteurEmail = orderEmailForQuote(trip.data.selectedBusQuote);
+    if (!transporteurEmail) {
+      return alert(
+        "Erreur : aucun e-mail pour envoyer la commande (ni adresse lue sur le devis, ni expéditeur du mail, ni formulaire public)."
+      );
+    }
     setLoadingAction("signing");
     const etab = trip.data?.etablissement || "";
     let sigType = etab === "École" ? "ecole" : etab === "Collège" ? "college" : "lycee";
@@ -404,28 +421,78 @@ export default function TripDetails() {
             <div className="space-y-3">
               <p className="text-xs font-bold text-amber-700 uppercase">Offres déposées :</p>
               {trip.receivedDevis && trip.receivedDevis.length > 0 ? (
-                trip.receivedDevis.map((quote: any, idx: number) => (
-                  <div key={idx} className={`p-4 rounded-2xl border-2 flex justify-between items-center ${trip.data.selectedBusQuote?.fileUrl === quote.fileUrl ? 'border-green-500 bg-white shadow-md' : 'border-white bg-white/50'}`}>
-                    <div className="text-left">
+                trip.receivedDevis.map((quote: any, idx: number) => {
+                  const reviewBus =
+                    quote.matchReviewRequired === true ||
+                    (quote.source === "email" &&
+                      quote.matchConfidence &&
+                      quote.matchConfidence !== "high");
+                  const borderSelected = trip.data.selectedBusQuote?.fileUrl === quote.fileUrl;
+                  return (
+                  <div key={idx} className={`p-4 rounded-2xl border-2 flex justify-between items-center gap-3 ${borderSelected ? "border-green-500 bg-white shadow-md" : reviewBus ? "border-orange-400 bg-orange-50/80" : "border-white bg-white/50"}`}>
+                    <div className="text-left min-w-0 flex-1">
                       <p className="font-bold text-slate-800">{quote.providerName}</p>
-                      <p className="text-indigo-600 font-black text-xs italic">Devis reçu</p>
+                      <p className="text-indigo-600 font-black text-xs italic">
+                        Devis reçu
+                        {quote.source === "email" ? " (e-mail)" : ""}
+                      </p>
+                      {reviewBus && (
+                        <p className="mt-1 text-[10px] font-bold text-orange-800 uppercase tracking-wide">
+                          À vérifier — rattachement automatique ({quote.matchConfidence || "?"})
+                        </p>
+                      )}
+                      {quote.matchMotif && reviewBus && (
+                        <p className="mt-0.5 text-[10px] text-orange-900/90 leading-snug">{quote.matchMotif}</p>
+                      )}
+                      {(quote.extractedPrice || quote.extractedCompany) && (
+                        <p className="mt-1 text-[11px] text-slate-600">
+                          {quote.extractedCompany ? <span className="font-medium">{quote.extractedCompany}</span> : null}
+                          {quote.extractedCompany && quote.extractedPrice ? " · " : null}
+                          {quote.extractedPrice ? <span className="font-semibold text-slate-800">{quote.extractedPrice}</span> : null}
+                        </p>
+                      )}
+                      {(() => {
+                        const to = orderEmailForQuote(quote);
+                        return to ? (
+                          <p className="mt-1.5 text-[10px] text-slate-700">
+                            <span className="font-bold text-slate-500">Commande →</span>{" "}
+                            <span className="font-mono">{to}</span>
+                            {quote.extractedContactEmail?.trim() ? (
+                              <span className="text-emerald-700 font-semibold"> (sur le devis)</span>
+                            ) : quote.providerEmail?.trim() ? (
+                              <span className="text-slate-500"> (expéditeur mail)</span>
+                            ) : null}
+                          </p>
+                        ) : (
+                          <p className="mt-1.5 text-[10px] font-bold text-rose-700">
+                            Aucun e-mail pour la commande — renseigner ou vérifier le devis.
+                          </p>
+                        );
+                      })()}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       <button onClick={() => window.open(quote.fileUrl, '_blank')} className="text-[10px] font-bold text-slate-500 underline">Voir PDF</button>
                       {isOwner && trip.status === "PROF_LOGISTICS" && (
                         <button onClick={() => selectBusQuote(quote)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">Choisir</button>
                       )}
                     </div>
                   </div>
-                ))
+                  );
+                })
               ) : (
-                <p className="text-xs text-slate-400 italic">En attente de devis via le lien public...</p>
+                <p className="text-xs text-slate-400 italic">En attente de devis (lien public ou boîte e-mail)...</p>
               )}
             </div>
             <div className="bg-white/60 rounded-2xl p-6 border border-amber-200 flex flex-col justify-center items-center text-center">
               {trip.data.selectedBusQuote ? (
                 <>
                   <p className="text-sm text-amber-900 mb-2 font-bold">Devis sélectionné : {trip.data.selectedBusQuote.providerName}</p>
+                  {orderEmailForQuote(trip.data.selectedBusQuote) && (
+                    <p className="text-xs text-amber-800 mb-3">
+                      Envoi de la commande à :{" "}
+                      <span className="font-mono font-bold">{orderEmailForQuote(trip.data.selectedBusQuote)}</span>
+                    </p>
+                  )}
                   {isDirection && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && (
                     <div className="flex flex-col gap-3 w-full">
                       {canSign ? (

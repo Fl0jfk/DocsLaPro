@@ -149,7 +149,7 @@ function buildConfirmationPDF(opts: {
 export async function POST(req: Request) {
   try {
     const { providerEmail, signedQuoteUrl, providerName, tripTitle, tripData, amount, reference } = await req.json();
-    if (!providerEmail) { return NextResponse.json({ error: "Email du transporteur manquant" }, { status: 400 })}
+    let toEmail = typeof providerEmail === "string" ? providerEmail.trim() : "";
     let logoDataUri: string | null = null;
     try {
       const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
@@ -161,14 +161,22 @@ export async function POST(req: Request) {
     const urlObj = new URL(signedQuoteUrl);
     const fileKey = decodeURIComponent(urlObj.pathname.substring(1));
     let extractedPrice: string | null = null;
+    let extractedContactEmail: string | null = null;
     try {
       const ocrText = await ocrS3Key(process.env.BUCKET_NAME!, fileKey);
       if (ocrText) {
         const meta = await extractDevisMetadataWithMistral(ocrText);
         extractedPrice = meta.price;
+        extractedContactEmail = meta.contactEmail;
       }
     } catch (ocrErr) {
       console.error("[send-order] Erreur OCR/Mistral:", ocrErr);
+    }
+    if (!toEmail && extractedContactEmail) {
+      toEmail = extractedContactEmail;
+    }
+    if (!toEmail) {
+      return NextResponse.json({ error: "Email du transporteur manquant" }, { status: 400 });
     }
     const s3Client = new S3Client({
       region: process.env.REGION,
@@ -204,7 +212,7 @@ export async function POST(req: Request) {
     });
     const mailOptions = {
       from: `"Gestion Voyages" <${process.env.SMTP_USER}>`,
-      to: providerEmail,
+      to: toEmail,
       subject: `Confirmation de commande : ${tripTitle}`,
       html: `
         <div style="font-family: sans-serif; line-height: 1.5; color: #333;">

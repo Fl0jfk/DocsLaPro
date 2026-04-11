@@ -7,6 +7,28 @@ import { SCHOOL } from "@/app/lib/school";
 
 const norm = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\s-]+/g, "");
 
+/** Évite d’écraser des devis ajoutés par l’ingest e-mail si le client a un état React obsolète. */
+function mergeReceivedDevis(fromClient: unknown, fromS3: unknown): unknown[] {
+  const clientArr = Array.isArray(fromClient) ? fromClient : [];
+  const s3Arr = Array.isArray(fromS3) ? fromS3 : [];
+  const byId = new Map<string, unknown>();
+  const idOf = (item: unknown): string | null => {
+    if (item && typeof item === "object" && "id" in item && (item as { id: unknown }).id != null) {
+      return String((item as { id: unknown }).id);
+    }
+    return null;
+  };
+  for (const item of s3Arr) {
+    const id = idOf(item);
+    if (id) byId.set(id, item);
+  }
+  for (const item of clientArr) {
+    const id = idOf(item);
+    if (id) byId.set(id, item);
+  }
+  return [...byId.values()];
+}
+
 const resolveDirectorByEtab = (etablissement?: string | null) => {
   const e = norm(etablissement || "");
   if (e === "ecole") return { label: SCHOOL.ecole.label, directrice: SCHOOL.ecole.directrice, email: SCHOOL.ecole.email };
@@ -65,12 +87,31 @@ export async function POST(req: Request) {
         secretAccessKey: process.env.SECRET_ACCESS_KEY!,
       },
     });
-    await s3Client.send(new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: `travels/${tripId}.json`,
-      Body: JSON.stringify(objectToSave),
-      ContentType: "application/json",
-    }));
+    const tripKey = `travels/${tripId}.json`;
+    let existingOnS3: Record<string, unknown> | null = null;
+    try {
+      const ex = await s3Client.send(
+        new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: tripKey })
+      );
+      const raw = await ex.Body?.transformToString();
+      if (raw) existingOnS3 = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      /* nouveau dossier */
+    }
+    if (existingOnS3 && Array.isArray(existingOnS3.receivedDevis)) {
+      objectToSave.receivedDevis = mergeReceivedDevis(
+        objectToSave.receivedDevis,
+        existingOnS3.receivedDevis
+      );
+    }
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: process.env.BUCKET_NAME,
+        Key: tripKey,
+        Body: JSON.stringify(objectToSave),
+        ContentType: "application/json",
+      })
+    );
     const INDEX_KEY = 'travels/index.json';
     let currentIndex = [];
     try {

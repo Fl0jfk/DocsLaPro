@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function TripDashboard() {
   const { isLoaded, isSignedIn} = useUser();
@@ -60,6 +61,12 @@ export default function TripDashboard() {
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">Espace Voyages</h1>
           <p className="text-slate-500 font-medium">Gestion des déplacements scolaires.</p>
+          <Link
+            href="/travels/devis-ingest-debug"
+            className="text-xs font-bold text-orange-700 hover:underline mt-2 inline-block"
+          >
+            Diagnostic devis e-mail (OCR + Mistral)
+          </Link>
         </div>
         
         <button 
