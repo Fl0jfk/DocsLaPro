@@ -5,14 +5,7 @@ import { isCorbeilleBranchId, normalizeRequestBranchId, normalizeRequestEmail} f
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 import { isStaffInBranchPool } from "@/app/lib/staff-directory";
 
-const LEGACY_ASSIGN_UNIT_TO_ROUTE: Record<string, string> = {
-  comptabilite: "comptabilite",
-  maintenance: "maintenance",
-  "direction-college": "admin_college",
-  "direction-lycee": "admin_lycee",
-  "vie-scolaire": "vie_scolaire_infirmerie",
-  informatique: "maintenance",
-};
+const LEGACY_ASSIGN_UNIT_TO_ROUTE: Record<string, string> = { comptabilite: "comptabilite", maintenance: "maintenance", "direction-college": "admin_college", "direction-lycee": "admin_lycee", "vie-scolaire": "vie_scolaire_infirmerie", informatique: "maintenance"};
 
 export async function PATCH(req: Request) {
   const { userId } = await auth();
@@ -44,9 +37,7 @@ export async function PATCH(req: Request) {
         targetEmail: get("targetEmail"),
       };
       multipartFiles = form.getAll("files").filter((x): x is File => x instanceof File && x.size > 0).slice(0, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD);
-    } else {
-      body = await req.json();
-    }
+    } else { body = await req.json()}
     const action = String(body?.action ?? "").trim();
     const id = String(body?.id || "");
     const status = String(body?.status || "") as RequestStatus;

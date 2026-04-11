@@ -7,7 +7,6 @@ import { extractDevisMetadataWithMistral, ocrS3Key} from "@/app/lib/travel-devis
 const INCOMING_PREFIX = "devis-incoming/";
 const UNMATCHED_KEY = "travels/email-devis-unmatched.json";
 
-/** Clés émises par la Lambda : devis-incoming/{messageId}/{attachmentId}_{nom}.pdf — le nom peut contenir espaces, accents, etc. */
 function isAllowedIncomingKey(key: string): boolean {
   if (!key.startsWith(INCOMING_PREFIX) || key.includes("..")) return false;
   return key.length <= 2048;
@@ -69,6 +68,17 @@ function ingestSecretFromEnv(): string | undefined {
   return raw || undefined;
 }
 
+const ingestDebug = process.env.DEBUG_TRAVEL_EMAIL_INGEST === "1" || process.env.DEBUG_TRAVEL_EMAIL_INGEST === "true";
+
+function logIngest(msg: string, data?: Record<string, unknown>) {
+  if (!ingestDebug) return;
+  if (data) {
+    console.log(`[ingest-from-email] ${msg}`, data);
+  } else {
+    console.log(`[ingest-from-email] ${msg}`);
+  }
+}
+
 export async function POST(req: Request) {
   const secret = ingestSecretFromEnv();
   if (!secret) {
@@ -104,12 +114,26 @@ export async function POST(req: Request) {
   const client = s3();
   const tripId = extractTripIdFromText(subject, snippet);
   const providerName = providerNameFromEmail(fromEmail) ?? "Transporteur (e-mail)";
+  logIngest("requête", {
+    s3Key,
+    fromEmail,
+    subject: subject ?? "",
+    snippetPreview: (snippet || "").slice(0, 120),
+    gmailMessageId,
+    tripIdExtrait: tripId,
+    providerName,
+  });
   let ocrText = "";
   let meta = { price: null as string | null, company: null as string | null };
   try {
     ocrText = await ocrS3Key(bucket, s3Key);
     if (ocrText) { meta = await extractDevisMetadataWithMistral(ocrText)}
   } catch (e) { console.error("[ingest-from-email] OCR/Mistral:", e)}
+  logIngest("après OCR/Mistral", {
+    ocrChars: ocrText.length,
+    extractedPrice: meta.price,
+    extractedCompany: meta.company,
+  });
   const getCmd = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
   const fileViewUrl = await getSignedUrl(client, getCmd, { expiresIn: 604800 });
   const now = new Date().toISOString();
@@ -127,6 +151,7 @@ export async function POST(req: Request) {
       extractedCompany: meta.company,
       guessedTripId: null,
     });
+    logIngest("résultat", { matched: false, reason: "reference_introuvable" });
     return NextResponse.json({
       ok: true,
       matched: false,
@@ -146,6 +171,7 @@ export async function POST(req: Request) {
     tripData = tripRaw ? JSON.parse(tripRaw) : {};
   } catch {
     await appendUnmatched(client, bucket, { id: `${Date.now()}-${gmailMessageId.slice(-8)}`, s3Key,  fromEmail,  subject: subject || "",  gmailMessageId,  snippet,  originalFilename,  createdAt: now,  extractedPrice: meta.price, extractedCompany: meta.company,guessedTripId: tripId });
+    logIngest("résultat", { matched: false, reason: "voyage_introuvable", tripId });
     return NextResponse.json({  ok: true,  matched: false,  reason: "voyage_introuvable",  tripId,  extractedPrice: meta.price,  extractedCompany: meta.company});
   }
   const received = Array.isArray(tripData.receivedDevis) ? tripData.receivedDevis : [];
@@ -172,5 +198,11 @@ export async function POST(req: Request) {
       ContentType: "application/json",
     })
   );
+  logIngest("résultat", {
+    matched: true,
+    tripId,
+    devisId: newDevis.id,
+    receivedDevisCount: received.length,
+  });
   return NextResponse.json({ ok: true, matched: true, tripId, extractedPrice: meta.price, extractedCompany: meta.company, devisId: newDevis.id});
 }
