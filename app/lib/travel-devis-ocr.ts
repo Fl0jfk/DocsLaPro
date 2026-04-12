@@ -1,4 +1,9 @@
-import { TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand } from "@aws-sdk/client-textract";
+import {
+  TextractClient,
+  StartDocumentTextDetectionCommand,
+  GetDocumentTextDetectionCommand,
+  DetectDocumentTextCommand,
+} from "@aws-sdk/client-textract";
 
 function textractClient() {
   return new TextractClient({
@@ -33,6 +38,99 @@ export async function ocrS3Key(bucket: string, key: string): Promise<string> {
     console.error("[travel-devis-ocr] Textract FAILED", { key, jobId });
   }
   return "";
+}
+
+/** Bloc « signature » repéré par Textract (coordonnées normalisées 0–1, origine haut-gauche comme AWS). */
+export type SignatureFieldBBoxNormalized = {
+  pageNumber: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+function scoreSignatureLine(text: string): number {
+  const t = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  let s = 0;
+  if (/signature/.test(t)) s += 10;
+  if (/signataire/.test(t)) s += 7;
+  if (/bon\s+pour/.test(t)) s += 9;
+  if (/lu\s+et\s+approuv/.test(t)) s += 8;
+  if (/cachet/.test(t)) s += 5;
+  if (/paraphe/.test(t)) s += 4;
+  if (/\bvisa\b/.test(t)) s += 3;
+  if (/accord/.test(t) && s > 0) s += 1;
+  return s;
+}
+
+/**
+ * Analyse synchrone du PDF (toutes les pages) pour trouver une ligne liée à la signature.
+ * Les positions viennent uniquement des Geometry des blocs Textract, pas du texte seul.
+ * Retourne null si rien d’exploitable (l’appelant garde alors un placement par défaut).
+ */
+export async function findSignatureFieldBBoxFromTextract(pdfBytes: Buffer | Uint8Array): Promise<SignatureFieldBBoxNormalized | null> {
+  if (!process.env.ACCESS_KEY_ID || !process.env.SECRET_ACCESS_KEY) {
+    return null;
+  }
+  const client = textractClient();
+  const bytes = Buffer.isBuffer(pdfBytes) ? new Uint8Array(pdfBytes) : pdfBytes;
+  let res;
+  try {
+    res = await client.send(new DetectDocumentTextCommand({ Document: { Bytes: bytes } }));
+  } catch (e) {
+    console.error("[travel-devis-ocr] DetectDocumentText (signature):", e);
+    return null;
+  }
+  const blocks = res.Blocks || [];
+  type Cand = { page: number; score: number; left: number; top: number; width: number; height: number };
+  const cands: Cand[] = [];
+  for (const b of blocks) {
+    if (b.BlockType !== "LINE" || !b.Text?.trim()) continue;
+    const score = scoreSignatureLine(b.Text);
+    if (score <= 0) continue;
+    const bb = b.Geometry?.BoundingBox;
+    if (bb?.Left == null || bb.Top == null || bb.Width == null || bb.Height == null) continue;
+    const page = b.Page != null && b.Page > 0 ? b.Page : 1;
+    cands.push({
+      page,
+      score,
+      left: bb.Left,
+      top: bb.Top,
+      width: bb.Width,
+      height: bb.Height,
+    });
+  }
+  if (!cands.length) return null;
+  cands.sort((a, b) => b.page * 1000 + b.score - (a.page * 1000 + a.score));
+  const best = cands[0];
+  return {
+    pageNumber: best.page,
+    left: best.left,
+    top: best.top,
+    width: best.width,
+    height: best.height,
+  };
+}
+
+/** Convertit la bbox Textract en position pdf-lib pour drawImage (coin bas-gauche de l’image). */
+export function textractSignatureBBoxToPdfLibDrawCoords(
+  pageWidth: number,
+  pageHeight: number,
+  bbox: SignatureFieldBBoxNormalized,
+  sigDrawWidth: number,
+  sigDrawHeight: number,
+  gapBelowLabelPt = 6
+): { x: number; y: number } {
+  const bottomOfLabelPdfY = pageHeight * (1 - bbox.top - bbox.height);
+  let y = bottomOfLabelPdfY - gapBelowLabelPt - sigDrawHeight;
+  let x = pageWidth * bbox.left;
+  const margin = 12;
+  x = Math.max(margin, Math.min(x, pageWidth - sigDrawWidth - margin));
+  y = Math.max(margin, y);
+  return { x, y };
 }
 
 export type DevisOcrMetadata = {

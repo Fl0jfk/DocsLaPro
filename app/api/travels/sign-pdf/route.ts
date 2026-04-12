@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
+import { findSignatureFieldBBoxFromTextract,textractSignatureBBoxToPdfLibDrawCoords} from "@/app/lib/travel-devis-ocr";
+
+const FALLBACK_SIG_W = 150;
+const FALLBACK_SIG_H = 75;
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +18,7 @@ export async function POST(req: Request) {
     const response = await fetch(quoteUrl);
     if (!response.ok) throw new Error("Impossible de récupérer le PDF du devis.");
     const pdfBytes = await response.arrayBuffer();
+    const pdfBuffer = Buffer.from(pdfBytes);
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const sigImageRes = await fetch(selectedSigUrl);
     if (!sigImageRes.ok) throw new Error(`Impossible de récupérer la signature sur AWS pour : ${signatureType}`);
@@ -23,13 +28,27 @@ export async function POST(req: Request) {
     if (isJpg) { sigImage = await pdfDoc.embedJpg(sigImageBytes)
     } else { sigImage = await pdfDoc.embedPng(sigImageBytes)}
     const pages = pdfDoc.getPages();
-    const lastPage = pages[pages.length - 1];
-    const { width } = lastPage.getSize();
-    lastPage.drawImage(sigImage, {
-      x: width - 210, 
-      y: 60,
-      width: 150,
-      height: 75,
+    const bbox = await findSignatureFieldBBoxFromTextract(pdfBuffer);
+    let targetPage = pages[pages.length - 1];
+    let drawX: number;
+    let drawY: number;
+    if (bbox && pages.length > 0) {
+      const pageIndex = Math.min(Math.max(1, bbox.pageNumber), pages.length) - 1;
+      targetPage = pages[pageIndex];
+      const { width: pw, height: ph } = targetPage.getSize();
+      const coords = textractSignatureBBoxToPdfLibDrawCoords(pw, ph, bbox, FALLBACK_SIG_W, FALLBACK_SIG_H);
+      drawX = coords.x;
+      drawY = coords.y;
+    } else {
+      const { width } = targetPage.getSize();
+      drawX = width - 210;
+      drawY = 60;
+    }
+    targetPage.drawImage(sigImage, {
+      x: drawX,
+      y: drawY,
+      width: FALLBACK_SIG_W,
+      height: FALLBACK_SIG_H,
     });
     const pdfBase64 = await pdfDoc.saveAsBase64({ dataUri: true });
     return NextResponse.json({ 
