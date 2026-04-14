@@ -26,6 +26,7 @@ type Child =
       langue: LangueSeconde; 
       optionBilingueAllemand: boolean;
       optionLatin: boolean;
+      optionOse: boolean;
     }
   | {
       id: string;
@@ -59,7 +60,7 @@ function formatChildLabel(child: Child) {
   }
   if (child.stage === "college") {
     if (child.niveau === "6e") return `Collège — 6e (bilingue allemand: ${child.optionBilingueAllemand ? "oui" : "non"})`;
-    return `Collège — ${child.niveau} (${child.langue}${child.ebp ? " • E.B.P" : ""}${child.optionLatin ? " • Latin" : ""})`;
+    return `Collège — ${child.niveau} (${child.langue}${child.ebp ? " • E.B.P" : ""}${child.optionLatin ? " • Latin" : ""}${child.optionOse ? " • OSE" : ""})`;
   }
   return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • ${child.langue})`;
 }
@@ -205,7 +206,7 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
 }
 
 function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): SupplySection[] {
-  const { niveau, ebp, langue, optionBilingueAllemand, optionLatin } = child;
+  const { niveau, ebp, langue, optionBilingueAllemand, optionLatin, optionOse } = child;
   const itemsUSB = ["1 clé USB 16 Go (durant tout le collège)"];
   const maths = [
     "Calculatrice Casio (collège)",
@@ -238,7 +239,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "1 cahier d’exercices fourni par le collège (facturé au 2e trimestre)",
   ];
   const espagnol3e = [
-    "1 cahier 100 pages grand format (24/32), grands carreaux",
+    "1 cahier 100 pages grand format, grands carreaux",
     "1 cahier de brouillon",
   ];
   const allemand = [
@@ -262,6 +263,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "50 protège-documents plastifiés",
     "10 feuilles blanches papier machine (A4)",
     "10 feuilles simples quadrillées (petits carreaux)",
+    "4 surligneurs et des crayons de couleurs",
     "Les cours de 5e et 4e doivent être conservés pour les années suivantes",
   ];
   const vieTerre = [
@@ -306,7 +308,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     }
     if (niveau === "3e") {
       return [
-        "1 grand classeur",
+        "AU CHOIX DE L'ÉLÈVE 2 cahiers grands carreaux 24x32 OU 1 classeur (Copies simples et doubles grands carreaux)",
         "Copies simples et doubles grands carreaux",
         "12 crayons de couleur, colle, ciseaux",
       ];
@@ -335,10 +337,15 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "Documents divers + MémoArts (selon consignes du professeur).",
   ];
   const latin = ["1 cahier 96 pages grand format (grands carreaux)"];
+  const ose = [
+    "Utiliser le classeur de Technologie pour classer les documents OSE.",
+    "30 pochettes transparentes.",
+  ];
   const francais = (() => {
     if (!ebp) {
       return [
         "1 cahier grand format grands carreaux",
+        "1 cahier de brouillon",
         "Copies simples et doubles grands carreaux pour les évaluations",
         "Bescherelle de conjugaison",
         "Dictionnaire (Larousse de préférence)",
@@ -347,6 +354,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     if (niveau === "6e") {
       return [
         "6e E.B.P : 2 cahiers grands carreaux 24/32",
+        "1 cahier de brouillon",
         "1 pochette cartonnée à élastiques",
         "Feuilles grands carreaux, grands formats",
         "Bescherelle de conjugaison",
@@ -393,6 +401,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     { title: "Musique", items: musique },
     { title: "Catéchèse", items: catechese },
     ...(niveau !== "6e" && optionLatin ? [{ title: "Latin (option)", items: latin }] : []),
+    ...(niveau === "3e" && optionOse ? [{ title: "Option OSE", items: ose }] : []),
   ];
 }
 
@@ -497,6 +506,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
   const [collegeLangue, setCollegeLangue] = useState<LangueSeconde>("Allemand");
   const [collegeBilingueAllemand, setCollegeBilingueAllemand] = useState(false);
   const [collegeLatin, setCollegeLatin] = useState(false);
+  const [collegeOse, setCollegeOse] = useState(false);
   const [lyceeNiveau, setLyceeNiveau] = useState<LyceeNiveau>("2nde");
   const [lyceeTrack, setLyceeTrack] = useState<LyceeTrack>("General");
   const [lyceeLangue, setLyceeLangue] = useState<LangueSeconde>("Allemand");
@@ -527,6 +537,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
     setCollegeLangue("Allemand");
     setCollegeBilingueAllemand(false);
     setCollegeLatin(false);
+    setCollegeOse(false);
     setLyceeNiveau("2nde");
     setLyceeTrack("General");
     setLyceeLangue("Allemand");
@@ -544,6 +555,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
       const safeEbp = collegeNiveau === "3e" ? false : collegeEbp;
       const safeLangue: LangueSeconde = collegeNiveau === "6e" ? "Allemand" : collegeLangue;
       const safeLatin = collegeNiveau === "6e" ? false : collegeLatin;
+      const safeOse = collegeNiveau === "3e" ? collegeOse : false;
       setChildren((prev) => [
         ...prev,
         {
@@ -554,6 +566,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
           langue: safeLangue,
           optionBilingueAllemand: collegeBilingueAllemand,
           optionLatin: safeLatin,
+          optionOse: safeOse,
         },
       ]);
       setShowAdd(false);
@@ -855,7 +868,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           ))}
                         </div>
                       </div>
-                      {collegeNiveau !== "6e" ? (
+                      {collegeNiveau !== "3e" ? (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option E.B.P (si concerné)</p>
                           <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
@@ -863,12 +876,9 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                               type="checkbox"
                               className="w-5 h-5 accent-indigo-600"
                               checked={collegeEbp}
-                              disabled={collegeNiveau === "3e"}
                               onChange={(e) => setCollegeEbp(e.target.checked)}
                             />
-                            <span className="font-bold text-sm text-slate-800">
-                              {collegeNiveau === "3e" ? "E.B.P masqué en 3e" : collegeEbp ? "E.B.P : OUI" : "E.B.P : NON"}
-                            </span>
+                            <span className="font-bold text-sm text-slate-800">{collegeEbp ? "E.B.P : OUI" : "E.B.P : NON"}</span>
                           </label>
                         </div>
                       ) : null}
@@ -919,6 +929,20 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                               onChange={(e) => setCollegeLatin(e.target.checked)}
                             />
                             <span className="font-bold text-sm text-slate-800">{collegeLatin ? "Latin : OUI" : "Latin : NON"}</span>
+                          </label>
+                        </div>
+                      )}
+                      {collegeNiveau === "3e" && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option OSE</p>
+                          <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                            <input
+                              type="checkbox"
+                              className="w-5 h-5 accent-indigo-600"
+                              checked={collegeOse}
+                              onChange={(e) => setCollegeOse(e.target.checked)}
+                            />
+                            <span className="font-bold text-sm text-slate-800">{collegeOse ? "OSE : OUI" : "OSE : NON"}</span>
                           </label>
                         </div>
                       )}
