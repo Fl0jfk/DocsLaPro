@@ -116,28 +116,12 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 10,
-      "name": "Planning des absences",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
-      "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/ETx1_Apa6ANLj_N8J05vWGEBsog7mkqCltCeB06kyUGcLQ?e=0IeBeq",
-      "allowedRoles": ["administratif", "direction_college", "direction_ecole", "direction_lycee", "comptabilite", "infirmerie", "education"],
-      "external": true
-    },
-    {
       "id": 11,
       "name": "Ajout de documents IA",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
       "link": "/agentIAOCR",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
-    },
-    {
-      "id": 12,
-      "name": "Portes ouvertes",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Portes+ouvertes.jpg",
-      "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:x:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/IQC50xx-JtAFQr6iU6GdgepSAW5mUuNX_aARV_kdxUnJyTc?e=4gvKbw",
-      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
-      "external": true
     },
     {
       "id": 13,
@@ -174,17 +158,17 @@ const STATIC_DATA: Data = {
     {
       "id": 17,
       "name": "Demandes (équipe)",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
       "link": "/requests",
-      "allowedRoles": ["direction_college", "administratif", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+      "allowedRoles": ["direction_college", "administratif", "direction_ecole", "direction_lycee", "maintenance", "comptabilite","education"],
       "external": false
     },
     {
       "id": 19,
       "name": "Suivi de mes demandes",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
       "link": "/mes-demandes",
-      "allowedRoles": ["professeur"],
+      "allowedRoles": ["professeur","infirmerie"],
       "external": false
     },
     {

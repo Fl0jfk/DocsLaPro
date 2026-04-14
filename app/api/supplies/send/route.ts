@@ -4,7 +4,6 @@ import { jsPDF } from "jspdf";
 import fs from "fs/promises";
 import path from "path";
 
-type Stage = "ecole" | "college" | "lycee";
 type LangueSeconde = "Espagnol" | "Allemand";
 type CollegeNiveau = "6e" | "5e" | "4e" | "3e";
 type EcoleNiveau = "JE1" | "JE2" | "JE3" | "JE4" | "CP" | "CE1" | "CE2" | "CM1" | "CM2";
