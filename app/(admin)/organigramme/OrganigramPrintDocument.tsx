@@ -4,42 +4,14 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { SCHOOL } from "@/app/lib/school";
-import {
-  ORGANIGRAM_DIRECTORS,
-  ORGANIGRAM_ADMIN,
-  ORGANIGRAM_ACCOUNTING,
-  ORGANIGRAM_RECEPTION,
-  ORGANIGRAM_HEALTH,
-  ORGANIGRAM_MAINTENANCE,
-  ORGANIGRAM_POLES,
-  ORGANIGRAM_PASTORAL,
-  ORGANIGRAM_OGEC,
-  ORGANIGRAM_TUTELLE,
-  type OrganigramPerson,
-} from "@/app/lib/organigramme";
+import { ORGANIGRAM_DIRECTORS, ORGANIGRAM_ADMIN, ORGANIGRAM_ACCOUNTING, ORGANIGRAM_RECEPTION, ORGANIGRAM_HEALTH, ORGANIGRAM_MAINTENANCE, ORGANIGRAM_POLES, ORGANIGRAM_PASTORAL, ORGANIGRAM_OGEC,  ORGANIGRAM_TUTELLE, type OrganigramPerson} from "@/app/lib/organigramme";
 
 const DIRECTION_TITLE = "Direction du groupe scolaire";
-const DIRECTION_DESC =
-  "Les trois directions de l'école, du collège et du lycée pilotent chacune leur cycle et coordonnent les projets communs.";
-
+const DIRECTION_DESC ="Les trois directions de l'école, du collège et du lycée pilotent chacune leur cycle et coordonnent les projets communs.";
 const POLES_TITLE = "Pôles éducatifs & vie scolaire";
-const POLES_DESC =
-  "Équipes par cycle — CPE et accompagnement, distincts du seul pôle administratif.";
+const POLES_DESC ="Équipes par cycle — CPE et accompagnement, distincts du seul pôle administratif.";
 
-type PrintTone =
-  | "direction"
-  | "admin"
-  | "accounting"
-  | "reception"
-  | "health"
-  | "maintenance"
-  | "poles"
-  | "poleEcole"
-  | "poleCollege"
-  | "poleLycee"
-  | "pastoral"
-  | "ogec"
-  | "tutelle";
+type PrintTone = | "direction" | "admin" | "accounting" | "reception" | "health" | "maintenance" | "poles" | "poleEcole" | "poleCollege" | "poleLycee" | "pastoral" | "ogec" | "tutelle";
 
 const TILE: Record<
   PrintTone,
@@ -141,15 +113,7 @@ function initials(p: OrganigramPerson): string {
   return "?";
 }
 
-function PrintPerson({
-  person,
-  missionBarClass,
-  className = "w-full",
-}: {
-  person: OrganigramPerson;
-  missionBarClass: string;
-  className?: string;
-}) {
+function PrintPerson({ person, missionBarClass, className = "w-full"}: { person: OrganigramPerson; missionBarClass: string; className?: string}) {
   return (
     <div className={`print:break-inside-avoid rounded-2xl border border-slate-300 w-full bg-white/95 p-2 ${className}`}>
       <div className="flex items-start gap-1.5">
@@ -181,16 +145,7 @@ function PrintPerson({
   );
 }
 
-function PrintTile({
-  tone,
-  title,
-  children,
-}: {
-  tone: PrintTone;
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) {
+function PrintTile({ tone, title, children}: { tone: PrintTone; title: string; description?: string; children: ReactNode}) {
   const t = TILE[tone];
   return (
     <section className={`print:break-inside-avoid rounded-2xl border p-4 mb-4 last:mb-0 ${t.shell}`}>

@@ -249,12 +249,13 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
   const seconde = langue === "Espagnol" ? (niveau === "3e" ? espagnol3e : espagnol) : allemand;
   const secondeEnNiveau6e = optionBilingueAllemand ? allemand : [];
   const artsPlastiques = [
-    "Matériel de dessin (carton à dessin A3 ou demi-raisin, calque A4, feuilles Canson A3 + A4)",
-    "Gouache / peinture acrylique (couleurs de base) + pinceaux",
-    "Quelques feutres/crayons de couleur, règle de 30 cm, crayons noirs (3H – HB – 2B – 4B), gomme, ciseaux",
-    "Chiffon, colle vinylique, scotchs, feutre fin noir",
+    "Matériel de dessin (carton à dessin A3 ou demi-raisin, papiers calques A4, feuilles Canson A3 + A4)",
+    "Dans une boite rigide mettre le matériel : tubes de gouache ou peinture acrylique (couleurs rouge primaire(magenta) + bleu primaire (cyan) + jaune primaire + noir + blanc)",
+    "Pinceaux : 1 gros n° 18 ou 20 + 1 fin n°2, 1 brosse plate rayon bricolage n°30",
+    "Quelques feutres moyens et fins, quelques crayons de couleur, règle graduée de 30 cm, crayons noirs (3H – HB – 2B – 4B), gomme, ciseaux, chiffon",
+    "1 petit bidon de colle vinylique, 1 scotch papier, feutre fin noir, scotch classique",
     "Matériel marqué au nom de l’élève et de sa classe",
-    "(Nouveaux élèves : alternance quadrillé + dessin). Les anciens élèves peuvent continuer sur le même cahier (ou ajouter un nouveau).",
+    "(Nouveaux élèves :1 cahier  24x32 sans spirales alternant quadrillé et dessin). Les anciens élèves peuvent continuer sur le même cahier (ou ajouter un nouveau).",
   ];
   const Technologie = [
     "1 classeur grand format (21/29,7)",
@@ -269,18 +270,32 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "1 boîte/sachet de gants latex",
   ];
   const physique = (() => {
-    if (niveau === "5e" || niveau === "4e") {
-      return [
-        "1 classeur grand format 21/29,7 (50 protège-documents plastifiées par années)",
-        "10 feuilles blanches papier machine (A4) + 10 feuilles simples quadrillées (petits carreaux)",
-        "Les cours de 5e et 4e doivent être conservés pour les années suivantes",
-      ];
+    switch (niveau) {
+      case "6e":
+        return ["1 classeur"];
+      case "5e":
+        return [
+          "1 classeur grand format 21/29,7 (50 protège-documents plastifiées par années)",
+          "10 feuilles blanches papier machine (A4) + 10 feuilles simples quadrillées (petits carreaux)",
+          "Peut servir tout le collège",
+        ];
+      case "4e":
+        return [
+          "1 classeur grand format 21/29,7 (50 protège-documents plastifiées par années)",
+          "10 feuilles blanches papier machine (A4) + 10 feuilles simples quadrillées (petits carreaux)",
+          "Peut servir tout le collège",
+        ];
+      case "3e":
+        return [
+          "1 classeur grand format 21/29,7 (50 protège-documents plastifiées par années)",
+          "10 feuilles blanches papier machine (A4) + 10 feuilles simples quadrillées (petits carreaux)",
+          "Une blouse blanche en coton, prévoir la taille afin qu'elle soit réutilisée au lycée",
+        ];
+      default:
+        return [
+          ""
+        ];
     }
-    return [
-      "1 classeur fin grand format 21/29,7 avec 20 protège-documents plastifiés",
-      "Feuilles simples quadrillées",
-      "Peut servir pour tout le collège",
-    ];
   })();
   const histoireGeo = (() => {
     if (niveau === "4e") {
@@ -310,7 +325,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
   })();
   const eps = [
     "Chaussures extérieures + chaussures de salle (obligatoire)",
-    "Tenue adaptée au sport",
+    "Tenue adaptée au sport (chaussettes, tee-shirt, short au minimum)",
     "Prévoir en fonction de la météo",
     "1 gourde (pas de bouteille d’eau)",
   ];
@@ -1021,11 +1036,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                   )}
                 </div>
                 <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowAdd(false);
-                      resetAddForm();
-                    }}
+                  <button  onClick={() => { setShowAdd(false); resetAddForm();}}
                     className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition print:hidden"
                   >
                     Annuler
