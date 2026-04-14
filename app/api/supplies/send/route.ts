@@ -88,19 +88,15 @@ export async function POST(req: Request) {
       const logoBuffer = await fs.readFile(logoPath);
       logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
     } catch {}
-
     const doc = new jsPDF({ compress: true });
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
     const ML = 14;
     const MR = W - 14;
-
     const drawHeader = () => {
       doc.setFillColor(30, 41, 59);
       doc.rect(0, 0, W, 20, "F");
-      if (logoDataUri) {
-        doc.addImage(logoDataUri, "PNG", ML, 3.5, 13, 13);
-      }
+      if (logoDataUri) { doc.addImage(logoDataUri, "PNG", ML, 3.5, 13, 13)}
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.setTextColor(255, 255, 255);
@@ -113,15 +109,12 @@ export async function POST(req: Request) {
       doc.setLineWidth(0.3);
       doc.line(ML, 24, MR, 24);
     };
-
     const checkbox = (x: number, y: number) => {
       doc.setDrawColor(100, 116, 139);
       doc.setLineWidth(0.35);
       doc.rect(x, y - 2.6, 3.3, 3.3);
     };
-
     drawHeader();
-
     let y = 32;
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "normal");
@@ -147,12 +140,8 @@ export async function POST(req: Request) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9.5);
       doc.setTextColor(71, 85, 105);
-
       const supplies = (body?.suppliesByChild?.[child.id] as Array<{ title: string; items: string[] }>) || null;
-      // On préfère recevoir les listes depuis le client (source unique de vérité),
-      // mais on reste robuste si ce n'est pas fourni.
       const sections = Array.isArray(supplies) ? supplies : [{ title: "Fournitures", items: ["(liste non transmise)"] }];
-
       for (const sec of sections) {
         if (y > H - 24) {
           doc.addPage();
@@ -203,7 +192,6 @@ export async function POST(req: Request) {
         <p>Bonjour,</p>
         <p>Vous trouverez en pièce jointe la liste des fournitures sélectionnées sur le simulateur.</p>
         <p>Cordialement,</p>
-        <p><strong>${process.env.SMTP_USER}</strong></p>
       </div>`,
       attachments: [
         {

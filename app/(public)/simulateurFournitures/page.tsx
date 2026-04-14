@@ -487,10 +487,8 @@ function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySect
     }
     return [{ title: `Matériel ST2S — ${niveau}`, items: [...items, langue === "Allemand" ? "LVB Allemand (selon votre PDF)" : "LVB Espagnol (selon votre PDF)"] }];
   }
-
   return [{ title: "À compléter", items: ["Liste non disponible pour ce cas dans l'extraction actuelle."] }];
 }
-
 export default function SimulateurFournituresEcoleCollegeLycee() {
   const [children, setChildren] = useState<Child[]>([]);
   const [showAdd, setShowAdd] = useState(false);
@@ -516,12 +514,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
   const lyceeSpecOptions: LyceeSpecialite[] = ["Maths", "Physique-Chimie", "SVT", "SES", "HG-GEO-GEOPOL"];
   const computed = useMemo(() => {
     const withSupplies = children.map((c) => {
-      const supplies =
-        c.stage === "ecole"
-          ? getEcoleSupplies(c.niveau)
-          : c.stage === "college"
-            ? getCollegeSupplies(c)
-            : getLyceeSupplies(c);
+      const supplies = c.stage === "ecole" ? getEcoleSupplies(c.niveau) : c.stage === "college" ? getCollegeSupplies(c) : getLyceeSupplies(c);
       return { child: c, supplies };
     });
     const allItems = withSupplies.flatMap((x) => x.supplies.flatMap((s) => s.items));
@@ -1081,6 +1074,16 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
             @page {
               size: A4;
               margin: 10mm;
+            }
+            /* Masque les widgets flottants externes (IA/assistant/chat) */
+            [aria-label*="IA" i],
+            [aria-label*="assistant" i],
+            [title*="IA" i],
+            [title*="assistant" i],
+            iframe[title*="assistant" i],
+            iframe[title*="chat" i] {
+              display: none !important;
+              visibility: hidden !important;
             }
             .print-hidden {
               display: none !important;
