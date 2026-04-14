@@ -27,6 +27,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   lycée: "Lycée",
 };
 
+function parseInlineImage(line: string): { src: string; alt: string } | null {
+  const trimmed = line.trim();
+  const shortTag = trimmed.match(/^\[\[image:(.+)\]\]$/i);
+  if (shortTag?.[1]) return { src: shortTag[1].trim(), alt: "Image article" };
+  const markdown = trimmed.match(/^!\[(.*?)\]\((.+)\)$/);
+  if (markdown?.[2]) return { src: markdown[2].trim(), alt: (markdown[1] || "Image article").trim() };
+  return null;
+}
+
 async function getArticle(id: string): Promise<NewsItem | null> {
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   try {
@@ -78,15 +87,25 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
         )}
         {article.body ? (
           <div className="prose prose-slate max-w-none">
-            {article.body.split("\n").map((line, i) =>
-              line.trim() === "" ? (
+            {article.body.split("\n").map((line, i) => {
+              const inline = parseInlineImage(line);
+              if (inline) {
+                const src = resolveNewsImage(inline.src);
+                if (!src) return null;
+                return (
+                  <div key={i} className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 my-5">
+                    <Image src={src} alt={inline.alt} fill sizes="(max-width: 1024px) 100vw, 768px" className="object-contain" />
+                  </div>
+                );
+              }
+              return line.trim() === "" ? (
                 <br key={i} />
               ) : (
                 <p key={i} className="text-slate-700 leading-relaxed mb-4">
                   {line}
                 </p>
-              )
-            )}
+              );
+            })}
           </div>
         ) : (
           <p className="text-slate-400 italic">Aucun contenu disponible pour cet article.</p>
@@ -94,13 +113,19 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
         {article.images && article.images.length > 0 && (
           <div className="mt-10">
             <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Galerie</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1  gap-4">
               {article.images.map((url, i) => {
                 const src = resolveNewsImage(url);
                 if (!src) return null;
                 return (
-                  <div key={i} className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100">
-                    <Image src={src} alt={`Photo ${i + 1}`} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
+                  <div key={i} className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
+                    <Image
+                      src={src}
+                      alt={`Photo ${i + 1}`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 80vw"
+                      className="object-contain"
+                    />
                   </div>
                 );
               })}

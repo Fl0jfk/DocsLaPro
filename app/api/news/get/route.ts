@@ -26,6 +26,8 @@ export type NewsItem = {
   images?: string[];   // additional gallery images, only for type "article"
   link?: string;       // only for type "lien"
   buttonText: string;
+  textColor?: "white" | "black";
+  buttonStyle?: "light" | "dark";
 };
 
 function parseNewsPayload(payload: unknown): NewsItem[] {
@@ -56,6 +58,8 @@ function parseNewsPayload(payload: unknown): NewsItem[] {
       if (Array.isArray(item.images) && item.images.length > 0)
         parsed.images = (item.images as unknown[]).map(String).filter(Boolean);
       if (type === "lien" && item.link) parsed.link = String(item.link);
+      if (item.textColor === "black" || item.textColor === "white") parsed.textColor = item.textColor;
+      if (item.buttonStyle === "dark" || item.buttonStyle === "light") parsed.buttonStyle = item.buttonStyle;
       return parsed;
     })
     .filter((x) => x.id && x.title && x.buttonText);
@@ -81,8 +85,8 @@ export async function GET() {
     const parsed = JSON.parse(text);
     return NextResponse.json(parseNewsPayload(parsed), {
       headers: {
-        // CDN/browser: serve fresh for 5 min, accept stale up to 10 min while revalidating
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        // Les actualités doivent refléter immédiatement les modifications de l'admin.
+        "Cache-Control": "no-store, max-age=0",
       },
     });
   } catch (err: unknown) {

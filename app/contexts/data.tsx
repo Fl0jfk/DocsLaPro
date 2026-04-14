@@ -116,7 +116,7 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 11,
+      "id": 10,
       "name": "Ajout de documents IA",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
       "link": "/agentIAOCR",
@@ -124,7 +124,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 13,
+      "id": 11,
       "name": "Salons",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/channels.jpg",
       "link": "/channels",
@@ -132,7 +132,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 14,
+      "id": 12,
       "name": "Ajout d'actualités sur le site",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/News.jpg",
       "link": "/add-news-site",
@@ -140,7 +140,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 15,
+      "id": 13,
       "name": "Déclaration d'absences",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
       "link": "/absences",
@@ -148,7 +148,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 16,
+      "id": 14,
       "name": "Organigramme interne",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Organigramme.jpg",
       "link": "/organigramme",
@@ -156,7 +156,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 17,
+      "id": 15,
       "name": "Demandes (équipe)",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
       "link": "/requests",
@@ -164,7 +164,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 19,
+      "id": 16,
       "name": "Suivi de mes demandes",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
       "link": "/mes-demandes",
@@ -172,7 +172,7 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 18,
+      "id": 17,
       "name": "Brain AI (training engine)",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Brain+iA.jpg",
       "link": "/chatbot-knowledge",
@@ -184,7 +184,6 @@ const STATIC_DATA: Data = {
   documents: [],
   error: null,
 };
-
 const DataContext = createContext<Data | undefined>(undefined);
 export const DataProvider = ({ children }: PropsWithChildren<object>) => {
   const [dynamicCategories, setDynamicCategories] = useState<Categories[]>([]);

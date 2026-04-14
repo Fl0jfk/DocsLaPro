@@ -26,6 +26,8 @@ const createEmptyItem = (): NewsItem => ({
   image: "",
   images: [],
   buttonText: "En savoir plus",
+  textColor: "white",
+  buttonStyle: "light",
 });
 
 async function uploadImageToS3(file: File): Promise<string> {
@@ -126,6 +128,28 @@ function NewsCard({ item, index, isExpanded, onToggle, onRemove, onMoveUp, onMov
                 value={item.buttonText}
                 onChange={(e) => onUpdate({ buttonText: e.target.value })} />
             </div>
+            <div>
+              <label className="block text-xs font-bold mb-1 text-slate-600">Couleur du texte (slider)</label>
+              <select
+                className="w-full p-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                value={item.textColor ?? "white"}
+                onChange={(e) => onUpdate({ textColor: e.target.value as "white" | "black" })}
+              >
+                <option value="white">Blanc</option>
+                <option value="black">Noir</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold mb-1 text-slate-600">Style du bouton</label>
+              <select
+                className="w-full p-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                value={item.buttonStyle ?? "light"}
+                onChange={(e) => onUpdate({ buttonStyle: e.target.value as "light" | "dark" })}
+              >
+                <option value="light">Noir sur blanc</option>
+                <option value="dark">Blanc sur noir</option>
+              </select>
+            </div>
             {item.type === "lien" && (
               <div>
                 <label className="block text-xs font-bold mb-1 text-slate-600">Lien <span className="text-red-400">*</span></label>
@@ -161,6 +185,9 @@ function NewsCard({ item, index, isExpanded, onToggle, onRemove, onMoveUp, onMov
                   value={item.body ?? ""}
                   onChange={(e) => onUpdate({ body: e.target.value })} />
                 <p className="text-xs text-slate-400 mt-1">Lien du bouton : <code>/articles/{item.id}</code></p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Image dans le texte : <code>[[image:https://...]]</code> (ou format markdown <code>![alt](https://...)</code>) sur une ligne seule.
+                </p>
               </div>
             )}
           </div>
@@ -240,7 +267,7 @@ export default function AddNewsSitePage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/news/get");
+      const res = await fetch(`/api/news/get?t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
     } catch (e: unknown) {

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import Image from 'next/image';
+import { AnimatePresence, motion } from "framer-motion";
 import Header from '../components/Header/Header';
 import { SCHOOL } from '../lib/school';
 
@@ -22,6 +23,8 @@ type NewsItem = {
   image: string;
   link?: string;
   buttonText: string;
+  textColor?: "white" | "black";
+  buttonStyle?: "light" | "dark";
 };
 
 export default function HomePage() {
@@ -37,7 +40,7 @@ export default function HomePage() {
     const loadNews = async () => {
       try {
         setNewsLoading(true);
-        const res = await fetch("/api/news/get");
+        const res = await fetch(`/api/news/get?t=${Date.now()}`, { cache: "no-store" });
         const data = await res.json();
         const all: NewsItem[] = Array.isArray(data) ? data : [];
         if (!cancelled) setNewsItems(all.slice(-10));
@@ -55,6 +58,7 @@ export default function HomePage() {
   }, []);
   const newsCount = newsItems.length;
   const extendedNews = useMemo(() => (newsCount > 0 ? [...newsItems, ...newsItems, ...newsItems] : []),[newsItems, newsCount]);
+  const activeNews = newsCount > 0 ? newsItems[currentIndex % newsCount] : null;
   useEffect(() => {
     if (newsCount > 0) setCurrentIndex(newsCount);
   }, [newsCount]);
@@ -97,10 +101,29 @@ export default function HomePage() {
             <div className="h-[500px] flex items-center justify-center text-slate-400 text-sm">Aucune actualité disponible pour le moment.</div>
           ) : (
             <>
+              <div className="max-w-[1200px] mx-auto px-6 mb-8">
+                <AnimatePresence mode="wait">
+                  {activeNews ? (
+                    <motion.div
+                      key={activeNews.id}
+                      initial={{ opacity: 0, x: 24 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -24 }}
+                      transition={{ duration: 0.35, ease: "easeOut" }}
+                    >
+                      <span className={`font-bold uppercase tracking-widest text-xs ${activeNews.textColor === "black" ? "text-slate-500" : "text-blue-500"}`}>
+                        {activeNews.subtitle}
+                      </span>
+                      <h2 className="text-2xl md:text-4xl font-black leading-tight text-slate-900">{activeNews.title}</h2>
+                      <p className="text-base md:text-lg font-medium text-slate-600 line-clamp-2">{activeNews.description}</p>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
               <div className="relative w-full">
                 <div
                   onTransitionEnd={() => setIsTransitioning(false)}
-                  className="flex h-[500px]"
+                  className="flex items-start"
                   style={{
                     transform: `translate3d(calc(50vw - (${slideWidth}vw / 2) - (${currentIndex} * ${slideWidth}vw)), 0, 0)`,
                     transition: isTransitioning ? 'transform 1s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
@@ -111,8 +134,12 @@ export default function HomePage() {
                     const isActive = index === currentIndex;
                     const baseIndex = index % newsCount;
                     const shouldPreload = baseIndex === 0 || baseIndex === newsCount - 1;
+                    const buttonClass =
+                      actu.buttonStyle === "dark"
+                        ? "bg-black text-white hover:bg-slate-900 shadow-lg shadow-black/35"
+                        : "bg-white text-black hover:bg-slate-100 shadow-lg shadow-black/20";
                     return (
-                      <div key={`slide-fixed-${index}`} className="relative h-full flex-shrink-0 px-2" style={{ width: `${slideWidth}vw` }} onClick={() => !isActive && handleInteraction(index)}>
+                      <div key={`slide-fixed-${index}`} className="relative flex-shrink-0 px-2" style={{ width: `${slideWidth}vw` }} onClick={() => !isActive && handleInteraction(index)}>
                         <div className="relative w-full h-[500px] overflow-hidden bg-slate-100 shadow-sm">
                           {resolveNewsImage(actu.image) && (
                             <Image
@@ -121,27 +148,17 @@ export default function HomePage() {
                               fill
                               sizes="70vw"
                               className={`object-cover ${isActive ? "opacity-100" : "opacity-30"}`}
-                              priority={
-                                (index >= newsCount && index < newsCount * 2) ||
-                                shouldPreload
-                              }
+                              priority={ (index >= newsCount && index < newsCount * 2) || shouldPreload }
                             />
                           )}
-                          <div className="absolute inset-0 pointer-events-none">
-                            <div className="absolute bottom-8 md:bottom-12 left-4 right-4 sm:left-8 sm:right-8 md:left-24 md:right-24 flex flex-col items-center text-center md:flex-row md:items-end md:justify-between md:text-left gap-4 md:gap-6">
-                              <div className="max-w-xl text-white w-full md:w-auto">
-                                <span className="text-blue-400 font-bold uppercase tracking-widest text-xs">{actu.subtitle}</span>
-                                <h2 className="text-4xl md:text-5xl font-black mt-2 mb-4 leading-tight">{actu.title}</h2>
-                                <p className="text-lg text-slate-200 font-medium line-clamp-2">{actu.description}</p>
-                              </div>
-                              <Link
-                                href={actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#")}
-                                onClick={(e) => e.stopPropagation()}
-                                className="pointer-events-auto inline-flex shrink-0 items-center justify-center bg-white text-black px-10 py-4 rounded-full font-bold text-lg hover:scale-105 transition-all max-md:self-center"
-                              >
-                                {actu.buttonText}
-                              </Link>
-                            </div>
+                          <div className="absolute inset-x-0 bottom-6 flex justify-center pointer-events-none">
+                            <Link
+                              href={actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#")}
+                              onClick={(e) => e.stopPropagation()}
+                              className={`pointer-events-auto inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg hover:scale-105 transition-all ${buttonClass}`}
+                            >
+                              {actu.buttonText}
+                            </Link>
                           </div>
                         </div>
                       </div>
