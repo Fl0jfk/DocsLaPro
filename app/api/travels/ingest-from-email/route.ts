@@ -3,17 +3,12 @@ import { NextResponse, after } from "next/server";
 import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { providerNameFromEmail } from "@/app/lib/transport-providers";
-import {
-  extractDevisAndMatchTripWithMistral,
-  ocrS3Key,
-  type TripCandidateForMatch,
-} from "@/app/lib/travel-devis-ocr";
+import {  extractDevisAndMatchTripWithMistral,  ocrS3Key, type TripCandidateForMatch} from "@/app/lib/travel-devis-ocr";
 
 const INCOMING_PREFIX = "devis-incoming/";
 const UNMATCHED_KEY = "travels/email-devis-unmatched.json";
 const INDEX_KEY = "travels/index.json";
 const MAX_CANDIDATES = 45;
-/** Évite les 504 Amplify (~30 s) : réponse HTTP immédiate + traitement via after(). */
 const MARKER_PREFIX = "travels/email-ingest-markers/";
 const PENDING_STALE_MS = 12 * 60 * 1000;
 
@@ -36,11 +31,7 @@ type IngestMarker = {
   updatedAt?: string;
 };
 
-async function readIngestMarker(
-  client: S3Client,
-  bucket: string,
-  key: string
-): Promise<IngestMarker | null> {
+async function readIngestMarker( client: S3Client,  bucket: string, key: string): Promise<IngestMarker | null> {
   try {
     const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
     const raw = await res.Body?.transformToString();
@@ -108,18 +99,12 @@ async function loadTripCandidates(client: S3Client, bucket: string): Promise<Tri
     if (!raw) return [];
     const all = JSON.parse(raw) as IndexTrip[];
     if (!Array.isArray(all)) return [];
-    const sorted = [...all].sort(
-      (a, b) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
-    const withTransport = sorted.filter(
-      (t) => Boolean(t.data?.needsBus || t.data?.transportRequest)
-    );
+    const sorted = [...all].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    const withTransport = sorted.filter( (t) => Boolean(t.data?.needsBus || t.data?.transportRequest));
     const pool = withTransport.length > 0 ? withTransport : sorted;
     return pool.slice(0, MAX_CANDIDATES).map((t) => {
       const d = t.data || {};
-      const classes =
-        Array.isArray(d.classes) ? d.classes.join(", ") : String(d.classes || "");
+      const classes = Array.isArray(d.classes) ? d.classes.join(", ") : String(d.classes || "");
       return {
         id: String(t.id),
         title: String(d.title || ""),
@@ -177,9 +162,7 @@ async function appendUnmatched(client: S3Client, bucket: string, item: Unmatched
 }
 
 function ingestSecretFromEnv(): string | undefined {
-  const raw =
-    process.env.TRAVEL_EMAIL_INGEST_SECRET?.trim() ||
-    process.env.INGEST_SECRET?.trim();
+  const raw =  process.env.TRAVEL_EMAIL_INGEST_SECRET?.trim() ||  process.env.INGEST_SECRET?.trim();
   return raw || undefined;
 }
 

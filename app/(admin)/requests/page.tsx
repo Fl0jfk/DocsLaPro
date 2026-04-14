@@ -100,9 +100,7 @@ const BOARD_COLUMNS: { key: BoardColumnKey; title: string; hint: string; acceptD
   },
 ];
 
-function normEmail(e: string) {
-  return e.trim().toLowerCase();
-}
+function normEmail(e: string) { return e.trim().toLowerCase()}
 
 function requesterShort(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -120,9 +118,7 @@ function RequestAttachmentLinks({
 }) {
   if (!items?.length) return null;
   const open = async (attachmentId: string) => {
-    const res = await fetch(
-      `/api/requests/attachment-url?requestId=${encodeURIComponent(requestId)}&attachmentId=${encodeURIComponent(attachmentId)}`,
-    );
+    const res = await fetch(`/api/requests/attachment-url?requestId=${encodeURIComponent(requestId)}&attachmentId=${encodeURIComponent(attachmentId)}`);
     const data = (await res.json()) as { url?: string };
     if (data.url) window.open(data.url, "_blank", "noopener,noreferrer");
   };
@@ -169,29 +165,20 @@ export default function RequestsPage() {
   const [delegateEmailById, setDelegateEmailById] = useState<Record<string, string>>({});
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const { isProfesseur } = useMemo(() => {
-    if (!user) {
-      return { isProfesseur: false };
-    }
+    if (!user) { return { isProfesseur: false }}
     const roleRaw = user.publicMetadata?.role;
     const rawRoles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
-    const norm = (v: string) =>
-      v
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[\s-]+/g, "_");
+    const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s-]+/g, "_");
     const normalized = rawRoles.map(norm);
     const isProfesseur = normalized.includes("professeur");
     return { isProfesseur };
   }, [user]);
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const resSubmitted = await fetch("/api/requests/list?scope=submitted", { cache: "no-store" });
       const dataSubmitted = await resSubmitted.json();
       if (resSubmitted.ok) setSubmittedItems(Array.isArray(dataSubmitted) ? dataSubmitted : []);
-
       const resTeam = await fetch("/api/requests/list?scope=board", { cache: "no-store" });
       const dataTeam = await resTeam.json();
       if (resTeam.ok) {
@@ -205,12 +192,10 @@ export default function RequestsPage() {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => {
     if (!isLoaded || !user) return;
     void load();
   }, [isLoaded, user, load]);
-
   useEffect(() => {
     if (!isLoaded || loading || didScrollToMesDemandes.current) return;
     if (typeof window === "undefined") return;
@@ -240,7 +225,6 @@ export default function RequestsPage() {
     const rest = BOARD_MOVE_MIN_VISIBLE_MS - elapsed;
     if (rest > 0) await new Promise((r) => setTimeout(r, rest));
   };
-
   const moveStatus = async (id: string, status: RequestStatus) => {
     const t0 = Date.now();
     setSubmittingId(id);
@@ -256,7 +240,6 @@ export default function RequestsPage() {
       setSubmittingId(null);
     }
   };
-
   const reassign = async (id: string, assignRouteId: string) => {
     if (!assignRouteId) return;
     setSubmittingId(id);
@@ -271,7 +254,6 @@ export default function RequestsPage() {
       setSubmittingId(null);
     }
   };
-
   const claimAction = async (id: string, action: "claim" | "release_claim", toCorbeille?: boolean) => {
     const t0 = Date.now();
     setSubmittingId(id);
@@ -287,8 +269,6 @@ export default function RequestsPage() {
       setSubmittingId(null);
     }
   };
-
-  /** Prise en charge personnelle : même hors file, ou réattribution si un collègue a déjà pris la main */
   const delegateClaim = async (id: string) => {
     const targetEmail = (delegateEmailById[id] || "").trim();
     if (!targetEmail) return;
@@ -307,7 +287,6 @@ export default function RequestsPage() {
       setSubmittingId(null);
     }
   };
-
   const claimSelf = async (id: string, status?: RequestStatus) => {
     const t0 = Date.now();
     setSubmittingId(id);
@@ -323,7 +302,6 @@ export default function RequestsPage() {
       setSubmittingId(null);
     }
   };
-
   const onBoardColumnDrop = (targetCol: BoardColumnKey, e: React.DragEvent) => {
     e.preventDefault();
     setDropTarget(null);
@@ -331,15 +309,12 @@ export default function RequestsPage() {
     if (!id) return;
     const item = items.find((i) => i.id === id);
     if (!item) return;
-
     if (targetCol === "CORBEILLE") {
       if (!item.boardCanReassign) return;
       void claimAction(id, "release_claim", true);
       return;
     }
-
     if (targetCol === "NOUVELLES") return;
-
     void (async () => {
       if (targetCol === "EN_COURS") {
         if (item.status === "EN_COURS" || item.status === "NOUVELLE") {
@@ -354,14 +329,9 @@ export default function RequestsPage() {
       if (targetCol === "TERMINEE") await moveStatus(id, "TERMINEE");
     })();
   };
-
   const sendComment = async (id: string, toRequester: boolean) => {
-    const comment = toRequester
-      ? (requesterNoteById[id] || "").trim()
-      : (internalNoteById[id] || "").trim();
-    const files = toRequester
-      ? (commentFilesRequesterById[id] ?? [])
-      : (commentFilesInternalById[id] ?? []);
+    const comment = toRequester ? (requesterNoteById[id] || "").trim() : (internalNoteById[id] || "").trim();
+    const files = toRequester ? (commentFilesRequesterById[id] ?? []) : (commentFilesInternalById[id] ?? []);
     if (!comment && files.length === 0) return;
     setSubmittingId(id);
     try {
@@ -401,7 +371,6 @@ export default function RequestsPage() {
       </main>
     );
   }
-
   if (!isProfesseur && !hasStaffBoard) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10 mt-[9vh] text-sm text-slate-700">
@@ -410,7 +379,6 @@ export default function RequestsPage() {
       </main>
     );
   }
-
   if (!hasStaffBoard && isProfesseur) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-8 mt-[9vh] pb-24">
@@ -421,11 +389,7 @@ export default function RequestsPage() {
           <strong>Créer une demande</strong>.
         </p>
         <div className="mt-8">
-          <MesDemandesSuivi
-            items={submittedItems}
-            loading={loading}
-            intro="État d’avancement et service en charge (sans codes techniques)."
-          />
+          <MesDemandesSuivi items={submittedItems} loading={loading} intro="État d’avancement et service en charge (sans codes techniques)."/>
         </div>
       </main>
     );
@@ -471,17 +435,14 @@ export default function RequestsPage() {
             >
               {items.filter((r) => r.boardColumn === col.key).map((r) => {
                 const pool = r.assignedTo.poolEmails && r.assignedTo.poolEmails.length > 0 ? r.assignedTo.poolEmails : [r.assignedTo.email];
-                const isCorbeilleCard =
-                  r.assignedTo.routeId === "corbeille" || r.assignedTo.unit === "corbeille" || r.assignedTo.unit === "tri.inconnu";
+                const isCorbeilleCard = r.assignedTo.routeId === "corbeille" || r.assignedTo.unit === "corbeille" || r.assignedTo.unit === "tri.inconnu";
                 const sharedPool = isCorbeilleCard || (r.assignedTo.poolEmails?.length ?? 0) > 1;
                 const inPool = Boolean(userEmail && pool.some((p) => normEmail(p) === normEmail(userEmail)));
                 const claimed = r.assignedTo.claimedBy;
-                const claimedByOther =
-                  claimed?.email && userEmail && normEmail(claimed.email) !== normEmail(userEmail);
+                const claimedByOther = claimed?.email && userEmail && normEmail(claimed.email) !== normEmail(userEmail);
                 const claimedByMe = claimed?.email && userEmail && normEmail(claimed.email) === normEmail(userEmail);
                 const showPoolClaim = sharedPool && inPool && !claimed;
-                const showSelfClaim =
-                  !claimedByMe && (!claimed || Boolean(claimedByOther)) && !(sharedPool && inPool && !claimed);
+                const showSelfClaim = !claimedByMe && (!claimed || Boolean(claimedByOther)) && !(sharedPool && inPool && !claimed);
                 const isPinned = pinnedCardId === r.id;
                 return (
                 <article
@@ -898,7 +859,6 @@ export default function RequestsPage() {
           </section>
         ))}
       </div>
-
       <div className="mt-14">
         <MesDemandesSuivi
           items={submittedItems}
@@ -909,4 +869,3 @@ export default function RequestsPage() {
     </main>
   );
 }
-
