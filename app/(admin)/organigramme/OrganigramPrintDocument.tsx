@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { SCHOOL } from "@/app/lib/school";
@@ -25,7 +26,6 @@ const POLES_TITLE = "Pôles éducatifs & vie scolaire";
 const POLES_DESC =
   "Équipes par cycle — CPE et accompagnement, distincts du seul pôle administratif.";
 
-/** Teintes très légères (lisibles à l’impression, regroupement visuel type tuiles). */
 type PrintTone =
   | "direction"
   | "admin"
@@ -88,10 +88,10 @@ const TILE: Record<
     missionBar: "border-cyan-200/45",
   },
   poleEcole: {
-    shell: "bg-green-50/70 border-green-100/80",
-    heading: "text-green-900",
-    rule: "border-green-200/60",
-    missionBar: "border-green-200/45",
+    shell: "bg-yellow-50/70 border-yellow-100/80",
+    heading: "text-yellow-900",
+    rule: "border-yellow-200/60",
+    missionBar: "border-yellow-200/45",
   },
   poleCollege: {
     shell: "bg-blue-50/70 border-blue-100/80",
@@ -132,16 +132,44 @@ function displayName(p: OrganigramPerson): string {
   return "À compléter";
 }
 
-function PrintPerson({ person, missionBarClass }: { person: OrganigramPerson; missionBarClass: string }) {
+function initials(p: OrganigramPerson): string {
+  const f = (p.firstName ?? "").trim();
+  const l = (p.lastName ?? "").trim();
+  if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
+  if (f) return f.slice(0, 2).toUpperCase();
+  if (l) return l.slice(0, 2).toUpperCase();
+  return "?";
+}
+
+function PrintPerson({
+  person,
+  missionBarClass,
+  className = "w-full",
+}: {
+  person: OrganigramPerson;
+  missionBarClass: string;
+  className?: string;
+}) {
   return (
-    <div className="mb-1 print:break-inside-avoid last:mb-0">
-      <p className="font-bold text-[7.5pt] leading-tight text-slate-800 m-0">
-        {displayName(person)}
-        <span className="font-semibold text-slate-700"> — {person.role}</span>
-      </p>
-      {person.email ? (
-        <p className="text-[6.5pt] text-slate-600 m-0 mt-0.5 leading-tight">{person.email}</p>
-      ) : null}
+    <div className={`print:break-inside-avoid rounded-2xl border border-slate-300 w-full bg-white/95 p-2 ${className}`}>
+      <div className="flex items-start gap-1.5">
+        <div className="w-10 h-10 shrink-0 rounded-xl overflow-hidden border border-slate-300 bg-slate-100 flex items-center justify-center text-[7pt] font-bold text-slate-600">
+          {person.photoUrl ? (
+            <Image src={person.photoUrl} alt="" width={40} height={40} quality={100} unoptimized className="w-full h-full object-cover" />
+          ) : (
+            initials(person)
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-[7.5pt] leading-tight text-slate-800 m-0">
+            {displayName(person)}
+            <span className="font-semibold text-slate-700"> — {person.role}</span>
+          </p>
+          {person.email ? (
+            <p className="text-[6.5pt] text-slate-600 m-0 mt-0.5 leading-tight">{person.email}</p>
+          ) : null}
+        </div>
+      </div>
       <ul className={`list-none m-0 mt-0.5 pl-1.5 border-l ${missionBarClass} space-y-0`}>
         {person.missions.map((m, i) => (
           <li key={i} className="text-[6.5pt] leading-snug text-slate-700 pl-1 py-0">
@@ -156,7 +184,6 @@ function PrintPerson({ person, missionBarClass }: { person: OrganigramPerson; mi
 function PrintTile({
   tone,
   title,
-  description,
   children,
 }: {
   tone: PrintTone;
@@ -166,17 +193,10 @@ function PrintTile({
 }) {
   const t = TILE[tone];
   return (
-    <section
-      className={`print:break-inside-avoid rounded-md border p-1.5 mb-1.5 last:mb-0 ${t.shell}`}
-    >
-      <h2
-        className={`m-0 text-[7.5pt] font-bold uppercase tracking-wide pb-0.5 mb-0.5 border-b ${t.heading} ${t.rule}`}
-      >
+    <section className={`print:break-inside-avoid rounded-2xl border p-4 mb-4 last:mb-0 ${t.shell}`}>
+      <h2 className={`m-0 text-[7.5pt] font-bold uppercase tracking-wide pb-2 mb-3 border-b ${t.heading} ${t.rule}`}>
         {title}
       </h2>
-      {description ? (
-        <p className="text-[6.5pt] text-slate-600 m-0 mb-1 leading-snug">{description}</p>
-      ) : null}
       {children}
     </section>
   );
@@ -187,18 +207,28 @@ function PrintBlockTile({
   title,
   description,
   people,
+  personClassName = "w-full",
 }: {
   tone: PrintTone;
   title: string;
   description?: string;
   people: OrganigramPerson[];
+  personClassName?: string;
 }) {
   const t = TILE[tone];
+  const isOdd = people.length % 2 === 1;
   return (
     <PrintTile tone={tone} title={title} description={description}>
-      {people.map((p) => (
-        <PrintPerson key={p.id} person={p} missionBarClass={t.missionBar} />
-      ))}
+      <div className="grid grid-cols-2 gap-4">
+        {people.map((p, index) => (
+          <PrintPerson
+            key={p.id}
+            person={p}
+            missionBarClass={t.missionBar}
+            className={isOdd && index === people.length - 1 ? "col-span-2 w-full" : personClassName}
+          />
+        ))}
+      </div>
     </PrintTile>
   );
 }
@@ -209,9 +239,6 @@ function poleTone(id: string): PrintTone {
   return "poleLycee";
 }
 
-/**
- * Version papier A4 : mêmes données que l’écran, tuiles pastel légères, ordre vertical condensé (comme l’organigramme).
- */
 export function OrganigramPrintDocument() {
   const printedAt = useMemo(
     () =>
@@ -224,86 +251,117 @@ export function OrganigramPrintDocument() {
   );
 
   const dirT = TILE.direction;
+  const halfWidthPerson = "w-full";
 
   return (
     <article className="organigram-print-root bg-white text-slate-800 max-w-[210mm] mx-auto print:max-w-none">
-      <header className="rounded-md border border-slate-200/90 bg-slate-50/70 p-2 mb-1.5 print:break-inside-avoid">
-        <h1 className="m-0 text-[11.5pt] font-black tracking-tight leading-tight text-slate-800">
-          Organigramme interne
-        </h1>
+      <header className="rounded-2xl border border-slate-300 bg-slate-50 p-1.5 mb-1 print:break-inside-avoid">
+        <h1 className="m-0 text-[11.5pt] font-black tracking-tight leading-tight text-slate-800">Organigramme interne</h1>
         <p className="m-0 mt-0.5 text-[8.5pt] font-semibold text-slate-700">{SCHOOL.shortName}</p>
         <p className="m-0 mt-0.5 text-[6.5pt] text-slate-600">{SCHOOL.address.fullCompact}</p>
         <p className="m-0 mt-1 text-[6pt] text-slate-500">Document du {printedAt} — usage interne</p>
       </header>
 
-      {/* Une colonne, ordre identique à l’écran : direction → admin → … */}
-      <div className="flex flex-col text-[7pt] leading-[1.3]">
+      <div className="flex flex-col text-[7pt] leading-[1.25]">
         <PrintTile tone="direction" title={DIRECTION_TITLE} description={DIRECTION_DESC}>
-          {ORGANIGRAM_DIRECTORS.map((p) => (
-            <PrintPerson key={p.id} person={p} missionBarClass={dirT.missionBar} />
-          ))}
+          <div className="grid grid-cols-2 gap-4">
+            {ORGANIGRAM_DIRECTORS.map((p, index) => (
+              <PrintPerson
+                key={p.id}
+                person={p}
+                missionBarClass={dirT.missionBar}
+                className={ORGANIGRAM_DIRECTORS.length % 2 === 1 && index === ORGANIGRAM_DIRECTORS.length - 1 ? "col-span-2 w-full" : halfWidthPerson}
+              />
+            ))}
+          </div>
         </PrintTile>
 
-        <PrintBlockTile tone="admin" title={ORGANIGRAM_ADMIN.title} description={ORGANIGRAM_ADMIN.description} people={ORGANIGRAM_ADMIN.people} />
+        <PrintBlockTile
+          tone="admin"
+          title={ORGANIGRAM_ADMIN.title}
+          description={ORGANIGRAM_ADMIN.description}
+          people={ORGANIGRAM_ADMIN.people}
+          personClassName={halfWidthPerson}
+        />
         <PrintBlockTile
           tone="accounting"
           title={ORGANIGRAM_ACCOUNTING.title}
           description={ORGANIGRAM_ACCOUNTING.description}
           people={ORGANIGRAM_ACCOUNTING.people}
+          personClassName={halfWidthPerson}
         />
+        <PrintTile tone="poles" title={POLES_TITLE} description={POLES_DESC}>
+          <div className="flex flex-col gap-4">
+            {ORGANIGRAM_POLES.map((pole) => {
+              const pt = TILE[poleTone(pole.id)];
+              return (
+                <div key={pole.id} className={`rounded-2xl border p-4 print:break-inside-avoid ${pt.shell}`}>
+                  <h3 className={`m-0 text-[7pt] font-bold pb-2 mb-3 border-b ${pt.heading} ${pt.rule}`}>{pole.label}</h3>
+                  {pole.blocks.map((block) => (
+                    <div key={block.id} className="mt-0.5 print:break-inside-avoid">
+                        {(() => {
+                        const isOdd = block.people.length % 2 === 1;
+                        return (
+                          <div className="grid grid-cols-2 gap-4">
+                            {block.people.map((p, index) => (
+                              <PrintPerson
+                                key={p.id}
+                                person={p}
+                                missionBarClass={pt.missionBar}
+                                className={isOdd && index === block.people.length - 1 ? "col-span-2 w-full" : halfWidthPerson}
+                              />
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </PrintTile>
         <PrintBlockTile
           tone="reception"
           title={ORGANIGRAM_RECEPTION.title}
           description={ORGANIGRAM_RECEPTION.description}
           people={ORGANIGRAM_RECEPTION.people}
+          personClassName={halfWidthPerson}
         />
-        <PrintBlockTile tone="health" title={ORGANIGRAM_HEALTH.title} description={ORGANIGRAM_HEALTH.description} people={ORGANIGRAM_HEALTH.people} />
+        <PrintBlockTile
+          tone="health"
+          title={ORGANIGRAM_HEALTH.title}
+          description={ORGANIGRAM_HEALTH.description}
+          people={ORGANIGRAM_HEALTH.people}
+          personClassName={halfWidthPerson}
+        />
         <PrintBlockTile
           tone="maintenance"
           title={ORGANIGRAM_MAINTENANCE.title}
           description={ORGANIGRAM_MAINTENANCE.description}
           people={ORGANIGRAM_MAINTENANCE.people}
+          personClassName={halfWidthPerson}
         />
-
-        <PrintTile tone="poles" title={POLES_TITLE} description={POLES_DESC}>
-          {ORGANIGRAM_POLES.map((pole) => {
-            const pt = TILE[poleTone(pole.id)];
-            return (
-              <div
-                key={pole.id}
-                className={`mt-1 first:mt-0 rounded border p-1 print:break-inside-avoid ${pt.shell}`}
-              >
-                <h3 className={`m-0 text-[7pt] font-bold pb-0.5 mb-0.5 border-b ${pt.heading} ${pt.rule}`}>
-                  {pole.label}
-                </h3>
-                {pole.blocks.map((block) => (
-                  <div key={block.id} className="mt-0.5 print:break-inside-avoid">
-                    <p className="text-[6.5pt] font-semibold m-0 text-slate-800">{block.title}</p>
-                    {block.description ? (
-                      <p className="text-[6pt] text-slate-600 m-0 mb-0.5 leading-snug">{block.description}</p>
-                    ) : null}
-                    {block.people.map((p) => (
-                      <PrintPerson key={p.id} person={p} missionBarClass={pt.missionBar} />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </PrintTile>
-
         <PrintBlockTile
           tone="pastoral"
           title={ORGANIGRAM_PASTORAL.title}
           description={ORGANIGRAM_PASTORAL.description}
           people={ORGANIGRAM_PASTORAL.people}
+          personClassName={halfWidthPerson}
         />
-        <PrintBlockTile tone="ogec" title={ORGANIGRAM_OGEC.title} description={ORGANIGRAM_OGEC.description} people={ORGANIGRAM_OGEC.people} />
+        <PrintBlockTile
+          tone="ogec"
+          title={ORGANIGRAM_OGEC.title}
+          description={ORGANIGRAM_OGEC.description}
+          people={ORGANIGRAM_OGEC.people}
+          personClassName={halfWidthPerson}
+        />
         <PrintBlockTile
           tone="tutelle"
           title={ORGANIGRAM_TUTELLE.title}
           description={ORGANIGRAM_TUTELLE.description}
           people={ORGANIGRAM_TUTELLE.people}
+          personClassName={halfWidthPerson}
         />
       </div>
     </article>

@@ -8,8 +8,8 @@ import {
   ORGANIGRAM_ACCOUNTING,
   ORGANIGRAM_RECEPTION,
   ORGANIGRAM_HEALTH,
-  ORGANIGRAM_MAINTENANCE,
   ORGANIGRAM_POLES,
+  ORGANIGRAM_MAINTENANCE,
   ORGANIGRAM_PASTORAL,
   ORGANIGRAM_OGEC,
   ORGANIGRAM_TUTELLE,
@@ -18,6 +18,7 @@ import {
 import { SCHOOL } from "@/app/lib/school";
 import { OrganigramServiceFrame, OrganigramPoleColumn } from "./OrganigramServiceFrame";
 import { OrganigramPrintDocument } from "./OrganigramPrintDocument";
+import LogoProvidence from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp";
 
 function poleVariantFor(id: string): "poleEcole" | "poleCollege" | "poleLycee" {
   if (id === "pole-ecole") return "poleEcole";
@@ -111,13 +112,18 @@ export default function OrganigrammePage() {
     <main className="relative min-h-screen w-full max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-[10vh] overflow-x-clip print:max-w-none print:mx-0 print:px-4 print:pb-0 print:pt-2 print:overflow-visible">
       <div className="print:hidden">
       <header className="mb-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
+        <div className="flex items-start gap-4">
+          <div className="hidden sm:block w-16 h-16 rounded-2xl bg-white/80 border border-slate-200 p-2 shadow-sm">
+            <Image src={LogoProvidence} alt="Logo La Providence" width={64} height={64} className="w-full h-full object-contain" />
+          </div>
+          <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-sky-600 mb-2">Espace administration</p>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Organigramme interne</h1>
           <p className="text-slate-600 mt-3 max-w-2xl text-sm sm:text-base leading-relaxed">
             Vue d&apos;ensemble des fonctions au {SCHOOL.shortName}. Chaque bloc présente le rôle du service, cliquez sur
             une fiche pour afficher les missions détaillées.
           </p>
+          </div>
         </div>
         <button
           type="button"
@@ -153,9 +159,36 @@ export default function OrganigrammePage() {
         title={ORGANIGRAM_ACCOUNTING.title}
         description={ORGANIGRAM_ACCOUNTING.description}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {ORGANIGRAM_ACCOUNTING.people.map((p) => (
-            <PersonCard key={p.id} person={p} onSelect={setSelected} compact />
+            <PersonCard key={p.id} person={p} onSelect={setSelected} />
+          ))}
+        </div>
+      </OrganigramServiceFrame>
+      <OrganigramServiceFrame
+        slotIndex={6}
+        variant="poles"
+        bareContent
+        title="Pôles éducatifs & vie scolaire"
+        description="Équipes par cycle — CPE et accompagnement, distincts du seul pôle administratif."
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
+          {ORGANIGRAM_POLES.map((pole) => (
+            <OrganigramPoleColumn key={pole.id} poleVariant={poleVariantFor(pole.id)} label={pole.label}>
+              {pole.blocks.map((block) => (
+                <div key={block.id} className="mb-3 last:mb-0">
+                  <p className="text-xs font-semibold text-slate-600 mb-1">{block.title}</p>
+                  {block.description ? (
+                    <p className="text-[11px] text-slate-500 mb-2">{block.description}</p>
+                  ) : null}
+                  <div className="space-y-2">
+                    {block.people.map((p) => (
+                      <PersonCard key={p.id} person={p} onSelect={setSelected} compact />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </OrganigramPoleColumn>
           ))}
         </div>
       </OrganigramServiceFrame>
@@ -189,33 +222,7 @@ export default function OrganigrammePage() {
         </div>
       </OrganigramServiceFrame>
 
-      <OrganigramServiceFrame
-        slotIndex={6}
-        variant="poles"
-        bareContent
-        title="Pôles éducatifs & vie scolaire"
-        description="Équipes par cycle — CPE et accompagnement, distincts du seul pôle administratif."
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
-          {ORGANIGRAM_POLES.map((pole) => (
-            <OrganigramPoleColumn key={pole.id} poleVariant={poleVariantFor(pole.id)} label={pole.label}>
-              {pole.blocks.map((block) => (
-                <div key={block.id} className="mb-3 last:mb-0">
-                  <p className="text-xs font-semibold text-slate-600 mb-1">{block.title}</p>
-                  {block.description ? (
-                    <p className="text-[11px] text-slate-500 mb-2">{block.description}</p>
-                  ) : null}
-                  <div className="space-y-2">
-                    {block.people.map((p) => (
-                      <PersonCard key={p.id} person={p} onSelect={setSelected} compact />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </OrganigramPoleColumn>
-          ))}
-        </div>
-      </OrganigramServiceFrame>
+      
       <OrganigramServiceFrame
         slotIndex={7}
         variant="pastoral"
@@ -310,7 +317,17 @@ export default function OrganigrammePage() {
         @media print {
           @page {
             size: A4;
-            margin: 10mm;
+            margin: 5mm;
+          }
+          /* Masque les widgets flottants externes (bouton IA/assistant, etc.) */
+          [aria-label*="IA" i],
+          [aria-label*="assistant" i],
+          [title*="IA" i],
+          [title*="assistant" i],
+          iframe[title*="assistant" i],
+          iframe[title*="chat" i] {
+            display: none !important;
+            visibility: hidden !important;
           }
           html,
           body {

@@ -84,7 +84,7 @@ export default function SiteHeader() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   return (
     <>
-      <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100">
+      <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 print:!hidden">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <Link href="/" className="hover:opacity-75 transition flex-shrink-0">
             <div className="w-[44px] h-[44px]">
@@ -155,7 +155,7 @@ export default function SiteHeader() {
         </div>
       </header>
       <div
-        className="fixed inset-0 z-40 md:hidden transition-all duration-500"
+        className="fixed inset-0 z-40 md:hidden transition-all duration-500 print:!hidden"
         style={{
           background: "rgba(0,0,0,0.18)",
           backdropFilter: "blur(4px)",
@@ -165,7 +165,7 @@ export default function SiteHeader() {
         onClick={() => setMobileOpen(false)}
       />
       <div
-        className="fixed top-14 left-0 right-0 z-40 md:hidden bg-white/96 backdrop-blur-2xl border-b border-slate-100 shadow-2xl"
+        className="fixed top-14 left-0 right-0 z-40 md:hidden bg-white/96 backdrop-blur-2xl border-b border-slate-100 shadow-2xl print:!hidden"
         style={{
           transform: mobileOpen ? "translateY(0)" : "translateY(-12px)",
           opacity: mobileOpen ? 1 : 0,

@@ -3,7 +3,7 @@
 import type { ReactNode, ReactElement } from "react";
 import { useId } from "react";
 
-export type OrganigramFrameVariant = | "direction" | "admin" | "accounting" | "reception" | "health" | "maintenance" | "poles" | "poleEcole" | "poleCollege" | "poleLycee" | "pastoral" | "ogec" | "tutelle";
+export type OrganigramFrameVariant = | "direction" | "admin" | "accounting" | "poles" | "poleEcole" | "poleCollege" | "poleLycee" | "reception" | "health" | "maintenance" | "pastoral" | "ogec" | "tutelle";
 
 type Theme = {
   badge: string;
@@ -61,15 +61,6 @@ const THEMES: Record<OrganigramFrameVariant, Theme> = {
     shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_45px_-24px_rgba(15,118,110,0.5)]",
     inner: "bg-white/[0.97] border border-teal-100/90 shadow-md",
   },
-  maintenance: {
-    badge: "Maintenance",
-    badgeColor: "text-amber-100",
-    iconBg: "bg-amber-950 shadow-lg ring-2 ring-amber-400/35",
-    border: "border-amber-600/45",
-    outer: "bg-gradient-to-br from-amber-950 via-amber-900 to-stone-900",
-    shadow: "shadow-[0_1px_0_rgba(255,255,255,0.08)_inset,0_24px_50px_-28px_rgba(120,53,15,0.55)]",
-    inner: "bg-white/[0.97] border border-amber-100/90 shadow-md",
-  },
   poles: {
     badge: "Vie scolaire",
     badgeColor: "text-cyan-100",
@@ -105,6 +96,15 @@ const THEMES: Record<OrganigramFrameVariant, Theme> = {
     outer: "bg-gradient-to-br from-fuchsia-950 via-purple-900 to-slate-900",
     shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_16px_40px_-22px_rgba(112,26,117,0.45)]",
     inner: "bg-white/[0.97] border border-fuchsia-100/80 shadow-md",
+  },
+  maintenance: {
+    badge: "Maintenance",
+    badgeColor: "text-amber-100",
+    iconBg: "bg-amber-950 shadow-lg ring-2 ring-amber-400/35",
+    border: "border-amber-600/45",
+    outer: "bg-gradient-to-br from-amber-950 via-amber-900 to-stone-900",
+    shadow: "shadow-[0_1px_0_rgba(255,255,255,0.08)_inset,0_24px_50px_-28px_rgba(120,53,15,0.55)]",
+    inner: "bg-white/[0.97] border border-amber-100/90 shadow-md",
   },
   pastoral: {
     badge: "Pastorale",
@@ -257,11 +257,11 @@ const ICONS: Record<OrganigramFrameVariant, (p: { className?: string }) => React
   accounting: IconChart,
   reception: IconPhone,
   health: IconHealth,
-  maintenance: IconWrench,
   poles: IconUsers,
   poleEcole: IconUsers,
   poleCollege: IconUsers,
   poleLycee: IconUsers,
+  maintenance: IconWrench,
   pastoral: IconPastoral,
   ogec: IconBuilding,
   tutelle: IconShield,
@@ -321,7 +321,6 @@ function DecoGears({ className }: { className?: string }) {
   );
 }
 
-/** Fils verticaux + traits horizontaux discrets (desktop / tablette) — « invitation à parcourir ». */
 function ExploreRails({ slotIndex }: { slotIndex: number }) {
   const isEven = slotIndex % 2 === 0;
   const delaySec = slotIndex * 0.14;
@@ -452,16 +451,18 @@ export function OrganigramPoleColumn({
   poleVariant,
   label,
   children,
+  className = "",
 }: {
   poleVariant: "poleEcole" | "poleCollege" | "poleLycee";
   label: string;
   children: ReactNode;
+  className?: string;
 }) {
   const t = THEMES[poleVariant];
   const Icon = ICONS[poleVariant];
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border-[3px] p-4 ${t.border} ${t.outer} ${t.shadow}`}
+      className={`relative overflow-hidden rounded-2xl border-[3px] p-4 ${t.border} ${t.outer} ${t.shadow} ${className}`}
     >
       <div className="flex items-center gap-2 mb-3">
         <span
