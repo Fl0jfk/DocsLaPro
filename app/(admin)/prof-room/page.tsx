@@ -217,7 +217,7 @@ export default function ProfRoomPage() {
   }
   if (!isLoaded || !user) return <div className="p-20 text-center font-bold">Initialisation...</div>;
   return (
-    <div className="px-0 py-4 md:px-4 max-w-6xl mx-auto space-y-6 mt-[2vh]">
+    <div className="px-0 py-4 md:px-4 pb-0 sm:pb-4 max-w-6xl mx-auto">
       {contextMenu && (
         <div className="fixed z-[100] bg-white shadow-2xl border rounded-xl p-1 min-w-[180px] text-xs font-bold overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }}>
           {contextMenu.res ? (
@@ -233,7 +233,7 @@ export default function ProfRoomPage() {
           )}
         </div>
       )}
-
+      <h1 className="text-4xl font-black text-slate-900 tracking-tight p-4">Réservation de salles</h1>
       <div className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-1/2">
           <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 w-full text-center text-white font-black px-4 p-3 rounded-xl outline-none">
@@ -347,7 +347,7 @@ export default function ProfRoomPage() {
           </div>
         </div>
       )}
-      <div id="form-section" className="bg-slate-900 rounded-[40px] p-4 md:p-8 text-white shadow-2xl">
+      <div id="form-section" className="bg-slate-900 rounded-b-none sm:rounded-b-[40px] rounded-[40px] p-4 md:p-8 text-white shadow-2xl mt-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-8">
           <div className="flex items-center gap-3 min-w-0">
             <div className={`p-2 md:p-3 rounded-2xl flex-shrink-0 ${isEditing ? 'bg-orange-500' : 'bg-green-500'}`}>
@@ -414,12 +414,11 @@ export default function ProfRoomPage() {
                         selectedHours.includes(h) 
                         ? "bg-blue-600 text-white shadow-lg scale-110 z-10" 
                         : isTaken 
-                          ? "bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800 opacity-50" 
+                          ? "bg-red-900/50 text-red-200 cursor-not-allowed border border-red-700/70" 
                           : "bg-slate-700 text-slate-400 hover:bg-slate-600"
                       }`}
                     >
                       {h}h30
-                      {isTaken && <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[7px] text-red-500 uppercase whitespace-nowrap">Occupé</span>}
                     </button>
                   );
                 })}

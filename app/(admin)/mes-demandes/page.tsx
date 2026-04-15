@@ -42,8 +42,8 @@ export default function MesDemandesPage() {
   if (!user) return <main className="max-w-3xl mx-auto px-4 py-10 mt-[9vh]">Connexion requise.</main>;
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8 mt-[9vh] pb-24">
-      <h1 className="text-2xl font-black text-slate-900">Suivi de vos demandes</h1>
+    <main className="max-w-3xl mx-auto px-4 py-8 mt-[3vh] pb-24">
+      <h1 className="text-4xl font-black text-slate-900">Suivi de vos demandes</h1>
       <p className="text-sm text-slate-600 mt-1">
         Réservé à votre compte : vous ne voyez pas les demandes des autres. Pour en créer une nouvelle, utilisez la bulle d’assistant
         (chatbot) puis <strong>Créer une demande</strong>.

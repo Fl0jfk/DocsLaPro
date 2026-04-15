@@ -268,7 +268,7 @@ export default function OneDriveUpDocsOCRAI() {
   const dropDisabled = !account || !accessToken || ocrProcessing;
   const progressPercent = processingStatus.total > 0  ? ((processingStatus.completed + processingStatus.failed) / processingStatus.total) * 100  : 0;
   return (
-    <div className="p-6 max-w-[1200px] mx-auto mt-[8vh]">
+    <div className="p-6 max-w-[1200px] mx-auto mt-[1vh]">
       <div className="flex flex-col md:max-lg:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">IA Scanner & OneDrive</h1>
@@ -305,7 +305,7 @@ export default function OneDriveUpDocsOCRAI() {
                 <h3 className="text-xl font-bold text-gray-800 mb-2">
                   {ocrProcessing ? "Analyse en cours..." : "Glissez vos documents PDF ici"}
                 </h3>
-                <p className="text-gray-500 max-w-xs mx-auto">
+                <p className="text-gray-500 max-w-xl mx-auto">
                   {ocrProcessing ? "L'IA classe vos documents, vous pouvez prendre un café mais ne fermez pas la page !"  : "Ou cliquez pour parcourir vos fichiers. L'IA s'occupe de l'OCR et du rangement."}
                 </p>
               </div>

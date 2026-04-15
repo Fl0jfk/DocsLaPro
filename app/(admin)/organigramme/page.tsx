@@ -2,23 +2,9 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import {
-  ORGANIGRAM_DIRECTORS,
-  ORGANIGRAM_ADMIN,
-  ORGANIGRAM_ACCOUNTING,
-  ORGANIGRAM_RECEPTION,
-  ORGANIGRAM_HEALTH,
-  ORGANIGRAM_POLES,
-  ORGANIGRAM_MAINTENANCE,
-  ORGANIGRAM_PASTORAL,
-  ORGANIGRAM_OGEC,
-  ORGANIGRAM_TUTELLE,
-  type OrganigramPerson,
-} from "@/app/lib/organigramme";
-import { SCHOOL } from "@/app/lib/school";
+import { ORGANIGRAM_DIRECTORS, ORGANIGRAM_ADMIN, ORGANIGRAM_ACCOUNTING, ORGANIGRAM_RECEPTION, ORGANIGRAM_HEALTH, ORGANIGRAM_POLES, ORGANIGRAM_MAINTENANCE, ORGANIGRAM_PASTORAL, ORGANIGRAM_OGEC, ORGANIGRAM_TUTELLE, type OrganigramPerson} from "@/app/lib/organigramme";
 import { OrganigramServiceFrame, OrganigramPoleColumn } from "./OrganigramServiceFrame";
 import { OrganigramPrintDocument } from "./OrganigramPrintDocument";
-import LogoProvidence from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp";
 
 function poleVariantFor(id: string): "poleEcole" | "poleCollege" | "poleLycee" {
   if (id === "pole-ecole") return "poleEcole";
@@ -46,18 +32,9 @@ function displayName(p: OrganigramPerson): string {
   return "À compléter";
 }
 
-function PersonCard({
-  person,
-  onSelect,
-  compact,
-}: {
-  person: OrganigramPerson;
-  onSelect: (p: OrganigramPerson) => void;
-  compact?: boolean;
-}) {
+function PersonCard({ person, onSelect, compact}: { person: OrganigramPerson; onSelect: (p: OrganigramPerson) => void; compact?: boolean}) {
   const name = displayName(person);
   const ini = initials(person);
-
   return (
     <button
       type="button"
@@ -73,13 +50,7 @@ function PersonCard({
           }`}
         >
           {person.photoUrl ? (
-            <Image
-              src={person.photoUrl}
-              alt=""
-              width={56}
-              height={56}
-              className="w-full h-full object-cover"
-            />
+            <Image src={person.photoUrl} alt="" width={56} height={56} className="w-full h-full object-cover"/>
           ) : (
             <span>{ini}</span>
           )}
@@ -102,33 +73,23 @@ function PersonCard({
 
 export default function OrganigrammePage() {
   const [selected, setSelected] = useState<OrganigramPerson | null>(null);
-
   const modalMissions = useMemo(() => {
     if (!selected) return [];
     return selected.missions.map((m) => m.trim()).filter(Boolean);
   }, [selected]);
-
   return (
-    <main className="relative min-h-screen w-full max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-[10vh] overflow-x-clip print:max-w-none print:mx-0 print:px-4 print:pb-0 print:pt-2 print:overflow-visible">
+    <main className="relative min-h-screen w-full max-w-6xl mx-auto px-4 sm:px-6 pb-16 pt-[4vh] overflow-x-clip print:max-w-none print:mx-0 print:px-4 print:pb-0 print:pt-2 print:overflow-visible">
       <div className="print:hidden">
       <header className="mb-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-start gap-4">
-          <div className="hidden sm:block w-16 h-16 rounded-2xl bg-white/80 border border-slate-200 p-2 shadow-sm">
-            <Image src={LogoProvidence} alt="Logo La Providence" width={64} height={64} className="w-full h-full object-contain" />
-          </div>
           <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-sky-600 mb-2">Espace administration</p>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Organigramme interne</h1>
-          <p className="text-slate-600 mt-3 max-w-2xl text-sm sm:text-base leading-relaxed">
-            Vue d&apos;ensemble des fonctions au {SCHOOL.shortName}. Chaque bloc présente le rôle du service, cliquez sur
-            une fiche pour afficher les missions détaillées.
-          </p>
           </div>
         </div>
         <button
           type="button"
           onClick={() => window.print()}
-          className="shrink-0 self-start sm:mt-8 px-5 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold shadow-lg hover:bg-slate-800 transition-colors border border-slate-700"
+          className="shrink-0 self-start px-5 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold shadow-lg hover:bg-slate-800 transition-colors border border-slate-700"
         >
           Imprimer / PDF (A4)
         </button>
@@ -221,8 +182,6 @@ export default function OrganigrammePage() {
           ))}
         </div>
       </OrganigramServiceFrame>
-
-      
       <OrganigramServiceFrame
         slotIndex={7}
         variant="pastoral"
@@ -312,7 +271,6 @@ export default function OrganigrammePage() {
           </div>
         </div>
       ) : null}
-
       <style jsx global>{`
         @media print {
           @page {

@@ -18,7 +18,7 @@ export default function Home() {
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-screen w-full">
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center w-full">
           <div className="relative">
             <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-100 border-t-blue-500 shadow-sm"></div>
             <div className="absolute inset-0 h-16 w-16 animate-ping rounded-full border-4 border-blue-400 opacity-20"></div>
@@ -29,10 +29,10 @@ export default function Home() {
     );
   }
   return (
-    <main className="relative flex flex-col w-full min-h-screen overflow-hidden mt-[10vh] max-w-[1500px] mx-auto">
-      <div className="relative z-10 w-full flex flex-col flex-grow">
+    <main className="flex flex-col w-full mt-[1vh] max-w-[1500px] mx-auto">
+      <div className="z-10 w-full flex flex-col flex-grow mx-auto">
         {uniqueCategories.length > 0 ? (
-          <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-1000 mx-auto">
             <RollingSlider categories={uniqueCategories} />
           </div>
         ) : (

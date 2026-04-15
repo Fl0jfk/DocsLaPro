@@ -378,7 +378,7 @@ export default function AddNewsSitePage() {
       <section className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-slate-800">Ajout News Site</h1>
+            <h1 className="text-2xl font-black text-slate-800">Ajout d'actualités sur le site</h1>
             <p className="text-sm text-slate-500 mt-1">{items.length} actualité{items.length > 1 ? "s" : ""} · seules les 10 dernières sont affichées sur le slider.</p>
           </div>
           <div className="flex gap-2 shrink-0">

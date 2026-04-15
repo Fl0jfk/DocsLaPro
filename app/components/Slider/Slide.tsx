@@ -11,9 +11,7 @@ type SliderProps = {
 
 export default function Slide({ name, img, link, external, priority = false,}: SliderProps) {
   const isPriorityImage = priority || img.includes("reservationsalle.jpg");
-  const ImageBlock = (
-    img && (<Image src={img} fill alt={name} sizes="35vw" priority={isPriorityImage} fetchPriority={isPriorityImage ? "high" : "auto"} className="rounded-3xl select-none pointer-events-none object-contain"/>)
-  );
+  const ImageBlock = ( img && (<Image src={img} fill alt={name} sizes="35vw" priority={isPriorityImage} fetchPriority={isPriorityImage ? "high" : "auto"} className="rounded-3xl select-none pointer-events-none object-contain"/>));
   const content = (
     <>
       <div className="flex flex-col gap-1 z-[2]">

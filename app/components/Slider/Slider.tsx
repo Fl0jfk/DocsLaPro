@@ -34,7 +34,7 @@ export default function Slider({ items }: SliderProps) {
     containerRef.current.scrollLeft = newScrollLeft;
   };
   return (
-    <div ref={containerRef} className="grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 select-none h-full" onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}>
+    <div ref={containerRef} className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 select-none h-full w-full mx-auto" onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}>
       {items.map((category, index) => (
         <Slide name={category.name} key={category.id} link={category.link} img={category.img} external={category.external} priority={index === 0}/>
       ))}

@@ -394,11 +394,9 @@ export default function RequestsPage() {
       </main>
     );
   }
-
   return (
-    <main className="max-w-[1500px] mx-auto px-4 py-8 mt-[9vh]">
-      <h1 className="text-2xl font-black text-slate-900">Récapitulatif des demandes</h1>
-     
+    <main className="max-w-[1500px] mx-auto px-4 py-4">
+      <h1 className="text-4xl font-black text-slate-900">Récapitulatif des demandes</h1>
       {loading ? <p className="mt-6 text-sm text-slate-500">Chargement des demandes...</p> : null}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
         {BOARD_COLUMNS.map((col) => (

@@ -13,13 +13,7 @@ export default function QRCreator() {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        QRCode.toCanvas(
-          canvas, 
-          url, 
-          { width: 256, errorCorrectionLevel: 'H', color: { dark: fillColor, light: backColor }, margin: 4 },
-          (error) => {
-            if (error) console.error(error);
-          }
+        QRCode.toCanvas( canvas,  url,  { width: 256, errorCorrectionLevel: 'H', color: { dark: fillColor, light: backColor }, margin: 4 }, (error) => { if (error) console.error(error)}
         );
       }
     }
@@ -41,8 +35,8 @@ export default function QRCreator() {
     }
   };
   return (
-    <main className='sm:pt-[13vh] p-4 flex flex-col gap-4 max-w-[1000px] mx-auto'>
-      <h1 className='text-4xl'>Création de QR Code</h1>
+    <main className='mt-[1vh] p-4 flex flex-col gap-4 max-w-[1000px] mx-auto'>
+      <h1 className="text-4xl font-black text-slate-900 tracking-tight">Création de QR Code</h1>
       <div className="mt-4">
         <label htmlFor="url" className="block text-lg">Adresse URL :</label>
         <input type="text" id="url"  value={url}  onChange={handleUrlChange} className="mt-2 p-2 border border-gray-300 rounded-xl w-full" placeholder="Entrez l'adresse URL"/>

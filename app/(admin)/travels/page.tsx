@@ -55,21 +55,16 @@ export default function TripDashboard() {
     }
   };
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen mt-[10vh]">
+    <div className="max-w-7xl mx-auto p-6 min-h-screen mt-[1vh]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">Espace Voyages</h1>
           <p className="text-slate-500 font-medium">Gestion des déplacements scolaires.</p>
         </div>
-        
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg transition-all"
-        >
+        <button onClick={() => setShowModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg transition-all">
           + Nouvelle demande
         </button>
       </div>
-      {/* ── Filter by établissement ────────────────────────────────── */}
       <div className="flex gap-2 flex-wrap mb-6">
         {["Tous", "École", "Collège", "Lycée", "Groupe Scolaire"].map((f) => {
           const active = (f === "Tous" && !filterEtab) || filterEtab === f;
@@ -94,10 +89,7 @@ export default function TripDashboard() {
           <div className="col-span-full text-center py-20">Chargement des dossiers...</div>
         ) : trips.length > 0 ? (
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (filterEtab
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ? (trips as any[]).filter((t: any) => (t.data?.etablissement || "Groupe Scolaire") === filterEtab)
-            : trips
+          (filterEtab ? (trips as any[]).filter((t: any) => (t.data?.etablissement || "Groupe Scolaire") === filterEtab) : trips
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ).map((trip: any) => {
             const isComplex = trip.type === "COMPLEX" || trip.data?.transport;

@@ -60,7 +60,7 @@ function UserPopover({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-export default function SiteHeader() {
+export default function SiteHeader({ adminMode = false }: { adminMode?: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -91,24 +91,39 @@ export default function SiteHeader() {
               <Image src={Logo} alt="La Providence Nicolas Barré" width={150} height={150}/>
             </div>
           </Link>
-          <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
-            {NAV.map(({ href, label, activeColor, hoverClass }) => (
+          <nav className={`${adminMode ? "flex" : "hidden md:flex"} gap-8 text-sm font-medium text-slate-600`}>
+            {adminMode && !isActive("/dashboard") ? (
               <Link
-                key={href}
-                href={href}
-                className={`relative py-1 transition-colors ${hoverClass} ${isActive(href) ? `${activeColor} font-bold` : ""}`}
+                href="/dashboard"
+                className={`px-4 py-1.5 rounded-full border text-xs font-bold transition ${
+                  isActive("/dashboard")
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:text-slate-900"
+                }`}
               >
-                {label}
-                {isActive(href) && (
-                  <span className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-current" />
-                )}
+                Dashboard
               </Link>
-            ))}
+            ) : !adminMode ? (
+              NAV.map(({ href, label, activeColor, hoverClass }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`relative py-1 transition-colors ${hoverClass} ${isActive(href) ? `${activeColor} font-bold` : ""}`}
+                >
+                  {label}
+                  {isActive(href) && (
+                    <span className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-current" />
+                  )}
+                </Link>
+              ))
+            ) : null}
           </nav>
           <div className="hidden md:flex items-center gap-2">
-            <a href={SCHOOL.preinscriptionUrl} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all">
-              Pré-inscription
-            </a>
+            {!adminMode && (
+              <a href={SCHOOL.preinscriptionUrl} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all">
+                Pré-inscription
+              </a>
+            )}
             {isSignedIn ? (
               <div ref={popoverRef} className="relative">
                 <button
@@ -175,7 +190,10 @@ export default function SiteHeader() {
       >
         <div className="max-w-[1200px] mx-auto px-6 pt-4 pb-8">
           <nav className="flex flex-col">
-            {NAV.map(({ href, label, activeColor, hoverClass, dot }, i) => (
+            {(adminMode
+              ? [{ href: "/dashboard", label: "Dashboard", activeColor: "text-slate-800", hoverClass: "hover:text-slate-600", dot: "bg-slate-600" }, ...NAV]
+              : NAV
+            ).map(({ href, label, activeColor, hoverClass, dot }, i) => (
               <Link
                 key={href}
                 href={href}
@@ -238,9 +256,11 @@ export default function SiteHeader() {
               transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 2) * 55}ms, opacity 0.35s ease ${(NAV.length + 2) * 55}ms`,
             }}
           >
-            <Link href="/portesouvertes" className="bg-blue-600 text-white font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-blue-700 transition">
-              Pré-inscription
-            </Link>
+            {!adminMode && (
+              <Link href="/portesouvertes" className="bg-blue-600 text-white font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-blue-700 transition">
+                Pré-inscription
+              </Link>
+            )}
             {isSignedIn ? (
               <div className="flex gap-3">
                 <Link href="/dashboard" className="flex-1 bg-slate-100 text-slate-700 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-slate-200 transition">

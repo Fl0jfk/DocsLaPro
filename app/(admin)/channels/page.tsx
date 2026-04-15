@@ -51,12 +51,10 @@ export default function ProfChatPage() {
   const lastSeenMessageId = useRef<Record<string, number>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const roles = (user?.publicMetadata?.role as string[]) || [];
-
   const isAdminByName = useMemo(() => {
     if (!user?.fullName) return false;
     return AUTHORIZED_ADMINS.includes(user.fullName);
   }, [user]);
-
   const sortedUsers = useMemo(() => {
     return [...allUsers].sort((a, b) => {
       const nameA = a.name.split(' ').pop() || "";
@@ -64,7 +62,6 @@ export default function ProfChatPage() {
       return nameA.localeCompare(nameB);
     });
   }, [allUsers]);
-
   useEffect(() => {
     if (user?.id) {
       const saved = localStorage.getItem(`lastSeen_${user.id}`);
@@ -73,7 +70,6 @@ export default function ProfChatPage() {
       }
     }
   }, [user?.id]);
-
   const fetchChannels = async () => {
     try {
       const res = await fetch("/api/channels");
@@ -85,8 +81,6 @@ export default function ProfChatPage() {
         return false;
       });
       setChannels(accessible);
-
-      // --- FIX: Synchronisation de l'ID au démarrage ---
       if (accessible.length > 0 && activeChannel === "general") {
         const generalChan = accessible.find((c: Channel) => c.name.toLowerCase() === "general");
         if (generalChan) {
@@ -95,13 +89,10 @@ export default function ProfChatPage() {
           setActiveChannel(accessible[0].id);
         }
       }
-      // -----------------------------------------------
-      
     } catch (err) {
       console.error("Erreur channels:", err);
     }
   };
-
   const fetchProfs = async () => {
     try {
       const res = await fetch("/api/channels/users/list");
@@ -111,7 +102,6 @@ export default function ProfChatPage() {
       console.error("Erreur liste profs:", err);
     }
   };
-
   const fetchMessages = async (isInitialLoad = false) => {
     if (isInitialLoad) setLoading(true);
     try {
@@ -119,7 +109,6 @@ export default function ProfChatPage() {
       const allMessages: Message[] = await res.json();
       const filtered = allMessages.filter((m) => m.channel === activeChannel);
       setMessages(filtered);
-      
       const newUnreads: string[] = [];
       channels.forEach(chan => {
         const chanMessages = allMessages.filter(m => m.channel === chan.id);
@@ -152,8 +141,6 @@ export default function ProfChatPage() {
   }, [isLoaded, user?.id]);
 
   useEffect(() => {
-    // On ne lance fetchMessages que si activeChannel n'est pas la valeur par défaut "general" 
-    // ou si on a confirmé que c'est bien l'ID voulu.
     if (isLoaded && activeChannel && channels.length > 0) {
       fetchMessages(true);
       const interval = setInterval(() => fetchMessages(false), 5000);
@@ -281,6 +268,7 @@ export default function ProfChatPage() {
 
   return (
     <main className="flex h-screen bg-gray-100 p-2 md:p-4 gap-4 relative overflow-hidden">
+      
       <div className={`
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-[110%]"} 
         md:translate-x-0 fixed md:static inset-y-4 left-4 z-40
