@@ -28,6 +28,7 @@ const createEmptyItem = (): NewsItem => ({
   buttonText: "En savoir plus",
   textColor: "white",
   buttonStyle: "light",
+  imageFit: "cover",
 });
 
 async function uploadImageToS3(file: File): Promise<string> {
@@ -148,6 +149,17 @@ function NewsCard({ item, index, isExpanded, onToggle, onRemove, onMoveUp, onMov
               >
                 <option value="light">Noir sur blanc</option>
                 <option value="dark">Blanc sur noir</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold mb-1 text-slate-600">Ajustement de l&apos;image</label>
+              <select
+                className="w-full p-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                value={item.imageFit ?? "cover"}
+                onChange={(e) => onUpdate({ imageFit: e.target.value as "cover" | "contain" })}
+              >
+                <option value="cover">Remplir (object-cover)</option>
+                <option value="contain">Contenir (object-contain)</option>
               </select>
             </div>
             {item.type === "lien" && (

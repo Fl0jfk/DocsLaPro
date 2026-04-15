@@ -25,6 +25,7 @@ type NewsItem = {
   buttonText: string;
   textColor?: "white" | "black";
   buttonStyle?: "light" | "dark";
+  imageFit?: "cover" | "contain";
 };
 
 export default function HomePage() {
@@ -101,25 +102,6 @@ export default function HomePage() {
             <div className="h-[500px] flex items-center justify-center text-slate-400 text-sm">Aucune actualité disponible pour le moment.</div>
           ) : (
             <>
-              <div className="max-w-[1200px] mx-auto px-6 mb-8">
-                <AnimatePresence mode="wait">
-                  {activeNews ? (
-                    <motion.div
-                      key={activeNews.id}
-                      initial={{ opacity: 0, x: 24 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -24 }}
-                      transition={{ duration: 0.35, ease: "easeOut" }}
-                    >
-                      <span className={`font-bold uppercase tracking-widest text-xs ${activeNews.textColor === "black" ? "text-slate-500" : "text-blue-500"}`}>
-                        {activeNews.subtitle}
-                      </span>
-                      <h2 className="text-2xl md:text-4xl font-black leading-tight text-slate-900">{activeNews.title}</h2>
-                      <p className="text-base md:text-lg font-medium text-slate-600 line-clamp-2">{activeNews.description}</p>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
               <div className="relative w-full">
                 <div
                   onTransitionEnd={() => setIsTransitioning(false)}
@@ -134,31 +116,54 @@ export default function HomePage() {
                     const isActive = index === currentIndex;
                     const baseIndex = index % newsCount;
                     const shouldPreload = baseIndex === 0 || baseIndex === newsCount - 1;
-                    const buttonClass =
-                      actu.buttonStyle === "dark"
-                        ? "bg-black text-white hover:bg-slate-900 shadow-lg shadow-black/35"
-                        : "bg-white text-black hover:bg-slate-100 shadow-lg shadow-black/20";
+                    const imageFitClass = actu.imageFit === "contain" ? "object-contain" : "object-cover";
                     return (
-                      <div key={`slide-fixed-${index}`} className="relative flex-shrink-0 px-2" style={{ width: `${slideWidth}vw` }} onClick={() => !isActive && handleInteraction(index)}>
-                        <div className="relative w-full h-[500px] overflow-hidden bg-slate-100 shadow-sm">
+                      <div
+                        key={`slide-fixed-${index}`}
+                        className="relative flex-shrink-0 px-2"
+                        style={{ width: `${slideWidth}vw` }}
+                        onClick={() => !isActive && handleInteraction(index)}
+                      >
+                        <div className="relative w-full h-[500px] overflow-hidden bg-white shadow-sm">
                           {resolveNewsImage(actu.image) && (
                             <Image
                               src={resolveNewsImage(actu.image)!}
                               alt={actu.title}
                               fill
                               sizes="70vw"
-                              className={`object-cover ${isActive ? "opacity-100" : "opacity-30"}`}
+                              className={`${imageFitClass} ${isActive ? "opacity-100" : "opacity-30"}`}
                               priority={ (index >= newsCount && index < newsCount * 2) || shouldPreload }
                             />
                           )}
-                          <div className="absolute inset-x-0 bottom-6 flex justify-center pointer-events-none">
-                            <Link
-                              href={actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#")}
-                              onClick={(e) => e.stopPropagation()}
-                              className={`pointer-events-auto inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg hover:scale-105 transition-all ${buttonClass}`}
-                            >
-                              {actu.buttonText}
-                            </Link>
+                          <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none" />
+                          <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 mx-[20px]">
+                            <AnimatePresence mode="wait">
+                              {isActive ? (
+                                <motion.div
+                                  key={`content-${actu.id}-${index}`}
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: 12 }}
+                                  transition={{ duration: 0.35, ease: "easeOut" }}
+                                  className="pointer-events-none flex items-end justify-between gap-2 sm:gap-6"
+                                >
+                                  <div className="min-w-0 max-w-2xl">
+                                    <span className="block font-bold uppercase tracking-widest text-xs text-white/80 mb-2">
+                                      {actu.subtitle}
+                                    </span>
+                                    <h2 className="text-2xl md:text-4xl font-black leading-tight text-white mb-2">{actu.title}</h2>
+                                    <p className="text-sm md:text-base font-medium text-white/90 line-clamp-2">{actu.description}</p>
+                                  </div>
+                                  <Link
+                                    href={actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#")}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="pointer-events-auto inline-flex items-center justify-center px-4 py-3 sm:px-8 sm:py-4 rounded-full font-bold text-lg bg-white text-black hover:bg-slate-100 hover:scale-105 transition-all shadow-lg shadow-black/30 shrink-0"
+                                  >
+                                    {actu.buttonText}
+                                  </Link>
+                                </motion.div>
+                              ) : null}
+                            </AnimatePresence>
                           </div>
                         </div>
                       </div>

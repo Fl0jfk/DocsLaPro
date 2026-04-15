@@ -59,6 +59,7 @@ export async function POST(req: Request) {
         if (type === "lien" && item.link) out.link = String(item.link).trim();
         if (item.textColor === "black" || item.textColor === "white") out.textColor = item.textColor;
         if (item.buttonStyle === "dark" || item.buttonStyle === "light") out.buttonStyle = item.buttonStyle;
+        if (item.imageFit === "cover" || item.imageFit === "contain") out.imageFit = item.imageFit;
         return out;
       })
       .filter((x) => x.id && x.title && x.buttonText);

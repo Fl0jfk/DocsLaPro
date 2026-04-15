@@ -28,6 +28,7 @@ export type NewsItem = {
   buttonText: string;
   textColor?: "white" | "black";
   buttonStyle?: "light" | "dark";
+  imageFit?: "cover" | "contain";
 };
 
 function parseNewsPayload(payload: unknown): NewsItem[] {
@@ -60,6 +61,7 @@ function parseNewsPayload(payload: unknown): NewsItem[] {
       if (type === "lien" && item.link) parsed.link = String(item.link);
       if (item.textColor === "black" || item.textColor === "white") parsed.textColor = item.textColor;
       if (item.buttonStyle === "dark" || item.buttonStyle === "light") parsed.buttonStyle = item.buttonStyle;
+      if (item.imageFit === "cover" || item.imageFit === "contain") parsed.imageFit = item.imageFit;
       return parsed;
     })
     .filter((x) => x.id && x.title && x.buttonText);
