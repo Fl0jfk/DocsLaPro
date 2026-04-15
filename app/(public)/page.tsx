@@ -53,13 +53,10 @@ export default function HomePage() {
       }
     };
     loadNews();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true};
   }, []);
   const newsCount = newsItems.length;
   const extendedNews = useMemo(() => (newsCount > 0 ? [...newsItems, ...newsItems, ...newsItems] : []),[newsItems, newsCount]);
-  const activeNews = newsCount > 0 ? newsItems[currentIndex % newsCount] : null;
   useEffect(() => {
     if (newsCount > 0) setCurrentIndex(newsCount);
   }, [newsCount]);
@@ -136,7 +133,7 @@ export default function HomePage() {
                             />
                           )}
                           <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none" />
-                          <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 mx-[20px]">
+                          <div className="absolute inset-x-0 bottom-0 px-3 py-4 md:p-8 sm:mx-[20px]">
                             <AnimatePresence mode="wait">
                               {isActive ? (
                                 <motion.div
@@ -157,7 +154,7 @@ export default function HomePage() {
                                   <Link
                                     href={actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#")}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="pointer-events-auto inline-flex items-center justify-center px-4 py-3 sm:px-8 sm:py-4 rounded-full font-bold text-lg bg-white text-black hover:bg-slate-100 hover:scale-105 transition-all shadow-lg shadow-black/30 shrink-0"
+                                    className="pointer-events-auto inline-flex items-center justify-center px-3 py-2 sm:px-8 sm:py-4 rounded-full font-bold text-lg bg-white text-black hover:bg-slate-100 hover:scale-105 transition-all shadow-lg shadow-black/30 shrink-0"
                                   >
                                     {actu.buttonText}
                                   </Link>
