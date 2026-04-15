@@ -46,14 +46,11 @@ const SPECIALITES_GENERAL = [
 
 export default function LyceePage() {
   const [activeTab, setActiveTab] = useState<"general" | "st2s">("general");
-
   return (
     <div className="bg-white min-h-screen">
       <SiteHeader />
-
-      {/* ── Hero ── */}
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-pink-600">
-        <Image src="/Labo.webp" alt="Lycée La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-25" />
+        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Lyc%C3%A9e.jpg" alt="Lycée La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-pink-500/50 to-pink-800/90" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-pink-200 font-bold uppercase tracking-widest text-sm mb-3">Seconde · Première · Terminale</p>
@@ -63,8 +60,6 @@ export default function LyceePage() {
           </p>
         </div>
       </section>
-
-      {/* ── Stats ── */}
       <section className="bg-pink-50 border-b border-pink-100">
         <div className="max-w-[1200px] mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
@@ -319,7 +314,7 @@ export default function LyceePage() {
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="relative h-64 rounded-3xl overflow-hidden bg-pink-100">
-            <Image src="/PigeonnierPagode.jpg" alt="Le colombier - bibliothèque" fill sizes="(max-width:768px) 100vw, 50vw" className="object-cover" />
+            <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Internat.jpg" alt="Le colombier - bibliothèque" fill sizes="(max-width:768px) 100vw, 50vw" className="object-cover object-[center_70%]" />
           </div>
           <div>
             <p className="text-pink-500 font-bold uppercase tracking-widest text-xs mb-3">Pour aller plus loin</p>
@@ -375,8 +370,6 @@ export default function LyceePage() {
           </Link>
         </div>
       </section>
-
-      {/* ── CTA ── */}
       <section className="bg-gradient-to-r from-pink-600 to-pink-500 py-20">
         <div className="max-w-[1200px] mx-auto px-6 text-center">
           <h2 className="text-4xl font-black text-white mb-4">Votre bac, votre avenir — commençons ensemble</h2>
@@ -394,7 +387,6 @@ export default function LyceePage() {
           </div>
         </div>
       </section>
-
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-xs">
         <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3">

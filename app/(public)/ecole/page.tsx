@@ -26,10 +26,8 @@ export default function EcolePage() {
   return (
     <div className="bg-white min-h-screen">
       <SiteHeader />
-
-      {/* ── Hero ── */}
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-yellow-400">
-        <Image src="/PO.png" alt="École La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-30" />
+        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Ecole.jpg" alt="École La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-yellow-400/60 to-yellow-600/80" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-yellow-200 font-bold uppercase tracking-widest text-sm mb-3">Maternelle · Élémentaire</p>
@@ -39,8 +37,6 @@ export default function EcolePage() {
           </p>
         </div>
       </section>
-
-      {/* ── Stats strip ── */}
       <section className="bg-yellow-50 border-b border-yellow-100">
         <div className="max-w-[1200px] mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
@@ -56,8 +52,6 @@ export default function EcolePage() {
           ))}
         </div>
       </section>
-
-      {/* ── Maternelle ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>

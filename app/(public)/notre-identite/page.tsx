@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "../../components/Header/Header";
@@ -74,16 +74,32 @@ const COLOR: Record<ColorKey, { bg: string; border: string; badge: string; dot: 
 
 export default function NotreIdentitePage() {
   const [activeChapter, setActiveChapter] = useState<string>("origines");
+  const chaptersScrollRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startScrollLeftRef = useRef(0);
   const chapter = CHAPTERS.find((c) => c.id === activeChapter) ?? CHAPTERS[0];
   const c = COLOR[chapter.color as ColorKey];
   const chapterIndex = CHAPTERS.findIndex((ch) => ch.id === activeChapter);
   const prevChapter = chapterIndex > 0 ? CHAPTERS[chapterIndex - 1] : null;
   const nextChapter = chapterIndex < CHAPTERS.length - 1 ? CHAPTERS[chapterIndex + 1] : null;
+  const handleChaptersMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chaptersScrollRef.current) return;
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX;
+    startScrollLeftRef.current = chaptersScrollRef.current.scrollLeft;
+  };
+  const handleChaptersMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !chaptersScrollRef.current) return;
+    const delta = e.pageX - startXRef.current;
+    chaptersScrollRef.current.scrollLeft = startScrollLeftRef.current - delta;
+  };
+  const stopChaptersDrag = () => { isDraggingRef.current = false };
   return (
     <div className="bg-white min-h-screen">
       <Header />
       <section className="relative h-[65vh] min-h-[440px] overflow-hidden bg-indigo-900">
-        <Image src="/PigeonnierPagode.jpg" alt="Le pigeonnier de La Providence" fill sizes="100vw" className="object-cover opacity-20" />
+        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Nicolas+Barr%C3%A9.jpg" alt="Nicolas Barré" fill sizes="100vw" className="object-cover opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-800/50 to-indigo-950/95" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-indigo-300 font-bold uppercase tracking-widest text-sm mb-3">
@@ -152,7 +168,14 @@ export default function NotreIdentitePage() {
           <p className="text-stone-400 font-bold uppercase tracking-widest text-xs mb-3">Le Mesnil-Esnard · 1928 — 2021</p>
           <h2 className="text-4xl font-black text-white mb-2">Notre histoire</h2>
           <p className="text-stone-400 text-sm mb-8 max-w-xl">Près d&apos;un siècle de constructions, de rénovations et de croissance au service des familles.</p>
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-10">
+          <div
+            ref={chaptersScrollRef}
+            className="-mx-6 px-6 md:mx-0 md:px-0 flex gap-2 overflow-x-scroll pb-2 mb-10 cursor-grab active:cursor-grabbing"
+            onMouseDown={handleChaptersMouseDown}
+            onMouseMove={handleChaptersMouseMove}
+            onMouseUp={stopChaptersDrag}
+            onMouseLeave={stopChaptersDrag}
+          >
             {CHAPTERS.map((ch) => {
               const cc = COLOR[ch.color as ColorKey];
               return (

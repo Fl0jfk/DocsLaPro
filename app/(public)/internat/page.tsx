@@ -15,7 +15,7 @@ export default function InternatPage() {
 
       {/* ── Hero ── */}
       <section className="relative h-[65vh] min-h-[440px] overflow-hidden bg-slate-800">
-        <Image src="/PigeonnierPagode.jpg" alt="L'internat La Providence" fill sizes="100vw" className="object-cover opacity-40" />
+        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Internat.jpg" alt="L'internat La Providence" fill sizes="100vw" className="object-cover opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-700/40 to-slate-900/90" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-slate-300 font-bold uppercase tracking-widest text-sm mb-3">Collège · Lycée · Mixte</p>
