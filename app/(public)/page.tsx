@@ -91,7 +91,7 @@ export default function HomePage() {
     <div className="bg-[#f5f5f7] min-h-screen">
       <Header />
       <main className="bg-white overflow-hidden">
-        <section className="py-10">
+        <section className="pb-8">
           {newsLoading ? (
             <div className="relative w-full h-[500px] bg-slate-100 animate-pulse flex items-center justify-center">
               <div className="flex flex-col items-center gap-3 opacity-30">
