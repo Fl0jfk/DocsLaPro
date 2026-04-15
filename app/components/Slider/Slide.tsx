@@ -14,8 +14,9 @@ export default function Slide({ name, img, link, external, priority = false,}: S
   const ImageBlock = ( img && (<Image src={img} fill alt={name} sizes="35vw" priority={isPriorityImage} fetchPriority={isPriorityImage ? "high" : "auto"} className="rounded-3xl select-none pointer-events-none object-contain"/>));
   const content = (
     <>
+      <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 via-black/5 to-transparent z-[1] pointer-events-none" />
       <div className="flex flex-col gap-1 z-[2]">
-        <p className="sm:max-md:text-3xl text-2xl font-bold">{name}</p>
+        <p className="sm:max-md:text-3xl text-2xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">{name}</p>
       </div>
       {ImageBlock}
     </>
