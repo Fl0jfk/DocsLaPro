@@ -306,9 +306,14 @@ export default function HomePage() {
             ))}
           </div>
           <div className="text-center mt-10">
-            <Link href="/notre-identite" className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 border-2 border-indigo-100 rounded-full px-6 py-3 hover:bg-indigo-50 transition">
-              ✝ Découvrir notre histoire & projet pastoral →
-            </Link>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link href="/projet-educatif" className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 border-2 border-indigo-100 rounded-full px-6 py-3 hover:bg-indigo-50 transition">
+                🌟 Explorer le projet éducatif →
+              </Link>
+              <Link href="/notre-identite" className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 border-2 border-slate-200 rounded-full px-6 py-3 hover:bg-slate-50 transition">
+                ✝ Découvrir notre histoire & projet pastoral →
+              </Link>
+            </div>
           </div>
         </div>
       </section>

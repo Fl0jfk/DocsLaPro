@@ -365,9 +365,14 @@ export default function LyceePage() {
             <h3 className="text-2xl font-black text-slate-900">Notre histoire & projet pastoral</h3>
             <p className="text-slate-500 text-sm mt-2 max-w-sm">Héritiers de Nicolas Barré depuis le XVII<sup>e</sup> siècle — découvrez les valeurs et la spiritualité qui animent notre communauté éducative.</p>
           </div>
-          <Link href="/notre-identite" className="flex-shrink-0 bg-indigo-600 text-white font-black text-sm px-6 py-3 rounded-full hover:scale-105 transition-transform whitespace-nowrap">
-            Découvrir →
-          </Link>
+          <div className="flex flex-wrap gap-3 justify-center md:justify-end">
+            <Link href="/projet-educatif" className="flex-shrink-0 bg-white text-indigo-600 border border-indigo-200 font-black text-sm px-6 py-3 rounded-full hover:bg-indigo-50 transition whitespace-nowrap">
+              🌟 Projet éducatif
+            </Link>
+            <Link href="/notre-identite" className="flex-shrink-0 bg-indigo-600 text-white font-black text-sm px-6 py-3 rounded-full hover:scale-105 transition-transform whitespace-nowrap">
+              Découvrir →
+            </Link>
+          </div>
         </div>
       </section>
       <section className="bg-gradient-to-r from-pink-600 to-pink-500 py-20">
