@@ -252,7 +252,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
   const artsPlastiques = [
     "Matériel de dessin (carton à dessin A3 ou demi-raisin, papiers calques A4, feuilles Canson A3 + A4)",
     "Dans une boite rigide mettre le matériel : tubes de gouache ou peinture acrylique (couleurs rouge primaire(magenta) + bleu primaire (cyan) + jaune primaire + noir + blanc)",
-    "Pinceaux : 1 gros n° 18 ou 20 + 1 fin n°2, 1 brosse plate rayon bricolage n°30",
+    "Assortiment de pinceaux souples/brosses.",
     "Quelques feutres moyens et fins, quelques crayons de couleur, règle graduée de 30 cm, crayons noirs (3H – HB – 2B – 4B), gomme, ciseaux, chiffon",
     "1 petit bidon de colle vinylique, 1 scotch papier, feutre fin noir, scotch classique",
     "Matériel marqué au nom de l’élève et de sa classe",
