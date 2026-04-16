@@ -231,7 +231,11 @@ export default function HomePage() {
       <section className="py-20 bg-[#f5f5f7]">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-blue-500 font-bold uppercase tracking-widest text-xs text-center mb-3">Le Mesnil-Esnard · Seine-Maritime</p>
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 text-center mb-4">Trois établissements, un seul esprit</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-slate-900 text-center mb-4 flex items-center justify-center gap-2">
+            <span className="sr-only">Trois</span>
+            <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/chiffre-3.png" alt="chiffre 3" aria-hidden="true" width={100} height={100} className="w-auto inline-block"/>
+            <span>établissements, un seul esprit</span>
+          </h2>
           <p className="text-slate-500 text-center mb-14 max-w-2xl mx-auto leading-relaxed">
             De la maternelle à la terminale, un parcours guidé par les valeurs de Nicolas Barré : accueillir, instruire, éduquer chacun selon son génie propre.
           </p>
@@ -323,9 +327,11 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-      <section className="py-24 bg-blue-600">
-        <div className="max-w-[1200px] mx-auto px-6 text-center">
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Rejoignez La Providence</h2>
+      <section className="py-24 bg-blue-600 relative">
+      <Image src={"https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/logo-background-2.png"} alt="Logo Background" width={300} height={300} className='absolute left-[-20px] top-[-50px] md:left-[-25px]'/>
+        <div className="max-w-[1200px] mx-auto px-6 text-center relative">
+          
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Rejoignez La Providence Nicolas Barré</h2>
           <p className="text-blue-100 mb-10 max-w-lg mx-auto leading-relaxed">
             Les inscriptions sont ouvertes toute l&apos;année.
           </p>
@@ -389,6 +395,10 @@ export default function HomePage() {
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
+        </div>
+        <div className='flex w-full mx-auto items-center justify-center gap-10 mt-4'>
+          <Link href="https://www.apelprovidence.fr/" target="_blank" rel="noopener noreferrer"><Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/APEL_Logo_Small-160x120.png" alt="Logo APEL" width={70} height={70} className="w-auto inline-block"/></Link>
+          <Link href="https://enseignement-catholique.fr/" target="_blank" rel="noopener noreferrer"><Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/EC_Logo_blanc_vertical.png" alt="Logo EC" width={70} height={70} className="w-auto inline-block"/></Link>
         </div>
       </footer>
     </div>

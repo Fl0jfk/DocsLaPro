@@ -625,12 +625,8 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
         <div className="bg-white border border-slate-200 rounded-[2rem] shadow-2xl p-6 md:p-10">
           <div className="flex items-start justify-between gap-6 flex-wrap">
             <div className="min-w-[240px]">
-              <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-slate-900">
-                Simulateur Fournitures — École · Collège · Lycée
-              </h2>
-              <p className="text-sm font-bold text-blue-600 mt-2">
-                {SCHOOL.shortName} • Rentrée 2025/2026
-              </p>
+              <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-slate-900">Simulateur Fournitures — École · Collège · Lycée</h2>
+              <p className="text-sm font-bold text-blue-600 mt-2">{SCHOOL.shortName} • Rentrée 2026/2027</p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -689,7 +685,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                 </button>
               </div>
             </div>
-
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white border border-slate-200 rounded-2xl p-5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Détails par enfant</p>
@@ -737,7 +732,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                     ✕
                   </button>
                 </div>
-
                 <div className="mt-5 space-y-3">
                   <label className="block">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Adresse email</span>
