@@ -76,6 +76,7 @@ export default function NotreIdentitePage() {
   const [activeChapter, setActiveChapter] = useState<string>("origines");
   const chaptersScrollRef = useRef<HTMLDivElement | null>(null);
   const isDraggingRef = useRef(false);
+  const hasDraggedRef = useRef(false);
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
   const chapter = CHAPTERS.find((c) => c.id === activeChapter) ?? CHAPTERS[0];
@@ -86,12 +87,16 @@ export default function NotreIdentitePage() {
   const handleChaptersMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!chaptersScrollRef.current) return;
     isDraggingRef.current = true;
+    hasDraggedRef.current = false;
     startXRef.current = e.pageX;
     startScrollLeftRef.current = chaptersScrollRef.current.scrollLeft;
   };
   const handleChaptersMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current || !chaptersScrollRef.current) return;
     const delta = e.pageX - startXRef.current;
+    if (Math.abs(delta) > 6) {
+      hasDraggedRef.current = true;
+    }
     chaptersScrollRef.current.scrollLeft = startScrollLeftRef.current - delta;
   };
   const stopChaptersDrag = () => { isDraggingRef.current = false };
@@ -181,7 +186,13 @@ export default function NotreIdentitePage() {
               return (
                 <button
                   key={ch.id}
-                  onClick={() => setActiveChapter(ch.id)}
+                  onClick={() => {
+                    if (hasDraggedRef.current) {
+                      hasDraggedRef.current = false;
+                      return;
+                    }
+                    setActiveChapter(ch.id);
+                  }}
                   className={`flex-shrink-0 flex flex-col items-start px-4 py-2.5 rounded-xl text-left transition-all ${
                     activeChapter === ch.id ? `${cc.bg} ${cc.border} border` : "bg-white/5 border border-white/10 hover:bg-white/10"
                   }`}
@@ -227,11 +238,11 @@ export default function NotreIdentitePage() {
               })}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-4 mt-12">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mt-12">
             {prevChapter ? (
               <button
                 onClick={() => { setActiveChapter(prevChapter.id); document.getElementById("notre-histoire")?.scrollIntoView({ behavior: "smooth" }); }}
-                className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 hover:bg-white/10 transition group text-left flex-1 max-w-xs"
+                className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 hover:bg-white/10 transition group text-left w-full md:flex-1 md:max-w-xs"
               >
                 <span className="text-stone-400 text-xl flex-shrink-0">←</span>
                 <div>
@@ -239,8 +250,8 @@ export default function NotreIdentitePage() {
                   <p className="font-black text-white text-sm">{prevChapter.label}</p>
                 </div>
               </button>
-            ) : <div className="flex-1 max-w-xs" />}
-            <div className="flex gap-2 items-center">
+            ) : <div className="w-full md:flex-1 md:max-w-xs" />}
+            <div className="flex gap-2 items-center justify-center self-center">
               {CHAPTERS.map((ch) => (
                 <button key={ch.id} onClick={() => setActiveChapter(ch.id)}
                   className={`w-2 h-2 rounded-full transition-all ${activeChapter === ch.id ? `${COLOR[ch.color as ColorKey].badge} scale-125` : "bg-stone-600 hover:bg-stone-400"}`}
@@ -250,7 +261,7 @@ export default function NotreIdentitePage() {
             {nextChapter ? (
               <button
                 onClick={() => { setActiveChapter(nextChapter.id); document.getElementById("notre-histoire")?.scrollIntoView({ behavior: "smooth" }); }}
-                className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 hover:bg-white/10 transition group text-right flex-1 max-w-xs justify-end"
+                className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 hover:bg-white/10 transition group text-right justify-end w-full md:flex-1 md:max-w-xs"
               >
                 <div>
                   <p className="text-xs text-stone-500 font-bold">Suivant</p>
@@ -258,7 +269,7 @@ export default function NotreIdentitePage() {
                 </div>
                 <span className="text-stone-400 text-xl flex-shrink-0">→</span>
               </button>
-            ) : <div className="flex-1 max-w-xs" />}
+            ) : <div className="w-full md:flex-1 md:max-w-xs" />}
           </div>
         </div>
       </section>
@@ -339,15 +350,12 @@ export default function NotreIdentitePage() {
           </div>
         </div>
       </section>
-
       <footer className="bg-slate-950 text-slate-400 py-8 text-center text-xs">
         <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3 flex-wrap">
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
-          <Link href="/internat" className="hover:text-white transition">Internat</Link>
-          <Link href="/notre-identite" className="hover:text-white transition">Notre identité</Link>
         </div>
       </footer>
     </div>

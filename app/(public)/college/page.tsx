@@ -200,7 +200,6 @@ export default function CollegePage() {
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
-          <Link href={SCHOOL.preinscriptionUrl} className="hover:text-white transition">Inscription</Link>
         </div>
       </footer>
     </div>

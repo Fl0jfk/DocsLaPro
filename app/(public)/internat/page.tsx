@@ -12,8 +12,6 @@ export default function InternatPage() {
   return (
     <div className="bg-white min-h-screen">
       <Header />
-
-      {/* ── Hero ── */}
       <section className="relative h-[65vh] min-h-[440px] overflow-hidden bg-slate-800">
         <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Internat.jpg" alt="L'internat La Providence" fill sizes="100vw" className="object-cover opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-700/40 to-slate-900/90" />
@@ -25,8 +23,6 @@ export default function InternatPage() {
           </p>
         </div>
       </section>
-
-      {/* ── Stats ── */}
       <section className="bg-slate-50 border-b border-slate-100">
         <div className="max-w-[1200px] mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
@@ -42,8 +38,6 @@ export default function InternatPage() {
           ))}
         </div>
       </section>
-
-      {/* ── Présentation générale ── */}
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
@@ -75,8 +69,6 @@ export default function InternatPage() {
           </div>
         </div>
       </section>
-
-      {/* ── Collège ── */}
       <section className="bg-blue-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex items-center gap-3 mb-8">
@@ -99,7 +91,6 @@ export default function InternatPage() {
         </div>
       </section>
 
-      {/* ── Lycée ── */}
       <section className="py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex items-center gap-3 mb-8">
@@ -173,8 +164,6 @@ export default function InternatPage() {
           </div>
         </div>
       </section>
-
-      {/* ── Contact & inscription ── */}
       <section className="py-16 bg-white">
         <div className="max-w-[1200px] mx-auto px-6">
           <h2 className="text-3xl font-black text-slate-900 mb-8">Renseignements & inscription</h2>
@@ -195,9 +184,7 @@ export default function InternatPage() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* ── CTA ── */}
+      </section> 
       <section className="bg-slate-800 py-20">
         <div className="max-w-[1200px] mx-auto px-6 text-center">
           <h2 className="text-4xl font-black text-white mb-4">Intéressé par l&apos;internat ?</h2>

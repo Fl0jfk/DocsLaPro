@@ -7,6 +7,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import Header from '../components/Header/Header';
 import { SCHOOL } from '../lib/school';
 
+const SLIDE_BLUR_DATA_URL =
+  "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='1.2'/%3E%3C/filter%3E%3Crect width='16' height='9' fill='%23dbe3ea'/%3E%3Crect width='16' height='9' fill='%2394a3b8' opacity='0.32' filter='url(%23b)'/%3E%3C/svg%3E";
+
 function resolveNewsImage(url: string): string | null {
   if (!url || !url.trim()) return null;
   if (url.includes("docslapro.s3.") && !url.includes("docslaproimage.s3.")) { return `/api/news/image-proxy?url=${encodeURIComponent(url)}`}
@@ -36,6 +39,8 @@ export default function HomePage() {
   const [isPaused, setIsPaused] = useState(false);
   const slideWidth = 90; 
   const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const hasDraggedRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     const loadNews = async () => {
@@ -57,9 +62,7 @@ export default function HomePage() {
   }, []);
   const newsCount = newsItems.length;
   const extendedNews = useMemo(() => (newsCount > 0 ? [...newsItems, ...newsItems, ...newsItems] : []),[newsItems, newsCount]);
-  useEffect(() => {
-    if (newsCount > 0) setCurrentIndex(newsCount);
-  }, [newsCount]);
+  useEffect(() => { if (newsCount > 0) setCurrentIndex(newsCount)}, [newsCount]);
   useEffect(() => {
     if (isPaused || newsCount === 0) return;
     const interval = setInterval(() => {
@@ -83,6 +86,22 @@ export default function HomePage() {
     setCurrentIndex(index);
     if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current);
     pauseTimeoutRef.current = setTimeout(() => setIsPaused(false), 10000);
+  };
+  const getNewsHref = (actu: NewsItem) => (actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#"));
+  const handleSlidePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    pointerStartRef.current = { x: e.clientX, y: e.clientY };
+    hasDraggedRef.current = false;
+  };
+  const handleSlidePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointerStartRef.current) return;
+    const deltaX = Math.abs(e.clientX - pointerStartRef.current.x);
+    const deltaY = Math.abs(e.clientY - pointerStartRef.current.y);
+    if (deltaX > 10 || deltaY > 10) {
+      hasDraggedRef.current = true;
+    }
+  };
+  const handleSlidePointerEnd = () => {
+    pointerStartRef.current = null;
   };
   return (
     <div className="bg-[#f5f5f7] min-h-screen">
@@ -112,24 +131,50 @@ export default function HomePage() {
                   {extendedNews.map((actu, index) => {
                     const isActive = index === currentIndex;
                     const baseIndex = index % newsCount;
-                    const shouldPreload = baseIndex === 0 || baseIndex === newsCount - 1;
+                    const shouldPreload = isActive || index === currentIndex - 1 || index === currentIndex + 1;
                     const imageFitClass = actu.imageFit === "contain" ? "object-contain" : "object-cover";
                     return (
                       <div
                         key={`slide-fixed-${index}`}
                         className="relative flex-shrink-0 px-2"
                         style={{ width: `${slideWidth}vw` }}
-                        onClick={() => !isActive && handleInteraction(index)}
+                        onPointerDown={handleSlidePointerDown}
+                        onPointerMove={handleSlidePointerMove}
+                        onPointerUp={handleSlidePointerEnd}
+                        onPointerCancel={handleSlidePointerEnd}
+                        onClick={() => {
+                          if (hasDraggedRef.current) {
+                            hasDraggedRef.current = false;
+                            return;
+                          }
+                          if (!isActive) handleInteraction(index);
+                        }}
                       >
                         <div className="relative w-full h-[500px] overflow-hidden bg-white shadow-sm">
+                          {isActive && (
+                            <Link
+                              href={getNewsHref(actu)}
+                              onClick={(e) => {
+                                if (hasDraggedRef.current) {
+                                  e.preventDefault();
+                                  hasDraggedRef.current = false;
+                                }
+                              }}
+                              className="absolute inset-0 z-10 sm:hidden"
+                              aria-label={actu.buttonText}
+                            />
+                          )}
                           {resolveNewsImage(actu.image) && (
                             <Image
                               src={resolveNewsImage(actu.image)!}
                               alt={actu.title}
                               fill
                               sizes="70vw"
+                              placeholder="blur"
+                              blurDataURL={SLIDE_BLUR_DATA_URL}
                               className={`${imageFitClass} ${isActive ? "opacity-100" : "opacity-30"}`}
-                              priority={ (index >= newsCount && index < newsCount * 2) || shouldPreload }
+                              loading={shouldPreload ? undefined : "lazy"}
+                              priority={shouldPreload}
                             />
                           )}
                           <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none" />
@@ -144,17 +189,23 @@ export default function HomePage() {
                                   transition={{ duration: 0.35, ease: "easeOut" }}
                                   className="pointer-events-none flex items-end justify-between gap-2 sm:gap-6"
                                 >
-                                  <div className="min-w-0 max-w-2xl">
+                                  <div className="min-w-0 max-w-2xl text-center sm:text-left mx-auto sm:mx-0">
                                     <span className="block font-bold uppercase tracking-widest text-xs text-white/80 mb-2">
                                       {actu.subtitle}
                                     </span>
-                                    <h2 className="text-2xl md:text-4xl font-black leading-tight text-white mb-2">{actu.title}</h2>
+                                    <h2 className="text-3xl md:text-4xl font-black leading-tight text-white mb-2">{actu.title}</h2>
                                     <p className="text-sm md:text-base font-medium text-white/90 line-clamp-2">{actu.description}</p>
                                   </div>
                                   <Link
-                                    href={actu.type === "article" ? `/articles/${actu.id}` : (actu.link ?? "#")}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="pointer-events-auto inline-flex items-center justify-center px-3 py-2 sm:px-8 sm:py-4 rounded-full font-bold text-lg bg-white text-black hover:bg-slate-100 hover:scale-105 transition-all shadow-lg shadow-black/30 shrink-0"
+                                    href={getNewsHref(actu)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (hasDraggedRef.current) {
+                                        e.preventDefault();
+                                        hasDraggedRef.current = false;
+                                      }
+                                    }}
+                                    className="pointer-events-auto hidden sm:inline-flex items-center justify-center px-3 py-2 sm:px-8 sm:py-4 rounded-full font-bold text-lg bg-white text-black hover:bg-slate-100 hover:scale-105 transition-all shadow-lg shadow-black/30 shrink-0"
                                   >
                                     {actu.buttonText}
                                   </Link>
@@ -338,7 +389,6 @@ export default function HomePage() {
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
-          <Link href={SCHOOL.preinscriptionUrl} className="hover:text-white transition">Inscription</Link>
         </div>
       </footer>
     </div>

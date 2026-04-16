@@ -195,15 +195,12 @@ export default function EcolePage() {
           </div>
         </div>
       </section>
-
-      {/* ── Footer ── */}
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-xs">
         <p>© {new Date().getFullYear()} {SCHOOL.name} · {SCHOOL.address.city} (76)</p>
         <div className="flex gap-6 justify-center mt-3">
           <Link href="/ecole" className="hover:text-white transition">École</Link>
           <Link href="/college" className="hover:text-white transition">Collège</Link>
           <Link href="/lycee" className="hover:text-white transition">Lycée</Link>
-          <Link href={SCHOOL.preinscriptionUrl} className="hover:text-white transition">Inscription</Link>
         </div>
       </footer>
     </div>
