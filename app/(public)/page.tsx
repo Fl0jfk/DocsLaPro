@@ -403,7 +403,7 @@ export default function HomePage() {
         </div>
         <div className='flex w-full mx-auto items-center justify-center gap-10 mt-4'>
           <Link href="https://www.apelprovidence.fr/" target="_blank" rel="noopener noreferrer"><Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/APEL_Logo_Small-160x120.png" alt="Logo APEL" width={70} height={70} className="w-auto inline-block"/></Link>
-          <Link href="https://enseignement-catholique.fr/" target="_blank" rel="noopener noreferrer"><Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/EC_Logo_blanc_vertical.png" alt="Logo EC" width={70} height={70} className="w-auto inline-block"/></Link>
+          <Link href="https://enseignement-catholique.fr/" target="_blank" rel="noopener noreferrer"><Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/EC_Logo_blanc_vertical.png" alt="Logo EC" width={60} height={70} className="w-auto inline-block"/></Link>
         </div>
       </footer>
     </div>
