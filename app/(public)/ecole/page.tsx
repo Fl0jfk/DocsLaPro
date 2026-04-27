@@ -27,7 +27,7 @@ export default function EcolePage() {
     <div className="bg-white min-h-screen">
       <SiteHeader />
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-yellow-400">
-        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Ecole.jpg" alt="École La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
+        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/website/Ecole.jpg" alt="École La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-yellow-400/60 to-yellow-600/80" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-yellow-200 font-bold uppercase tracking-widest text-sm mb-3">Maternelle · Élémentaire</p>
@@ -65,11 +65,9 @@ export default function EcolePage() {
             </p>
           </div>
           <div className="relative h-72 rounded-3xl overflow-hidden bg-yellow-100">
-            <Image src="/PigeonnierPagode.jpg" alt="Bâtiment La Providence" fill sizes="(max-width:768px) 100vw, 50vw" className="object-cover" />
+            <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/website/Maternelle+1.jpg" alt="Bâtiment La Providence" fill sizes="(max-width:768px) 100vw, 50vw" className="object-cover" />
           </div>
         </div>
-
-        {/* Accordion: structure classes */}
         <div className="mt-12 bg-slate-50 rounded-3xl p-6">
           <Accordion title="Structure des classes maternelles">
             <div className="grid md:grid-cols-2 gap-4">
@@ -88,8 +86,6 @@ export default function EcolePage() {
           </Accordion>
         </div>
       </section>
-
-      {/* ── Élémentaire ── */}
       <section className="bg-slate-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-yellow-500 font-bold uppercase tracking-widest text-xs mb-3">6 → 11 ans</p>
@@ -97,7 +93,6 @@ export default function EcolePage() {
           <p className="text-slate-600 leading-relaxed max-w-3xl mb-8">
             Notre école applique les programmes de l&apos;Éducation Nationale et vise à faire de tout élève un adulte en devenir, dans un environnement de qualité et une <strong>ambiance familiale</strong>. L&apos;équipe enseignante pratique une pédagogie différenciée, fidèle à Nicolas Barré : <em>« Accueillir, instruire, éduquer chacun selon son génie propre. »</em>
           </p>
-
           <div className="grid md:grid-cols-3 gap-4 mb-8">
             {[
               { icon: "🌍", title: "Anglais dès la GS", desc: "Initiation de la grande section au CP, enseignement du CE1 au CM2." },

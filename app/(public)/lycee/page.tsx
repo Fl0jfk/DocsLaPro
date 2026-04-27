@@ -50,7 +50,7 @@ export default function LyceePage() {
     <div className="bg-white min-h-screen">
       <SiteHeader />
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-pink-600">
-        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Lyc%C3%A9e.jpg" alt="Lycée La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
+        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/website/Lyc%C3%A9e.jpg" alt="Lycée La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-pink-500/50 to-pink-800/90" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-pink-200 font-bold uppercase tracking-widest text-sm mb-3">Seconde · Première · Terminale</p>

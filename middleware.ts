@@ -25,6 +25,7 @@ const isPublicRoute = createRouteMatcher([
   '/college(.*)',
   '/lycee(.*)',
   '/internat(.*)',
+  '/projet-educatif(.*)',
   '/notre-identite(.*)',
 ]);
 

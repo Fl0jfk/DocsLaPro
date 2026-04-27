@@ -27,7 +27,7 @@ export default function CollegePage() {
     <div className="bg-white min-h-screen">
       <Header />
       <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-blue-600">
-        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Coll%C3%A8ge.jpg" alt="Collège La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
+        <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/website/Coll%C3%A8ge.jpg" alt="Collège La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-blue-500/50 to-blue-800/90" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-blue-200 font-bold uppercase tracking-widest text-sm mb-3">6ème · 5ème · 4ème · 3ème</p>
