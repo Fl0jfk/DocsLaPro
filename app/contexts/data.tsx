@@ -72,7 +72,7 @@ const STATIC_DATA: Data = {
       "name": "Sortie scolaire",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
       "link": "/travels",
-      "allowedRoles": ["administratif", "comptabilite","direction_ecole","direction_lycee","direction_college"],
+      "allowedRoles": ["administratif", "comptabilite","direction_ecole","direction_lycee", "professeur","direction_college"],
       "external": false
     },
     {

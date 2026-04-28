@@ -336,50 +336,60 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "Chemise à élastique (21/29,7) pour ranger le matériel de musique",
     "Documents divers + MémoArts (selon consignes du professeur).",
   ];
-  const latin = ["1 cahier 96 pages grand format (grands carreaux)"];
+  const latin = [
+    "1 cahier 96 pages grand format (grands carreaux) le cahier peut être réutilisé s'il reste de la place",
+    "Des grandes copies simples ou doubles"
+  ];
   const ose = [
     "Utiliser le classeur de Technologie pour classer les documents OSE.",
     "30 pochettes transparentes.",
   ];
   const francais = (() => {
-    if (!ebp) {
-      return [
-        "1 cahier grand format grands carreaux",
-        "1 cahier de brouillon",
-        "Copies simples et doubles grands carreaux pour les évaluations",
-        "Bescherelle de conjugaison",
-        "Dictionnaire (Larousse de préférence)",
-      ];
-    }
-    if (niveau === "6e") {
-      return [
-        "6e E.B.P : 2 cahiers grands carreaux 24/32",
-        "1 cahier de brouillon",
-        "1 pochette cartonnée à élastiques",
-        "Feuilles grands carreaux, grands formats",
-        "Bescherelle de conjugaison",
-        "Dictionnaire niveau collège",
-      ];
-    }
-    if (niveau === "5e") {
-      return [
-        "5e E.B.P : 2 cahiers très grand format 24/32 grands carreaux (96 pages, plastifiés avec le nom de l'élève)",
-        "Un dictionnaire (Petit Larousse / Petit Robert…)",
-        "Un cahier classeur",
-        "Pochettes transparentes",
-        "Chemise cartonnée élastique",
-        "Copies doubles",
-        "Surligneur, colle, ciseaux, règle, crayons",
-        "Un cahier de texte et non un agenda",
-      ];
-    }
-    if (niveau === "4e") {
-      return [
-        "4e E.B.P : 1 cahier 24/32 grands carreaux (96 pages)",
-        "1 pochette cartonnée à élastiques grand format",
-        "Bescherelle de conjugaison",
-      ];
-    }
+    const fr6e = [
+      "1 cahier grand format 21x29,7 grands carreaux sans spirales",
+      "1 cahier de brouillon",
+      "Copies simples et doubles grands carreaux pour les évaluations",
+      "Dictionnaire (Larousse de préférence)",
+    ];
+    const fr6eEbp = [
+      "6e E.B.P : 2 cahiers grands carreaux 24/32",
+      "1 cahier de brouillon",
+      "1 pochette cartonnée à élastiques",
+      "Feuilles grands carreaux, grands formats",
+      "Bescherelle de conjugaison",
+      "Dictionnaire niveau collège",
+    ];
+    const fr5e = [
+      "1 cahier grand format 21x29,7 grands carreaux sans spirales",
+      "Copies simples et doubles grands carreaux pour les évaluations",
+    ];
+    const fr5eEbp = [
+      "5e E.B.P : 2 cahiers très grand format 24/32 grands carreaux (96 pages, plastifiés avec le nom de l'élève)",
+      "Un dictionnaire (Petit Larousse / Petit Robert…)",
+      "Un cahier classeur",
+      "Pochettes transparentes",
+      "Chemise cartonnée élastique",
+      "Copies doubles",
+      "Surligneur, colle, ciseaux, règle, crayons",
+      "Un cahier de texte et non un agenda",
+    ];
+    const fr4e = [
+      "1 cahier grand format 21x29,7 grands carreaux sans spirales",
+      "Copies simples et doubles grands carreaux pour les évaluations",
+    ];
+    const fr4eEbp = [
+      "4e E.B.P : 1 cahier 24/32 grands carreaux (96 pages)",
+      "1 pochette cartonnée à élastiques grand format",
+      "Bescherelle de conjugaison",
+    ];
+    const fr3e = [
+      "1 cahier grand format 21x29,7 grands carreaux sans spirales",
+      "Copies simples et doubles grands carreaux pour les évaluations"
+    ];
+    if (niveau === "6e") return ebp ? fr6eEbp : fr6e;
+    if (niveau === "5e") return ebp ? fr5eEbp : fr5e;
+    if (niveau === "4e") return ebp ? fr4eEbp : fr4e;
+    if (niveau === "3e") return fr3e;
     return [];
   })();
   return [

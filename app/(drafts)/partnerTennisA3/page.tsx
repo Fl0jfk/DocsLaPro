@@ -98,7 +98,7 @@ export default function PartnerTennisPage() {
             </div>
             <div className="absolute right-[55px] bottom-[-95px] w-[250px] h-[250px]">
                   <Image src="/BalleTennis.png" alt="BalleTennis" width={250} height={250} className="p-0.5 rounded-lg"/>
-                </div>
+            </div>
           </article>
         ))}
       </div>
