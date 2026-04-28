@@ -165,7 +165,6 @@ export default function ProjetEducatifPage() {
           </div>
         </div>
       </section>
-
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-slate-50 border border-slate-100 rounded-3xl p-7">
@@ -187,23 +186,17 @@ export default function ProjetEducatifPage() {
               « Je crois en toi, j&apos;espère en toi, tu es capable de grandir, de surmonter les
               difficultés, je te fais confiance. »
             </p>
-            <p className="text-slate-600 leading-relaxed">
-              « Je t&apos;aime comme tu es, c&apos;est-à-dire comme Dieu t&apos;aime. »
-            </p>
+            <p className="text-slate-600 leading-relaxed">« Je t&apos;aime comme tu es, c&apos;est-à-dire comme Dieu t&apos;aime. »</p>
           </div>
         </div>
       </section>
-
       <section className="bg-slate-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <p className="text-indigo-500 font-bold uppercase tracking-widest text-xs mb-3">Les 4 piliers</p>
           <h2 className="text-4xl font-black text-slate-900 mb-10">Accueillir, instruire, éduquer, ouvrir</h2>
           <div className="grid md:grid-cols-2 gap-6">
             {PILIERS.map((pilier) => (
-              <article
-                key={pilier.title}
-                className={`rounded-3xl border p-6 ${COLOR_CLASSES[pilier.color]}`}
-              >
+              <article key={pilier.title} className={`rounded-3xl border p-6 ${COLOR_CLASSES[pilier.color]}`}>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-3xl">{pilier.icon}</span>
                   <h3 className="text-2xl font-black">{pilier.title}</h3>
@@ -222,7 +215,6 @@ export default function ProjetEducatifPage() {
           </div>
         </div>
       </section>
-
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="bg-white rounded-3xl border border-slate-100 p-8">
           <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Projet pastoral</p>
@@ -237,7 +229,6 @@ export default function ProjetEducatifPage() {
           </p>
         </div>
       </section>
-
       <section className="bg-indigo-600 py-20">
         <div className="max-w-[1200px] mx-auto px-6 text-center">
           <h2 className="text-4xl font-black text-white mb-4">Découvrir nos établissements</h2>
@@ -256,9 +247,7 @@ export default function ProjetEducatifPage() {
               Lycée
             </Link>
           </div>
-          <a href={SCHOOL.phone.tel} className="inline-block mt-6 text-indigo-100 hover:text-white text-sm font-bold">
-            📞 {SCHOOL.phone.display}
-          </a>
+          <a href={SCHOOL.phone.tel} className="inline-block mt-6 text-indigo-100 hover:text-white text-sm font-bold">📞 {SCHOOL.phone.display}</a>
         </div>
       </section>
     </div>

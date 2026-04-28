@@ -35,8 +35,8 @@ export const SCHOOL = {
   lycee: {
     label: "Lycée",
     directrice: "Mme Anne-Marie DONA",
-    email: "florian@h-me.fr",
-    emailHref: "mailto:florian@h-me.fr",
+    email: "0761713z@ac-normandie.fr",
+    emailHref: "mailto:0761713z@ac-normandie.fr",
     grades: "2nde · 1ère · Terminale",
     internPlaces: 125,
   },
