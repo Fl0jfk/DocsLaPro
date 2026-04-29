@@ -22,7 +22,6 @@ type Child =
       id: string;
       stage: "college";
       niveau: CollegeNiveau;
-      ebp: boolean;
       langue: LangueSeconde; 
       optionBilingueAllemand: boolean;
       optionLatin: boolean;
@@ -60,7 +59,7 @@ function formatChildLabel(child: Child) {
   }
   if (child.stage === "college") {
     if (child.niveau === "6e") return `Collège — 6e (bilingue allemand: ${child.optionBilingueAllemand ? "oui" : "non"})`;
-    return `Collège — ${child.niveau} (${child.langue}${child.ebp ? " • E.B.P" : ""}${child.optionLatin ? " • Latin" : ""}${child.optionOse ? " • OSE" : ""})`;
+    return `Collège — ${child.niveau} (${child.langue}${child.optionLatin ? " • Latin" : ""}${child.optionOse ? " • OSE" : ""})`;
   }
   return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • ${child.langue})`;
 }
@@ -206,7 +205,7 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
 }
 
 function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): SupplySection[] {
-  const { niveau, ebp, langue, optionBilingueAllemand, optionLatin, optionOse } = child;
+  const { niveau, langue, optionBilingueAllemand, optionLatin, optionOse } = child;
   const itemsUSB = ["1 clé USB 16 Go (durant tout le collège)"];
   const maths = [
     "Calculatrice Casio (collège)",
@@ -351,44 +350,21 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
       "Copies simples et doubles grands carreaux pour les évaluations",
       "Dictionnaire (Larousse de préférence)",
     ];
-    const fr6eEbp = [
-      "6e E.B.P : 2 cahiers grands carreaux 24/32",
-      "1 cahier de brouillon",
-      "1 pochette cartonnée à élastiques",
-      "Feuilles grands carreaux, grands formats",
-      "Bescherelle de conjugaison",
-      "Dictionnaire niveau collège",
-    ];
     const fr5e = [
       "1 cahier grand format 21x29,7 grands carreaux sans spirales",
       "Copies simples et doubles grands carreaux pour les évaluations",
-    ];
-    const fr5eEbp = [
-      "5e E.B.P : 2 cahiers très grand format 24/32 grands carreaux (96 pages, plastifiés avec le nom de l'élève)",
-      "Un dictionnaire (Petit Larousse / Petit Robert…)",
-      "Un cahier classeur",
-      "Pochettes transparentes",
-      "Chemise cartonnée élastique",
-      "Copies doubles",
-      "Surligneur, colle, ciseaux, règle, crayons",
-      "Un cahier de texte et non un agenda",
     ];
     const fr4e = [
       "1 cahier grand format 21x29,7 grands carreaux sans spirales",
       "Copies simples et doubles grands carreaux pour les évaluations",
     ];
-    const fr4eEbp = [
-      "4e E.B.P : 1 cahier 24/32 grands carreaux (96 pages)",
-      "1 pochette cartonnée à élastiques grand format",
-      "Bescherelle de conjugaison",
-    ];
     const fr3e = [
       "1 cahier grand format 21x29,7 grands carreaux sans spirales",
       "Copies simples et doubles grands carreaux pour les évaluations"
     ];
-    if (niveau === "6e") return ebp ? fr6eEbp : fr6e;
-    if (niveau === "5e") return ebp ? fr5eEbp : fr5e;
-    if (niveau === "4e") return ebp ? fr4eEbp : fr4e;
+    if (niveau === "6e") return fr6e;
+    if (niveau === "5e") return fr5e;
+    if (niveau === "4e") return fr4e;
     if (niveau === "3e") return fr3e;
     return [];
   })();
@@ -510,7 +486,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
   const [stage, setStage] = useState<Stage>("college");
   const [ecoleNiveau, setEcoleNiveau] = useState<EcoleNiveau>("CP");
   const [collegeNiveau, setCollegeNiveau] = useState<CollegeNiveau>("6e");
-  const [collegeEbp, setCollegeEbp] = useState(false);
   const [collegeLangue, setCollegeLangue] = useState<LangueSeconde>("Allemand");
   const [collegeBilingueAllemand, setCollegeBilingueAllemand] = useState(false);
   const [collegeLatin, setCollegeLatin] = useState(false);
@@ -536,7 +511,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
     setStage("college");
     setEcoleNiveau("CP");
     setCollegeNiveau("6e");
-    setCollegeEbp(false);
     setCollegeLangue("Allemand");
     setCollegeBilingueAllemand(false);
     setCollegeLatin(false);
@@ -555,7 +529,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
       return;
     }
     if (stage === "college") {
-      const safeEbp = collegeNiveau === "3e" ? false : collegeEbp;
       const safeLangue: LangueSeconde = collegeNiveau === "6e" ? "Allemand" : collegeLangue;
       const safeLatin = collegeNiveau === "6e" ? false : collegeLatin;
       const safeOse = collegeNiveau === "3e" ? collegeOse : false;
@@ -565,7 +538,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
           id: uid(),
           stage: "college",
           niveau: collegeNiveau,
-          ebp: safeEbp,
           langue: safeLangue,
           optionBilingueAllemand: collegeBilingueAllemand,
           optionLatin: safeLatin,
@@ -865,20 +837,6 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           ))}
                         </div>
                       </div>
-                      {collegeNiveau !== "3e" ? (
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option E.B.P (si concerné)</p>
-                          <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                            <input
-                              type="checkbox"
-                              className="w-5 h-5 accent-indigo-600"
-                              checked={collegeEbp}
-                              onChange={(e) => setCollegeEbp(e.target.checked)}
-                            />
-                            <span className="font-bold text-sm text-slate-800">{collegeEbp ? "E.B.P : OUI" : "E.B.P : NON"}</span>
-                          </label>
-                        </div>
-                      ) : null}
                       {collegeNiveau === "6e" ? (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option bilingue allemand</p>
