@@ -249,7 +249,7 @@ export default function HomePage() {
               },
               {
                 href: "/college",
-                color: "bg-sky-500 hover:bg-sky-500",
+                color: "bg-sky-400 hover:bg-sky-500",
                 light: "bg-sky-50",
                 text: "text-sky-500",
                 label: "De la 6ème à la 3ème",

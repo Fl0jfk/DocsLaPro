@@ -41,7 +41,7 @@ export default function TripDashboard() {
 
   const ETAB_STYLE: Record<string, { bg: string; text: string; border: string; stripe: string }> = {
     "École":          { bg: "bg-yellow-50",  text: "text-yellow-800", border: "border-yellow-300", stripe: "bg-yellow-400" },
-    "Collège":        { bg: "bg-blue-50",    text: "text-blue-800",   border: "border-blue-300",   stripe: "bg-blue-500"   },
+    "Collège":        { bg: "bg-sky-50",    text: "text-sky-800",   border: "border-sky-300",   stripe: "bg-sky-500"   },
     "Lycée":          { bg: "bg-pink-50",    text: "text-pink-800",   border: "border-pink-300",   stripe: "bg-pink-500"   },
     "Groupe Scolaire":{ bg: "bg-violet-50",  text: "text-violet-800", border: "border-violet-300", stripe: "bg-violet-500" },
   };
