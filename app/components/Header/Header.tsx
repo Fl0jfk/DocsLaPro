@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Logo from "../../../public/Logo header.png";
 import { SCHOOL } from "../../lib/school";
+import { div } from "framer-motion/client";
 
 const NAV = [
   { href: "/ecole",   label: "École",   activeColor: "text-yellow-500", hoverClass: "hover:text-yellow-500", dot: "bg-yellow-500" },
@@ -86,26 +87,27 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
     <>
       <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 print:!hidden">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <Link href="/" className="hover:opacity-75 transition flex-shrink-0 relative">
+        <Link href="/" className="hover:opacity-75 transition flex-shrink-0 relative">
             <div className="w-[110px] h-[110px] ">
               <Image src={Logo} alt="La Providence Nicolas Barré" width={300} height={300} className="absolute top-7 left-[-20px] sm:left-0"/>
             </div>
           </Link>
-          <div className="relative md:hidden w-full">
-            <p className="text-xl md:hidden absolute text-center top-[-15px] w-full left-[-20px]">La Providence Nicolas Barré</p>
-          </div>
           <nav className={`${adminMode ? "flex" : "hidden md:flex"} gap-8 text-sm font-medium text-slate-600`}>
             {adminMode && !isActive("/dashboard") ? (
-              <Link
-                href="/dashboard"
-                className={`px-4 py-1.5 rounded-full border text-xs font-bold transition ${
-                  isActive("/dashboard")
-                    ? "bg-slate-900 text-white border-slate-900"
-                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:text-slate-900"
-                }`}
-              >
-                Dashboard
-              </Link>
+              <div className="relative w-full">
+                  <Link
+                    href="/dashboard"
+                    className={`px-4 py-1.5 rounded-full border text-xs font-bold transition absolute top-[-15px] left-[-80px] ${
+                      isActive("/dashboard")
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:text-slate-900"
+                    }`}
+                  >
+                    Dashboard
+                </Link>
+              </div>
+
+              
             ) : !adminMode ? (
               NAV.map(({ href, label, activeColor, hoverClass }) => (
                 <Link
