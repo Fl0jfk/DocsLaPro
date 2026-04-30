@@ -225,7 +225,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
       "Equerre transparente",
       "Compas simple avec mine supplémentaire",
       "Rapporteur gradué en degrés (transparent en forme de demi-cercle, gradué dans les 2 sens)",
-      "+ 6 E Option EBEP (maths) : 1 classeur fin et",
+      "*** Option EBP : 1 classeur fin et souple (21x 29,7) contenant 30 pochettes plastiques + 1 feutre Velléda",
     ];
     const maths5e = [
       "1 crayon HB",
