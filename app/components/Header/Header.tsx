@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
-import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp";
+import Logo from "../../../public/Logo header.png";
 import { SCHOOL } from "../../lib/school";
 
 const NAV = [
@@ -86,11 +86,14 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
     <>
       <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 print:!hidden">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <Link href="/" className="hover:opacity-75 transition flex-shrink-0">
-            <div className="w-[44px] h-[44px]">
-              <Image src={Logo} alt="La Providence Nicolas Barré" width={150} height={150}/>
+          <Link href="/" className="hover:opacity-75 transition flex-shrink-0 relative">
+            <div className="w-[110px] h-[110px] ">
+              <Image src={Logo} alt="La Providence Nicolas Barré" width={300} height={300} className="absolute top-7 left-[-20px] sm:left-0"/>
             </div>
           </Link>
+          <div className="relative md:hidden w-full">
+            <p className="text-xl md:hidden absolute text-center top-[-15px] w-full left-[-20px]">La Providence Nicolas Barré</p>
+          </div>
           <nav className={`${adminMode ? "flex" : "hidden md:flex"} gap-8 text-sm font-medium text-slate-600`}>
             {adminMode && !isActive("/dashboard") ? (
               <Link
