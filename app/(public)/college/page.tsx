@@ -12,7 +12,7 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
     <div className="border-b border-slate-100 last:border-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full text-left py-5 flex items-center justify-between gap-4 font-bold text-slate-800 hover:text-blue-600 transition-colors"
+        className="w-full text-left py-5 flex items-center justify-between gap-4 font-bold text-slate-800 hover:text-sky-500 transition-colors"
       >
         <span>{title}</span>
         <span className={`text-xl text-slate-400 transition-transform duration-300 flex-shrink-0 ${open ? "rotate-45" : ""}`}>+</span>
@@ -26,9 +26,9 @@ export default function CollegePage() {
   return (
     <div className="bg-white min-h-screen">
       <Header />
-      <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-blue-600">
+      <section className="relative h-[70vh] min-h-[480px] overflow-hidden bg-sky-400">
         <Image src="https://docslaproimage.s3.eu-west-3.amazonaws.com/website/Coll%C3%A8ge.jpg" alt="Collège La Providence" fill sizes="100vw" className="object-cover mix-blend-multiply opacity-50" />
-        <div className="absolute inset-0 bg-gradient-to-b from-blue-500/50 to-blue-800/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-sky-500/50 to-sky-800/90" />
         <div className="relative h-full flex flex-col items-start justify-end max-w-[1200px] mx-auto px-6 pb-16">
           <p className="text-blue-200 font-bold uppercase tracking-widest text-sm mb-3">6ème · 5ème · 4ème · 3ème</p>
           <h1 className="text-5xl md:text-7xl font-black text-white leading-none mb-4">Le Collège</h1>
@@ -37,7 +37,7 @@ export default function CollegePage() {
           </p>
         </div>
       </section>
-      <section className="bg-blue-50 border-b border-blue-100">
+      <section className="bg-sky-50 border-b border-sky-100">
         <div className="max-w-[1200px] mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
             { n: "6ème → 3ème", l: "4 années de collège" },
@@ -46,7 +46,7 @@ export default function CollegePage() {
             { n: "25 internes", l: "Internat dès la 6ème" },
           ].map(({ n, l }) => (
             <div key={n}>
-              <p className="text-2xl font-black text-blue-600">{n}</p>
+              <p className="text-2xl font-black text-sky-500">{n}</p>
               <p className="text-xs text-slate-500 mt-1">{l}</p>
             </div>
           ))}
@@ -55,7 +55,7 @@ export default function CollegePage() {
       <section className="max-w-[1200px] mx-auto px-6 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-start">
           <div>
-            <p className="text-blue-500 font-bold uppercase tracking-widest text-xs mb-3">Notre philosophie</p>
+            <p className="text-sky-500 font-bold uppercase tracking-widest text-xs mb-3">Notre philosophie</p>
             <h2 className="text-4xl font-black text-slate-900 mb-5">Chaque jeune est unique</h2>
             <p className="text-slate-600 leading-relaxed mb-4">
               Nicolas Barré affirmait au 17ème siècle qu&apos;il était nécessaire d&apos;adapter l&apos;enseignement au <strong>«  génie propre »</strong> de chacun. Cette conviction inspire notre organisation, nos choix pédagogiques et notre accompagnement.
@@ -122,7 +122,7 @@ export default function CollegePage() {
             { icon: "🔬", label: "Laboratoires", detail: "Bien équipés" },
             { icon: "📚", label: "CDI spacieux", detail: "Accès élargi" },
           ].map(({ icon, label, detail }) => (
-            <div key={label} className="text-center p-6 bg-blue-50 rounded-2xl border border-blue-100">
+            <div key={label} className="text-center p-6 bg-sky-50 rounded-2xl border border-sky-100">
               <span className="text-3xl">{icon}</span>
               <p className="font-bold text-slate-800 text-sm mt-3">{label}</p>
               <p className="text-xs text-slate-500 mt-1">{detail}</p>
@@ -134,7 +134,7 @@ export default function CollegePage() {
         <div className="max-w-[1200px] mx-auto px-6">
           <h2 className="text-3xl font-black text-slate-900 mb-8">Informations pratiques</h2>
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-blue-50 rounded-3xl p-6 border border-blue-100">
+            <div className="bg-blue-50 rounded-3xl p-6 border border-sky-100">
               <h3 className="font-black text-slate-800 mb-4">🕐 Horaires</h3>
               <ul className="space-y-2 text-sm text-slate-600">
                 <li><span className="font-bold">Arrivée :</span> 8h30 tous les matins (lun–ven)</li>
@@ -147,7 +147,7 @@ export default function CollegePage() {
               <h3 className="font-black text-slate-800 mb-4">📞 Contact & inscription</h3>
               <p className="text-sm text-slate-600 mb-1"><span className="font-bold">Directrice :</span> {SCHOOL.college.directrice}</p>
               <p className="text-sm text-slate-600 mb-1">{SCHOOL.address.street} – {SCHOOL.address.city}</p>
-              <a href={SCHOOL.phone.tel} className="text-sm font-bold text-blue-600 block mt-2">{SCHOOL.phone.display}</a>
+              <a href={SCHOOL.phone.tel} className="text-sm font-bold text-sky-600 block mt-2">{SCHOOL.phone.display}</a>
               <a href={SCHOOL.college.emailHref} className="text-sm text-slate-500 block">{SCHOOL.college.email}</a>
             </div>
           </div>

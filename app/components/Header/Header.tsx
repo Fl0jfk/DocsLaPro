@@ -7,11 +7,10 @@ import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Logo from "../../../public/Logo header.png";
 import { SCHOOL } from "../../lib/school";
-import { div } from "framer-motion/client";
 
 const NAV = [
   { href: "/ecole",   label: "École",   activeColor: "text-yellow-500", hoverClass: "hover:text-yellow-500", dot: "bg-yellow-500" },
-  { href: "/college", label: "Collège", activeColor: "text-blue-500",   hoverClass: "hover:text-blue-500",   dot: "bg-blue-500"   },
+  { href: "/college", label: "Collège", activeColor: "text-sky-500",   hoverClass: "hover:text-sky-500",   dot: "bg-sky-500"   },
   { href: "/lycee",   label: "Lycée",   activeColor: "text-pink-500",   hoverClass: "hover:text-pink-500",   dot: "bg-pink-500"   },
 ];
 

@@ -7,8 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Header from '../components/Header/Header';
 import { SCHOOL } from '../lib/school';
 
-const SLIDE_BLUR_DATA_URL =
-  "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='1.2'/%3E%3C/filter%3E%3Crect width='16' height='9' fill='%23dbe3ea'/%3E%3Crect width='16' height='9' fill='%2394a3b8' opacity='0.32' filter='url(%23b)'/%3E%3C/svg%3E";
+const SLIDE_BLUR_DATA_URL ="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Cfilter id='b'%3E%3CfeGaussianBlur stdDeviation='1.2'/%3E%3C/filter%3E%3Crect width='16' height='9' fill='%23dbe3ea'/%3E%3Crect width='16' height='9' fill='%2394a3b8' opacity='0.32' filter='url(%23b)'/%3E%3C/svg%3E";
 
 function resolveNewsImage(url: string): string | null {
   if (!url || !url.trim()) return null;
@@ -130,7 +129,6 @@ export default function HomePage() {
                 >
                   {extendedNews.map((actu, index) => {
                     const isActive = index === currentIndex;
-                    const baseIndex = index % newsCount;
                     const shouldPreload = isActive || index === currentIndex - 1 || index === currentIndex + 1;
                     const imageFitClass = actu.imageFit === "contain" ? "object-contain" : "object-cover";
                     return (
@@ -190,9 +188,7 @@ export default function HomePage() {
                                   className="pointer-events-none flex items-end justify-between gap-2 sm:gap-6"
                                 >
                                   <div className="min-w-0 max-w-2xl text-center sm:text-left mx-auto sm:mx-0">
-                                    <span className="block font-bold uppercase tracking-widest text-xs text-white/80 mb-2">
-                                      {actu.subtitle}
-                                    </span>
+                                    <span className="block font-bold uppercase tracking-widest text-xs text-white/80 mb-2">{actu.subtitle}</span>
                                     <h2 className="text-3xl md:text-4xl font-black leading-tight text-white mb-2">{actu.title}</h2>
                                     <p className="text-sm md:text-base font-medium text-white/90 line-clamp-2">{actu.description}</p>
                                   </div>
@@ -253,9 +249,9 @@ export default function HomePage() {
               },
               {
                 href: "/college",
-                color: "bg-blue-500 hover:bg-blue-600",
-                light: "bg-blue-50",
-                text: "text-blue-600",
+                color: "bg-sky-500 hover:bg-sky-500",
+                light: "bg-sky-50",
+                text: "text-sky-500",
                 label: "De la 6ème à la 3ème",
                 title: "Le Collège",
                 desc: "Quatre années pour construire sa personnalité, choisir ses options et grandir dans un cadre exigeant et stimulant.",
