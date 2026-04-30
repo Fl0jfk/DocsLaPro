@@ -207,26 +207,85 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
 function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): SupplySection[] {
   const { niveau, langue, optionBilingueAllemand, optionLatin, optionOse } = child;
   const itemsUSB = ["1 clé USB 16 Go (durant tout le collège)"];
-  const maths = [
-    "Calculatrice Casio (collège)",
-    "2 cahiers très grand format (24x32) grands carreaux 96 pages",
-    "Critérium à mine fine (type Bic Matic)",
-    "Crayon HB",
-    "2 Feutres fins type Velleda bleu + chiffon",
-    "4 Surligneurs (rose, jaune, vert, bleu)",
-    "Équerre transparente",
-    "Règle graduée",
-    "Compas simple (avec mine supplémentaire)",
-    "Rapporteur gradué en degrés (0 à 180 dans les 2 sens, marque MAPED conseillée, pas de graduation de 0à 200, transparent en demi cercle)",
-    "1 pochette à rabats avec élastiques",
-    "1 lutin",
-    "Une deuxième pochette à rabats avec élastique contenant :",
-    "a) Copies doubles blanches grand format (21x29,7)",
-    "b) Copies simples blanches grand format (21x29,7)",
-    "c) 2 ou 3 feuilles de papier calque",
-    "d) Une vingtaine de feuilles blanches format A4 (ramette de papier)",
-    "e) 4 pochettes transparents pour le classeur",
-  ];
+  const maths = (() => {
+    const maths6e = [
+      "1 crayon HB",
+      "Taille crayon",
+      "Colle",
+      "Ciseaux",
+      "4 stylos (bleu, vert, noir et rouge)",
+      "Règle graduée",
+      "Agenda",
+      "4 surligneurs (rose, jaune, vert et bleu)",
+      "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
+      "1 lutin 21x 29,7 (100 vues)",
+      "1 pochette à rabats avec élastiques (21x 29,7)",
+      "1 pochette à rabats avec élastiques (21x 29,7) avec dedans: Copies simples grand format (21x29,7) Copies double grand format (21x29,7) Feuilles blanches format A4 (ramette de papier) Papier calque",
+      "Calculatrice Casio collège",
+      "Equerre transparente",
+      "Compas simple avec mine supplémentaire",
+      "Rapporteur gradué en degrés (transparent en forme de demi-cercle, gradué dans les 2 sens)",
+      "+ 6 E Option EBEP (maths) : 1 classeur fin et",
+    ];
+    const maths5e = [
+      "1 crayon HB",
+      "Taille crayon",
+      "Colle",
+      "Ciseaux",
+      "4 stylos (bleu, vert, noir et rouge)",
+      "Règle graduée",
+      "Agenda",
+      "1 surligneur",
+      "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
+      "1 lutin 21x 29,7 (100 vues)",
+      "1 pochette à rabats avec élastiques (21x 29,7)",
+      "1 pochette à rabats avec élastiques (21x 29,7) avec dedans: Copies simples grand format (21x29,7) Copies double grand format (21x29,7) Feuilles blanches format A4 (ramette de papier) Papier calque",
+      "Calculatrice Casio collège",
+      "Equerre transparente",
+      "Compas simple avec mine supplémentaire",
+      "Rapporteur gradué en degrés (transparent en forme de demi-cercle, gradué dans les 2 sens)",
+    ];
+    const maths4e = [
+      "1 crayon HB",
+      "Taille crayon",
+      "Colle",
+      "Ciseaux",
+      "4 stylos (bleu, vert, noir et rouge)",
+      "Règle graduée",
+      "Agenda",
+      "1 surligneur",
+      "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
+      "1 lutin 21x 29,7 (100 vues)",
+      "1 pochette à rabats avec élastiques (21x 29,7)",
+      "1 pochette à rabats avec élastiques (21x 29,7) avec dedans: Copies simples grand format (21x29,7) Copies double grand format (21x29,7) Feuilles blanches format A4 (ramette de papier) Papier calque",
+      "Calculatrice Casio collège",
+      "Equerre transparente",
+      "Compas simple avec mine supplémentaire",
+      "Rapporteur gradué en degrés (transparent en forme de demi-cercle, gradué dans les 2 sens)",
+    ];
+    const maths3e = [
+      "1 crayon HB",
+      "Taille crayon",
+      "Colle",
+      "Ciseaux",
+      "4 stylos (bleu, vert, noir et rouge)",
+      "Règle graduée",
+      "Agenda",
+      "4 surligneurs (rose, jaune, vert et bleu)",
+      "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
+      "1 lutin 21x 29,7 (100 vues)",
+      "1 pochette à rabats avec élastiques (21x 29,7)",
+      "1 pochette à rabats avec élastiques (21x 29,7) contenant: Copies simples grand format (21x29,7) Copies double grand format (21x29,7) Feuilles blanches format A4 (ramette de papier)",
+      "Calculatrice Casio collège",
+      "Equerre transparente",
+      "Compas simple avec mine supplémentaire",
+      "Rapporteur gradué en degrés (transparent en forme de demi-cercle, gradué dans les 2 sens)",
+    ];
+    if (niveau === "6e") return maths6e;
+    if (niveau === "5e") return maths5e;
+    if (niveau === "4e") return maths4e;
+    return maths3e;
+  })();
   const anglais = [
     "1 cahier 96 pages 24/32 grands carreaux, sans spirales",
     "1 cahier d’exercices fourni par le collège (facturé au 2e trimestre)",
@@ -767,13 +826,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {(
-                    [
-                      ["ecole", "École"],
-                      ["college", "Collège"],
-                      ["lycee", "Lycée"],
-                    ] as Array<[Stage, string]>
-                  ).map(([s, label]) => (
+                  {([["ecole", "École"],["college", "Collège"],["lycee", "Lycée"],] as Array<[Stage, string]>).map(([s, label]) => (
                     <button
                       key={s}
                       type="button"
