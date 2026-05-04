@@ -4,7 +4,6 @@ import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-/** E-mail utilisé pour « Signer & commander » : d’abord celui lu sur le devis (Mistral), sinon expéditeur Gmail, sinon champ transporteur. */
 function orderEmailForQuote(quote: {
   extractedContactEmail?: string | null;
   providerEmail?: string | null;
@@ -31,17 +30,18 @@ export default function TripDetails() {
   const [uploading, setUploading] = useState(false);
   const rawRoles = user?.publicMetadata?.role;
   const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
+  const normalizedRoles = userRoles.map((r: string) => norm(String(r)));
   const isDirectionLycee = userRoles.includes('direction_lycee');
   const isDirectionCollege = userRoles.includes('direction collège');
   const isDirectionEcole = userRoles.includes('direction école');
-  const isDirection = isDirectionLycee || isDirectionCollege || isDirectionEcole;
   const etabForSign = trip?.data?.etablissement || "";
-  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
-  const isEcoleDir  = userRoles.some((r: string) => norm(r).includes("directionecole")  || norm(r).includes("directionecol") || (norm(r).includes("direction") && norm(r).includes("ecole")));
-  const isCollegeDir = userRoles.some((r: string) => norm(r).includes("directioncollege") || (norm(r).includes("direction") && norm(r).includes("college")));
-  const isLyceeDir  = userRoles.some((r: string) => norm(r).includes("directionlycee")  || (norm(r).includes("direction") && norm(r).includes("lycee")));
+  const isEcoleDir = normalizedRoles.some((r: string) => r.includes("directionecole") || r.includes("directionecol") || (r.includes("direction") && r.includes("ecole")));
+  const isCollegeDir = normalizedRoles.some((r: string) => r.includes("directioncollege") || (r.includes("direction") && r.includes("college")));
+  const isLyceeDir = normalizedRoles.some((r: string) => r.includes("directionlycee") || (r.includes("direction") && r.includes("lycee")));
+  const isDirection = isDirectionLycee || isDirectionCollege || isDirectionEcole || isEcoleDir || isCollegeDir || isLyceeDir;
   const canSign = etabForSign === "École" ? (isDirectionEcole  || isEcoleDir) : etabForSign === "Collège" ? (isDirectionCollege || isCollegeDir) : etabForSign === "Lycée" ? (isDirectionLycee  || isLyceeDir) : isDirectionLycee || isLyceeDir;
-  const isCompta = userRoles.includes('comptabilité');
+  const isCompta = userRoles.includes('comptabilité') || normalizedRoles.some((r: string) => r.includes("comptabilite"));
   const isOwner = user?.fullName === trip?.ownerName;
   const canManageFiles = isOwner || isDirection || isCompta;
   const canUseInternalThread = isOwner || isDirection || isCompta;
