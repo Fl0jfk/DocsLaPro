@@ -177,7 +177,7 @@ export async function POST(req: Request) {
     const selectedDayNames = selectedDays.map(d => d.label).join(", ");
     await transporter.sendMail({
       from: `"Gestion Sorties La Providence" <${process.env.EMAIL_USER}>`,
-      to: "florian.hacqueville-mathi@ac-normandie.fr",
+      to: "chef.0056isi@newrest.eu",
       cc: userEmail,
       subject: `Bon de commande cuisine — ${userName} — ${tripData.data.title}`,
       text: [
@@ -189,8 +189,6 @@ export async function POST(req: Request) {
         `Jour(s) de sortie : ${selectedDayNames || "—"}`,
         `Lieu de récupération : ${details.deliveryPlace || "—"} à ${details.deliveryTime || "—"}`,
         ``,
-        `Merci de bien vouloir préparer les quantités indiquées dans le tableau ci-joint.`,
-        `La liste définitive des élèves et adultes vous sera fournie 15 jours avant la sortie et affinée 24h avant.`,
         ``,
         `Cordialement,`,
         userName,

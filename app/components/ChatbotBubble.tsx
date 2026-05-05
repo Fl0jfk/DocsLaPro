@@ -41,6 +41,7 @@ const DRAFT_PATH_PREFIXES = [
   "/navetterotomagus",
   "/partnertennis",
   "/partnerkaratedoa3",
+  "/partneravirona3",
   "/portesouvertes",
   "/preparationrentreeprofs",
   "/qrpo",
