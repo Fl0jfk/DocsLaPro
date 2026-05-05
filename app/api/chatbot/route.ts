@@ -13,6 +13,10 @@ const MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions";
 
 function sleep(ms: number) {return new Promise((resolve) => setTimeout(resolve, ms))}
 
+function normalizeLinks(text: string) {
+  return text.replace(/\bwww\.[^\s<>"')\]]+/gi, (raw) => `https://${raw}`);
+}
+
 async function fetchMistralWithRetry(body: unknown, attempts = 3) {
   let lastResponse: Response | null = null;
   for (let i = 0; i < attempts; i += 1) {
@@ -123,7 +127,8 @@ export async function POST(req: Request) {
       `2) Si la question porte sur une personne/date/événement, cite explicitement les éléments clés (nom, classe, date, heure, statut).\n` +
       `3) Si le contexte contient d'autres éléments proches et pertinents, ajoute-les brièvement en complément.\n` +
       `4) N'écris "contactez l'établissement" QUE si l'information demandée est absente du contexte.\n` +
-      `5) Ton: professionnel, clair, sans jargon.\n\n` +
+      `5) Ton: professionnel, clair, sans jargon.\n` +
+      `6) Quand tu donnes un lien, écris toujours l'URL complète (https://...).\n\n` +
       `Historique récent de la conversation:\n${historyText || "(aucun)"}\n\n` +
       `Contexte principal (${domain.label}) + domaines associés:\n${context}\n\n` +
       `Question utilisateur: ${message}`;
@@ -136,14 +141,7 @@ export async function POST(req: Request) {
         ],
       });
     if (!llm) {
-      return NextResponse.json(
-        {
-          answer:
-            "Le service IA est temporairement indisponible. Réessaie dans quelques secondes.",
-        },
-        { status: 503 }
-      );
-    }
+      return NextResponse.json({ answer: "Le service IA est temporairement indisponible. Réessaie dans quelques secondes." },{ status: 503 })}
     if (!llm.ok) {
       if ([429, 500, 502, 503, 504].includes(llm.status)) {
         return NextResponse.json(
@@ -158,7 +156,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Erreur Mistral: ${err}` }, { status: llm.status });
     }
     const data = await llm.json();
-    const answer = data?.choices?.[0]?.message?.content?.trim();
+    const answer = normalizeLinks(data?.choices?.[0]?.message?.content?.trim() || "");
     const withActionHint = wantsRequest
       ? `${answer || "Je n'ai pas pu formuler de réponse pour le moment."}\n\nSi vous souhaitez un suivi interne, utilisez le bouton "Créer une demande" dans le chatbot (nom, prénom, email, téléphone, sujet, détail).`
       : answer || "Je n'ai pas pu formuler de réponse pour le moment.";

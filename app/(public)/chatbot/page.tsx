@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -15,6 +15,80 @@ type RequestDraft = {
   subject: string;
   description: string;
 };
+
+function renderMessageContent(content: string) {
+  const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const urlRegex = /\bhttps?:\/\/[^\s<>"')\]]+/g;
+  const lines = content.split("\n");
+
+  return lines.map((line, lineIndex) => {
+    const nodes: Array<string | JSX.Element> = [];
+    let cursor = 0;
+    let key = 0;
+
+    const pushPlainWithUrls = (plainText: string) => {
+      let plainCursor = 0;
+      for (const match of plainText.matchAll(urlRegex)) {
+        const rawUrl = match[0];
+        const start = match.index ?? 0;
+        const end = start + rawUrl.length;
+        if (start > plainCursor) {
+          nodes.push(plainText.slice(plainCursor, start));
+        }
+        nodes.push(
+          <a
+            key={`url_${lineIndex}_${key++}`}
+            href={rawUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-700 underline break-all"
+          >
+            {rawUrl}
+          </a>
+        );
+        plainCursor = end;
+      }
+      if (plainCursor < plainText.length) {
+        nodes.push(plainText.slice(plainCursor));
+      }
+    };
+
+    for (const match of line.matchAll(markdownLinkRegex)) {
+      const full = match[0];
+      const label = match[1];
+      const href = match[2];
+      const start = match.index ?? 0;
+      const end = start + full.length;
+
+      if (start > cursor) {
+        pushPlainWithUrls(line.slice(cursor, start));
+      }
+      nodes.push(
+        <a
+          key={`md_${lineIndex}_${key++}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-700 underline break-all"
+        >
+          {label}
+        </a>
+      );
+      cursor = end;
+    }
+
+    if (cursor < line.length) {
+      pushPlainWithUrls(line.slice(cursor));
+    }
+
+    return (
+      <Fragment key={`line_${lineIndex}`}>
+        {nodes.length > 0 ? nodes : line}
+        {lineIndex < lines.length - 1 && <br />}
+      </Fragment>
+    );
+  });
+}
 
 export default function PublicChatbotPage() {
   const [input, setInput] = useState("");
@@ -103,7 +177,7 @@ export default function PublicChatbotPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-4 h-[55vh] overflow-y-auto space-y-3">
         {messages.map((m, i) => (
           <div key={i} className={`rounded-xl px-3 py-2 text-sm ${m.role === "user" ? "bg-sky-50 ml-10" : "bg-slate-50 mr-10"}`}>
-            {m.content}
+            {renderMessageContent(m.content)}
           </div>
         ))}
       </div>

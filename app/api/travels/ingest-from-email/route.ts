@@ -182,7 +182,6 @@ type IngestJobParams = {
 async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
   const client = s3();
   const { bucket, markerKey, s3Key, fromEmail, subject, snippet, gmailMessageId, originalFilename, candidates, providerName } = p;
-
   try {
     let ocrText = "";
     let match = {
@@ -205,16 +204,11 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
     } catch (e) {
       console.error("[ingest-from-email] OCR/Mistral:", e);
     }
-
     const getCmd = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
     const fileViewUrl = await getSignedUrl(client, getCmd, { expiresIn: 604800 });
     const now = new Date().toISOString();
     const tripId = match.matchedTripId;
-
-    const finishMarker = async (m: IngestMarker) => {
-      await writeIngestMarker(client, bucket, markerKey, { ...m, pending: false, completed: true });
-    };
-
+    const finishMarker = async (m: IngestMarker) => { await writeIngestMarker(client, bucket, markerKey, { ...m, pending: false, completed: true })};
     if (!candidates.length) {
       await appendUnmatched(client, bucket, {
         id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
@@ -235,7 +229,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
       await finishMarker({ matched: false, reason: "aucun_voyage_liste", tripId: null });
       return;
     }
-
     if (!tripId) {
       await appendUnmatched(client, bucket, {
         id: `${Date.now()}-${gmailMessageId.slice(-8)}`,
@@ -298,7 +291,6 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
       });
       return;
     }
-
     const newDevis = {
       id: Date.now().toString(),
       providerName,
@@ -344,17 +336,12 @@ export async function POST(req: Request) {
   const secret = ingestSecretFromEnv();
   if (!secret) {
     return NextResponse.json(
-      {
-        error:
-          "Secret d'ingestion non configuré côté serveur. Sur Amplify, définir TRAVEL_EMAIL_INGEST_SECRET (ou INGEST_SECRET) pour la branche qui déploie ce build, puis redéployer.",
-      },
+      { error:"Secret d'ingestion non configuré côté serveur. Sur Amplify, définir TRAVEL_EMAIL_INGEST_SECRET (ou INGEST_SECRET) pour la branche qui déploie ce build, puis redéployer."},
       { status: 503 }
     );
   }
   const hdr = (req.headers.get("x-travel-email-ingest-secret") || "").trim();
-  if (hdr !== secret) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  if (hdr !== secret) { return NextResponse.json({ error: "Non autorisé" }, { status: 401 })}
   let body: {
     s3Key?: string;
     fromEmail?: string;
@@ -370,19 +357,13 @@ export async function POST(req: Request) {
   }
   const { s3Key, fromEmail, subject, snippet, gmailMessageId, originalFilename } = body;
   if (!s3Key || !fromEmail || !gmailMessageId) {
-    return NextResponse.json(
-      { error: "s3Key, fromEmail et gmailMessageId requis" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "s3Key, fromEmail et gmailMessageId requis" },{ status: 400 });
   }
-  if (!isAllowedIncomingKey(s3Key)) {
-    return NextResponse.json({ error: "Clé S3 non autorisée" }, { status: 400 });
-  }
+  if (!isAllowedIncomingKey(s3Key)) { return NextResponse.json({ error: "Clé S3 non autorisée" }, { status: 400 })}
   const bucket = process.env.BUCKET_NAME!;
   const client = s3();
   const markerKey = ingestMarkerKey(gmailMessageId, s3Key);
   const existing = await readIngestMarker(client, bucket, markerKey);
-
   if (existing?.completed) {
     return NextResponse.json({
       ok: true,
@@ -394,7 +375,6 @@ export async function POST(req: Request) {
       devisId: existing.devisId ?? null,
     });
   }
-
   if (existing?.pending && existing.startedAt) {
     const age = Date.now() - new Date(existing.startedAt).getTime();
     if (!Number.isNaN(age) && age < PENDING_STALE_MS) {
@@ -411,14 +391,9 @@ export async function POST(req: Request) {
     }
   }
 
-  await writeIngestMarker(client, bucket, markerKey, {
-    pending: true,
-    startedAt: new Date().toISOString(),
-  });
-
+  await writeIngestMarker(client, bucket, markerKey, { pending: true, startedAt: new Date().toISOString()});
   const candidates = await loadTripCandidates(client, bucket);
   const providerName = providerNameFromEmail(fromEmail) ?? "Transporteur (e-mail)";
-
   after(() =>
     runIngestBackgroundJob({
       bucket,
@@ -433,15 +408,12 @@ export async function POST(req: Request) {
       providerName,
     }).catch((err) => console.error("[ingest-from-email] after() job:", err))
   );
-
   return NextResponse.json(
     {
       ok: true,
       accepted: true,
       completed: false,
-      detail:
-        "Textract + Mistral s'exécutent après la réponse HTTP. Relance la Lambda une fois terminé : le 2e appel verra completed:true et pourra marquer le mail lu.",
-    },
+      detail: "Textract + Mistral s'exécutent après la réponse HTTP. Relance la Lambda une fois terminé : le 2e appel verra completed:true et pourra marquer le mail lu."},
     { status: 202 }
   );
 }

@@ -7,10 +7,7 @@ import {  TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDete
 
 const textractClient = new TextractClient({
   region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  }
+  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY!}
 });
 
 export async function POST(req: Request) {
@@ -32,14 +29,7 @@ export async function POST(req: Request) {
             docKey = urlParts.length > 1 ? urlParts[1].split('?')[0] : doc.url.split('/').pop();
           }
           if (!docKey) continue;
-          const startCommand = new StartDocumentTextDetectionCommand({
-            DocumentLocation: {
-              S3Object: {
-                Bucket: process.env.BUCKET_NAME,
-                Name: docKey,
-              },
-            },
-          });
+          const startCommand = new StartDocumentTextDetectionCommand({DocumentLocation: { S3Object: { Bucket: process.env.BUCKET_NAME, Name: docKey}}});
           const startResponse = await textractClient.send(startCommand);
           const jobId = startResponse.JobId;
           let finished = false;

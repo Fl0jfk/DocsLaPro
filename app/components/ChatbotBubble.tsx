@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
@@ -48,6 +48,80 @@ const DRAFT_PATH_PREFIXES = [
   "/recapitulatifscolarite",
   "/reglementfinancier",
 ];
+
+function renderMessageContent(content: string) {
+  const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const urlRegex = /\bhttps?:\/\/[^\s<>"')\]]+/g;
+  const lines = content.split("\n");
+
+  return lines.map((line, lineIndex) => {
+    const nodes: Array<string | JSX.Element> = [];
+    let cursor = 0;
+    let key = 0;
+
+    const pushPlainWithUrls = (plainText: string) => {
+      let plainCursor = 0;
+      for (const match of plainText.matchAll(urlRegex)) {
+        const rawUrl = match[0];
+        const start = match.index ?? 0;
+        const end = start + rawUrl.length;
+        if (start > plainCursor) {
+          nodes.push(plainText.slice(plainCursor, start));
+        }
+        nodes.push(
+          <a
+            key={`url_${lineIndex}_${key++}`}
+            href={rawUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-700 underline break-all"
+          >
+            {rawUrl}
+          </a>
+        );
+        plainCursor = end;
+      }
+      if (plainCursor < plainText.length) {
+        nodes.push(plainText.slice(plainCursor));
+      }
+    };
+
+    for (const match of line.matchAll(markdownLinkRegex)) {
+      const full = match[0];
+      const label = match[1];
+      const href = match[2];
+      const start = match.index ?? 0;
+      const end = start + full.length;
+
+      if (start > cursor) {
+        pushPlainWithUrls(line.slice(cursor, start));
+      }
+      nodes.push(
+        <a
+          key={`md_${lineIndex}_${key++}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-700 underline break-all"
+        >
+          {label}
+        </a>
+      );
+      cursor = end;
+    }
+
+    if (cursor < line.length) {
+      pushPlainWithUrls(line.slice(cursor));
+    }
+
+    return (
+      <Fragment key={`line_${lineIndex}`}>
+        {nodes.length > 0 ? nodes : line}
+        {lineIndex < lines.length - 1 && <br />}
+      </Fragment>
+    );
+  });
+}
 
 export default function ChatbotBubble() {
   const pathname = usePathname();
@@ -338,7 +412,7 @@ export default function ChatbotBubble() {
                       : "bg-white/55 text-slate-800 mr-8 border border-white/60 backdrop-blur-md"
                   }`}
                 >
-                  {m.content}
+                  {renderMessageContent(m.content)}
                 </div>
               ))}
               {loading ? (

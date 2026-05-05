@@ -11,15 +11,9 @@ export async function POST(req: Request) {
     const key = fileUrl.split(`${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/`)[1];
     const s3Client = new S3Client({
       region: process.env.REGION,
-      credentials: {
-        accessKeyId: process.env.ACCESS_KEY_ID!,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-      },
+      credentials: {  accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY!},
     });
-    const command = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: key,
-    });
+    const command = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: key});
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     return NextResponse.json({ signedUrl });
   } catch (error) {
