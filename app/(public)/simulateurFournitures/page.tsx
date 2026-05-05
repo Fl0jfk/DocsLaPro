@@ -26,6 +26,7 @@ type Child =
       optionBilingueAllemand: boolean;
       optionLatin: boolean;
       optionOse: boolean;
+      optionLceAnglais: boolean;
     }
   | {
       id: string;
@@ -59,7 +60,7 @@ function formatChildLabel(child: Child) {
   }
   if (child.stage === "college") {
     if (child.niveau === "6e") return `Collège — 6e (bilingue allemand: ${child.optionBilingueAllemand ? "oui" : "non"})`;
-    return `Collège — ${child.niveau} (${child.langue}${child.optionLatin ? " • Latin" : ""}${child.optionOse ? " • OSE" : ""})`;
+    return `Collège — ${child.niveau} (${child.langue}${child.optionLatin ? " • Latin" : ""}${child.optionOse ? " • OSE" : ""}${child.optionLceAnglais ? " • LCE Anglais" : ""})`;
   }
   return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • ${child.langue})`;
 }
@@ -205,7 +206,7 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
 }
 
 function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): SupplySection[] {
-  const { niveau, langue, optionBilingueAllemand, optionLatin, optionOse } = child;
+  const { niveau, langue, optionBilingueAllemand, optionLatin, optionOse, optionLceAnglais } = child;
   const itemsUSB = ["1 clé USB 16 Go (durant tout le collège)"];
   const maths = (() => {
     const maths6e = [
@@ -288,8 +289,6 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
   })();
   const anglais = [
     "1 cahier 96 pages 24/32 grands carreaux, sans spirales",
-    "1 cahier d’exercices fourni par le collège (facturé au 2e trimestre)",
-    "1 lutin (40 vues) ou cahier-classeur avec pochettes transparentes",
   ];
   const espagnol = [
     "1 cahier 100 pages grand format (24/32), grands carreaux",
@@ -402,6 +401,9 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "Utiliser le classeur de Technologie pour classer les documents OSE.",
     "30 pochettes transparentes.",
   ];
+  const lceAnglais = [
+    "1 cahier 24x32 grands carreaux",
+  ];
   const francais = (() => {
     const fr6e = [
       "1 cahier grand format 21x29,7 grands carreaux sans spirales",
@@ -446,6 +448,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     { title: "Musique", items: musique },
     { title: "Catéchèse", items: catechese },
     ...(niveau !== "6e" && optionLatin ? [{ title: "Latin (option)", items: latin }] : []),
+    ...((niveau === "5e" || niveau === "4e" || niveau === "3e") && optionLceAnglais ? [{ title: "LCE Anglais (option)", items: lceAnglais }] : []),
     ...(niveau === "3e" && optionOse ? [{ title: "Option OSE", items: ose }] : []),
   ];
 }
@@ -549,6 +552,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
   const [collegeBilingueAllemand, setCollegeBilingueAllemand] = useState(false);
   const [collegeLatin, setCollegeLatin] = useState(false);
   const [collegeOse, setCollegeOse] = useState(false);
+  const [collegeLceAnglais, setCollegeLceAnglais] = useState(false);
   const [lyceeNiveau, setLyceeNiveau] = useState<LyceeNiveau>("2nde");
   const [lyceeTrack, setLyceeTrack] = useState<LyceeTrack>("General");
   const [lyceeLangue, setLyceeLangue] = useState<LangueSeconde>("Allemand");
@@ -574,6 +578,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
     setCollegeBilingueAllemand(false);
     setCollegeLatin(false);
     setCollegeOse(false);
+    setCollegeLceAnglais(false);
     setLyceeNiveau("2nde");
     setLyceeTrack("General");
     setLyceeLangue("Allemand");
@@ -591,6 +596,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
       const safeLangue: LangueSeconde = collegeNiveau === "6e" ? "Allemand" : collegeLangue;
       const safeLatin = collegeNiveau === "6e" ? false : collegeLatin;
       const safeOse = collegeNiveau === "3e" ? collegeOse : false;
+      const safeLceAnglais = collegeNiveau === "5e" || collegeNiveau === "4e" || collegeNiveau === "3e" ? collegeLceAnglais : false;
       setChildren((prev) => [
         ...prev,
         {
@@ -601,6 +607,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
           optionBilingueAllemand: collegeBilingueAllemand,
           optionLatin: safeLatin,
           optionOse: safeOse,
+          optionLceAnglais: safeLceAnglais,
         },
       ]);
       setShowAdd(false);
@@ -951,6 +958,20 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                               onChange={(e) => setCollegeOse(e.target.checked)}
                             />
                             <span className="font-bold text-sm text-slate-800">{collegeOse ? "OSE : OUI" : "OSE : NON"}</span>
+                          </label>
+                        </div>
+                      )}
+                      {(collegeNiveau === "5e" || collegeNiveau === "4e" || collegeNiveau === "3e") && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Option LCE Anglais</p>
+                          <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                            <input
+                              type="checkbox"
+                              className="w-5 h-5 accent-indigo-600"
+                              checked={collegeLceAnglais}
+                              onChange={(e) => setCollegeLceAnglais(e.target.checked)}
+                            />
+                            <span className="font-bold text-sm text-slate-800">{collegeLceAnglais ? "LCE Anglais : OUI" : "LCE Anglais : NON"}</span>
                           </label>
                         </div>
                       )}
