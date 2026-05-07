@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type Etablissement = "École" | "Collège" | "Lycée";
 
@@ -42,18 +42,13 @@ const norm = (s: string) =>
 
 function canViewConvocations(roles: string[]) {
   const normalized = roles.map((r) => norm(r));
-  return normalized.some((r) =>
-    ["administratif", "direction ecole", "direction college", "direction lycee", "education"].some((allowed) => r.includes(allowed)),
-  );
+  return normalized.some((r) =>["administratif", "direction ecole", "direction college", "direction lycee", "education"].some((allowed) => r.includes(allowed)));
 }
 
 async function getIndex(): Promise<ConvocationRecord[]> {
   try {
     const res = await s3.send(
-      new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: INDEX_KEY,
-      }),
+      new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: INDEX_KEY}),
     );
     const body = await res.Body?.transformToString();
     return body ? (JSON.parse(body) as ConvocationRecord[]) : [];
@@ -63,15 +58,24 @@ async function getIndex(): Promise<ConvocationRecord[]> {
   }
 }
 
+async function saveIndex(index: ConvocationRecord[]) {
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: INDEX_KEY,
+      Body: JSON.stringify(index),
+      ContentType: "application/json",
+    }),
+  );
+}
+
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
-
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
   if (!canViewConvocations(roles)) return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
-
   try {
     const index = await getIndex();
     const sorted = (index || []).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
@@ -79,6 +83,57 @@ export async function GET() {
   } catch (error) {
     console.error("Convocations list error:", error);
     return NextResponse.json({ error: "Erreur récupération convocations" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  const { userId } = await auth();
+  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const user = await currentUser();
+  const rolesRaw = user?.publicMetadata?.role;
+  const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
+  if (!canViewConvocations(roles)) return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
+  const { searchParams } = new URL(req.url);
+  const id = String(searchParams.get("id") || "").trim();
+  if (!id) return NextResponse.json({ error: "Paramètre 'id' manquant." }, { status: 400 });
+  try {
+    const fileRes = await s3.send(
+      new GetObjectCommand({
+        Bucket: process.env.BUCKET_NAME,
+        Key: `convocations/${id}.json`,
+      }),
+    );
+    const fileBody = await fileRes.Body?.transformToString();
+    if (!fileBody) return NextResponse.json({ error: "Convocation introuvable" }, { status: 404 });
+    const record = JSON.parse(fileBody) as ConvocationRecord;
+    const docKey = String(record?.data?.documentKey || "").trim();
+
+    // Supprimer le fichier convocation
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: process.env.BUCKET_NAME,
+        Key: `convocations/${id}.json`,
+      }),
+    );
+    const index = await getIndex();
+    const updated = (index || []).filter((r) => r.id !== id);
+    await saveIndex(updated);
+    if (docKey) {
+      const stillReferenced = updated.some((r) => String(r?.data?.documentKey || "").trim() === docKey);
+      if (!stillReferenced) {
+        await s3.send(
+          new DeleteObjectCommand({
+            Bucket: process.env.BUCKET_NAME,
+            Key: docKey,
+          }),
+        );
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Convocations delete error:", error);
+    return NextResponse.json({ error: "Erreur suppression convocation" }, { status: 500 });
   }
 }
 

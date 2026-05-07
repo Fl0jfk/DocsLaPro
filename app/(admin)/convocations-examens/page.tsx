@@ -40,6 +40,33 @@ function formatTimeFR(date: Date) {
   return `${pad2(date.getHours())}h${pad2(date.getMinutes())}`;
 }
 
+function typologyFromLabel(label: string) {
+  const s = String(label || "").toLowerCase();
+  if (s.includes("bac")) return "bac";
+  if (s.includes("brevet") || s.includes("dnb")) return "brevet";
+  if (s.includes("syndic")) return "syndical";
+  if (s.includes("malad") || s.includes("arrêt") || s.includes("arret")) return "maladie";
+  if (s.includes("formation")) return "formation";
+  return "autre";
+}
+
+function classesForTypology(typology: ReturnType<typeof typologyFromLabel>) {
+  switch (typology) {
+    case "bac":
+      return { base: "bg-rose-100 text-rose-800", hover: "hover:bg-rose-200" };
+    case "brevet":
+      return { base: "bg-indigo-100 text-indigo-800", hover: "hover:bg-indigo-200" };
+    case "syndical":
+      return { base: "bg-amber-100 text-amber-900", hover: "hover:bg-amber-200" };
+    case "maladie":
+      return { base: "bg-slate-200 text-slate-900", hover: "hover:bg-slate-300" };
+    case "formation":
+      return { base: "bg-emerald-100 text-emerald-900", hover: "hover:bg-emerald-200" };
+    default:
+      return { base: "bg-violet-100 text-violet-900", hover: "hover:bg-violet-200" };
+  }
+}
+
 export default function ConvocationsExamensPage() {
   const [items, setItems] = useState<AbsenceItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +74,7 @@ export default function ConvocationsExamensPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-
+  const selectedYear = currentMonth.getFullYear();
   const fetchConvocations = async () => {
     try {
       setLoading(true);
@@ -61,21 +88,16 @@ export default function ConvocationsExamensPage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchConvocations();
   }, []);
-
   const events = useMemo<CalendarEvent[]>(() => {
     const out: CalendarEvent[] = [];
-
     for (const item of items) {
       const start = new Date(item.data.startAt);
       const end = new Date(item.data.endAt);
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue;
       if (+end <= +start) continue;
-
-      // Expansion multi-jours: si la convocation couvre plusieurs jours, on affiche un event sur chaque journée.
       const day = new Date(start.getFullYear(), start.getMonth(), start.getDate());
       const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
       for (let cursor = new Date(day); cursor <= last; cursor.setDate(cursor.getDate() + 1)) {
@@ -84,10 +106,8 @@ export default function ConvocationsExamensPage() {
         const d = cursor.getDate();
         const isFirstDay = sameDay(cursor, start.getFullYear(), start.getMonth(), start.getDate());
         const isLastDay = sameDay(cursor, end.getFullYear(), end.getMonth(), end.getDate());
-
         const startAt = isFirstDay ? start.toISOString() : new Date(y, m, d, 0, 0, 0, 0).toISOString();
         const endAt = isLastDay ? end.toISOString() : new Date(y, m, d, 23, 59, 0, 0).toISOString();
-
         const displayTime =
           isFirstDay && isLastDay
             ? `${formatTimeFR(start)} - ${formatTimeFR(end)}`
@@ -127,6 +147,22 @@ export default function ConvocationsExamensPage() {
     }
   };
 
+  const deleteConvocation = async (id: string) => {
+    setError(null);
+    setSuccess(null);
+    const ok = window.confirm("Supprimer ce créneau ? Cela supprime aussi le document s'il n'est plus utilisé.");
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/convocations?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Suppression impossible.");
+      setSuccess("Créneau supprimé.");
+      await fetchConvocations();
+    } catch (e: any) {
+      setError(e?.message || "Erreur suppression.");
+    }
+  };
+
   const dayCells = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -154,6 +190,24 @@ export default function ConvocationsExamensPage() {
     return cells;
   }, [currentMonth, events]);
 
+  const yearOptions = useMemo(() => {
+    const years = new Set<number>();
+    years.add(new Date().getFullYear());
+    years.add(selectedYear);
+    for (const item of items) {
+      const y1 = new Date(item.data.startAt).getFullYear();
+      const y2 = new Date(item.data.endAt).getFullYear();
+      if (!Number.isNaN(y1)) years.add(y1);
+      if (!Number.isNaN(y2)) years.add(y2);
+    }
+    const list = [...years].sort((a, b) => a - b);
+    const min = list[0] ?? selectedYear;
+    const max = list[list.length - 1] ?? selectedYear;
+    const padded: number[] = [];
+    for (let y = min - 2; y <= max + 2; y += 1) padded.push(y);
+    return padded;
+  }, [items, selectedYear]);
+
   const handleUpload = async (file: File) => {
     setError(null);
     setSuccess(null);
@@ -179,14 +233,28 @@ export default function ConvocationsExamensPage() {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div>
-        <h1 className="text-4xl font-black text-slate-900">Convocations examens</h1>
-        <p className="text-slate-500 mt-2">Importez une convocation PDF pour créer automatiquement les absences professeurs.</p>
+        <h1 className="text-4xl font-black text-slate-900">Calendrier absences professeurs</h1>
+        <p className="text-slate-500 mt-2">Importez un PDF (convocation, stages, syndical, maladies, etc.) pour créer automatiquement des absences professeurs.</p>
       </div>
-
       <section className="bg-white border border-slate-200 rounded-3xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-black text-slate-900">Calendrier des absences (convocations)</h2>
+          <h2 className="text-xl font-black text-slate-900">Calendrier des absences (professeurs)</h2>
           <div className="flex items-center gap-2">
+            <select
+              className="px-3 py-1 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700"
+              value={selectedYear}
+              onChange={(e) => {
+                const y = Number(e.target.value);
+                if (!Number.isFinite(y)) return;
+                setCurrentMonth(new Date(y, currentMonth.getMonth(), 1));
+              }}
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
@@ -223,20 +291,48 @@ export default function ConvocationsExamensPage() {
                   <div className="text-xs font-black text-slate-700 mb-2">{cell.date.getDate()}</div>
                   <div className="space-y-1 max-h-[88px] overflow-y-auto pr-1">
                     {cell.events.map((event) => (
-                      <button
+                      (() => {
+                        const color = classesForTypology(typologyFromLabel(event.examType));
+                        return (
+                      <div
                         key={event.key}
-                        type="button"
+                        role={event.hasDocument ? "button" : undefined}
+                        tabIndex={event.hasDocument ? 0 : -1}
                         onClick={() => (event.hasDocument ? openConvocation(event.id) : undefined)}
+                        onKeyDown={(e) => {
+                          if (!event.hasDocument) return;
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openConvocation(event.id);
+                          }
+                        }}
                         title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
                         className={[
-                          "text-left w-full bg-rose-100 text-rose-800 rounded-lg px-2 py-1 text-[11px] leading-tight",
-                          event.hasDocument ? "hover:bg-rose-200 transition-colors" : "opacity-80 cursor-default",
+                          "relative text-left w-full rounded-lg px-2 py-1 text-[11px] leading-tight",
+                          color.base,
+                          event.hasDocument ? `${color.hover} transition-colors cursor-pointer` : "opacity-80 cursor-default",
+                          event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
                         ].join(" ")}
                       >
-                        <div className="font-bold truncate">{event.teacherName}</div>
+                        <button
+                          type="button"
+                          aria-label="Supprimer le créneau"
+                          title="Supprimer le créneau"
+                          className="absolute top-1 right-1 rounded px-1 text-[10px] font-black opacity-70 hover:opacity-100"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            deleteConvocation(event.id);
+                          }}
+                        >
+                          ✕
+                        </button>
+                        <div className="font-bold truncate pr-4">{event.teacherName}</div>
                         <div className="truncate">{event.examType}</div>
                         <div className="truncate">{event.displayTime}</div>
-                      </button>
+                      </div>
+                        );
+                      })()
                     ))}
                   </div>
                 </>
