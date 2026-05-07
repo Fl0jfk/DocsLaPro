@@ -77,6 +77,8 @@ function getRoleFlags(roles: string[]) {
     isDirectionCollege: hasRole(roles, "directioncollege"),
     isDirectionLycee: hasRole(roles, "directionlycee"),
     isCompta: hasRole(roles, "comptabilite"),
+    isAdministratif: hasRole(roles, "administratif"),
+    isEducation: hasRole(roles, "education"),
   };
 }
 
@@ -86,6 +88,8 @@ function canViewAbsence(abs: AbsenceRecord, viewerUserId: string, roles: string[
   if (abs.data.scope === "ogec") {
     return flags.isDirectionEcole || flags.isDirectionCollege || flags.isDirectionLycee || flags.isCompta;
   }
+  // Administratif / Vie scolaire: accès lecture aux absences professeurs (pour le planning)
+  if (flags.isAdministratif || flags.isEducation) return true;
   // Direction lycée: vue globale des absences professeurs
   if (flags.isDirectionLycee) return true;
   if (abs.data.etablissement === "École") return flags.isDirectionEcole;

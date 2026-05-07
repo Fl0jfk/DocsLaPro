@@ -40,7 +40,6 @@ export async function ocrS3Key(bucket: string, key: string): Promise<string> {
   return "";
 }
 
-/** Bloc « signature » repéré par Textract (coordonnées normalisées 0–1, origine haut-gauche comme AWS). */
 export type SignatureFieldBBoxNormalized = {
   pageNumber: number;
   left: number;
@@ -66,11 +65,6 @@ function scoreSignatureLine(text: string): number {
   return s;
 }
 
-/**
- * Analyse synchrone du PDF (toutes les pages) pour trouver une ligne liée à la signature.
- * Les positions viennent uniquement des Geometry des blocs Textract, pas du texte seul.
- * Retourne null si rien d’exploitable (l’appelant garde alors un placement par défaut).
- */
 export async function findSignatureFieldBBoxFromTextract(pdfBytes: Buffer | Uint8Array): Promise<SignatureFieldBBoxNormalized | null> {
   if (!process.env.ACCESS_KEY_ID || !process.env.SECRET_ACCESS_KEY) {
     return null;
@@ -115,7 +109,6 @@ export async function findSignatureFieldBBoxFromTextract(pdfBytes: Buffer | Uint
   };
 }
 
-/** Convertit la bbox Textract en position pdf-lib pour drawImage (coin bas-gauche de l’image). */
 export function textractSignatureBBoxToPdfLibDrawCoords(
   pageWidth: number,
   pageHeight: number,
@@ -136,7 +129,6 @@ export function textractSignatureBBoxToPdfLibDrawCoords(
 export type DevisOcrMetadata = {
   price: string | null;
   company: string | null;
-  /** E-mail commercial / réservation lu sur le devis (OCR), pour l’envoi de commande */
   contactEmail: string | null;
 };
 
@@ -162,9 +154,7 @@ export type DevisOcrAndTripMatch = DevisOcrMetadata & {
   matchedTripId: string | null;
   matchConfidence: "high" | "medium" | "low" | null;
   matchMotif: string | null;
-  /** Id proposé par le modèle mais absent de la liste (erreur de modèle) */
   suggestedTripId: string | null;
-  /** true si le devis est rattaché mais Mistral n'est pas "high" → à contrôler dans l’UI */
   matchReviewRequired: boolean;
 };
 
@@ -338,10 +328,6 @@ async function interpretMistralDevisMatchResponse(
   };
 }
 
-/**
- * Déduit prix + société + voyage (OCR + mail). Si trip_id est dans la liste, il est retenu même en confidence low ;
- * matchReviewRequired est false seulement pour confidence "high".
- */
 export async function extractDevisAndMatchTripWithMistral(
   ocrText: string,
   emailContext: { subject: string; snippet: string },

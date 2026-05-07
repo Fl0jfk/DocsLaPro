@@ -1,11 +1,10 @@
 export type TransportProvider = { name: string; email: string };
 
-/** Liste unique utilisée pour les envois et le rapprochement des e-mails entrants. */
 export const TRANSPORT_PROVIDERS: TransportProvider[] = [
-  { name: "Perrier", email: "perrier-voyages@orange.fr" },
-  { name: "Reflexe", email: "florian.hacqueville-mathi@ac-normandie.fr" },
-  { name: "Cars Bleus", email: "carbleus@mail.fr" },
-  { name: "Hangard", email: "hangard.autocars@outlook.fr" },
+  { name: "Perrier", email: "stephanie.fouin@cars-perier.fr" },
+  { name: "Reflexe", email: "contact@reflexe-voyages.com" },
+  { name: "Grisel", email: "j.saint-denis@grisel-voyages.fr" },
+  { name: "Hangard", email: "carole@hangard-autocars.com" },
 ];
 
 const norm = (e: string) => e.trim().toLowerCase();

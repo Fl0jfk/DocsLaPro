@@ -178,6 +178,14 @@ const STATIC_DATA: Data = {
       "link": "/chatbot-knowledge",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
+    },
+    {
+      "id": 18,
+      "name": "Convocations examens",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Convocations+examens.pdf",
+      "link": "/convocations-examens",
+      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "education"],
+      "external": false
     }
   ],
   travels: [],
