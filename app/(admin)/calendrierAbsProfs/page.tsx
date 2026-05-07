@@ -71,6 +71,7 @@ export default function ConvocationsExamensPage() {
   const [items, setItems] = useState<AbsenceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -344,7 +345,36 @@ export default function ConvocationsExamensPage() {
 
       <section className="bg-white border border-slate-200 rounded-3xl p-6">
         <h2 className="text-xl font-black text-slate-900 mb-4">Importer une convocation PDF</h2>
-        <label className="block border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors">
+        <label
+          className={[
+            "block border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors",
+            dragActive ? "border-indigo-500 bg-indigo-50/60" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40",
+            uploading ? "opacity-70 cursor-not-allowed" : "",
+          ].join(" ")}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!uploading) setDragActive(true);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!uploading) setDragActive(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragActive(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragActive(false);
+            if (uploading) return;
+            const file = e.dataTransfer.files?.[0];
+            if (file) handleUpload(file);
+          }}
+        >
           <input
             type="file"
             accept="application/pdf"
@@ -357,7 +387,7 @@ export default function ConvocationsExamensPage() {
             disabled={uploading}
           />
           <p className="text-sm font-semibold text-slate-700">
-            {uploading ? "Traitement en cours (OCR + IA)..." : "Cliquez ici pour charger un PDF de convocation"}
+            {uploading ? "Traitement en cours (OCR + IA)..." : "Glissez-déposez un PDF ici, ou cliquez pour sélectionner"}
           </p>
         </label>
 

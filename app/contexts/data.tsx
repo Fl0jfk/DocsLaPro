@@ -183,7 +183,7 @@ const STATIC_DATA: Data = {
       "id": 18,
       "name": "Calendrier Absences professeurs",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Calendrier.jpg",
-      "link": "/convocations-examens",
+      "link": "/calendrierAbsProfs",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "education"],
       "external": false
     }
