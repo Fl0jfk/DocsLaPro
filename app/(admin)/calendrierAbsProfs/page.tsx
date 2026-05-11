@@ -27,6 +27,7 @@ type CalendarEvent = {
 };
 
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const WEEKDAYS_ONLY = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 
 function sameDay(date: Date, y: number, m: number, d: number) {
   return date.getFullYear() === y && date.getMonth() === m && date.getDate() === d;
@@ -191,6 +192,37 @@ export default function ConvocationsExamensPage() {
     return cells;
   }, [currentMonth, events]);
 
+  const weekdayCells = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const firstDayOffsetMon0 = (firstDay.getDay() + 6) % 7; // 0..6 (Lun..Dim)
+    const firstDayOffset = Math.min(firstDayOffsetMon0, 5); // si ça commence Sam/Dim, on démarre directement Lun
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: Array<{ key: string; date: Date | null; events: CalendarEvent[] }> = [];
+
+    for (let i = 0; i < firstDayOffset; i += 1) {
+      cells.push({ key: `w-empty-start-${i}`, date: null, events: [] });
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = new Date(year, month, day);
+      const weekdayMon0 = (date.getDay() + 6) % 7;
+      if (weekdayMon0 >= 5) continue; // Sam/Dim masqués en mobile
+
+      const dayEvents = events.filter((event) => {
+        const eventDate = new Date(event.startAt);
+        return sameDay(eventDate, year, month, day);
+      });
+      cells.push({ key: `w-d-${day}`, date, events: dayEvents });
+    }
+
+    while (cells.length % 5 !== 0) {
+      cells.push({ key: `w-empty-end-${cells.length}`, date: null, events: [] });
+    }
+    return cells;
+  }, [currentMonth, events]);
+
   const yearOptions = useMemo(() => {
     const years = new Set<number>();
     years.add(new Date().getFullYear());
@@ -237,12 +269,12 @@ export default function ConvocationsExamensPage() {
         <h1 className="text-4xl font-black text-slate-900">Calendrier absences professeurs</h1>
         <p className="text-slate-500 mt-2">Importez un PDF (convocation, stages, syndical, maladies, etc.) pour créer automatiquement des absences professeurs.</p>
       </div>
-      <section className="bg-white border border-slate-200 rounded-3xl p-5">
-        <div className="flex items-center justify-between mb-4">
+      <section className="bg-white border border-slate-200 rounded-none sm:rounded-3xl p-0 sm:p-5 -mx-6 sm:mx-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 px-4 pt-4 sm:px-0 sm:pt-0">
           <h2 className="text-xl font-black text-slate-900">Calendrier des absences (professeurs)</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
             <select
-              className="px-3 py-1 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700"
+              className="w-full sm:w-auto px-3 py-2 sm:py-1 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700"
               value={selectedYear}
               onChange={(e) => {
                 const y = Number(e.target.value);
@@ -256,90 +288,154 @@ export default function ConvocationsExamensPage() {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-              className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50"
-            >
-              ◀
-            </button>
-            <span className="text-sm font-bold text-slate-700 min-w-[140px] text-center">
-              {currentMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
-            </span>
-            <button
-              type="button"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-              className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50"
-            >
-              ▶
-            </button>
+
+            <div className="flex items-center justify-between sm:justify-start gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                className="px-3 py-2 sm:py-1 rounded-lg border border-slate-200 hover:bg-slate-50"
+              >
+                ◀
+              </button>
+              <span className="text-sm font-bold text-slate-700 min-w-[140px] text-center flex-1 sm:flex-none">
+                {currentMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                className="px-3 py-2 sm:py-1 rounded-lg border border-slate-200 hover:bg-slate-50"
+              >
+                ▶
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {DAYS.map((day) => (
-            <div key={day} className="text-xs font-black uppercase text-slate-500 px-2 py-1">
-              {day}
-            </div>
-          ))}
+        {/* Mobile (Lun–Ven) */}
+        <div className="md:hidden px-2 pb-2">
+          <div className="grid grid-cols-5 gap-2 mb-2">
+            {WEEKDAYS_ONLY.map((day) => (
+              <div key={day} className="text-xs font-black uppercase text-slate-500 px-2 py-1">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-5 gap-2">
+            {weekdayCells.map((cell) => (
+              <div key={cell.key} className="min-h-[108px] border border-slate-100 rounded-xl p-2 bg-slate-50/40">
+                {cell.date ? (
+                  <>
+                    <div className="text-xs font-black text-slate-700 mb-2">{cell.date.getDate()}</div>
+                    <div className="space-y-1">
+                      {cell.events.map((event) => (
+                        (() => {
+                          const color = classesForTypology(typologyFromLabel(event.examType));
+                          return (
+                        <div
+                          key={event.key}
+                          role={event.hasDocument ? "button" : undefined}
+                          tabIndex={event.hasDocument ? 0 : -1}
+                          onClick={() => (event.hasDocument ? openConvocation(event.id) : undefined)}
+                          onKeyDown={(e) => {
+                            if (!event.hasDocument) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              openConvocation(event.id);
+                            }
+                          }}
+                          title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
+                          className={[
+                            "relative text-left w-full rounded-lg px-1.5 py-1 text-[10px] leading-snug",
+                            color.base,
+                            event.hasDocument ? `${color.hover} transition-colors cursor-pointer` : "opacity-80 cursor-default",
+                            event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
+                          ].join(" ")}
+                        >
+                          <div className="font-bold break-words whitespace-normal">{event.teacherName}</div>
+                          <div className="break-words whitespace-normal">{event.examType}</div>
+                          <div className="break-words whitespace-normal">{event.displayTime}</div>
+                        </div>
+                          );
+                        })()
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2">
-          {dayCells.map((cell) => (
-            <div key={cell.key} className="min-h-[120px] border border-slate-100 rounded-xl p-2 bg-slate-50/40">
-              {cell.date ? (
-                <>
-                  <div className="text-xs font-black text-slate-700 mb-2">{cell.date.getDate()}</div>
-                  <div className="space-y-1 max-h-[88px] overflow-y-auto pr-1">
-                    {cell.events.map((event) => (
-                      (() => {
-                        const color = classesForTypology(typologyFromLabel(event.examType));
-                        return (
-                      <div
-                        key={event.key}
-                        role={event.hasDocument ? "button" : undefined}
-                        tabIndex={event.hasDocument ? 0 : -1}
-                        onClick={() => (event.hasDocument ? openConvocation(event.id) : undefined)}
-                        onKeyDown={(e) => {
-                          if (!event.hasDocument) return;
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            openConvocation(event.id);
-                          }
-                        }}
-                        title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
-                        className={[
-                          "relative text-left w-full rounded-lg px-2 py-1 text-[11px] leading-tight",
-                          color.base,
-                          event.hasDocument ? `${color.hover} transition-colors cursor-pointer` : "opacity-80 cursor-default",
-                          event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
-                        ].join(" ")}
-                      >
-                        <button
-                          type="button"
-                          aria-label="Supprimer le créneau"
-                          title="Supprimer le créneau"
-                          className="absolute top-1 right-1 rounded px-1 text-[10px] font-black opacity-70 hover:opacity-100"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            deleteConvocation(event.id);
+        {/* Desktop (Lun–Dim) */}
+        <div className="hidden md:block">
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {DAYS.map((day) => (
+              <div key={day} className="text-xs font-black uppercase text-slate-500 px-2 py-1">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {dayCells.map((cell) => (
+              <div key={cell.key} className="min-h-[120px] border border-slate-100 rounded-xl p-2 bg-slate-50/40">
+                {cell.date ? (
+                  <>
+                    <div className="text-xs font-black text-slate-700 mb-2">{cell.date.getDate()}</div>
+                    <div className="space-y-1 max-h-[88px] overflow-y-auto pr-1">
+                      {cell.events.map((event) => (
+                        (() => {
+                          const color = classesForTypology(typologyFromLabel(event.examType));
+                          return (
+                        <div
+                          key={event.key}
+                          role={event.hasDocument ? "button" : undefined}
+                          tabIndex={event.hasDocument ? 0 : -1}
+                          onClick={() => (event.hasDocument ? openConvocation(event.id) : undefined)}
+                          onKeyDown={(e) => {
+                            if (!event.hasDocument) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              openConvocation(event.id);
+                            }
                           }}
+                          title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
+                          className={[
+                            "text-left w-full rounded-lg px-2 py-1 text-[11px] leading-tight",
+                            color.base,
+                            event.hasDocument ? `${color.hover} transition-colors cursor-pointer` : "opacity-80 cursor-default",
+                            event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
+                          ].join(" ")}
                         >
-                          ✕
-                        </button>
-                        <div className="font-bold truncate pr-4">{event.teacherName}</div>
-                        <div className="truncate">{event.examType}</div>
-                        <div className="truncate">{event.displayTime}</div>
-                      </div>
-                        );
-                      })()
-                    ))}
-                  </div>
-                </>
-              ) : null}
-            </div>
-          ))}
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              aria-label="Supprimer le créneau"
+                              title="Supprimer le créneau"
+                              className="rounded px-1 text-[10px] font-black opacity-70 hover:opacity-100"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                deleteConvocation(event.id);
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <div className="font-bold break-words whitespace-normal">{event.teacherName}</div>
+                          <div className="break-words whitespace-normal">{event.examType}</div>
+                          <div className="break-words whitespace-normal">{event.displayTime}</div>
+                        </div>
+                          );
+                        })()
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
