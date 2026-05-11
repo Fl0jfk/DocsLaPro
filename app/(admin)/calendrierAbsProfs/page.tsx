@@ -200,29 +200,20 @@ export default function ConvocationsExamensPage() {
     const firstDayOffset = Math.min(firstDayOffsetMon0, 5); // si ça commence Sam/Dim, on démarre directement Lun
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const cells: Array<{ key: string; date: Date | null; events: CalendarEvent[] }> = [];
-
-    for (let i = 0; i < firstDayOffset; i += 1) {
-      cells.push({ key: `w-empty-start-${i}`, date: null, events: [] });
-    }
-
+    for (let i = 0; i < firstDayOffset; i += 1) { cells.push({ key: `w-empty-start-${i}`, date: null, events: [] })}
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = new Date(year, month, day);
       const weekdayMon0 = (date.getDay() + 6) % 7;
-      if (weekdayMon0 >= 5) continue; // Sam/Dim masqués en mobile
-
+      if (weekdayMon0 >= 5) continue;
       const dayEvents = events.filter((event) => {
         const eventDate = new Date(event.startAt);
         return sameDay(eventDate, year, month, day);
       });
       cells.push({ key: `w-d-${day}`, date, events: dayEvents });
     }
-
-    while (cells.length % 5 !== 0) {
-      cells.push({ key: `w-empty-end-${cells.length}`, date: null, events: [] });
-    }
+    while (cells.length % 5 !== 0) { cells.push({ key: `w-empty-end-${cells.length}`, date: null, events: [] })}
     return cells;
   }, [currentMonth, events]);
-
   const yearOptions = useMemo(() => {
     const years = new Set<number>();
     years.add(new Date().getFullYear());
@@ -310,8 +301,6 @@ export default function ConvocationsExamensPage() {
             </div>
           </div>
         </div>
-
-        {/* Mobile (Lun–Ven) */}
         <div className="md:hidden px-2 pb-2">
           <div className="grid grid-cols-5 gap-2 mb-2">
             {WEEKDAYS_ONLY.map((day) => (
@@ -366,8 +355,6 @@ export default function ConvocationsExamensPage() {
             ))}
           </div>
         </div>
-
-        {/* Desktop (Lun–Dim) */}
         <div className="hidden md:block">
           <div className="grid grid-cols-7 gap-2 mb-2">
             {DAYS.map((day) => (
@@ -440,7 +427,7 @@ export default function ConvocationsExamensPage() {
       </section>
 
       <section className="bg-white border border-slate-200 rounded-3xl p-6">
-        <h2 className="text-xl font-black text-slate-900 mb-4">Importer une convocation PDF</h2>
+        <h2 className="text-xl font-black text-slate-900 mb-4">Importer un justificatif d'absence en PDF</h2>
         <label
           className={[
             "block border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors",
@@ -486,7 +473,6 @@ export default function ConvocationsExamensPage() {
             {uploading ? "Traitement en cours (OCR + IA)..." : "Glissez-déposez un PDF ici, ou cliquez pour sélectionner"}
           </p>
         </label>
-
         {loading && <p className="text-sm text-slate-500 mt-3">Chargement des absences...</p>}
         {success && <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 mt-3">{success}</p>}
         {error && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 mt-3">{error}</p>}
