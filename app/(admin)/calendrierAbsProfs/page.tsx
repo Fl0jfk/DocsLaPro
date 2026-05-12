@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type AbsenceItem = {
   data: {
@@ -37,6 +37,10 @@ function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
+function localDateInputValue(d: Date) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
 function formatTimeFR(date: Date) {
   return `${pad2(date.getHours())}h${pad2(date.getMinutes())}`;
 }
@@ -68,10 +72,36 @@ function classesForTypology(typology: ReturnType<typeof typologyFromLabel>) {
   }
 }
 
+type ManualFormState = {
+  firstName: string;
+  lastName: string;
+  examType: string;
+  etablissement: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+};
+
 export default function ConvocationsExamensPage() {
   const [items, setItems] = useState<AbsenceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [savingManual, setSavingManual] = useState(false);
+  const manualPdfRef = useRef<HTMLInputElement>(null);
+  const [manualForm, setManualForm] = useState<ManualFormState>(() => {
+    const t = localDateInputValue(new Date());
+    return {
+      firstName: "",
+      lastName: "",
+      examType: "",
+      etablissement: "Collège",
+      startDate: t,
+      endDate: t,
+      startTime: "08:00",
+      endTime: "18:00",
+    };
+  });
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -254,11 +284,52 @@ export default function ConvocationsExamensPage() {
     }
   };
 
+  const submitManualAbsence = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    const fd = new FormData();
+    fd.append("firstName", manualForm.firstName.trim());
+    fd.append("lastName", manualForm.lastName.trim());
+    fd.append("examType", manualForm.examType.trim());
+    fd.append("etablissement", manualForm.etablissement);
+    fd.append("startDate", manualForm.startDate);
+    fd.append("endDate", manualForm.endDate);
+    fd.append("startTime", manualForm.startTime);
+    fd.append("endTime", manualForm.endTime);
+    const pdf = manualPdfRef.current?.files?.[0];
+    if (pdf) fd.append("justificatif", pdf);
+    try {
+      setSavingManual(true);
+      const res = await fetch("/api/convocations/manual", { method: "POST", body: fd });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Enregistrement impossible.");
+      setSuccess("Absence enregistrée (saisie manuelle).");
+      const t = localDateInputValue(new Date());
+      setManualForm((prev) => ({
+        ...prev,
+        firstName: "",
+        lastName: "",
+        examType: "",
+        startDate: t,
+        endDate: t,
+      }));
+      if (manualPdfRef.current) manualPdfRef.current.value = "";
+      await fetchConvocations();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur pendant la saisie manuelle.");
+    } finally {
+      setSavingManual(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-4xl font-black text-slate-900">Calendrier absences professeurs</h1>
-        <p className="text-slate-500 mt-2">Importez un PDF (convocation, stages, syndical, maladies, etc.) pour créer automatiquement des absences professeurs.</p>
+        <p className="text-slate-500 mt-2">
+          Déclarez une absence à la main (prénom, nom, dates et heures) ou importez un PDF pour une détection automatique (OCR + IA). Vous pouvez joindre un justificatif PDF même en saisie manuelle.
+        </p>
       </div>
       <section className="bg-white border border-slate-200 rounded-none sm:rounded-3xl p-0 sm:p-5 -mx-6 sm:mx-0">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 px-4 pt-4 sm:px-0 sm:pt-0">
@@ -427,22 +498,141 @@ export default function ConvocationsExamensPage() {
       </section>
 
       <section className="bg-white border border-slate-200 rounded-3xl p-6">
+        <h2 className="text-xl font-black text-slate-900 mb-2">Déclarer une absence manuellement</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Utile lorsque l&apos;import PDF ne reconnaît pas le professeur ou le créneau. Les dates et heures sont interprétées selon le fuseau horaire de votre navigateur.
+        </p>
+        <form onSubmit={submitManualAbsence} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Prénom</span>
+              <input
+                required
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={manualForm.firstName}
+                onChange={(e) => setManualForm((p) => ({ ...p, firstName: e.target.value }))}
+                disabled={savingManual}
+                autoComplete="given-name"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Nom</span>
+              <input
+                required
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={manualForm.lastName}
+                onChange={(e) => setManualForm((p) => ({ ...p, lastName: e.target.value }))}
+                disabled={savingManual}
+                autoComplete="family-name"
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Motif / type d&apos;absence</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder="Ex. convocation bac, formation, arrêt maladie…"
+              value={manualForm.examType}
+              onChange={(e) => setManualForm((p) => ({ ...p, examType: e.target.value }))}
+              disabled={savingManual}
+            />
+          </label>
+          <label className="block max-w-xs">
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Établissement</span>
+            <select
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800"
+              value={manualForm.etablissement}
+              onChange={(e) => setManualForm((p) => ({ ...p, etablissement: e.target.value }))}
+              disabled={savingManual}
+            >
+              <option value="École">École</option>
+              <option value="Collège">Collège</option>
+              <option value="Lycée">Lycée</option>
+            </select>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Du (jour)</span>
+              <input
+                required
+                type="date"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={manualForm.startDate}
+                onChange={(e) => setManualForm((p) => ({ ...p, startDate: e.target.value }))}
+                disabled={savingManual}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Au (jour)</span>
+              <input
+                required
+                type="date"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={manualForm.endDate}
+                onChange={(e) => setManualForm((p) => ({ ...p, endDate: e.target.value }))}
+                disabled={savingManual}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Heure de début (jour du)</span>
+              <input
+                required
+                type="time"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={manualForm.startTime}
+                onChange={(e) => setManualForm((p) => ({ ...p, startTime: e.target.value }))}
+                disabled={savingManual}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Heure de fin (jour au)</span>
+              <input
+                required
+                type="time"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={manualForm.endTime}
+                onChange={(e) => setManualForm((p) => ({ ...p, endTime: e.target.value }))}
+                disabled={savingManual}
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Justificatif PDF (optionnel)</span>
+            <input
+              ref={manualPdfRef}
+              type="file"
+              accept="application/pdf"
+              className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border file:border-slate-200 file:bg-white file:px-3 file:py-2 file:text-sm file:font-semibold"
+              disabled={savingManual}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={savingManual}
+            className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {savingManual ? "Enregistrement…" : "Enregistrer l'absence"}
+          </button>
+        </form>
+      </section>
+
+      <section className="bg-white border border-slate-200 rounded-3xl p-6">
         <h2 className="text-xl font-black text-slate-900 mb-4">Importer un justificatif d'absence en PDF</h2>
         <label
           className={[
             "block border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors",
             dragActive ? "border-indigo-500 bg-indigo-50/60" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40",
-            uploading ? "opacity-70 cursor-not-allowed" : "",
+            uploading || savingManual ? "opacity-70 cursor-not-allowed" : "",
           ].join(" ")}
           onDragEnter={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (!uploading) setDragActive(true);
+            if (!uploading && !savingManual) setDragActive(true);
           }}
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (!uploading) setDragActive(true);
+            if (!uploading && !savingManual) setDragActive(true);
           }}
           onDragLeave={(e) => {
             e.preventDefault();
@@ -453,7 +643,7 @@ export default function ConvocationsExamensPage() {
             e.preventDefault();
             e.stopPropagation();
             setDragActive(false);
-            if (uploading) return;
+            if (uploading || savingManual) return;
             const file = e.dataTransfer.files?.[0];
             if (file) handleUpload(file);
           }}
@@ -467,10 +657,10 @@ export default function ConvocationsExamensPage() {
               if (file) handleUpload(file);
               e.currentTarget.value = "";
             }}
-            disabled={uploading}
+            disabled={uploading || savingManual}
           />
           <p className="text-sm font-semibold text-slate-700">
-            {uploading ? "Traitement en cours (OCR + IA)..." : "Glissez-déposez un PDF ici, ou cliquez pour sélectionner"}
+            {uploading ? "Traitement en cours (OCR + IA)..." : savingManual ? "Enregistrement manuel en cours…" : "Glissez-déposez un PDF ici, ou cliquez pour sélectionner"}
           </p>
         </label>
         {loading && <p className="text-sm text-slate-500 mt-3">Chargement des absences...</p>}
