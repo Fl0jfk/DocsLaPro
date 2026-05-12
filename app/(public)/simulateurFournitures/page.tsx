@@ -207,16 +207,19 @@ function getEcoleSupplies(niveau: EcoleNiveau): SupplySection[] {
 
 function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): SupplySection[] {
   const { niveau, langue, optionBilingueAllemand, optionLatin, optionOse, optionLceAnglais } = child;
-  const itemsUSB = ["1 clé USB 16 Go (durant tout le collège)"];
-  const maths = (() => {
-    const maths6e = [
-      "1 crayon HB",
+  const itemsUSB = ["1 clé USB 16 Go (durant tout le collège)",
+    "1 crayon HB",
       "Taille crayon",
       "Colle",
       "Ciseaux",
       "4 stylos (bleu, vert, noir et rouge)",
       "Règle graduée",
       "Agenda",
+      "12 crayons de couleur", 
+      "surligneurs fluo jaune,",
+  ];
+  const maths = (() => {
+    const maths6e = [
       "4 surligneurs (rose, jaune, vert et bleu)",
       "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
       "1 lutin 21x 29,7 (100 vues)",
@@ -229,13 +232,6 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
       "*** Option EBP : 1 classeur fin et souple (21x 29,7) contenant 30 pochettes plastiques + 1 feutre Velléda",
     ];
     const maths5e = [
-      "1 crayon HB",
-      "Taille crayon",
-      "Colle",
-      "Ciseaux",
-      "4 stylos (bleu, vert, noir et rouge)",
-      "Règle graduée",
-      "Agenda",
       "1 surligneur",
       "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
       "1 lutin 21x 29,7 (100 vues)",
@@ -247,13 +243,6 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
       "Rapporteur gradué en degrés (transparent en forme de demi-cercle, gradué dans les 2 sens)",
     ];
     const maths4e = [
-      "1 crayon HB",
-      "Taille crayon",
-      "Colle",
-      "Ciseaux",
-      "4 stylos (bleu, vert, noir et rouge)",
-      "Règle graduée",
-      "Agenda",
       "1 surligneur",
       "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
       "1 lutin 21x 29,7 (100 vues)",
@@ -265,13 +254,6 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
       "Rapporteur gradué en degrés (transparent en forme de demi-cercle, gradué dans les 2 sens)",
     ];
     const maths3e = [
-      "1 crayon HB",
-      "Taille crayon",
-      "Colle",
-      "Ciseaux",
-      "4 stylos (bleu, vert, noir et rouge)",
-      "Règle graduée",
-      "Agenda",
       "4 surligneurs (rose, jaune, vert et bleu)",
       "2 cahiers très grand format (24 x 32) grands carreaux 96 pages",
       "1 lutin 21x 29,7 (100 vues)",
@@ -291,7 +273,7 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     "1 cahier 96 pages 24/32 grands carreaux, sans spirales",
   ];
   const espagnol = [
-    "1 cahier 100 pages grand format (24/32), grands carreaux",
+    "1 cahier 100 pages grand format, grands carreaux",
     "1 cahier de brouillon",
     "1 cahier d’exercices fourni par le collège (facturé au 2e trimestre)",
   ];
@@ -360,19 +342,16 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
     if (niveau === "4e") {
       return [
         "2 cahiers très grand format (24/32) de 96 pages grands carreaux",
-        "12 crayons de couleur, surligneurs fluo jaune, colle, ciseaux",
       ];
     }
     if (niveau === "3e") {
       return [
         "AU CHOIX DE L'ÉLÈVE 2 cahiers grands carreaux 24x32 OU 1 classeur (Copies simples et doubles grands carreaux)",
         "Copies simples et doubles grands carreaux",
-        "12 crayons de couleur, colle, ciseaux",
       ];
     }
     return [
       "2 cahiers très grand format (24/32) de 96 pages grands carreaux",
-      "Crayons de couleur, surligneur fluo jaune, colle, ciseaux",
       "Livret fourni par le collège (facturé sur le 2e trimestre)",
     ];
   })();
