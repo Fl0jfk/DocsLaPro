@@ -268,13 +268,30 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
             </Link>
+            <Link
+              href="/partenaires-sportifs"
+              className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-emerald-600 ${isActive("/partenaires-sportifs") ? "text-emerald-600" : "text-slate-400"}`}
+              style={{
+                transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
+                opacity: mobileOpen ? 1 : 0,
+                transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 3) * 55}ms, opacity 0.35s ease ${(NAV.length + 3) * 55}ms, color 0.2s`,
+              }}
+            >
+              <span className="flex items-center gap-3">
+                {isActive("/partenaires-sportifs") && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-emerald-500" />}
+                Partenaires sportifs
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
           </nav>
           <div
             className="mt-5 flex flex-col gap-3"
             style={{
               transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
               opacity: mobileOpen ? 1 : 0,
-              transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 3) * 55}ms, opacity 0.35s ease ${(NAV.length + 3) * 55}ms`,
+              transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 4) * 55}ms, opacity 0.35s ease ${(NAV.length + 4) * 55}ms`,
             }}
           >
             {!adminMode && (
