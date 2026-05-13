@@ -10,7 +10,8 @@ type CollegeNiveau = "6e" | "5e" | "4e" | "3e";
 type LyceeNiveau = "2nde" | "1re" | "Terminale";
 type LyceeTrack = "General" | "ST2S";
 type LangueSeconde = "Espagnol" | "Allemand";
-type LyceeSpecialite = "Maths" | "Physique-Chimie" | "SVT" | "SES" | "HG-GEO-GEOPOL";
+type LyceeSpecialite = "Maths" | "Physique-Chimie" | "SVT" | "SES" | "HG-GEO-GEOPOL" | "Sc.Phy-Sc.Info";
+type LyceeOption = "Maths Complémentaires" | "Maths Expertes";
 type SupplySection = { title: string; items: string[] };
 type Child =
   | {
@@ -37,6 +38,7 @@ type Child =
       anglaisEuro?: boolean;
       specialites: LyceeSpecialite[];
       latin: boolean;
+      options: LyceeOption[];
     };
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 function dedupeStrings(items: string[]) {
@@ -489,88 +491,169 @@ function getCollegeSupplies(child: Extract<Child, { stage: "college" }>): Supply
 }
 
 function getLyceeSupplies(child: Extract<Child, { stage: "lycee" }>): SupplySection[] {
-  const { niveau, track, langue, anglaisEuro = false, specialites, latin } = child;
-  const lvbAllemand = ["Allemand (LVB) : MitredEN / vocabulaire selon niveau (d'après votre PDF)"];
-  const lvbEspagnol = ["Espagnol (LVB) : Via libre + La conjugaison espagnole (selon votre PDF)"];
+  const { niveau, track, langue, anglaisEuro = false, specialites, latin, options = [] } = child;
+
+  /* ── 2nde ── */
   if (niveau === "2nde") {
-    return [
+    const sections: SupplySection[] = [
       {
-        title: "Matériel obligatoire (2nde)",
+        title: "Matières obligatoires",
         items: [
           "HACHETTE Physique-Chimie 2019 (2°)",
-          "HATIER SES 2022 (2°)",
+          "HATIER Sciences Économiques et Sociales 2022 (2°)",
           "HACHETTE Skywalks 2025 (2°)",
           "MAGNARD Maths 2019 (2°)",
-          "HACHETTE SVT 2019 (2°)",
+          "HACHETTE Sciences de la Vie et de la Terre 2019 (2°)",
           "HATIER Histoire-Géographie 2019 (2°)",
-          langue === "Allemand" ? "La Maison des Langues — Fantastich (Allemand)" : "Hispamundo (Espagnol) + conjugaison espagnole",
-          anglaisEuro ? "Anglais Section Euro : Robert & vocabulaire de l'anglais (Nathan)" : "Anglais (non précisé ici) : selon votre niveau",
         ],
       },
     ];
+    if (langue === "Allemand") {
+      sections.push({ title: "LVB — Allemand", items: ["LA MAISON DES LANGUES Fantastich 2025 (2°)"] });
+    } else {
+      sections.push({ title: "LVB — Espagnol", items: ["HACHETTE La Conjugaison Espagnole 1999", "LELIVRESCOLAIRE.FR Hispamundo 2019 (2°)"] });
+    }
+    if (anglaisEuro) {
+      sections.push({ title: "Option — Anglais Section Euro", items: ["NATHAN Robert & Nathan Vocabulaire de l'Anglais 2018"] });
+    }
+    return sections;
   }
+
+  /* ── 1re Général ── */
   if (niveau === "1re" && track === "General") {
-    const common = [
-      "Hachette Les fondamentaux du lycée — Histoire/Géo/EMC (si applicable selon choix)",
-      "La Maison des Langues Blockbuster 2019 (LVB)",
-      "Hatier Histoire-Géographie 2019",
-      "Hachette Enseignement scientifique 2024 (selon votre PDF)",
+    const sections: SupplySection[] = [
+      {
+        title: "Matières obligatoires",
+        items: [
+          "LA MAISON DES LANGUES Blockbuster 2019 (1°)",
+          "HATIER Histoire-Géographie 2019 (1°)",
+          "HACHETTE Enseignement Scientifique 2024 (1°)",
+        ],
+      },
     ];
-    const bySpec: Record<LyceeSpecialite, string[]> = {
-      Maths: ["HACHETTE DÉCLIC 2019 (1° spécialité)"],
-      "Physique-Chimie": ["HATIER PHYSIQUE-CHIMIE 2019 (1° spécialité)"],
-      SVT: ["BORDAS SVT 2019 (1° spécialité)"],
-      SES: ["HATIER SCIENCES ÉCONOMIQUES ET SOCIALES 2023 (1° spécialité)"],
-      "HG-GEO-GEOPOL": ["NATHAN HISTOIRE-GÉOGRAPHIE-GÉOPOLITIQUE-SCIENCES POLITIQUES 2019 (1° spécialité)"],
-    };
-    const specItems = (specialites || []).flatMap((s) => bySpec[s] || []);
-    const latinItems = latin ? ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top)"] : [];
-    return [{ title: "Matériel obligatoire (1re — Général)", items: [...common, ...specItems, ...latinItems] }];
+    if (!specialites.includes("Maths")) {
+      sections.push({ title: "Mathématiques (enseignement commun)", items: ["HACHETTE Déclic 2023 (1°)"] });
+    }
+    if (langue === "Allemand") {
+      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+    } else {
+      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2019 (1°)", "HACHETTE La Conjugaison Espagnole 1999"] });
+    }
+    if (specialites.includes("Maths")) {
+      sections.push({ title: "Spécialité — Maths", items: ["HACHETTE Déclic 2019 (1° Spécialité)"] });
+    }
+    if (specialites.includes("Physique-Chimie")) {
+      sections.push({ title: "Spécialité — Physique-Chimie", items: ["HATIER Physique-Chimie 2019 (1° Spécialité)"] });
+    }
+    if (specialites.includes("SVT")) {
+      sections.push({ title: "Spécialité — SVT", items: ["BORDAS Sciences de la Vie et de la Terre 2019 (1° Spécialité)"] });
+    }
+    if (specialites.includes("SES")) {
+      sections.push({ title: "Spécialité — SES", items: ["HATIER Sciences Économiques et Sociales 2023 (1° Spécialité)"] });
+    }
+    if (specialites.includes("HG-GEO-GEOPOL")) {
+      sections.push({ title: "Spécialité — Hist/Géo Géopo Sc.Po", items: ["NATHAN Histoire-Géographie-Géopolitique-Sciences Politiques 2019 (1° Spécialité)"] });
+    }
+    if (latin) {
+      sections.push({ title: "Option — Latin", items: ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top) 2008"] });
+    }
+    return sections;
   }
+
+  /* ── Terminale Général ── */
   if (niveau === "Terminale" && track === "General") {
-    const common = [
-      "Magnard Philosophie 2020 (Terminale)",
-      "Hachette Enseignement scientifique 2020 (Terminale)",
-      "Hatier Histoire 2020 (Terminale)",
-      "Hatier Géographie 2020 (Terminale)",
-      "La Maison des Langues Blockbuster 2020 (Terminale)",
+    const sections: SupplySection[] = [
+      {
+        title: "Matières obligatoires",
+        items: [
+          "MAGNARD Philosophie 2020 (Terminale)",
+          "HACHETTE Enseignement Scientifique 2020 (Terminale)",
+          "HATIER Histoire 2020 (Terminale)",
+          "HATIER Géographie 2020 (Terminale)",
+          "LA MAISON DES LANGUES Blockbuster 2020 (Terminale)",
+        ],
+      },
     ];
-    const bySpec: Record<LyceeSpecialite, string[]> = {
-      Maths: ["NATHAN HYPERBOLE — Maths spécialité 2020 (Terminale)"],
-      "Physique-Chimie": ["HACHETTE PHYSIQUE-CHIMIE 2020 (Terminale spécialité)"],
-      SVT: ["BORDAS SVT 2020 (Terminale spécialité)"],
-      SES: ["MAGNARD Sciences économiques et sociales 2020 (Terminale spécialité)"],
-      "HG-GEO-GEOPOL": ["HATIER Histoire-Géographie-Géopolitique-Sciences politiques 2020 (Terminale)"],
-    };
-    const specItems = (specialites || []).flatMap((s) => bySpec[s] || []);
-    const latinItems = latin ? ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top) — 2008 (Multiples)"] : [];
-    const lvbItems = langue === "Allemand" ? lvbAllemand : lvbEspagnol;
-    return [{ title: "Matériel obligatoire (Terminale — Général)", items: [...common, ...lvbItems, ...specItems, ...latinItems] }];
-  }
-  if (track === "ST2S") {
-    const items: string[] = [];
-    if (niveau === "1re") {
-      items.push(
-        "I-MANUEL Physique-Chimie pour la Santé (livre + licence) 2019 (1° ST2S)",
-        "La Maison des Langues Blockbuster 2019 (LVB)",
-        "Hachette Histoire-Géographie-EMC 2019 (1° Tech)",
-        "Delagrave Biologie & Physiopathologie humaines 2019 (1° ST2S)",
-      );
+    if (langue === "Allemand") {
+      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+    } else {
+      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2020 (Terminale)", "HACHETTE La Conjugaison Espagnole 1999"] });
     }
-    if (niveau === "Terminale") {
-      items.push(
-        "La Maison des Langues Blockbuster 2020 (Terminale)",
-        "Magnard Philosophie 2020 (Terminale Tech)",
-        "I-MANUEL Histoire-Géographie-EMC 2020 (Terminale Tech)",
-      );
-      items.push(
-        "Delagrave Biologie & Physiopathologie humaines 2020 (Terminale ST2S)",
-        "NATHAN I-MANUEL Chimie (livre + licence) 2020 (Terminale ST2S)",
-      );
+    if (specialites.includes("Maths")) {
+      sections.push({ title: "Spécialité — Maths", items: ["NATHAN Hyperbole — Maths Spécialité 2020 (Ter Spécialité)"] });
     }
-    return [{ title: `Matériel ST2S — ${niveau}`, items: [...items, langue === "Allemand" ? "LVB Allemand (selon votre PDF)" : "LVB Espagnol (selon votre PDF)"] }];
+    if (specialites.includes("Physique-Chimie")) {
+      sections.push({ title: "Spécialité — Physique-Chimie", items: ["HACHETTE Physique-Chimie 2020 (Ter Spécialité)"] });
+    }
+    if (specialites.includes("SVT")) {
+      sections.push({ title: "Spécialité — SVT", items: ["BORDAS Sciences de la Vie et de la Terre 2020 (Ter Spécialité)"] });
+    }
+    if (specialites.includes("SES")) {
+      sections.push({ title: "Spécialité — SES", items: ["MAGNARD Sciences Économiques et Sociales 2020 (Ter Spécialité)"] });
+    }
+    if (specialites.includes("HG-GEO-GEOPOL")) {
+      sections.push({ title: "Spécialité — Hist/Géo Géopo Sc.Po", items: ["HATIER Histoire-Géographie-Géopolitique-Sciences Politiques 2020 (Ter Spécialité)"] });
+    }
+    if (specialites.includes("Sc.Phy-Sc.Info")) {
+      sections.push({ title: "Spécialité — Sciences Physiques / Sciences de l'Info", items: ["HACHETTE Sciences Physiques 2020 (Ter Spécialité SI)"] });
+    }
+    if (options.includes("Maths Complémentaires")) {
+      sections.push({ title: "Option — Maths Complémentaires", items: ["NATHAN Hyperbole — Maths Complémentaires 2020 (Ter Option)"] });
+    }
+    if (options.includes("Maths Expertes")) {
+      sections.push({ title: "Option — Maths Expertes", items: ["HACHETTE Mathématiques — Barbazo Expertes 2020 (Ter Option)"] });
+    }
+    if (latin) {
+      sections.push({ title: "Option — Latin", items: ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top) 2008"] });
+    }
+    return sections;
   }
-  return [{ title: "À compléter", items: ["Liste non disponible pour ce cas dans l'extraction actuelle."] }];
+
+  /* ── 1re ST2S ── */
+  if (niveau === "1re" && track === "ST2S") {
+    const sections: SupplySection[] = [
+      {
+        title: "Matières obligatoires",
+        items: [
+          "NATHAN I-Manuel Physique-Chimie pour la Santé (livre + licence iManuel) 2019 (1° ST2S)",
+          "LA MAISON DES LANGUES Blockbuster 2019 (1°)",
+          "DELAGRAVE Biologie et Physiopathologie Humaines 2019 (1° ST2S)",
+          "HACHETTE Histoire-Géographie-EMC 2019 (1° Tech)",
+          "HACHETTE Les Fondamentaux du Lycée — Maths (enseignement commun) 2025 (1° STMG-STHR-ST)",
+        ],
+      },
+    ];
+    if (langue === "Allemand") {
+      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+    } else {
+      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2019 (1°)", "HACHETTE La Conjugaison Espagnole 1999"] });
+    }
+    return sections;
+  }
+
+  /* ── Terminale ST2S ── */
+  if (niveau === "Terminale" && track === "ST2S") {
+    const sections: SupplySection[] = [
+      {
+        title: "Matières obligatoires",
+        items: [
+          "LA MAISON DES LANGUES Blockbuster 2020 (Terminale)",
+          "MAGNARD Philosophie 2020 (Ter Tech)",
+          "NATHAN I-Manuel Histoire-Géographie-EMC (livre + licence iManuel) 2020 (Ter Tech)",
+        ],
+      },
+    ];
+    if (langue === "Allemand") {
+      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+    } else {
+      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2020 (Terminale)", "HACHETTE La Conjugaison Espagnole 1999"] });
+    }
+    sections.push({ title: "Spécialité — Biologie & Physiopathologie", items: ["DELAGRAVE Biologie et Physiopathologie Humaines 2020 (Ter ST2S)"] });
+    sections.push({ title: "Spécialité — Chimie", items: ["NATHAN I-Manuel Chimie (livre + licence iManuel) 2020 (Ter ST2S)"] });
+    return sections;
+  }
+
+  return [{ title: "À compléter", items: ["Liste non disponible pour ce cas."] }];
 }
 export default function SimulateurFournituresEcoleCollegeLycee() {
   const [children, setChildren] = useState<Child[]>([]);
@@ -594,7 +677,9 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
   const [lyceeAnglaisEuro, setLyceeAnglaisEuro] = useState(false);
   const [lyceeLatin, setLyceeLatin] = useState(false);
   const [lyceeSpecs, setLyceeSpecs] = useState<LyceeSpecialite[]>(["Maths"]);
-  const lyceeSpecOptions: LyceeSpecialite[] = ["Maths", "Physique-Chimie", "SVT", "SES", "HG-GEO-GEOPOL"];
+  const [lyceeOptions, setLyceeOptions] = useState<LyceeOption[]>([]);
+  const lyceeSpecOptions: LyceeSpecialite[] = ["Maths", "Physique-Chimie", "SVT", "SES", "HG-GEO-GEOPOL", "Sc.Phy-Sc.Info"];
+  const lyceeOptionOptions: LyceeOption[] = ["Maths Complémentaires", "Maths Expertes"];
   const computed = useMemo(() => {
     const withSupplies = children.map((c) => {
       const supplies = c.stage === "ecole" ? getEcoleSupplies(c.niveau) : c.stage === "college" ? getCollegeSupplies(c) : getLyceeSupplies(c);
@@ -620,6 +705,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
     setLyceeAnglaisEuro(false);
     setLyceeLatin(false);
     setLyceeSpecs(["Maths"]);
+    setLyceeOptions([]);
   };
   const addChild = () => {
     if (stage === "ecole") {
@@ -648,8 +734,10 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
       setShowAdd(false);
       return;
     }
-    const maxSpecs = lyceeNiveau === "Terminale" ? 1 : lyceeNiveau === "1re" ? 2 : 0;
+    const maxSpecs = lyceeNiveau === "Terminale" ? 2 : lyceeNiveau === "1re" ? 3 : 0;
     const specs = maxSpecs === 0 ? [] : lyceeSpecs.slice(0, maxSpecs);
+    const safeOptions = (lyceeNiveau === "Terminale" && lyceeTrack === "General") ? lyceeOptions : [];
+    const safeLatin = lyceeTrack === "General" && (lyceeNiveau === "1re" || lyceeNiveau === "Terminale") ? lyceeLatin : false;
     setChildren((prev) => [
       ...prev,
       {
@@ -659,8 +747,9 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
         track: lyceeTrack,
         langue: lyceeLangue,
         anglaisEuro: lyceeAnglaisEuro,
-        latin: lyceeLatin && lyceeTrack === "General",
+        latin: safeLatin,
         specialites: specs,
+        options: safeOptions,
       },
     ]);
     setShowAdd(false);
@@ -775,18 +864,41 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                   {computed.withSupplies.map(({ child, supplies }) => (
                     <div key={child.id} className="border border-slate-100 rounded-2xl p-4">
                       <h3 className="font-black text-slate-900 text-sm">{formatChildLabel(child)}</h3>
+                      {child.stage === "lycee" && (
+                        <a
+                          href="https://docslaproimage.s3.eu-west-3.amazonaws.com/rentree/Flyer-ARBS.pdf"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 mb-3 inline-flex items-center gap-2 bg-pink-50 border border-pink-200 text-pink-700 text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full hover:bg-pink-100 transition print:hidden"
+                        >
+                          <span>📚</span>
+                          <span>Partenariat ARBS — Location de manuels</span>
+                          <span className="text-pink-400">→ Flyer PDF</span>
+                        </a>
+                      )}
                       <div className="mt-3 space-y-4">
                         {supplies.map((sec, i) => (
                           <div key={`${sec.title}_${i}`}>
                             <p className="text-[11px] font-black uppercase tracking-widest text-indigo-700">{sec.title}</p>
                             <ul className="mt-2 space-y-1">
                               {sec.items.map((it, idx) => (
-                                <li key={`${it}_${idx}`} className="text-sm text-slate-700 leading-relaxed">
+                                <li key={`${it}_${idx}`} className="text-sm text-slate-700 leading-relaxed flex items-center gap-2">
                                   <span
                                     aria-hidden
-                                    className="inline-block w-3 h-3 mr-2 align-middle border border-slate-400 rounded-[2px]"
+                                    className="inline-block shrink-0 w-3 h-3 border border-slate-400 rounded-[2px]"
                                   />
-                                  {it}
+                                  <span className="flex-1">{it}</span>
+                                  {child.stage === "lycee" && (
+                                    <a
+                                      href="https://docslaproimage.s3.eu-west-3.amazonaws.com/rentree/Flyer-ARBS.pdf"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Location de ce manuel via ARBS"
+                                      className="shrink-0 inline-flex items-center gap-1 bg-pink-50 border border-pink-200 text-pink-600 text-[10px] font-black px-2 py-0.5 rounded-full hover:bg-pink-100 transition print:hidden"
+                                    >
+                                      📚 ARBS
+                                    </a>
+                                  )}
                                 </li>
                               ))}
                             </ul>
@@ -1021,7 +1133,7 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                             <button
                               key={n}
                               type="button"
-                              onClick={() => setLyceeNiveau(n)}
+                              onClick={() => { setLyceeNiveau(n); if (n === "2nde") setLyceeTrack("General"); }}
                               className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
                                 lyceeNiveau === n ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
                               }`}
@@ -1031,23 +1143,25 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                           ))}
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filière</p>
-                        <div className="flex flex-wrap gap-2">
-                          {(["General", "ST2S"] as LyceeTrack[]).map((t) => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => setLyceeTrack(t)}
-                              className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
-                                lyceeTrack === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
-                              }`}
-                            >
-                              {t === "General" ? "Général" : "ST2S"}
-                            </button>
-                          ))}
+                      {lyceeNiveau !== "2nde" && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filière</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(["General", "ST2S"] as LyceeTrack[]).map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => setLyceeTrack(t)}
+                                className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
+                                  lyceeTrack === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
+                                }`}
+                              >
+                                {t === "General" ? "Général" : "ST2S"}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">LVB</p>
                         <div className="flex flex-wrap gap-2">
@@ -1090,30 +1204,54 @@ export default function SimulateurFournituresEcoleCollegeLycee() {
                       {lyceeTrack === "General" && lyceeNiveau !== "2nde" && (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            {lyceeNiveau === "1re" ? "Choisissez jusqu’à 2 spécialités" : "Choisissez 1 spécialité"}
+                            {lyceeNiveau === "1re" ? "Spécialités (jusqu'à 3)" : "Spécialités (jusqu'à 2)"}
                           </p>
                           <div className="flex flex-wrap gap-2">
-                            {lyceeSpecOptions.map((s) => {
-                              const max = lyceeNiveau === "Terminale" ? 1 : 2;
-                              const selected = lyceeSpecs.includes(s);
-                              const disabled = !selected && lyceeSpecs.length >= max;
+                            {lyceeSpecOptions
+                              .filter((s) => s !== "Sc.Phy-Sc.Info" || lyceeNiveau === "Terminale")
+                              .map((s) => {
+                                const max = lyceeNiveau === "Terminale" ? 2 : 3;
+                                const selected = lyceeSpecs.includes(s);
+                                const disabled = !selected && lyceeSpecs.length >= max;
+                                return (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    disabled={disabled}
+                                    onClick={() => {
+                                      setLyceeSpecs((prev) => {
+                                        const has = prev.includes(s);
+                                        if (has) return prev.filter((x) => x !== s);
+                                        return [...prev, s];
+                                      });
+                                    }}
+                                    className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
+                                      selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
+                                    } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                                  >
+                                    {s}
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                      {lyceeTrack === "General" && lyceeNiveau === "Terminale" && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Options maths (si concerné)</p>
+                          <div className="flex flex-wrap gap-2">
+                            {lyceeOptionOptions.map((o) => {
+                              const selected = lyceeOptions.includes(o);
                               return (
                                 <button
-                                  key={s}
+                                  key={o}
                                   type="button"
-                                  disabled={disabled}
-                                  onClick={() => {
-                                    setLyceeSpecs((prev) => {
-                                      const has = prev.includes(s);
-                                      if (has) return prev.filter((x) => x !== s);
-                                      return [...prev, s];
-                                    });
-                                  }}
+                                  onClick={() => setLyceeOptions((prev) => prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o])}
                                   className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
-                                    selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
-                                  } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                                    selected ? "bg-purple-600 text-white border-purple-600" : "bg-white border-slate-200 text-slate-700 hover:border-purple-200"
+                                  }`}
                                 >
-                                  {s}
+                                  {o}
                                 </button>
                               );
                             })}
