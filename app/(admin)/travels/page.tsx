@@ -51,6 +51,7 @@ export default function TripDashboard() {
       case 'VALIDE': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
       case 'REJET_MODIF': return 'bg-rose-50 text-rose-700 border-rose-100';
       case 'EN_ATTENTE_DIR_INITIAL': return 'bg-blue-50 text-blue-700 border-blue-100';
+      case 'SEANCE_ANNULEE': return 'bg-slate-100 text-slate-600 border-slate-200';
       default: return 'bg-amber-50 text-amber-700 border-amber-100';
     }
   };
@@ -119,7 +120,9 @@ export default function TripDashboard() {
                   )}
                   <div className="absolute top-4 left-4 flex gap-2">
                     <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-sm ${getStatusStyle(trip.status)}`}>
-                      {trip.status?.replace('EN_ATTENTE_', '').replace('_', ' ')}
+                      {trip.status === "SEANCE_ANNULEE"
+                        ? "Séance annulée"
+                        : trip.status?.replace('EN_ATTENTE_', '').replace('_', ' ')}
                     </span>
                   </div>
                   <div className={`absolute top-4 right-4 px-4 py-1.5 rounded-xl font-black text-sm border shadow-lg backdrop-blur-md ${etabStyle.bg} ${etabStyle.text} ${etabStyle.border}`}>
@@ -130,6 +133,11 @@ export default function TripDashboard() {
                   <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                     <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isComplex ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
                       {isComplex ? 'Voyage Scolaire' : 'Sortie Locale'}
+                      {trip.data?.recurrenceSeriesId && trip.data?.recurrenceTotal ? (
+                        <span className="ml-2 text-indigo-600">
+                          · Série {trip.data.recurrenceIndex ?? "?"}/{trip.data.recurrenceTotal}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
                       Dossier du {formatDate(trip, 'created')}
@@ -146,7 +154,15 @@ export default function TripDashboard() {
                           {trip.type === "COMPLEX" ? (
                             <span>Du {new Date(trip.data.startDate).toLocaleDateString()} au {new Date(trip.data.endDate).toLocaleDateString()}</span>
                           ) : (
-                            <span>Le {new Date(trip.data.date).toLocaleDateString()}</span>
+                            <span>
+                              Le{" "}
+                              {trip.data?.date
+                                ? (() => {
+                                    const d = new Date(trip.data.date);
+                                    return isNaN(d.getTime()) ? "à préciser" : d.toLocaleDateString("fr-FR");
+                                  })()
+                                : "à préciser"}
+                            </span>
                           )}
                         </p>
                       </div>

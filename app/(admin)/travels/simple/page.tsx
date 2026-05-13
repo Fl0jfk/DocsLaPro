@@ -1,7 +1,11 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import {
+  enumerateWeeklyDatesInRange,
+  WEEKDAY_JS_OPTIONS,
+} from "@/app/lib/simple-trip-recurrence";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const CUISINE_DAYS = [
@@ -30,6 +34,11 @@ function SimpleTripFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
+  const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
+  const [recurrenceWeekday, setRecurrenceWeekday] = useState(4);
+  const [recurrenceFrom, setRecurrenceFrom] = useState("");
+  const [recurrenceTo, setRecurrenceTo] = useState("");
+  const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -82,6 +91,15 @@ function SimpleTripFormContent() {
         });
     }
   }, [editId, isLoaded]);
+  const recurrencePreview = useMemo(() => {
+    if (!recurrenceEnabled || editId) return [];
+    return enumerateWeeklyDatesInRange(
+      recurrenceWeekday,
+      recurrenceFrom,
+      recurrenceTo,
+      skipPublicHolidays
+    );
+  }, [recurrenceEnabled, editId, recurrenceWeekday, recurrenceFrom, recurrenceTo, skipPublicHolidays]);
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -120,25 +138,107 @@ function SimpleTripFormContent() {
       alert("Veuillez préciser le nombre d'élèves pour un voyage avec budget.");
       return;
     }
+    if (!editId && recurrenceEnabled) {
+      if (!recurrenceFrom || !recurrenceTo) {
+        alert("Indiquez la date de début et la date de fin de la période pour la série.");
+        return;
+      }
+      const dates = enumerateWeeklyDatesInRange(
+        recurrenceWeekday,
+        recurrenceFrom,
+        recurrenceTo,
+        skipPublicHolidays
+      );
+      if (dates.length < 1) {
+        alert(
+          "Aucune date dans cette période pour le jour choisi (ou uniquement des jours fériés exclus). Ajustez la plage ou le jour."
+        );
+        return;
+      }
+    }
     setLoading(true);
-    const tripId = editId || crypto.randomUUID();
-    const tripData = {
-      id: tripId,
-      ownerId: user?.id,
-      ownerName: user?.fullName,
-      ownerEmail: user?.primaryEmailAddress?.emailAddress,
-      type: "SIMPLE",
-      status: "EN_ATTENTE_DIR_INITIAL",
-      data: formData,
-      updatedAt: new Date().toISOString(),
-      createdAt: editId ? undefined : new Date().toISOString(),
-      history: []
-    };
     try {
-      const response = await fetch('/api/travels/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: tripData.id, data: tripData })
+      if (!editId && recurrenceEnabled) {
+        const dates = enumerateWeeklyDatesInRange(
+          recurrenceWeekday,
+          recurrenceFrom,
+          recurrenceTo,
+          skipPublicHolidays
+        );
+        const seriesId = crypto.randomUUID();
+        const now = new Date().toISOString();
+        let imageReuse: { imageUrl?: string; imageConfigId?: string } = {};
+        for (let i = 0; i < dates.length; i++) {
+          const id = crypto.randomUUID();
+          const dataPayload = {
+            ...formData,
+            date: dates[i],
+            recurrenceSeriesId: seriesId,
+            recurrenceIndex: i + 1,
+            recurrenceTotal: dates.length,
+          };
+          const tripData: Record<string, unknown> = {
+            id,
+            ownerId: user?.id,
+            ownerName: user?.fullName,
+            ownerEmail: user?.primaryEmailAddress?.emailAddress,
+            type: "SIMPLE",
+            status: "EN_ATTENTE_DIR_INITIAL",
+            data: dataPayload,
+            updatedAt: now,
+            createdAt: now,
+            history: [
+              {
+                date: now,
+                user: user?.fullName,
+                action: "CREE",
+                note: `Série récurrente (${i + 1}/${dates.length})`,
+              },
+            ],
+          };
+          if (imageReuse.imageUrl) {
+            tripData.imageUrl = imageReuse.imageUrl;
+            tripData.imageConfigId = imageReuse.imageConfigId;
+          }
+          const response = await fetch("/api/travels/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id,
+              data: tripData,
+              suppressNewTripEmail: i > 0,
+            }),
+          });
+          if (!response.ok) {
+            alert(`Erreur lors de la sauvegarde du dossier ${i + 1} / ${dates.length}. Les dossiers précédents peuvent déjà être créés.`);
+            return;
+          }
+          const payload = await response.json();
+          if (i === 0 && payload.imageUrl) {
+            imageReuse = { imageUrl: payload.imageUrl, imageConfigId: payload.imageConfigId };
+          }
+        }
+        router.push("/travels");
+        router.refresh();
+        return;
+      }
+      const tripId = editId || crypto.randomUUID();
+      const tripData = {
+        id: tripId,
+        ownerId: user?.id,
+        ownerName: user?.fullName,
+        ownerEmail: user?.primaryEmailAddress?.emailAddress,
+        type: "SIMPLE",
+        status: "EN_ATTENTE_DIR_INITIAL",
+        data: formData,
+        updatedAt: new Date().toISOString(),
+        createdAt: editId ? undefined : new Date().toISOString(),
+        history: [],
+      };
+      const response = await fetch("/api/travels/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: tripData.id, data: tripData }),
       });
       if (response.ok) {
         router.push("/travels");
@@ -186,9 +286,100 @@ function SimpleTripFormContent() {
           <label className="block text-sm font-semibold mb-2">Lieu et programme (Champ libre)</label>
           <textarea required rows={2} value={formData.destination} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Détails du lieu..." onChange={e => setFormData({...formData, destination: e.target.value})} />
         </div>
+        {!editId && (
+          <div className="md:col-span-2 flex flex-col gap-3 p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 w-5 h-5 accent-indigo-600"
+                checked={recurrenceEnabled}
+                onChange={(e) => setRecurrenceEnabled(e.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-bold text-slate-900">Série récurrente (même sortie, plusieurs dates)</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Une période du <strong>au</strong> (vous évitez les vacances en choisissant les dates). Les{" "}
+                  <strong>jours fériés France métropolitaine</strong> peuvent être exclus automatiquement.
+                </span>
+              </span>
+            </label>
+            {recurrenceEnabled && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-indigo-100">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Jour de la semaine</label>
+                  <select
+                    value={recurrenceWeekday}
+                    className="w-full p-3 bg-white border rounded-xl outline-indigo-500"
+                    onChange={(e) => setRecurrenceWeekday(Number(e.target.value))}
+                  >
+                    {WEEKDAY_JS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-indigo-600"
+                      checked={skipPublicHolidays}
+                      onChange={(e) => setSkipPublicHolidays(e.target.checked)}
+                    />
+                    Exclure les jours fériés
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Début de période</label>
+                  <input
+                    type="date"
+                    value={recurrenceFrom}
+                    className="w-full p-3 bg-white border rounded-xl outline-indigo-500"
+                    onChange={(e) => setRecurrenceFrom(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Fin de période</label>
+                  <input
+                    type="date"
+                    value={recurrenceTo}
+                    className="w-full p-3 bg-white border rounded-xl outline-indigo-500"
+                    onChange={(e) => setRecurrenceTo(e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2 text-sm text-slate-700 bg-white/80 rounded-xl p-3 border border-indigo-100">
+                  <span className="font-bold text-indigo-800">{recurrencePreview.length}</span> séance
+                  {recurrencePreview.length > 1 ? "s" : ""} prévue
+                  {recurrencePreview.length > 1 ? "s" : ""}
+                  {recurrencePreview.length > 0 && (
+                    <span className="text-slate-500">
+                      {" "}
+                      (ex. {recurrencePreview.slice(0, 4).join(", ")}
+                      {recurrencePreview.length > 4 ? "…" : ""})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div>
-          <label className="block text-sm font-semibold mb-2">Date de la sortie</label>
-          <input required type="date" value={formData.date} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, date: e.target.value})} />
+          <label className="block text-sm font-semibold mb-2">
+            {recurrenceEnabled && !editId ? "Date de référence (optionnel)" : "Date de la sortie"}
+          </label>
+          <input
+            required={!recurrenceEnabled || !!editId}
+            type="date"
+            value={formData.date}
+            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
+            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+          />
+          {recurrenceEnabled && !editId && (
+            <p className="text-xs text-slate-500 mt-1">
+              En série, chaque dossier a sa propre date ; ce champ reste optionnel (ex. pour un brouillon).
+            </p>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -325,7 +516,13 @@ function SimpleTripFormContent() {
         </div>
         <div className="md:col-span-2 mt-8">
           <button type="submit" disabled={loading || uploading} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:bg-slate-300 transition-all">
-            {loading ? "Enregistrement en cours..." : (editId ? "Mettre à jour la demande" : "Soumettre la demande")}
+            {loading
+              ? "Enregistrement en cours..."
+              : editId
+                ? "Mettre à jour la demande"
+                : recurrenceEnabled
+                  ? `Créer la série (${recurrencePreview.length} dossier${recurrencePreview.length > 1 ? "s" : ""})`
+                  : "Soumettre la demande"}
           </button>
         </div>
       </form>

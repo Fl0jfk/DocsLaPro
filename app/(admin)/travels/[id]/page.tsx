@@ -16,6 +16,10 @@ function orderEmailForQuote(quote: {
   return (a || b || c || "").trim();
 }
 
+function isValidEmailLoose(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+}
+
 export default function TripDetails() {
   const { id } = useParams();
   const router = useRouter();
@@ -28,6 +32,9 @@ export default function TripDetails() {
   const [showCuisineModal, setShowCuisineModal] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [manualDevisName, setManualDevisName] = useState("");
+  const [manualDevisEmail, setManualDevisEmail] = useState("");
+  const [manualDevisBusy, setManualDevisBusy] = useState(false);
   const rawRoles = user?.publicMetadata?.role;
   const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
   const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
@@ -42,8 +49,11 @@ export default function TripDetails() {
   const isDirection = isDirectionLycee || isDirectionCollege || isDirectionEcole || isEcoleDir || isCollegeDir || isLyceeDir;
   const canSign = etabForSign === "École" ? (isDirectionEcole  || isEcoleDir) : etabForSign === "Collège" ? (isDirectionCollege || isCollegeDir) : etabForSign === "Lycée" ? (isDirectionLycee  || isLyceeDir) : isDirectionLycee || isLyceeDir;
   const isCompta = userRoles.includes('comptabilité') || normalizedRoles.some((r: string) => r.includes("comptabilite"));
+  const isAdministratif = normalizedRoles.some((r: string) => r.includes("administratif"));
   const isOwner = user?.fullName === trip?.ownerName;
   const canManageFiles = isOwner || isDirection || isCompta;
+  /** Ajout de pièces + devis manuel bus (sans retirer des fichiers ni éditer le dossier). */
+  const canAddDocuments = canManageFiles || isAdministratif;
   const canUseInternalThread = isOwner || isDirection || isCompta;
   const CUISINE_DAYS = [{ key: "lundi", label: "Lun." },{ key: "mardi", label: "Mar." },{ key: "mercredi", label: "Mer." },{ key: "jeudi", label: "Jeu." },{ key: "vendredi", label: "Ven." }];
   const CUISINE_ROWS = [
@@ -182,7 +192,7 @@ export default function TripDetails() {
     }
   };
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canManageFiles) return;
+    if (!canAddDocuments) return;
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
@@ -260,6 +270,65 @@ export default function TripDetails() {
     const updatedTrip = { ...trip, status: "EN_ATTENTE_BUS_SIGNATURE", data: { ...trip.data, selectedBusQuote: quote } };
     await saveUpdates(updatedTrip);
   };
+
+  const addManualBusQuote = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!canAddDocuments) return;
+    const name = manualDevisName.trim() || "Transporteur (saisie manuelle)";
+    const email = manualDevisEmail.trim();
+    if (!isValidEmailLoose(email)) {
+      alert("Indiquez une adresse e-mail du transporteur valide (pour l’envoi de la commande après signature).");
+      return;
+    }
+    const form = e.currentTarget;
+    const fileInput = form.querySelector<HTMLInputElement>('input[name="manualDevisPdf"]');
+    const file = fileInput?.files?.[0];
+    if (!file || file.type !== "application/pdf") {
+      alert("Choisissez un fichier PDF (devis du transporteur).");
+      return;
+    }
+    setManualDevisBusy(true);
+    try {
+      const res = await fetch("/api/travels/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileType: "application/pdf" }),
+      });
+      const { uploadUrl, fileUrl } = await res.json();
+      if (!uploadUrl || !fileUrl) throw new Error("Réponse upload invalide");
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": "application/pdf" } });
+      const newQuote = {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        providerName: name,
+        providerEmail: email,
+        fileUrl,
+        createdAt: new Date().toISOString(),
+        source: "manual",
+        originalFilename: file.name,
+        matchConfidence: "high",
+        matchReviewRequired: false,
+        gmailMessageId: `manual_${Date.now()}`,
+        extractedContactEmail: null,
+        extractedPrice: null,
+        extractedCompany: null,
+      };
+      const updatedTrip = {
+        ...trip,
+        receivedDevis: [...(trip.receivedDevis || []), newQuote],
+      };
+      await saveUpdates(updatedTrip);
+      setTrip(updatedTrip);
+      setManualDevisName("");
+      setManualDevisEmail("");
+      if (fileInput) fileInput.value = "";
+      alert("Devis ajouté. Vous pouvez le sélectionner à l’étape logistique comme un devis reçu par mail.");
+    } catch (err) {
+      console.error(err);
+      alert("Impossible d’ajouter le devis. Réessayez ou vérifiez votre connexion.");
+    } finally {
+      setManualDevisBusy(false);
+    }
+  };
   const signBusQuote = async () => {
     if (!canSign) return alert("Vous n'êtes pas autorisé(e) à signer ce dossier.");
     if (!confirm("Voulez-vous signer le devis et envoyer la commande au transporteur ?")) return;
@@ -315,6 +384,69 @@ export default function TripDetails() {
     return isNaN(d.getTime()) ? "Date à préciser" : d.toLocaleDateString('fr-FR');
   };
   if (!isUserLoaded || !trip) return <p className="p-10 text-center font-medium text-slate-500">Chargement du dossier...</p>;
+  const seriesId = trip.data?.recurrenceSeriesId as string | undefined;
+  const seriesIndex = trip.data?.recurrenceIndex as number | undefined;
+  const seriesTotal = trip.data?.recurrenceTotal as number | undefined;
+  const isRecurrenceTrip = Boolean(seriesId && seriesTotal);
+  const canCancelRecurrenceSession =
+    isRecurrenceTrip &&
+    trip.status !== "SEANCE_ANNULEE" &&
+    trip.status !== "VALIDE" &&
+    trip.status !== "REJETE" &&
+    (isOwner || canSign);
+  const validateSeriesPedagogy = async () => {
+    if (loadingAction) return;
+    if (!seriesId || !canSign) return;
+    if (!confirm("Valider la pédagogie pour tous les dossiers de cette série encore en attente direction ?")) return;
+    setLoadingAction("action");
+    try {
+      const res = await fetch("/api/travels/series-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "validate_pedagogy_series",
+          seriesId,
+          actorName: user?.fullName,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Erreur");
+      alert(`${j.updated} dossier(s) passé(s) en attente comptabilité.`);
+      const refresh = await fetch(`/api/travels/get?id=${id}`);
+      if (refresh.ok) setTrip(await refresh.json());
+    } catch (e) {
+      console.error(e);
+      alert("Impossible de valider la série. Réessayez ou vérifiez les droits.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+  const cancelRecurrenceSession = async () => {
+    if (loadingAction) return;
+    if (!trip?.id) return;
+    if (!confirm("Annuler uniquement cette séance ? Les autres dates de la série ne sont pas modifiées.")) return;
+    setLoadingAction("action");
+    try {
+      const res = await fetch("/api/travels/series-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "cancel_session",
+          tripId: trip.id,
+          actorName: user?.fullName,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Erreur");
+      const refresh = await fetch(`/api/travels/get?id=${id}`);
+      if (refresh.ok) setTrip(await refresh.json());
+    } catch (e) {
+      console.error(e);
+      alert("Impossible d’annuler cette séance.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
   const currentSteps = trip.type === "COMPLEX" 
     ? [
         { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" }, 
@@ -367,6 +499,14 @@ export default function TripDetails() {
           </div>
         </div>
       )}
+      {trip.status === "SEANCE_ANNULEE" && (
+        <div className="bg-slate-100 border border-slate-300 p-5 rounded-2xl text-left">
+          <p className="font-bold text-slate-800">Séance annulée</p>
+          <p className="text-sm text-slate-600 mt-1">
+            Ce créneau ne fait plus partie du circuit de validation. Les autres dossiers de la série éventuelle restent inchangés.
+          </p>
+        </div>
+      )}
       {trip.status === "BESOIN_MODIFICATION" && !isEditing && (
         <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 text-left">
@@ -403,7 +543,15 @@ export default function TripDetails() {
       <div className="flex justify-between items-start border-b pb-6 text-left">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">{trip.data.title}</h1>
-          <p className="text-slate-500 mt-1 uppercase text-xs font-black tracking-tighter"> {trip.type === "COMPLEX" ? "📁 Dossier Voyage Complexe" : "📄 Sortie Simple"} • Par {trip.ownerName}</p>
+          <p className="text-slate-500 mt-1 uppercase text-xs font-black tracking-tighter">
+            {" "}
+            {trip.type === "COMPLEX" ? "📁 Dossier Voyage Complexe" : "📄 Sortie Simple"} • Par {trip.ownerName}
+            {isRecurrenceTrip && seriesIndex != null && seriesTotal != null && (
+              <span className="ml-2 normal-case font-bold text-indigo-600">
+                · Série {seriesIndex}/{seriesTotal}
+              </span>
+            )}
+          </p>
         </div>
         <div className={`px-6 py-2 rounded-full font-bold text-sm uppercase tracking-wider ${trip.status === "BESOIN_MODIFICATION" ? "bg-orange-100 text-orange-700 animate-pulse" : "bg-indigo-100 text-indigo-700"}`}>
           {trip.status}
@@ -429,12 +577,12 @@ export default function TripDetails() {
                       quote.matchConfidence !== "high");
                   const borderSelected = trip.data.selectedBusQuote?.fileUrl === quote.fileUrl;
                   return (
-                  <div key={idx} className={`p-4 rounded-2xl border-2 flex justify-between items-center gap-3 ${borderSelected ? "border-green-500 bg-white shadow-md" : reviewBus ? "border-orange-400 bg-orange-50/80" : "border-white bg-white/50"}`}>
+                  <div key={quote.id || idx} className={`p-4 rounded-2xl border-2 flex justify-between items-center gap-3 ${borderSelected ? "border-green-500 bg-white shadow-md" : reviewBus ? "border-orange-400 bg-orange-50/80" : "border-white bg-white/50"}`}>
                     <div className="text-left min-w-0 flex-1">
                       <p className="font-bold text-slate-800">{quote.providerName}</p>
                       <p className="text-indigo-600 font-black text-xs italic">
                         Devis reçu
-                        {quote.source === "email" ? " (e-mail)" : ""}
+                        {quote.source === "email" ? " (e-mail)" : quote.source === "manual" ? " (ajout manuel)" : ""}
                       </p>
                       {reviewBus && (
                         <p className="mt-1 text-[10px] font-bold text-orange-800 uppercase tracking-wide">
@@ -460,7 +608,10 @@ export default function TripDetails() {
                             {quote.extractedContactEmail?.trim() ? (
                               <span className="text-emerald-700 font-semibold"> (sur le devis)</span>
                             ) : quote.providerEmail?.trim() ? (
-                              <span className="text-slate-500"> (expéditeur mail)</span>
+                              <span className="text-slate-500">
+                                {" "}
+                                ({quote.source === "manual" ? "saisi à la main" : "expéditeur mail"})
+                              </span>
                             ) : null}
                           </p>
                         ) : (
@@ -481,6 +632,57 @@ export default function TripDetails() {
                 })
               ) : (
                 <p className="text-xs text-slate-400 italic">En attente de devis par e-mail...</p>
+              )}
+              {canAddDocuments && (
+                <form onSubmit={addManualBusQuote} className="mt-4 p-4 rounded-2xl border border-dashed border-amber-400/80 bg-amber-100/30 space-y-3 text-left">
+                  <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                    Ajouter un devis à la main
+                  </p>
+                  <p className="text-[11px] text-amber-900/80 leading-snug">
+                    Si les devis n’arrivent pas par la boîte dédiée (mail lu, polling, etc.), déposez le PDF ici et l’e-mail du transporteur : après choix et signature, la commande partira vers cette adresse.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Nom du transporteur
+                      <input
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                        value={manualDevisName}
+                        onChange={(ev) => setManualDevisName(ev.target.value)}
+                        placeholder="ex. Cars Dupont"
+                        disabled={manualDevisBusy}
+                      />
+                    </label>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      E-mail du transporteur (commande)
+                      <input
+                        type="email"
+                        required
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                        value={manualDevisEmail}
+                        onChange={(ev) => setManualDevisEmail(ev.target.value)}
+                        placeholder="contact@transporteur.fr"
+                        disabled={manualDevisBusy}
+                      />
+                    </label>
+                  </div>
+                  <label className="block text-[11px] font-semibold text-slate-700">
+                    PDF du devis
+                    <input
+                      name="manualDevisPdf"
+                      type="file"
+                      accept="application/pdf"
+                      className="mt-1 block w-full text-sm text-slate-600"
+                      disabled={manualDevisBusy}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={manualDevisBusy}
+                    className="bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-800 disabled:opacity-50"
+                  >
+                    {manualDevisBusy ? "Envoi…" : "Ajouter ce devis"}
+                  </button>
+                </form>
               )}
             </div>
             <div className="bg-white/60 rounded-2xl p-6 border border-amber-200 flex flex-col justify-center items-center text-center">
@@ -618,7 +820,7 @@ export default function TripDetails() {
           <div className="md:col-span-2 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-50 pb-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Documents et Devis</span>
-              {canManageFiles && (
+              {canAddDocuments && (
                 <>
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                   <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50">
@@ -690,7 +892,7 @@ export default function TripDetails() {
           </div>
         </div>
       )}
-      {(isDirection || isCompta) && !isEditing && trip.status !== "BESOIN_MODIFICATION" && (
+      {(isDirection || isCompta) && !isEditing && trip.status !== "BESOIN_MODIFICATION" && trip.status !== "SEANCE_ANNULEE" && (
         <div className="bg-slate-900 text-white p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl text-left">
           <div className="text-center md:text-left">
             <p className="font-bold text-lg">Espace Décisionnaire</p>
@@ -716,8 +918,18 @@ export default function TripDetails() {
                 }} />
               </>
             )}
-            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && (
-              <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction(trip.type === "COMPLEX" ? "PROF_LOGISTICS" : "EN_ATTENTE_COMPTA", "Pédagogie validée")} />
+            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && trip.type === "COMPLEX" && (
+              <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction("PROF_LOGISTICS", "Pédagogie validée")} />
+            )}
+            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && trip.type !== "COMPLEX" && !seriesId && (
+              <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction("EN_ATTENTE_COMPTA", "Pédagogie validée")} />
+            )}
+            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && trip.type !== "COMPLEX" && seriesId && (
+              <ActionButton
+                label={loadingAction ? "Validation série…" : "Valider toute la série (pédagogie)"}
+                color="bg-indigo-600"
+                onClick={validateSeriesPedagogy}
+              />
             )}
             {isCompta && trip.status === 'EN_ATTENTE_COMPTA' && (
               <ActionButton label="Valider Budget Global" color="bg-green-600" onClick={() => {
@@ -731,7 +943,29 @@ export default function TripDetails() {
             {canSign && trip.status === 'EN_ATTENTE_DIR_FINAL' && (
               <ActionButton label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"} color="bg-green-600" onClick={handleFinalValidation}/>
             )}
+            {canCancelRecurrenceSession && canSign && (
+              <ActionButton
+                label="Annuler cette séance seule"
+                color="bg-slate-500"
+                onClick={cancelRecurrenceSession}
+              />
+            )}
           </div>
+        </div>
+      )}
+      {canCancelRecurrenceSession && !isEditing && !canSign && isOwner && trip.status !== "SEANCE_ANNULEE" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-left">
+          <p className="text-sm text-amber-900">
+            <span className="font-bold">Série récurrente :</span> vous pouvez retirer uniquement ce créneau sans modifier les autres dossiers.
+          </p>
+          <button
+            type="button"
+            disabled={!!loadingAction}
+            onClick={cancelRecurrenceSession}
+            className="shrink-0 px-5 py-2.5 rounded-xl bg-amber-700 text-white text-sm font-bold hover:bg-amber-800 disabled:opacity-50"
+          >
+            Annuler cette séance seule
+          </button>
         </div>
       )}
       {showCuisineModal && isEditing && (

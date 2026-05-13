@@ -42,6 +42,7 @@ export async function POST(req: Request) {
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
   try {
     const body = await req.json();
+    const suppressNewTripEmail = Boolean(body.suppressNewTripEmail);
     const tripId = body.id;
     const innerData = body.data?.data || {}; 
     const title = innerData.title || "Titre introuvable";
@@ -150,6 +151,9 @@ export async function POST(req: Request) {
         objectifs: innerData.objectifs || innerData.pedagogicalObjectives || null,
         coutTotal: innerData.coutTotal,
         etablissement: innerData.etablissement || null,
+        recurrenceSeriesId: innerData.recurrenceSeriesId || null,
+        recurrenceIndex: innerData.recurrenceIndex ?? null,
+        recurrenceTotal: innerData.recurrenceTotal ?? null,
       }
     };
     const existingIndex = currentIndex.findIndex((t: any) => t.id === tripId);
@@ -163,7 +167,7 @@ export async function POST(req: Request) {
       Body: JSON.stringify(currentIndex),
       ContentType: "application/json",
     }));
-    if (isNewProject) {
+    if (isNewProject && !suppressNewTripEmail) {
       try {
         const director = resolveDirectorByEtab(innerData.etablissement);
         const transporter = nodemailer.createTransport({
@@ -199,7 +203,11 @@ export async function POST(req: Request) {
         });
       } catch (mailErr) { console.error("Erreur notification direction:", mailErr)}
     }
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      imageUrl: objectToSave.imageUrl,
+      imageConfigId: objectToSave.imageConfigId,
+    });
   } catch (error) {
     console.error("ERREUR S3:", error);
     return NextResponse.json({ error: "Échec" }, { status: 500 });
