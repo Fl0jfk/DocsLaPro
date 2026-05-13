@@ -622,7 +622,7 @@ export default function TripDetails() {
                       })()}
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <button onClick={() => window.open(quote.fileUrl, '_blank')} className="text-[10px] font-bold text-slate-500 underline">Voir PDF</button>
+                      <button type="button" onClick={() => openSecureFile(quote.fileUrl)} className="text-[10px] font-bold text-slate-500 underline">Voir PDF</button>
                       {isOwner && trip.status === "PROF_LOGISTICS" && (
                         <button onClick={() => selectBusQuote(quote)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">Choisir</button>
                       )}
