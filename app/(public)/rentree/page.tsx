@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../../components/Header/Header";
@@ -78,7 +78,7 @@ function LinkCard({ title, description, href, kind }: { title: string; descripti
   );
 }
 
-export default function RentreePage() {
+function RentreePageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const selected = normalizeLevel(params.get("level"));
@@ -172,6 +172,30 @@ export default function RentreePage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function RentreePageFallback() {
+  return (
+    <div className="bg-white min-h-screen">
+      <Header />
+      <div className="max-w-[1200px] mx-auto px-6 py-16 animate-pulse">
+        <div className="h-40 rounded-3xl bg-slate-100 mb-8" />
+        <div className="h-8 w-48 rounded-lg bg-slate-100 mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-32 rounded-3xl bg-slate-100" />
+          <div className="h-32 rounded-3xl bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function RentreePage() {
+  return (
+    <Suspense fallback={<RentreePageFallback />}>
+      <RentreePageContent />
+    </Suspense>
   );
 }
 
