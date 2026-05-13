@@ -146,6 +146,13 @@ export const RENTREE_LINKS: RentreeLinksByLevel[] = [
             href: "https://docslaproimage.s3.eu-west-3.amazonaws.com/rentree/Flyer-ARBS.pdf",
             kind: "pdf",
           },
+          {
+            title: "Atout Normandie – Subvention sur les manuels",
+            description:
+              "Dispositif de la Région Normandie : une aide pour l’achat des livres. Compatible avec la location via ARBS (petite subvention en plus).",
+            href: "https://docslaproimage.s3.eu-west-3.amazonaws.com/rentree/Atouts+normandie.pdf",
+            kind: "pdf",
+          },
         ],
       },
     ],

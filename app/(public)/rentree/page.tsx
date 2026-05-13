@@ -69,7 +69,7 @@ function LinkCard({ title, description, href, kind }: { title: string; descripti
         </span>
       </div>
       <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-slate-400 font-medium truncate max-w-[60%]">{href}</span>
+      
         <span className="font-black text-indigo-600 group-hover:text-indigo-700 transition-colors">
           Ouvrir →
         </span>
@@ -102,11 +102,7 @@ export default function RentreePage() {
               <h1 className="text-5xl md:text-6xl font-black text-white leading-[0.95] mt-3">
                 Rentrée prochaine
               </h1>
-              <p className="text-white/90 text-base md:text-lg font-medium max-w-2xl mt-4 leading-relaxed">
-                Tous les documents utiles (calendrier, fermetures, infos pratiques) regroupés par niveau. Les fichiers sont publics et consultables sans connexion.
-              </p>
             </div>
-
             <div className="bg-white/90 backdrop-blur-md border border-white/60 rounded-3xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
               <div className="min-w-0">
                 <p className="font-black text-slate-900">Fournitures scolaires</p>
@@ -119,7 +115,6 @@ export default function RentreePage() {
                 Ouvrir le simulateur →
               </Link>
             </div>
-
             <div className="flex flex-wrap gap-2">
               {RENTREE_LINKS.map((lvl) => {
                 const isActive = lvl.level === active.level;
@@ -139,20 +134,12 @@ export default function RentreePage() {
           </div>
         </div>
       </section>
-
-      <main className="max-w-[1200px] mx-auto px-6 py-12">
+      <main className="max-w-[1200px] mx-auto px-6 pb-12">
         <div className="flex items-center justify-between gap-4 flex-wrap mb-8">
           <div>
             <h2 className="text-3xl font-black text-slate-900">{active.label}</h2>
-            <p className="text-slate-500 text-sm mt-1">
-              Sélectionne un document pour l’ouvrir. Si un lien PDF ne fonctionne pas, vérifie que le fichier a bien été déposé dans <code className="px-1.5 py-0.5 bg-slate-100 rounded">public/documents/rentree/...</code>.
-            </p>
           </div>
-          <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${a.badge}`}>
-            Documents publics
-          </span>
         </div>
-
         <div className="space-y-10">
           {active.sections.map((section) => (
             <section key={section.title} className="bg-slate-50 rounded-[2.5rem] p-6 md:p-8 border border-slate-100">
