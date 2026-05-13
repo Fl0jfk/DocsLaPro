@@ -19,9 +19,7 @@ type PartenaireSportif = {
   logoClassName?: string;
   siteUrl: string;
   siteLabel: string;
-  /** Libellé du bouton (défaut : « Site du club ») */
   ctaLabel?: string;
-  /** Couleur d’accent (bordures, pastilles) */
   ring: string;
   badgeBg: string;
   badgeText: string;
@@ -266,6 +264,18 @@ export default function PartenairesSportifsPage() {
           <p className="text-slate-600 mt-3 leading-relaxed">
             Football (FCR, USMEF), basket, tennis, équitation (ALISA), aviron et karaté-do : les niveaux concernés sont indiqués sur chaque fiche. Tennis et équitation accueillent aussi les élèves de l’école. Pour les inscriptions et les créneaux, les sites ou contacts des clubs font foi.
           </p>
+          <p className="text-slate-600 mt-5 leading-relaxed text-sm md:text-base rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 md:px-5 md:py-4">
+            Vous vous intéressez à l’une de ces sections ou vous avez la moindre question ?{" "}
+            <strong className="text-slate-800">N’hésitez pas à contacter le standard de l’établissement</strong>
+            {" "}— nous vous orienterons :{" "}
+            <a
+              href={SCHOOL.phone.tel}
+              className="font-black text-emerald-700 underline decoration-emerald-300 decoration-2 underline-offset-2 hover:text-emerald-900"
+            >
+              {SCHOOL.phone.display}
+            </a>
+            .
+          </p>
         </div>
 
         <div className="space-y-10 md:space-y-12">
@@ -344,14 +354,14 @@ export default function PartenairesSportifsPage() {
             <a href={SCHOOL.phone.tel} className="bg-white text-slate-900 font-black px-6 py-3 rounded-full text-sm hover:bg-emerald-50 transition">
               {SCHOOL.phone.display}
             </a>
+            <Link href="/ecole" className="border border-white/30 text-white font-bold px-6 py-3 rounded-full text-sm hover:bg-white/10 transition">
+              L&apos;école
+            </Link>
             <Link href="/college" className="border border-white/30 text-white font-bold px-6 py-3 rounded-full text-sm hover:bg-white/10 transition">
               Le collège
             </Link>
             <Link href="/lycee" className="border border-white/30 text-white font-bold px-6 py-3 rounded-full text-sm hover:bg-white/10 transition">
               Le lycée
-            </Link>
-            <Link href="/ecole" className="border border-white/30 text-white font-bold px-6 py-3 rounded-full text-sm hover:bg-white/10 transition">
-              L&apos;école
             </Link>
           </div>
         </div>
