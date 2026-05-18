@@ -62,6 +62,25 @@ function formatTimeFR(date: Date) {
   return `${pad2(date.getHours())}h${pad2(date.getMinutes())}`;
 }
 
+function familyNameForSort(fullName: string) {
+  const parts = String(fullName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return "";
+  return parts[parts.length - 1];
+}
+
+function sortEventsByFamilyName(events: CalendarEvent[]) {
+  return [...events].sort((a, b) => {
+    const byFamily = familyNameForSort(a.teacherName).localeCompare(familyNameForSort(b.teacherName), "fr", {
+      sensitivity: "base",
+    });
+    if (byFamily !== 0) return byFamily;
+    return a.teacherName.localeCompare(b.teacherName, "fr", { sensitivity: "base" });
+  });
+}
+
 function typologyFromLabel(label: string) {
   const s = String(label || "").toLowerCase();
   if (s.includes("bac")) return "bac";
@@ -115,7 +134,7 @@ function escapeHtml(value: string) {
 }
 
 function printDaySummary(date: Date, dayEvents: CalendarEvent[]) {
-  const sorted = [...dayEvents].sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt));
+  const sorted = sortEventsByFamilyName(dayEvents);
   const dayTitle = date.toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -548,10 +567,12 @@ export default function ConvocationsExamensPage() {
 
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = new Date(year, month, day);
-      const dayEvents = events.filter((event) => {
-        const eventDate = new Date(event.startAt);
-        return sameDay(eventDate, year, month, day);
-      });
+      const dayEvents = sortEventsByFamilyName(
+        events.filter((event) => {
+          const eventDate = new Date(event.startAt);
+          return sameDay(eventDate, year, month, day);
+        }),
+      );
       cells.push({ key: `d-${day}`, date, events: dayEvents });
     }
 
@@ -574,10 +595,12 @@ export default function ConvocationsExamensPage() {
       const date = new Date(year, month, day);
       const weekdayMon0 = (date.getDay() + 6) % 7;
       if (weekdayMon0 >= 5) continue;
-      const dayEvents = events.filter((event) => {
-        const eventDate = new Date(event.startAt);
-        return sameDay(eventDate, year, month, day);
-      });
+      const dayEvents = sortEventsByFamilyName(
+        events.filter((event) => {
+          const eventDate = new Date(event.startAt);
+          return sameDay(eventDate, year, month, day);
+        }),
+      );
       cells.push({ key: `w-d-${day}`, date, events: dayEvents });
     }
     while (cells.length % 5 !== 0) { cells.push({ key: `w-empty-end-${cells.length}`, date: null, events: [] })}
@@ -604,16 +627,57 @@ export default function ConvocationsExamensPage() {
   const handleUpload = async (file: File) => {
     setError(null);
     setSuccess(null);
+
+    const name = String(file.name || "").toLowerCase();
+    const isPdf = name.endsWith(".pdf") || file.type === "application/pdf" || file.type === "application/x-pdf";
+    if (!isPdf) {
+      setError("Seuls les fichiers PDF (.pdf) sont acceptés.");
+      return;
+    }
+    if (file.size === 0) {
+      setError("Le fichier est vide.");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setError("Le PDF dépasse 15 Mo.");
+      return;
+    }
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", file, file.name || "convocation.pdf");
     try {
       setUploading(true);
       const res = await fetch("/api/convocations/ingest", {
         method: "POST",
         body: formData,
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload?.error || "Import impossible.");
+      const raw = await res.text();
+      let payload: { error?: string; code?: string; detail?: string; created?: unknown[] } = {};
+      try {
+        payload = raw ? (JSON.parse(raw) as typeof payload) : {};
+      } catch {
+        payload = { error: raw.slice(0, 240) || undefined };
+      }
+
+      if (!res.ok) {
+        const fallback =
+          res.status === 504 || res.status === 408
+            ? "Délai dépassé (OCR + IA). Le serveur a mis trop de temps : réessayez ou saisissez l'absence à la main."
+            : res.status === 413
+              ? "Fichier trop volumineux pour le serveur."
+              : res.status === 401
+                ? "Session expirée. Reconnectez-vous puis réessayez."
+                : res.status === 403
+                  ? "Vous n'avez pas les droits pour importer une convocation."
+                  : null;
+        const message = payload?.error || fallback || `Import échoué (erreur ${res.status}).`;
+        const withDetail =
+          payload?.detail && process.env.NODE_ENV === "development"
+            ? `${message} — ${payload.detail}`
+            : message;
+        throw new Error(withDetail);
+      }
+
       const n = payload?.created?.length || 0;
       setSuccess(
         n <= 1
@@ -621,8 +685,12 @@ export default function ConvocationsExamensPage() {
           : `Import réussi: ${n} créneaux d'absence enregistrés (même convocation).`,
       );
       await fetchConvocations();
-    } catch (e: any) {
-      setError(e?.message || "Erreur pendant l'import.");
+    } catch (e: unknown) {
+      if (e instanceof TypeError && String(e.message).toLowerCase().includes("fetch")) {
+        setError("Connexion interrompue pendant l'import (réseau ou délai dépassé). Réessayez.");
+      } else {
+        setError(e instanceof Error ? e.message : "Erreur pendant l'import.");
+      }
     } finally {
       setUploading(false);
     }
@@ -1048,7 +1116,7 @@ export default function ConvocationsExamensPage() {
           className={[
             "block border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors",
             dragActive ? "border-indigo-500 bg-indigo-50/60" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40",
-            uploading || savingManual ? "opacity-70 cursor-not-allowed" : "",
+            uploading || savingManual || attachingPdf ? "opacity-70 cursor-not-allowed" : "",
           ].join(" ")}
           onDragEnter={(e) => {
             e.preventDefault();
@@ -1069,9 +1137,13 @@ export default function ConvocationsExamensPage() {
             e.preventDefault();
             e.stopPropagation();
             setDragActive(false);
-            if (uploading || savingManual) return;
+            if (uploading || savingManual || attachingPdf) return;
             const file = e.dataTransfer.files?.[0];
-            if (file) handleUpload(file);
+            if (!file) {
+              setError("Aucun fichier détecté dans le glisser-déposer.");
+              return;
+            }
+            handleUpload(file);
           }}
         >
           <input

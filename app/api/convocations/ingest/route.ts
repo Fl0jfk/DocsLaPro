@@ -72,6 +72,55 @@ function canIngest(roles: string[]) {
   );
 }
 
+function isPdfFile(file: File) {
+  const name = String(file.name || "").toLowerCase();
+  const type = String(file.type || "").toLowerCase();
+  if (name.endsWith(".pdf")) return true;
+  return type === "application/pdf" || type === "application/x-pdf";
+}
+
+function mapIngestFailureMessage(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error || "");
+  const msg = raw.toLowerCase();
+
+  if (msg.includes("textract") && (msg.includes("timeout") || msg.includes("délai"))) {
+    return {
+      code: "OCR_TIMEOUT",
+      error: "Lecture du PDF trop longue (OCR). Réessayez ou utilisez un PDF plus léger.",
+    };
+  }
+  if (msg.includes("textract") || msg.includes("texte vide")) {
+    return {
+      code: "OCR_FAILED",
+      error: "Impossible de lire le texte du PDF (scan flou, image ou fichier protégé).",
+    };
+  }
+  if (msg.includes("mistral") || msg.includes("json introuvable")) {
+    return {
+      code: "AI_FAILED",
+      error: "Analyse IA impossible sur ce document. Réessayez ou complétez en saisie manuelle.",
+    };
+  }
+  if (msg.includes("credentials") || msg.includes("access denied") || msg.includes("bucket")) {
+    return {
+      code: "STORAGE_FAILED",
+      error: "Erreur de stockage du fichier. Contactez l'administrateur si le problème persiste.",
+    };
+  }
+  if (msg.includes("mistral_api_key") || msg.includes("api key")) {
+    return {
+      code: "AI_CONFIG",
+      error: "Service IA non configuré (clé API manquante).",
+    };
+  }
+
+  return {
+    code: "INGEST_FAILED",
+    error: "Erreur technique pendant l'import. Réessayez dans quelques instants.",
+    detail: raw.slice(0, 280),
+  };
+}
+
 async function getAbsenceIndex(): Promise<ConvocationRecord[]> {
   try {
     const result = await s3Client.send(
@@ -421,8 +470,14 @@ export async function POST(req: Request) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Fichier PDF requis." }, { status: 400 });
     }
-    if (file.type !== "application/pdf") {
-      return NextResponse.json({ error: "Seuls les PDF sont autorisés." }, { status: 400 });
+    if (!isPdfFile(file)) {
+      return NextResponse.json(
+        {
+          error: "Seuls les PDF sont autorisés (.pdf). Si vous glissez-déposez, vérifiez l'extension du fichier.",
+          code: "INVALID_FILE_TYPE",
+        },
+        { status: 400 },
+      );
     }
     if (file.size > 15 * 1024 * 1024) {
       return NextResponse.json({ error: "Le PDF dépasse 15 Mo." }, { status: 400 });
@@ -446,8 +501,15 @@ export async function POST(req: Request) {
     parsed.documentKey = key;
 
     if (!parsed.teacherName || parsed.slots.length === 0) {
+      const hints: string[] = [];
+      if (!parsed.teacherName) hints.push("nom du professeur non reconnu");
+      if (parsed.slots.length === 0) hints.push("dates/heures non détectées");
       return NextResponse.json(
-        { error: "Extraction incomplète: enseignant ou créneaux non détectés.", parsed },
+        {
+          error: `Extraction incomplète (${hints.join(", ") || "données manquantes"}). Vérifiez la qualité du scan ou saisissez l'absence à la main.`,
+          code: "EXTRACTION_INCOMPLETE",
+          parsed,
+        },
         { status: 422 },
       );
     }
@@ -455,7 +517,14 @@ export async function POST(req: Request) {
     const normalizedSlots = mergeContiguousSlots(parsed.slots);
 
     if (normalizedSlots.length === 0) {
-      return NextResponse.json({ error: "Créneaux invalides après validation." }, { status: 422 });
+      return NextResponse.json(
+        {
+          error: "Les dates extraites sont invalides (format ou ordre incohérent). Essayez une saisie manuelle.",
+          code: "INVALID_SLOTS",
+          parsed,
+        },
+        { status: 422 },
+      );
     }
 
     const currentIndex = await getAbsenceIndex();
@@ -494,6 +563,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Convocations ingest error:", error);
-    return NextResponse.json({ error: "Erreur ingestion convocation." }, { status: 500 });
+    const mapped = mapIngestFailureMessage(error);
+    return NextResponse.json(mapped, { status: 500 });
   }
 }
