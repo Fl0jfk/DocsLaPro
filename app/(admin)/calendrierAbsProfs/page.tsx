@@ -81,48 +81,50 @@ function sortEventsByFamilyName(events: CalendarEvent[]) {
   });
 }
 
-function typologyFromLabel(label: string) {
-  const s = String(label || "").toLowerCase();
-  if (s.includes("bac")) return "bac";
-  if (s.includes("brevet") || s.includes("dnb")) return "brevet";
-  if (s.includes("syndic")) return "syndical";
-  if (s.includes("malad") || s.includes("arrêt") || s.includes("arret")) return "maladie";
-  if (s.includes("formation")) return "formation";
-  return "autre";
+type TeacherAppearance = {
+  cardStyle: { backgroundColor: string; color: string; borderColor: string };
+  print: { bg: string; text: string; border: string };
+};
+
+function teacherColorKey(teacherName: string) {
+  return String(teacherName || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
-function classesForTypology(typology: ReturnType<typeof typologyFromLabel>) {
-  switch (typology) {
-    case "bac":
-      return { base: "bg-rose-100 text-rose-800", hover: "hover:bg-rose-200" };
-    case "brevet":
-      return { base: "bg-indigo-100 text-indigo-800", hover: "hover:bg-indigo-200" };
-    case "syndical":
-      return { base: "bg-amber-100 text-amber-900", hover: "hover:bg-amber-200" };
-    case "maladie":
-      return { base: "bg-slate-200 text-slate-900", hover: "hover:bg-slate-300" };
-    case "formation":
-      return { base: "bg-emerald-100 text-emerald-900", hover: "hover:bg-emerald-200" };
-    default:
-      return { base: "bg-violet-100 text-violet-900", hover: "hover:bg-violet-200" };
-  }
+/** Une teinte distincte par index (angle d'or → couleurs bien espacées). */
+function appearanceForTeacherIndex(index: number): TeacherAppearance {
+  const hue = Math.round((index * 137.508) % 360);
+  return {
+    cardStyle: {
+      backgroundColor: `hsl(${hue} 62% 91%)`,
+      color: `hsl(${hue} 42% 24%)`,
+      borderColor: `hsl(${hue} 38% 78%)`,
+    },
+    print: {
+      bg: `hsl(${hue} 62% 91%)`,
+      text: `hsl(${hue} 42% 24%)`,
+      border: `hsl(${hue} 38% 78%)`,
+    },
+  };
 }
 
-function printStylesForTypology(typology: ReturnType<typeof typologyFromLabel>) {
-  switch (typology) {
-    case "bac":
-      return { bg: "#ffe4e6", text: "#9f1239", border: "#fecdd3" };
-    case "brevet":
-      return { bg: "#e0e7ff", text: "#3730a3", border: "#c7d2fe" };
-    case "syndical":
-      return { bg: "#fef3c7", text: "#92400e", border: "#fde68a" };
-    case "maladie":
-      return { bg: "#e2e8f0", text: "#0f172a", border: "#cbd5e1" };
-    case "formation":
-      return { bg: "#d1fae5", text: "#065f46", border: "#a7f3d0" };
-    default:
-      return { bg: "#ede9fe", text: "#5b21b6", border: "#ddd6fe" };
-  }
+/** Chaque professeur reçoit un index unique (pas de collision tant que les noms diffèrent). */
+function buildTeacherColorIndexMap(teacherNames: string[]) {
+  const sortedKeys = [...new Set(teacherNames.map((n) => teacherColorKey(n)).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "fr", { sensitivity: "base" }),
+  );
+  const map = new Map<string, number>();
+  sortedKeys.forEach((key, index) => map.set(key, index));
+  return map;
+}
+
+function appearanceForTeacher(teacherName: string, indexMap: Map<string, number>) {
+  const key = teacherColorKey(teacherName);
+  const index = key ? (indexMap.get(key) ?? 0) : 0;
+  return appearanceForTeacherIndex(index);
 }
 
 function escapeHtml(value: string) {
@@ -133,7 +135,7 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
-function printDaySummary(date: Date, dayEvents: CalendarEvent[]) {
+function printDaySummary(date: Date, dayEvents: CalendarEvent[], teacherColorIndexMap: Map<string, number>) {
   const sorted = sortEventsByFamilyName(dayEvents);
   const dayTitle = date.toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -149,8 +151,7 @@ function printDaySummary(date: Date, dayEvents: CalendarEvent[]) {
       ? `<p class="empty">Aucune absence enregistrée pour cette journée.</p>`
       : sorted
           .map((event) => {
-            const typology = typologyFromLabel(event.examType);
-            const style = printStylesForTypology(typology);
+            const style = appearanceForTeacher(event.teacherName, teacherColorIndexMap).print;
             return `
               <article class="card" style="background:${style.bg};color:${style.text};border-color:${style.border}">
                 <div class="card-head">
@@ -448,6 +449,12 @@ export default function ConvocationsExamensPage() {
   useEffect(() => {
     fetchConvocations();
   }, []);
+
+  const teacherColorIndexMap = useMemo(
+    () => buildTeacherColorIndexMap(items.map((item) => item.data.teacherName)),
+    [items],
+  );
+
   const events = useMemo<CalendarEvent[]>(() => {
     const out: CalendarEvent[] = [];
     for (const item of items) {
@@ -826,7 +833,7 @@ export default function ConvocationsExamensPage() {
                     <div className="space-y-1">
                       {cell.events.map((event) => (
                         (() => {
-                          const color = classesForTypology(typologyFromLabel(event.examType));
+                          const appearance = appearanceForTeacher(event.teacherName, teacherColorIndexMap);
                           return (
                         <div
                           key={event.key}
@@ -841,10 +848,12 @@ export default function ConvocationsExamensPage() {
                             }
                           }}
                           title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
+                          style={appearance.cardStyle}
                           className={[
-                            "relative text-left w-full rounded-lg px-1.5 py-1 text-[10px] leading-snug",
-                            color.base,
-                            event.hasDocument ? `${color.hover} transition-colors cursor-pointer` : "opacity-80 cursor-default",
+                            "relative text-left w-full rounded-lg border px-1.5 py-1 text-[10px] leading-snug",
+                            event.hasDocument
+                              ? "transition-[filter] cursor-pointer hover:brightness-[0.97]"
+                              : "opacity-80 cursor-default",
                             event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
                           ].join(" ")}
                         >
@@ -893,7 +902,7 @@ export default function ConvocationsExamensPage() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            printDaySummary(cell.date!, cell.events);
+                            printDaySummary(cell.date!, cell.events, teacherColorIndexMap);
                           }}
                           className="rounded-md p-0.5 text-slate-400 hover:text-slate-700 hover:bg-white/80 transition-colors"
                           aria-label={`Imprimer le résumé du ${cell.date.toLocaleDateString("fr-FR")}`}
@@ -906,7 +915,7 @@ export default function ConvocationsExamensPage() {
                     <div className="space-y-1">
                       {cell.events.map((event) => (
                         (() => {
-                          const color = classesForTypology(typologyFromLabel(event.examType));
+                          const appearance = appearanceForTeacher(event.teacherName, teacherColorIndexMap);
                           return (
                         <div
                           key={event.key}
@@ -921,10 +930,12 @@ export default function ConvocationsExamensPage() {
                             }
                           }}
                           title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
+                          style={appearance.cardStyle}
                           className={[
-                            "text-left w-full rounded-lg px-2 py-1 text-[11px] leading-tight",
-                            color.base,
-                            event.hasDocument ? `${color.hover} transition-colors cursor-pointer` : "opacity-80 cursor-default",
+                            "text-left w-full rounded-lg border px-2 py-1 text-[11px] leading-tight",
+                            event.hasDocument
+                              ? "transition-[filter] cursor-pointer hover:brightness-[0.97]"
+                              : "opacity-80 cursor-default",
                             event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
                           ].join(" ")}
                         >
