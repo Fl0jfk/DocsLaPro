@@ -1,6 +1,8 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getDocumentKeys, isAdministratifRole } from "@/app/lib/convocations";
 
 type AbsenceItem = {
   data: {
@@ -11,6 +13,7 @@ type AbsenceItem = {
     startDate: string;
     endDate: string;
     documentKey: string;
+    documentKeys?: string[];
   };
   id: string;
 };
@@ -23,6 +26,7 @@ type CalendarEvent = {
   startAt: string;
   endAt: string;
   hasDocument: boolean;
+  documentCount: number;
   displayTime: string;
 };
 
@@ -31,6 +35,19 @@ const WEEKDAYS_ONLY = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 
 function sameDay(date: Date, y: number, m: number, d: number) {
   return date.getFullYear() === y && date.getMonth() === m && date.getDate() === d;
+}
+
+function isTodayDate(date: Date) {
+  const now = new Date();
+  return sameDay(date, now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function calendarDayCellClass(date: Date | null, variant: "desktop" | "mobile") {
+  const base =
+    variant === "mobile" ? "min-h-[108px] border rounded-xl p-2" : "min-h-[120px] h-full border rounded-xl p-2";
+  if (!date) return `${base} border-transparent bg-transparent`;
+  if (isTodayDate(date)) return `${base} border-sky-400 bg-sky-50/90 ring-2 ring-sky-200/70`;
+  return `${base} border-slate-100 bg-slate-50/40`;
 }
 
 function pad2(n: number) {
@@ -332,6 +349,24 @@ function PrinterIcon({ className }: { className?: string }) {
   );
 }
 
+function PaperclipIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
 type ManualFormState = {
   firstName: string;
   lastName: string;
@@ -344,11 +379,15 @@ type ManualFormState = {
 };
 
 export default function ConvocationsExamensPage() {
+  const { user, isLoaded: userLoaded } = useUser();
   const [items, setItems] = useState<AbsenceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [savingManual, setSavingManual] = useState(false);
+  const [attachingPdf, setAttachingPdf] = useState(false);
   const manualPdfRef = useRef<HTMLInputElement>(null);
+  const attachPdfRef = useRef<HTMLInputElement>(null);
+  const attachTargetIdRef = useRef<string | null>(null);
   const [manualForm, setManualForm] = useState<ManualFormState>(() => {
     const t = localDateInputValue(new Date());
     return {
@@ -367,6 +406,13 @@ export default function ConvocationsExamensPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const selectedYear = currentMonth.getFullYear();
+
+  const isAdministratif = useMemo(() => {
+    if (!userLoaded) return false;
+    const rolesRaw = user?.publicMetadata?.role;
+    const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
+    return isAdministratifRole(roles);
+  }, [user, userLoaded]);
   const fetchConvocations = async () => {
     try {
       setLoading(true);
@@ -409,6 +455,7 @@ export default function ConvocationsExamensPage() {
                 ? `jusqu'à ${formatTimeFR(end)}`
                 : "journée";
 
+        const documentCount = getDocumentKeys(item.data).length;
         out.push({
           key: `${item.id}_${y}-${pad2(m + 1)}-${pad2(d)}`,
           id: item.id,
@@ -416,7 +463,8 @@ export default function ConvocationsExamensPage() {
           examType: item.data.examType,
           startAt,
           endAt,
-          hasDocument: Boolean(item.data.documentKey),
+          hasDocument: documentCount > 0,
+          documentCount,
           displayTime,
         });
       }
@@ -425,17 +473,48 @@ export default function ConvocationsExamensPage() {
     return out.sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt));
   }, [items]);
 
-  const openConvocation = async (absenceId: string) => {
+  const openConvocation = async (absenceId: string, docIndex = 0) => {
     setError(null);
     try {
-      const res = await fetch(`/api/convocations/document-url?id=${encodeURIComponent(absenceId)}`, { cache: "no-store" });
+      const res = await fetch(
+        `/api/convocations/document-url?id=${encodeURIComponent(absenceId)}&index=${encodeURIComponent(String(docIndex))}`,
+        { cache: "no-store" },
+      );
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload?.error || "Impossible d'ouvrir le document.");
       const url = String(payload?.url || "");
       if (!url) throw new Error("URL du document manquante.");
       window.open(url, "_blank", "noopener,noreferrer");
-    } catch (e: any) {
-      setError(e?.message || "Erreur ouverture document.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur ouverture document.");
+    }
+  };
+
+  const triggerAttachPdf = (absenceId: string) => {
+    attachTargetIdRef.current = absenceId;
+    attachPdfRef.current?.click();
+  };
+
+  const handleAttachPdf = async (file: File) => {
+    const absenceId = attachTargetIdRef.current;
+    if (!absenceId) return;
+    setError(null);
+    setSuccess(null);
+    const fd = new FormData();
+    fd.append("id", absenceId);
+    fd.append("file", file);
+    try {
+      setAttachingPdf(true);
+      const res = await fetch("/api/convocations/attach-document", { method: "POST", body: fd });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Ajout du PDF impossible.");
+      setSuccess(`PDF ajouté (${payload?.documentCount || 1} document(s) sur ce créneau).`);
+      await fetchConvocations();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur lors de l'ajout du PDF.");
+    } finally {
+      setAttachingPdf(false);
+      attachTargetIdRef.current = null;
     }
   };
 
@@ -590,6 +669,18 @@ export default function ConvocationsExamensPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <input
+        ref={attachPdfRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleAttachPdf(file);
+          e.currentTarget.value = "";
+        }}
+        disabled={attachingPdf}
+      />
       <div>
         <h1 className="text-4xl font-black text-slate-900">Calendrier absences professeurs</h1>
         <p className="text-slate-500 mt-2">
@@ -648,10 +739,22 @@ export default function ConvocationsExamensPage() {
 
           <div className="grid grid-cols-5 gap-2">
             {weekdayCells.map((cell) => (
-              <div key={cell.key} className="min-h-[108px] border border-slate-100 rounded-xl p-2 bg-slate-50/40">
+              <div key={cell.key} className={calendarDayCellClass(cell.date, "mobile")}>
                 {cell.date ? (
                   <>
-                    <div className="text-xs font-black text-slate-700 mb-2">{cell.date.getDate()}</div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <span
+                        className={[
+                          "text-xs font-black",
+                          isTodayDate(cell.date) ? "text-sky-800" : "text-slate-700",
+                        ].join(" ")}
+                      >
+                        {cell.date.getDate()}
+                      </span>
+                      {isTodayDate(cell.date) ? (
+                        <span className="text-[8px] font-black uppercase tracking-wide text-sky-700">Auj.</span>
+                      ) : null}
+                    </div>
                     <div className="space-y-1">
                       {cell.events.map((event) => (
                         (() => {
@@ -702,11 +805,21 @@ export default function ConvocationsExamensPage() {
 
           <div className="grid grid-cols-7 gap-2 items-stretch">
             {dayCells.map((cell) => (
-              <div key={cell.key} className="min-h-[120px] h-full border border-slate-100 rounded-xl p-2 bg-slate-50/40">
+              <div key={cell.key} className={calendarDayCellClass(cell.date, "desktop")}>
                 {cell.date ? (
                   <>
                     <div className="flex items-center justify-between gap-1 mb-2">
-                      <span className="text-xs font-black text-slate-700">{cell.date.getDate()}</span>
+                      <span
+                        className={[
+                          "inline-flex items-center gap-1 text-xs font-black",
+                          isTodayDate(cell.date) ? "text-sky-800" : "text-slate-700",
+                        ].join(" ")}
+                      >
+                        {cell.date.getDate()}
+                        {isTodayDate(cell.date) ? (
+                          <span className="text-[9px] font-black uppercase tracking-wide text-sky-700">Auj.</span>
+                        ) : null}
+                      </span>
                       {cell.events.length > 0 ? (
                         <button
                           type="button"
@@ -747,7 +860,40 @@ export default function ConvocationsExamensPage() {
                             event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
                           ].join(" ")}
                         >
-                          <div className="flex justify-end">
+                          <div className="flex justify-end items-center gap-0.5">
+                            {isAdministratif ? (
+                              <button
+                                type="button"
+                                aria-label="Ajouter un PDF"
+                                title="Ajouter un PDF (justificatif)"
+                                className="rounded px-0.5 opacity-70 hover:opacity-100"
+                                disabled={attachingPdf}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  triggerAttachPdf(event.id);
+                                }}
+                              >
+                                <PaperclipIcon className="h-3 w-3" />
+                              </button>
+                            ) : null}
+                            {event.documentCount > 1
+                              ? Array.from({ length: event.documentCount }, (_, docIdx) => (
+                                  <button
+                                    key={docIdx}
+                                    type="button"
+                                    className="rounded px-0.5 text-[9px] font-bold underline opacity-80 hover:opacity-100"
+                                    title={`Ouvrir le PDF ${docIdx + 1}`}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      openConvocation(event.id, docIdx);
+                                    }}
+                                  >
+                                    {docIdx + 1}
+                                  </button>
+                                ))
+                              : null}
                             <button
                               type="button"
                               aria-label="Supprimer le créneau"
@@ -937,10 +1083,16 @@ export default function ConvocationsExamensPage() {
               if (file) handleUpload(file);
               e.currentTarget.value = "";
             }}
-            disabled={uploading || savingManual}
+            disabled={uploading || savingManual || attachingPdf}
           />
           <p className="text-sm font-semibold text-slate-700">
-            {uploading ? "Traitement en cours (OCR + IA)..." : savingManual ? "Enregistrement manuel en cours…" : "Glissez-déposez un PDF ici, ou cliquez pour sélectionner"}
+            {uploading
+              ? "Traitement en cours (OCR + IA)..."
+              : savingManual
+                ? "Enregistrement manuel en cours…"
+                : attachingPdf
+                  ? "Ajout du justificatif PDF…"
+                  : "Glissez-déposez un PDF ici, ou cliquez pour sélectionner"}
           </p>
         </label>
         {loading && <p className="text-sm text-slate-500 mt-3">Chargement des absences...</p>}

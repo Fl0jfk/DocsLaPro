@@ -120,6 +120,7 @@ function buildRecord(params: {
       endAt: params.endAt,
       sourceDocument: params.sourceDocument,
       documentKey: params.documentKey,
+      documentKeys: params.documentKey ? [params.documentKey] : [],
       confidence: 1,
     },
   };

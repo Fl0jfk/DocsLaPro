@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/convocations";
 
 type Etablissement = "École" | "Collège" | "Lycée";
 
@@ -18,6 +19,7 @@ type ConvocationRecord = {
     endAt: string;
     sourceDocument: string;
     documentKey: string;
+    documentKeys?: string[];
     confidence: number;
   };
 };
@@ -106,9 +108,8 @@ export async function DELETE(req: Request) {
     const fileBody = await fileRes.Body?.transformToString();
     if (!fileBody) return NextResponse.json({ error: "Convocation introuvable" }, { status: 404 });
     const record = JSON.parse(fileBody) as ConvocationRecord;
-    const docKey = String(record?.data?.documentKey || "").trim();
+    const docKeys = getDocumentKeys(record.data);
 
-    // Supprimer le fichier convocation
     await s3.send(
       new DeleteObjectCommand({
         Bucket: process.env.BUCKET_NAME,
@@ -118,9 +119,8 @@ export async function DELETE(req: Request) {
     const index = await getIndex();
     const updated = (index || []).filter((r) => r.id !== id);
     await saveIndex(updated);
-    if (docKey) {
-      const stillReferenced = updated.some((r) => String(r?.data?.documentKey || "").trim() === docKey);
-      if (!stillReferenced) {
+    for (const docKey of docKeys) {
+      if (!isDocumentKeyReferenced(updated, docKey)) {
         await s3.send(
           new DeleteObjectCommand({
             Bucket: process.env.BUCKET_NAME,

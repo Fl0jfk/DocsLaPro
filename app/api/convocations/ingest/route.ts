@@ -310,6 +310,7 @@ function buildAbsenceRecord(params: {
       endAt: params.slot.endAt,
       sourceDocument: params.sourceDocument,
       documentKey: params.documentKey,
+      documentKeys: params.documentKey ? [params.documentKey] : [],
       confidence: params.confidence,
     },
   };
