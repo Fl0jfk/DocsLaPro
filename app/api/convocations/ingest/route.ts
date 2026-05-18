@@ -150,6 +150,22 @@ async function resolveTeacherIdentity(teacherName: string, fallbackName: string)
   };
 }
 
+async function collectTextractBlocks(jobId: string) {
+  const blocks: NonNullable<Awaited<ReturnType<typeof textract.send<GetDocumentTextDetectionCommand>>>["Blocks"]> = [];
+  let nextToken: string | undefined;
+  do {
+    const page = await textract.send(
+      new GetDocumentTextDetectionCommand({
+        JobId: jobId,
+        NextToken: nextToken,
+      }),
+    );
+    if (page.Blocks?.length) blocks.push(...page.Blocks);
+    nextToken = page.NextToken;
+  } while (nextToken);
+  return blocks;
+}
+
 async function runTextractForS3Key(key: string) {
   const start = await textract.send(
     new StartDocumentTextDetectionCommand({
@@ -162,7 +178,8 @@ async function runTextractForS3Key(key: string) {
   for (let i = 0; i < OCR_MAX_ATTEMPTS; i += 1) {
     const result = await textract.send(new GetDocumentTextDetectionCommand({ JobId: jobId }));
     if (result.JobStatus === "SUCCEEDED") {
-      const text = (result.Blocks || [])
+      const blocks = await collectTextractBlocks(jobId);
+      const text = blocks
         .map((b) => b.Text)
         .filter(Boolean)
         .join(" ");
@@ -197,6 +214,73 @@ function toIso(value: string) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+function readSlotBoundary(slot: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const raw = slot[key];
+    if (raw === undefined || raw === null) continue;
+    const value = String(raw).trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function normalizeParsedSlots(raw: unknown): ParsedSlot[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ParsedSlot[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const slot = item as Record<string, unknown>;
+    const startAt = readSlotBoundary(slot, ["startAt", "start", "debut", "début", "dateDebut", "date_debut"]);
+    const endAt = readSlotBoundary(slot, ["endAt", "end", "fin", "dateFin", "date_fin"]);
+    if (!startAt || !endAt) continue;
+    const startIso = toIso(startAt);
+    const endIso = toIso(endAt);
+    if (!startIso || !endIso) continue;
+    if (new Date(endIso) <= new Date(startIso)) continue;
+    out.push({ startAt: startIso, endAt: endIso });
+  }
+  return out;
+}
+
+function dedupeSlots(slots: ParsedSlot[]) {
+  const seen = new Set<string>();
+  const out: ParsedSlot[] = [];
+  for (const slot of slots) {
+    const key = `${slot.startAt}|${slot.endAt}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(slot);
+  }
+  return out.sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt));
+}
+
+/** Fusionne les créneaux qui se touchent ou se suivent sans interruption (ex. fin 17h30 → début 17h30). */
+function mergeContiguousSlots(slots: ParsedSlot[]) {
+  if (slots.length <= 1) return slots;
+  const GAP_MS = 5 * 60 * 1000;
+  const sorted = dedupeSlots(slots);
+  const merged: ParsedSlot[] = [];
+  let current = { ...sorted[0] };
+
+  for (let i = 1; i < sorted.length; i += 1) {
+    const next = sorted[i];
+    const currentEnd = +new Date(current.endAt);
+    const nextStart = +new Date(next.startAt);
+    const nextEnd = +new Date(next.endAt);
+
+    if (nextStart <= currentEnd + GAP_MS) {
+      if (nextEnd > currentEnd) current.endAt = next.endAt;
+      continue;
+    }
+
+    merged.push(current);
+    current = { ...next };
+  }
+
+  merged.push(current);
+  return merged;
 }
 
 function buildAbsenceRecord(params: {
@@ -235,25 +319,49 @@ function buildAbsenceRecord(params: {
 
 async function parseConvocationWithMistral(text: string, sourceDocument: string): Promise<ParsedConvocation> {
   const prompt = `
-Analyse la convocation d'examen ci-dessous et extrais les absences d'un professeur.
-Réponds strictement en JSON valide.
-Si une info est introuvable, utilise une valeur vide adaptée (chaine vide ou tableau vide).
+Tu analyses une convocation d'examen (ou document assimilé) pour un professeur convoqué.
+Réponds strictement en JSON valide, sans texte avant ni après.
+
+RÈGLE 1 — CRÉNEAUX QUI S'ENCHAÎNENT (POURSUITE, MÊME JOURNÉE):
+Si le document enchaîne deux missions sans trou (fin d'une = début de l'autre, ex. 17h30 puis 17h30),
+ou décrit une poursuite ("puis", "jusqu'au", "à la décoration de copies", dépouillement, surveillance en continu),
+c'est UNE SEULE indisponibilité continue → UN SEUL slot du début du premier au fin du dernier.
+
+Exemple typique bac:
+- vendredi 19/06/2026 14h30–17h30 : réunion bac
+- vendredi 19/06/2026 17h30 → mercredi 01/07/2026 16h00 : décoration de copies
+→ UN slot: startAt 2026-06-19T14:30:00+02:00, endAt 2026-07-01T16:00:00+02:00
+(le prof n'est pas dispo dès 14h30 le vendredi jusqu'à la fin de la mission, pas deux absences séparées ce jour-là).
+
+RÈGLE 2 — PLUSIEURS ABSENCES NON LIÉES:
+Une convocation peut aussi contenir des périodes séparées (jours différents SANS enchaînement,
+ex. lundi 3 juin puis vendredi 14 juin sans lien entre les deux) → un slot par période distincte.
+Ne PAS fusionner des dates éloignées sans poursuite explicite.
+
+Tu dois:
+1. Parcourir TOUT le texte OCR, du début à la fin (toutes les pages).
+2. Repérer toutes les plages où le professeur est convoqué / indisponible.
+3. Appliquer la RÈGLE 1 pour fusionner les poursuites ; la RÈGLE 2 pour garder séparé ce qui ne se touche pas.
+4. Ne créer qu'un slot par journée distincte QUE si les plages du même jour ont un vrai trou (ex. matin puis soir sans lien).
+5. Si seule la date est indiquée sans heure, utiliser 08:00–18:00 (fuseau Europe/Paris, +02:00 ou +01:00).
+6. Si une info est introuvable: chaîne vide pour les textes, tableau vide pour "slots".
 
 Format JSON attendu:
 {
   "teacherName": "Prénom NOM",
-  "examType": "brevet|bac|oral...",
+  "examType": "brevet|bac|oral|convocation…",
   "etablissement": "École|Collège|Lycée",
   "sourceDocument": "${sourceDocument}",
   "confidence": 0.0,
   "slots": [
-    { "startAt": "2026-06-03T08:00:00+02:00", "endAt": "2026-06-03T12:00:00+02:00" }
+    { "startAt": "2026-06-19T14:30:00+02:00", "endAt": "2026-07-01T16:00:00+02:00" },
+    { "startAt": "2026-06-14T14:00:00+02:00", "endAt": "2026-06-14T18:00:00+02:00" }
   ]
 }
 
-Contraintes:
-- "slots" doit contenir tous les créneaux détectés.
-- Les dates doivent être ISO8601.
+Contraintes techniques:
+- "slots" doit lister TOUS les créneaux trouvés (minimum 1 si le document en contient au moins un).
+- Chaque slot: "startAt" et "endAt" en ISO8601 avec fuseau horaire.
 - Ne retourne aucun texte hors JSON.
 
 Texte OCR:
@@ -283,7 +391,7 @@ ${text}
 
   const payload = await response.json();
   const content = payload?.choices?.[0]?.message?.content || "";
-  const json = parseJsonFromMistral(content) as ParsedConvocation;
+  const json = parseJsonFromMistral(content) as ParsedConvocation & { slots?: unknown };
   return {
     teacherName: String(json?.teacherName || "").trim(),
     examType: String(json?.examType || "Examen").trim(),
@@ -291,7 +399,7 @@ ${text}
     sourceDocument,
     documentKey: "",
     confidence: Number(json?.confidence || 0),
-    slots: Array.isArray(json?.slots) ? json.slots : [],
+    slots: normalizeParsedSlots(json?.slots),
   };
 }
 
@@ -343,15 +451,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const normalizedSlots = parsed.slots
-      .map((slot) => {
-        const startAt = toIso(slot.startAt);
-        const endAt = toIso(slot.endAt);
-        if (!startAt || !endAt) return null;
-        if (new Date(endAt) <= new Date(startAt)) return null;
-        return { startAt, endAt };
-      })
-      .filter(Boolean) as ParsedSlot[];
+    const normalizedSlots = mergeContiguousSlots(parsed.slots);
 
     if (normalizedSlots.length === 0) {
       return NextResponse.json({ error: "Créneaux invalides après validation." }, { status: 422 });

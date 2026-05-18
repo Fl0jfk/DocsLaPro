@@ -218,7 +218,7 @@ export default function PartenairesSportifsPage() {
           alt=""
           fill
           priority
-          className="object-cover opacity-40"
+          className="object-cover opacity-70"
           sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/90 via-slate-900/85 to-slate-950" />
