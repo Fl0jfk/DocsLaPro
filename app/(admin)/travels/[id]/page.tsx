@@ -724,7 +724,7 @@ export default function TripDetails() {
       <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-left">
         <h2 className="text-xl font-bold mb-6 text-slate-800">Informations Logistiques</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-          <DetailItem label="Destination" value={trip.data.destination} />
+          <DetailItem label="Destination" value={trip.data.destination} wrap />
           <EditableDetail isEditing={isEditing} label="Classes concernées" value={isEditing ? editedData.classes : trip.data.classes} onChange={(v) => setEditedData({...editedData, classes: v})} />
           <div className="flex flex-col border-b border-slate-50 pb-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Effectifs</span>
@@ -1122,11 +1122,21 @@ function Step({ label, active, step }: { label: string, active: boolean, step: s
   );
 }
 
-function DetailItem({ label, value }: { label: string, value: string }) {
+function DetailItem({ label, value, wrap }: { label: string; value: string; wrap?: boolean }) {
   return (
-    <div className="flex flex-col border-b border-slate-50 pb-2 text-left">
+    <div
+      className={`flex flex-col border-b border-slate-50 pb-2 text-left ${wrap ? "md:col-span-2" : ""}`}
+    >
       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-      <span className="text-slate-700 font-medium truncate">{value || "—"}</span>
+      <span
+        className={
+          wrap
+            ? "text-slate-700 font-medium whitespace-pre-wrap break-words leading-relaxed"
+            : "text-slate-700 font-medium truncate"
+        }
+      >
+        {value || "—"}
+      </span>
     </div>
   );
 }
