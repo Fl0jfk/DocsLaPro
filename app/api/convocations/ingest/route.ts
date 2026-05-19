@@ -37,6 +37,9 @@ const INDEX_KEY = "convocations/index.json";
 const WAIT_MS = 5000;
 const OCR_MAX_ATTEMPTS = 30;
 
+/** OCR Textract + Mistral : dépasser le timeout court Amplify (souvent ~30 s sans cette config). */
+export const maxDuration = 300;
+
 const s3Client = new S3Client({
   region: process.env.REGION,
   credentials: {
