@@ -1,5 +1,13 @@
-import { NextResponse } from "next/server";
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { NextResponse, after } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import {
+  canIngestFromUser,
+  newJobId,
+  readIngestJob,
+  writeIngestJob,
+  type IngestJob,
+  type IngestJobCreated,
+} from "./ingest-job";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { GetDocumentTextDetectionCommand, StartDocumentTextDetectionCommand, TextractClient,} from "@aws-sdk/client-textract";
 
@@ -65,15 +73,6 @@ const norm = (s: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[_\s-]+/g, " ")
     .trim();
-
-function canIngest(roles: string[]) {
-  const normalized = roles.map((r) => norm(r));
-  return normalized.some((r) =>
-    ["administratif", "direction ecole", "direction college", "direction lycee", "education"].some((allowed) =>
-      r.includes(allowed),
-    ),
-  );
-}
 
 function isPdfFile(file: File) {
   const name = String(file.name || "").toLowerCase();
@@ -149,57 +148,6 @@ async function saveAbsenceIndex(index: ConvocationRecord[]) {
       ContentType: "application/json",
     }),
   );
-}
-
-function scoreNameMatch(target: string, firstName: string, lastName: string) {
-  const nTarget = norm(target);
-  const nFirst = norm(firstName);
-  const nLast = norm(lastName);
-  let score = 0;
-  if (nLast && nTarget.includes(nLast)) score += 2;
-  if (nFirst && nTarget.includes(nFirst)) score += 2;
-  if (`${nFirst} ${nLast}`.trim() === nTarget) score += 3;
-  return score;
-}
-
-async function resolveTeacherIdentity(teacherName: string, fallbackName: string) {
-  const client = await clerkClient();
-  const list = await client.users.getUserList({ limit: 500 });
-  const teachers = list.data.filter((u) => {
-    const rolesRaw = u.publicMetadata.role;
-    const roles = Array.isArray(rolesRaw) ? rolesRaw.map(String) : rolesRaw ? [String(rolesRaw)] : [];
-    return roles.some((r) => norm(r).includes("professeur"));
-  });
-  const scored = teachers
-    .map((u) => {
-      const firstName = u.firstName || "";
-      const lastName = u.lastName || "";
-      return {
-        user: u,
-        score: scoreNameMatch(teacherName, firstName, lastName),
-      };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  const best = scored[0];
-  if (!best || best.score < 2) {
-    return {
-      userId: `teacher:${Date.now()}`,
-      name: teacherName || fallbackName,
-      email: "",
-      roles: ["professeur"],
-    };
-  }
-
-  const user = best.user;
-  const rolesRaw = user.publicMetadata.role;
-  const roles = Array.isArray(rolesRaw) ? rolesRaw.map(String) : rolesRaw ? [String(rolesRaw)] : ["professeur"];
-  return {
-    userId: user.id,
-    name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || teacherName || fallbackName,
-    email: user.emailAddresses?.[0]?.emailAddress || "",
-    roles,
-  };
 }
 
 async function collectTextractBlocks(jobId: string) {
@@ -456,6 +404,93 @@ ${text}
   };
 }
 
+async function runBackgroundIngest(jobId: string, documentKey: string, sourceFileName: string) {
+  const existing = await readIngestJob(jobId);
+  if (!existing || existing.status !== "pending") return;
+
+  const fail = async (error: string, code: string, parsed?: Record<string, unknown>) => {
+    await writeIngestJob({
+      ...existing,
+      status: "failed",
+      error,
+      code,
+      parsed: parsed ?? existing.parsed,
+    });
+  };
+
+  try {
+    const ocrText = await runTextractForS3Key(documentKey);
+    const parsed = await parseConvocationWithMistral(ocrText, sourceFileName);
+    parsed.documentKey = documentKey;
+
+    if (!parsed.teacherName || parsed.slots.length === 0) {
+      const hints: string[] = [];
+      if (!parsed.teacherName) hints.push("nom du professeur non reconnu");
+      if (parsed.slots.length === 0) hints.push("dates/heures non détectées");
+      await fail(
+        `Extraction incomplète (${hints.join(", ") || "données manquantes"}). Vérifiez la qualité du scan ou saisissez l'absence à la main.`,
+        "EXTRACTION_INCOMPLETE",
+        parsed as unknown as Record<string, unknown>,
+      );
+      return;
+    }
+
+    const normalizedSlots = mergeContiguousSlots(parsed.slots);
+    if (normalizedSlots.length === 0) {
+      await fail(
+        "Les dates extraites sont invalides (format ou ordre incohérent). Essayez une saisie manuelle.",
+        "INVALID_SLOTS",
+        parsed as unknown as Record<string, unknown>,
+      );
+      return;
+    }
+
+    const currentIndex = await getAbsenceIndex();
+    const createdRecords: ConvocationRecord[] = [];
+    for (const slot of normalizedSlots) {
+      const record = buildAbsenceRecord({
+        etablissement: parsed.etablissement,
+        examType: parsed.examType,
+        teacherName: parsed.teacherName,
+        sourceDocument: parsed.sourceDocument,
+        documentKey: parsed.documentKey,
+        confidence: parsed.confidence,
+        slot,
+      });
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.BUCKET_NAME!,
+          Key: `convocations/${record.id}.json`,
+          Body: JSON.stringify(record),
+          ContentType: "application/json",
+        }),
+      );
+      createdRecords.push(record);
+    }
+    await saveAbsenceIndex([...currentIndex, ...createdRecords]);
+
+    const created: IngestJobCreated[] = createdRecords.map((r) => ({
+      id: r.id,
+      teacherName: r.data.teacherName,
+      startDate: r.data.startDate,
+      endDate: r.data.endDate,
+    }));
+
+    await writeIngestJob({
+      ...existing,
+      status: "completed",
+      created,
+      parsed: parsed as unknown as Record<string, unknown>,
+      error: undefined,
+      code: undefined,
+    });
+  } catch (error) {
+    console.error("[convocations/ingest] job arrière-plan:", error);
+    const mapped = mapIngestFailureMessage(error);
+    await fail(mapped.error, mapped.code || "INGEST_FAILED");
+  }
+}
+
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
@@ -463,7 +498,7 @@ export async function POST(req: Request) {
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
-  if (!canIngest(roles)) {
+  if (!canIngestFromUser(roles)) {
     return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
   }
 
@@ -499,71 +534,34 @@ export async function POST(req: Request) {
       }),
     );
 
-    const ocrText = await runTextractForS3Key(key);
-    const parsed = await parseConvocationWithMistral(ocrText, file.name);
-    parsed.documentKey = key;
+    const jobId = newJobId();
+    const startedAt = new Date().toISOString();
+    const job: IngestJob = {
+      jobId,
+      userId,
+      status: "pending",
+      startedAt,
+      updatedAt: startedAt,
+      sourceFileName: file.name,
+      documentKey: key,
+    };
+    await writeIngestJob(job);
 
-    if (!parsed.teacherName || parsed.slots.length === 0) {
-      const hints: string[] = [];
-      if (!parsed.teacherName) hints.push("nom du professeur non reconnu");
-      if (parsed.slots.length === 0) hints.push("dates/heures non détectées");
-      return NextResponse.json(
-        {
-          error: `Extraction incomplète (${hints.join(", ") || "données manquantes"}). Vérifiez la qualité du scan ou saisissez l'absence à la main.`,
-          code: "EXTRACTION_INCOMPLETE",
-          parsed,
-        },
-        { status: 422 },
-      );
-    }
+    after(() =>
+      runBackgroundIngest(jobId, key, file.name).catch((err) =>
+        console.error("[convocations/ingest] after():", err),
+      ),
+    );
 
-    const normalizedSlots = mergeContiguousSlots(parsed.slots);
-
-    if (normalizedSlots.length === 0) {
-      return NextResponse.json(
-        {
-          error: "Les dates extraites sont invalides (format ou ordre incohérent). Essayez une saisie manuelle.",
-          code: "INVALID_SLOTS",
-          parsed,
-        },
-        { status: 422 },
-      );
-    }
-
-    const currentIndex = await getAbsenceIndex();
-    const createdRecords: ConvocationRecord[] = [];
-    for (const slot of normalizedSlots) {
-      const record = buildAbsenceRecord({
-        etablissement: parsed.etablissement,
-        examType: parsed.examType,
-        teacherName: parsed.teacherName,
-        sourceDocument: parsed.sourceDocument,
-        documentKey: parsed.documentKey,
-        confidence: parsed.confidence,
-        slot,
-      });
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.BUCKET_NAME!,
-          Key: `convocations/${record.id}.json`,
-          Body: JSON.stringify(record),
-          ContentType: "application/json",
-        }),
-      );
-      createdRecords.push(record);
-    }
-    await saveAbsenceIndex([...currentIndex, ...createdRecords]);
-
-    return NextResponse.json({
-      success: true,
-      parsed,
-      created: createdRecords.map((r) => ({
-        id: r.id,
-        teacherName: r.data.teacherName,
-        startDate: r.data.startDate,
-        endDate: r.data.endDate,
-      })),
-    });
+    return NextResponse.json(
+      {
+        accepted: true,
+        jobId,
+        status: "pending",
+        detail: "Analyse OCR + IA en cours. Le navigateur attend la fin automatiquement (1 à 3 min).",
+      },
+      { status: 202 },
+    );
   } catch (error) {
     console.error("Convocations ingest error:", error);
     const mapped = mapIngestFailureMessage(error);

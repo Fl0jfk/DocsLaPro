@@ -631,6 +631,37 @@ export default function ConvocationsExamensPage() {
     return padded;
   }, [items, selectedYear]);
 
+  const pollConvocationIngest = async (jobId: string) => {
+    const deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+      const stRes = await fetch(`/api/convocations/ingest/status?jobId=${encodeURIComponent(jobId)}`);
+      const stRaw = await stRes.text();
+      let st: {
+        status?: string;
+        error?: string;
+        created?: { id: string }[];
+      } = {};
+      try {
+        st = stRaw ? (JSON.parse(stRaw) as typeof st) : {};
+      } catch {
+        throw new Error("Réponse serveur invalide pendant l'analyse.");
+      }
+      if (!stRes.ok) {
+        throw new Error(st.error || `Suivi d'import impossible (${stRes.status}).`);
+      }
+      if (st.status === "completed") {
+        return st.created?.length || 0;
+      }
+      if (st.status === "failed") {
+        throw new Error(st.error || "Analyse du PDF échouée.");
+      }
+    }
+    throw new Error(
+      "L'analyse prend plus de 5 minutes ou le serveur n'a pas terminé le traitement. Réessayez ou saisissez l'absence à la main.",
+    );
+  };
+
   const handleUpload = async (file: File) => {
     setError(null);
     setSuccess(null);
@@ -659,17 +690,35 @@ export default function ConvocationsExamensPage() {
         body: formData,
       });
       const raw = await res.text();
-      let payload: { error?: string; code?: string; detail?: string; created?: unknown[] } = {};
+      let payload: {
+        error?: string;
+        code?: string;
+        detail?: string;
+        created?: unknown[];
+        jobId?: string;
+        accepted?: boolean;
+      } = {};
       try {
         payload = raw ? (JSON.parse(raw) as typeof payload) : {};
       } catch {
         payload = { error: raw.slice(0, 240) || undefined };
       }
 
+      if (res.status === 202 && payload.accepted && payload.jobId) {
+        const n = await pollConvocationIngest(payload.jobId);
+        setSuccess(
+          n <= 1
+            ? `Import réussi: ${n} créneau d'absence enregistré.`
+            : `Import réussi: ${n} créneaux d'absence enregistrés (même convocation).`,
+        );
+        await fetchConvocations();
+        return;
+      }
+
       if (!res.ok) {
         const fallback =
           res.status === 504 || res.status === 408
-            ? "Délai dépassé (OCR + IA). Le serveur a mis trop de temps : réessayez ou saisissez l'absence à la main."
+            ? "Délai dépassé lors de l'envoi du fichier. Réessayez."
             : res.status === 413
               ? "Fichier trop volumineux pour le serveur."
               : res.status === 401
@@ -694,7 +743,7 @@ export default function ConvocationsExamensPage() {
       await fetchConvocations();
     } catch (e: unknown) {
       if (e instanceof TypeError && String(e.message).toLowerCase().includes("fetch")) {
-        setError("Connexion interrompue pendant l'import (réseau ou délai dépassé). Réessayez.");
+        setError("Connexion interrompue pendant l'import. Réessayez.");
       } else {
         setError(e instanceof Error ? e.message : "Erreur pendant l'import.");
       }
@@ -1170,7 +1219,7 @@ export default function ConvocationsExamensPage() {
           />
           <p className="text-sm font-semibold text-slate-700">
             {uploading
-              ? "Traitement en cours (OCR + IA)..."
+              ? "Analyse du PDF en cours (OCR + IA, 1 à 3 min) — ne fermez pas la page…"
               : savingManual
                 ? "Enregistrement manuel en cours…"
                 : attachingPdf
