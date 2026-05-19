@@ -640,6 +640,25 @@ export default function ConvocationsExamensPage() {
         await new Promise((r) => setTimeout(r, polls < 3 ? 1500 : 3000));
       }
       polls += 1;
+      const procRes = await fetch("/api/convocations/ingest/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      });
+      if (procRes.status === 401 || procRes.status === 403) {
+        const t = await procRes.text().catch(() => "");
+        let err = "";
+        try {
+          err = JSON.parse(t).error || "";
+        } catch {
+          err = t.slice(0, 120);
+        }
+        throw new Error(err || `Import refusé (${procRes.status}).`);
+      }
+      if (!procRes.ok && procRes.status !== 202 && procRes.status !== 200) {
+        throw new Error(`Impossible de lancer l'analyse (${procRes.status}). Réessayez.`);
+      }
+
       const stRes = await fetch(`/api/convocations/ingest/status?jobId=${encodeURIComponent(jobId)}`);
       const stRaw = await stRes.text();
       let st: {
