@@ -340,30 +340,83 @@ function dedupeSlots(slots: ParsedSlot[]) {
   return out.sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt));
 }
 
-function mergeContiguousSlots(slots: ParsedSlot[]) {
-  if (slots.length <= 1) return slots;
-  const GAP_MS = 5 * 60 * 1000;
-  const sorted = dedupeSlots(slots);
-  const merged: ParsedSlot[] = [];
-  let current = { ...sorted[0] };
+const PARIS_TZ = "Europe/Paris";
 
-  for (let i = 1; i < sorted.length; i += 1) {
-    const next = sorted[i];
-    const currentEnd = +new Date(current.endAt);
-    const nextStart = +new Date(next.startAt);
-    const nextEnd = +new Date(next.endAt);
+function parisDateKey(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: PARIS_TZ }).format(new Date(iso));
+}
 
-    if (nextStart <= currentEnd + GAP_MS) {
-      if (nextEnd > currentEnd) current.endAt = next.endAt;
-      continue;
-    }
+function addCalendarDay(dateKey: string): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
 
-    merged.push(current);
-    current = { ...next };
+/** Heure murale à Paris → instant UTC (gère +01 / +02). */
+function parisWallTimeToUtc(
+  dateKey: string,
+  hour: number,
+  minute: number,
+  second: number,
+  ms: number,
+): number {
+  const pad = (n: number, w = 2) => String(n).padStart(w, "0");
+  for (const offset of ["+02:00", "+01:00"]) {
+    const iso = `${dateKey}T${pad(hour)}:${pad(minute)}:${pad(second)}.${pad(ms, 3)}${offset}`;
+    if (parisDateKey(iso) === dateKey) return +new Date(iso);
   }
+  return +new Date(`${dateKey}T${pad(hour)}:${pad(minute)}:${pad(second)}+02:00`);
+}
 
-  merged.push(current);
-  return merged;
+function listParisDateKeysFromTo(startIso: string, endIso: string): string[] {
+  const keys: string[] = [];
+  let k = parisDateKey(startIso);
+  const last = parisDateKey(endIso);
+  while (true) {
+    keys.push(k);
+    if (k === last) break;
+    k = addCalendarDay(k);
+  }
+  return keys;
+}
+
+/** Découpe un créneau multi-jours en segments par jour (heures réelles chaque jour). */
+function expandSlotToDaySegments(slot: ParsedSlot): ParsedSlot[] {
+  const startMs = +new Date(slot.startAt);
+  const endMs = +new Date(slot.endAt);
+  if (endMs <= startMs) return [];
+
+  const out: ParsedSlot[] = [];
+  for (const dayKey of listParisDateKeysFromTo(slot.startAt, slot.endAt)) {
+    const dayStart = parisWallTimeToUtc(dayKey, 0, 0, 0, 0);
+    const dayEnd = parisWallTimeToUtc(dayKey, 23, 59, 59, 999);
+    const segStart = Math.max(startMs, dayStart);
+    const segEnd = Math.min(endMs, dayEnd);
+    if (segEnd > segStart) {
+      out.push({
+        startAt: new Date(segStart).toISOString(),
+        endAt: new Date(segEnd).toISOString(),
+      });
+    }
+  }
+  return out;
+}
+
+/** Un seul créneau par jour calendaire (Paris) : heure de début la plus tôt, fin la plus tard. */
+function mergeOneSlotPerCalendarDay(slots: ParsedSlot[]): ParsedSlot[] {
+  const byDay = new Map<string, ParsedSlot>();
+  for (const slot of dedupeSlots(slots)) {
+    for (const seg of expandSlotToDaySegments(slot)) {
+      const key = parisDateKey(seg.startAt);
+      const cur = byDay.get(key);
+      if (!cur) {
+        byDay.set(key, { ...seg });
+        continue;
+      }
+      if (+new Date(seg.startAt) < +new Date(cur.startAt)) cur.startAt = seg.startAt;
+      if (+new Date(seg.endAt) > +new Date(cur.endAt)) cur.endAt = seg.endAt;
+    }
+  }
+  return [...byDay.values()].sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt));
 }
 
 function buildAbsenceRecord(params: {
@@ -404,16 +457,18 @@ async function parseConvocationWithMistral(text: string, sourceDocument: string)
 Tu analyses une convocation d'examen (ou document assimilé) pour un professeur convoqué.
 Réponds strictement en JSON valide, sans texte avant ni après.
 
-RÈGLE 1 — CRÉNEAUX QUI S'ENCHAÎNENT (POURSUITE, MÊME JOURNÉE):
-Si le document enchaîne deux missions sans trou (fin d'une = début de l'autre, ex. 17h30 puis 17h30),
-ou décrit une poursuite ("puis", "jusqu'au", "à la décoration de copies", dépouillement, surveillance en continu),
-c'est UNE SEULE indisponibilité continue → UN SEUL slot du début du premier au fin du dernier.
+RÈGLE PRINCIPALE — UN SLOT PAR JOUR CALENDAIRE (fuseau Europe/Paris):
+- Chaque jour distinct où le professeur est convoqué = exactement UN objet dans "slots".
+- Le même jour ne doit jamais apparaître deux fois (ex. matin + après-midi le 19/06 → UN seul slot ce jour-là).
+- Pour ce jour : "startAt" = première heure de convocation ce jour-là, "endAt" = dernière heure ce jour-là (garder les vraies heures du document).
+- Jours différents = slots différents (ex. lundi 3 juin et vendredi 14 juin → 2 slots).
 
-RÈGLE 2 — PLUSIEURS ABSENCES NON LIÉES:
-Périodes séparées sans enchaînement → un slot par période distincte.
+RÈGLE POURSUITE SUR PLUSIEURS JOURS (ex. bac, décoration de copies):
+- Si une mission s'étend sur plusieurs jours calendaires, produire UN slot PAR jour concerné, chacun avec les heures réelles ce jour-là (pas un seul slot sur toute la période).
+- Ex. vendredi 19/06 14h30–17h30 puis poursuite jusqu'au 01/07 16h00 → un slot pour chaque jour du 19/06 au 01/07 avec les bornes horaires de ce jour (premier jour dès 14h30, dernier jour jusqu'à 16h00, jours intermédiaires sur la plage indiquée ou journée complète si le texte l'impose).
 
 Tu dois parcourir TOUT le texte OCR (toutes les pages).
-Si seule la date est indiquée sans heure, utiliser 08:00–18:00 (Europe/Paris).
+Si seule la date est indiquée sans heure, utiliser 08:00–18:00 ce jour-là (Europe/Paris).
 
 Format JSON:
 {
@@ -549,7 +604,7 @@ export async function runConvocationIngestJob(jobId: string, documentKey: string
       return;
     }
 
-    const normalizedSlots = mergeContiguousSlots(parsed.slots);
+    const normalizedSlots = mergeOneSlotPerCalendarDay(parsed.slots);
     if (normalizedSlots.length === 0) {
       await fail(
         "Les dates extraites sont invalides (format ou ordre incohérent). Essayez une saisie manuelle.",
