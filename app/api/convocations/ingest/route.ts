@@ -1,4 +1,4 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
@@ -7,7 +7,7 @@ import {
   writeIngestJob,
   type IngestJob,
 } from "./ingest-job";
-import { mapIngestFailureMessage, runConvocationIngestJob } from "@/app/lib/convocation-ingest-process";
+import { mapIngestFailureMessage } from "@/app/lib/convocation-ingest-process";
 
 export const maxDuration = 60;
 
@@ -81,18 +81,13 @@ export async function POST(req: Request) {
     };
     await writeIngestJob(job);
 
-    after(() =>
-      runConvocationIngestJob(jobId, key, file.name).catch((err) =>
-        console.error("[convocations/ingest] after():", err),
-      ),
-    );
-
     return NextResponse.json(
       {
         accepted: true,
         jobId,
         status: "pending",
-        detail: "PDF enregistré. Analyse en cours (souvent 30 s à 2 min, parfois plus pour les scans lourds).",
+        detail:
+          "PDF enregistré. L'analyse démarre au prochain appel (suivi automatique). Ne fermez pas la page.",
       },
       { status: 202 },
     );

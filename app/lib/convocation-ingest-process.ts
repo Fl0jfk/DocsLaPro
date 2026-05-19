@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   DetectDocumentTextCommand,
   GetDocumentTextDetectionCommand,
@@ -14,6 +14,7 @@ import {
 } from "@/app/api/convocations/ingest/ingest-job";
 
 const INDEX_KEY = "convocations/index.json";
+const RUN_LOCK_PREFIX = "convocations/ingest-locks/";
 const SYNC_OCR_MAX_BYTES = 5 * 1024 * 1024;
 const ASYNC_POLL_MS_FIRST = 1500;
 const ASYNC_POLL_MS_MAX = 4000;
@@ -67,6 +68,41 @@ const textract = new TextractClient({
     secretAccessKey: process.env.SECRET_ACCESS_KEY!,
   },
 });
+
+function runLockKey(jobId: string) {
+  return `${RUN_LOCK_PREFIX}${jobId}.lock`;
+}
+
+/** Un seul worker par jobId (S3 create-if-absent). */
+async function acquireRunLock(jobId: string): Promise<boolean> {
+  try {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: process.env.BUCKET_NAME!,
+        Key: runLockKey(jobId),
+        Body: JSON.stringify({ acquiredAt: new Date().toISOString() }),
+        ContentType: "application/json",
+        IfNoneMatch: "*",
+      }),
+    );
+    return true;
+  } catch (e: unknown) {
+    const meta = (e as { $metadata?: { httpStatusCode?: number } }).$metadata;
+    const name = (e as { name?: string }).name;
+    if (meta?.httpStatusCode === 412 || name === "PreconditionFailed") return false;
+    throw e;
+  }
+}
+
+async function releaseRunLock(jobId: string) {
+  try {
+    await s3Client.send(
+      new DeleteObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: runLockKey(jobId) }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -447,6 +483,7 @@ export async function tryClaimIngestJob(jobId: string): Promise<boolean> {
     const age = Date.now() - new Date(job.processingStartedAt).getTime();
     if (age < PROCESSING_ACTIVE_MS) return false;
     console.warn("[convocation-ingest] reprise job stale", jobId, age);
+    await releaseRunLock(jobId);
   }
 
   if (job.status !== "pending" && job.status !== "processing") return false;
@@ -464,6 +501,16 @@ export async function runConvocationIngestJob(jobId: string, documentKey: string
   let existing = await readIngestJob(jobId);
   if (!existing) return;
   if (existing.status === "completed" || existing.status === "failed") return;
+
+  if (!(await acquireRunLock(jobId))) {
+    return;
+  }
+
+  existing = await readIngestJob(jobId);
+  if (!existing || existing.status === "completed" || existing.status === "failed") {
+    await releaseRunLock(jobId);
+    return;
+  }
 
   const fail = async (error: string, code: string, parsed?: Record<string, unknown>) => {
     const j = await readIngestJob(jobId);
@@ -560,5 +607,7 @@ export async function runConvocationIngestJob(jobId: string, documentKey: string
     console.error("[convocation-ingest] job:", error);
     const mapped = mapIngestFailureMessage(error);
     await fail(mapped.error, mapped.code || "INGEST_FAILED");
+  } finally {
+    await releaseRunLock(jobId);
   }
 }
