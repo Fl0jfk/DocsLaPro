@@ -424,6 +424,7 @@ export default function ConvocationsExamensPage() {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [ingestPhase, setIngestPhase] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const selectedYear = currentMonth.getFullYear();
 
@@ -632,13 +633,18 @@ export default function ConvocationsExamensPage() {
   }, [items, selectedYear]);
 
   const pollConvocationIngest = async (jobId: string) => {
-    const deadline = Date.now() + 5 * 60 * 1000;
+    const deadline = Date.now() + 10 * 60 * 1000;
+    let polls = 0;
     while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 2500));
+      if (polls > 0) {
+        await new Promise((r) => setTimeout(r, polls < 3 ? 1500 : 3000));
+      }
+      polls += 1;
       const stRes = await fetch(`/api/convocations/ingest/status?jobId=${encodeURIComponent(jobId)}`);
       const stRaw = await stRes.text();
       let st: {
         status?: string;
+        phase?: string | null;
         error?: string;
         created?: { id: string }[];
       } = {};
@@ -650,15 +656,24 @@ export default function ConvocationsExamensPage() {
       if (!stRes.ok) {
         throw new Error(st.error || `Suivi d'import impossible (${stRes.status}).`);
       }
+      if (st.phase === "ocr") setIngestPhase("Lecture du PDF (OCR)…");
+      else if (st.phase === "ai") setIngestPhase("Analyse des dates et du professeur (IA)…");
+      else if (st.phase === "saving") setIngestPhase("Enregistrement des absences…");
+      else if (st.status === "pending" || st.status === "processing") {
+        setIngestPhase("Analyse en cours…");
+      }
       if (st.status === "completed") {
+        setIngestPhase(null);
         return st.created?.length || 0;
       }
       if (st.status === "failed") {
+        setIngestPhase(null);
         throw new Error(st.error || "Analyse du PDF échouée.");
       }
     }
+    setIngestPhase(null);
     throw new Error(
-      "L'analyse prend plus de 5 minutes ou le serveur n'a pas terminé le traitement. Réessayez ou saisissez l'absence à la main.",
+      "L'analyse dépasse 10 minutes (file d'attente OCR chargée). Réessayez dans un instant ou saisissez l'absence à la main.",
     );
   };
 
@@ -749,6 +764,7 @@ export default function ConvocationsExamensPage() {
       }
     } finally {
       setUploading(false);
+      setIngestPhase(null);
     }
   };
 
@@ -1219,7 +1235,7 @@ export default function ConvocationsExamensPage() {
           />
           <p className="text-sm font-semibold text-slate-700">
             {uploading
-              ? "Analyse du PDF en cours (OCR + IA, 1 à 3 min) — ne fermez pas la page…"
+              ? ingestPhase || "Analyse du PDF en cours — ne fermez pas la page (souvent 30 s à 2 min)…"
               : savingManual
                 ? "Enregistrement manuel en cours…"
                 : attachingPdf

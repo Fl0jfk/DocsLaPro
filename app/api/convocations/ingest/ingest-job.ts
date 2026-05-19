@@ -1,6 +1,7 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-export type IngestJobStatus = "pending" | "completed" | "failed";
+export type IngestJobStatus = "pending" | "processing" | "completed" | "failed";
+export type IngestJobPhase = "ocr" | "ai" | "saving";
 
 export type IngestJobCreated = {
   id: string;
@@ -17,6 +18,8 @@ export type IngestJob = {
   updatedAt: string;
   sourceFileName: string;
   documentKey: string;
+  processingStartedAt?: string;
+  phase?: IngestJobPhase;
   error?: string;
   code?: string;
   created?: IngestJobCreated[];
