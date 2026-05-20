@@ -230,11 +230,6 @@ export default function PhotocopiesCouleurPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900 mb-6">
-        Les <strong>e-mails automatiques</strong> (direction et demandeur) nécessitent une configuration SMTP serveur (<code className="text-xs">SMTP_USER</code>,{" "}
-        <code className="text-xs">SMTP_PASS</code>). En cas de doute et si la direction ne reçoit pas l’avis, vérifiez ces paramètres dans l’environnement hébergé.
-      </div>
-
       {creator && !userEmail && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 mb-6">
           Compte sans e-mail principal : vous ne pouvez pas déposer une demande tant que Clerk n’a pas d’adresse joignable pour vous (réception de la décision).
