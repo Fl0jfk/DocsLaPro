@@ -77,10 +77,19 @@ function SimpleTripFormContent() {
         .then((res) => res.json())
         .then((trip) => {
           if (trip && trip.data) {
+            const rawNoms = trip.data.nomsAccompagnateurs;
+            const nomsStr =
+              typeof rawNoms === "string"
+                ? rawNoms
+                : Array.isArray(rawNoms)
+                  ? rawNoms.filter(Boolean).join(", ")
+                  : "";
             setFormData({
               ...trip.data,
+              nomsAccompagnateurs: nomsStr,
+              nbAccompagnateurs: Number(trip.data.nbAccompagnateurs) >= 0 ? Number(trip.data.nbAccompagnateurs) : 1,
               attachments: trip.data.attachments || [],
-              piqueNiqueDetails: trip.data.piqueNiqueDetails || formData.piqueNiqueDetails
+              piqueNiqueDetails: trip.data.piqueNiqueDetails || formData.piqueNiqueDetails,
             });
           }
           setFetching(false);
@@ -405,6 +414,26 @@ function SimpleTripFormContent() {
         <div>
           <label className="block text-sm font-semibold mb-2">Nombre d&apos;élèves total</label>
           <input type="number" value={formData.nbEleves} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, nbEleves: e.target.value})} />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold mb-2">Nombre d&apos;accompagnateurs</label>
+          <input
+            type="number"
+            min={0}
+            value={formData.nbAccompagnateurs}
+            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
+            onChange={(e) => setFormData({ ...formData, nbAccompagnateurs: Number(e.target.value) })}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-semibold mb-2">Noms des accompagnateurs</label>
+          <textarea
+            rows={2}
+            value={formData.nomsAccompagnateurs}
+            className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500"
+            placeholder="Ex. M. Dupont, Mme Martin, …"
+            onChange={(e) => setFormData({ ...formData, nomsAccompagnateurs: e.target.value })}
+          />
         </div>
         <div className="md:col-span-2 mt-4">
           <div className="flex items-center gap-4 p-4 bg-orange-50 border border-orange-200 rounded-2xl">
