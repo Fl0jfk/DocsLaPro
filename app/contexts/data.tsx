@@ -201,6 +201,14 @@ const STATIC_DATA: Data = {
         "direction_lycee",
       ],
       "external": false
+    },
+    {
+      "id": 20,
+      "name": "Demandes HSE",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Demande+HSE.jpg",
+      "link": "/demandes-hse",
+      "allowedRoles": ["professeur", "direction_ecole", "direction_college", "direction_lycee"],
+      "external": false
     }
   ],
   travels: [],
