@@ -19,6 +19,8 @@ applications:
             - echo "SECRET_ACCESS_KEY=$SECRET_ACCESS_KEY" >> .env.production
             - echo "SMTP_PASS=$SMTP_PASS" >> .env.production
             - echo "SMTP_USER=$SMTP_USER" >> .env.production
+            # Optionnel : surcharge l’adresse de réception OPS (défaut dans le code : photocopies couleur).
+            - echo "PHOTOCOPIES_COULEUR_OPS_EMAIL=$PHOTOCOPIES_COULEUR_OPS_EMAIL" >> .env.production
             - echo "NEXT_PUBLIC_TENANT_ID=$NEXT_PUBLIC_TENANT_ID" >> .env.production
             - echo "NEXT_PUBLIC_CLIENT_ID=$NEXT_PUBLIC_CLIENT_ID" >> .env.production
             - echo "TRAVEL_EMAIL_INGEST_SECRET=$TRAVEL_EMAIL_INGEST_SECRET" >> .env.production

@@ -186,6 +186,21 @@ const STATIC_DATA: Data = {
       "link": "/calendrierAbsProfs",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "education"],
       "external": false
+    },
+    {
+      "id": 19,
+      "name": "Photocopies couleur",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Demande+impression.jpg",
+      "link": "/photocopies-couleur",
+      "allowedRoles": [
+        "professeur",
+        "administratif",
+        "education",
+        "direction_ecole",
+        "direction_college",
+        "direction_lycee",
+      ],
+      "external": false
     }
   ],
   travels: [],
