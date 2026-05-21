@@ -1,9 +1,16 @@
 import Image from "next/image";
 import Logo from "../../../public/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png.webp";
+import "./carte-reseau-print.css";
 
 export default function CarteRéseau() {
   return (
-    <section className="flex flex-col overflow-hidden bg-gray-100 p-4 self-center items-center justify-between text-[10px] gap-12 my-auto relative" style={{ width: "1123px", height: "794px" }}>
+    <>
+    <div className="carte-reseau-print-root min-h-screen w-full flex justify-center items-start bg-gray-100 p-4 print:p-0 print:m-0 print:bg-white">
+    <section
+      id="carte-reseau-print"
+      className="carte-reseau-sheet flex flex-col overflow-hidden bg-gray-100 p-4 self-center items-center justify-between text-[10px] gap-12 my-auto relative print:m-0 print:shadow-none"
+      style={{ width: "1123px", height: "794px" }}
+    >
       <svg className="absolute inset-0 pointer-events-none z-50" viewBox="0 0 1123 794" preserveAspectRatio="none">
           <defs>
             <marker id="arrow" markerWidth="6" markerHeight="6"  refX="6" refY="3"  orient="auto-start-reverse">
@@ -410,6 +417,8 @@ export default function CarteRéseau() {
         </div>
       </section>
     </section>
+    </div>
+    </>
   );
 }
 
