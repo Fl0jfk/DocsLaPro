@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
 import { findSignatureFieldBBoxFromTextract,textractSignatureBBoxToPdfLibDrawCoords} from "@/app/lib/travel-devis-ocr";
+import { fetchTravelsPdfBytes } from "@/app/lib/travels-s3";
 
 const FALLBACK_SIG_W = 150;
 const FALLBACK_SIG_H = 75;
@@ -15,11 +16,8 @@ export async function POST(req: Request) {
     };
     const selectedSigUrl = sigMapping[signatureType as keyof typeof sigMapping];
     if (!selectedSigUrl) { return NextResponse.json({ error: "Type de signature invalide ou non configuré" }, { status: 400 })}
-    const response = await fetch(quoteUrl);
-    if (!response.ok) throw new Error("Impossible de récupérer le PDF du devis.");
-    const pdfBytes = await response.arrayBuffer();
-    const pdfBuffer = Buffer.from(pdfBytes);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pdfBuffer = await fetchTravelsPdfBytes(quoteUrl);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
     const sigImageRes = await fetch(selectedSigUrl);
     if (!sigImageRes.ok) throw new Error(`Impossible de récupérer la signature sur AWS pour : ${signatureType}`);
     const sigImageBytes = await sigImageRes.arrayBuffer();
