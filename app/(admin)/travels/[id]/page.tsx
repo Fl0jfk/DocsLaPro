@@ -20,6 +20,11 @@ function isValidEmailLoose(s: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 }
 
+/** Voyage complexe avec demande de transport bus (étape logistique / devis). */
+function complexNeedsBus(trip: { type?: string; data?: { needsBus?: boolean } } | null) {
+  return trip?.type === "COMPLEX" && Boolean(trip?.data?.needsBus);
+}
+
 export default function TripDetails() {
   const { id } = useParams();
   const router = useRouter();
@@ -447,20 +452,29 @@ export default function TripDetails() {
       setLoadingAction(null);
     }
   };
-  const currentSteps = trip.type === "COMPLEX" 
-    ? [
-        { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" }, 
-        { n: "2", label: "Logistique", key: "PROF_LOGISTICS" },
-        { n: "3", label: "Finances", key: "EN_ATTENTE_COMPTA" }, 
-        { n: "4", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" }, 
-        { n: "5", label: "Finalisé", key: "VALIDE" }
-      ]
-    : [
-        { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" }, 
-        { n: "2", label: "Finances", key: "EN_ATTENTE_COMPTA" }, 
-        { n: "3", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" }, 
-        { n: "4", label: "Finalisé", key: "VALIDE" }
-      ];
+  const withBusLogistics = complexNeedsBus(trip);
+  const currentSteps =
+    trip.type === "COMPLEX"
+      ? withBusLogistics
+        ? [
+            { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" },
+            { n: "2", label: "Logistique", key: "PROF_LOGISTICS" },
+            { n: "3", label: "Finances", key: "EN_ATTENTE_COMPTA" },
+            { n: "4", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" },
+            { n: "5", label: "Finalisé", key: "VALIDE" },
+          ]
+        : [
+            { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" },
+            { n: "2", label: "Finances", key: "EN_ATTENTE_COMPTA" },
+            { n: "3", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" },
+            { n: "4", label: "Finalisé", key: "VALIDE" },
+          ]
+      : [
+          { n: "1", label: "Pédagogie", key: "EN_ATTENTE_DIR_INITIAL" },
+          { n: "2", label: "Finances", key: "EN_ATTENTE_COMPTA" },
+          { n: "3", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" },
+          { n: "4", label: "Finalisé", key: "VALIDE" },
+        ];
   return (
     <div className="relative max-w-5xl mx-auto p-6 space-y-8">
       {loadingAction && (
@@ -557,12 +571,30 @@ export default function TripDetails() {
           {trip.status}
         </div>
       </div>
-      <div className={`grid gap-4 text-center ${trip.type === "COMPLEX" ? "grid-cols-5" : "grid-cols-3"}`}>
+      <div
+        className={`grid gap-4 text-center ${
+          trip.type === "COMPLEX" ? (withBusLogistics ? "grid-cols-5" : "grid-cols-4") : "grid-cols-4"
+        }`}
+      >
         {currentSteps.map((s) => (
-          <Step key={s.n} label={s.label} active={trip.status === s.key || (s.key === "VALIDE" && trip.status === "VALIDE") || (trip.status === "EN_ATTENTE_BUS_SIGNATURE" && s.key === "PROF_LOGISTICS")} step={s.n} />
+          <Step
+            key={s.n}
+            label={s.label}
+            active={
+              trip.status === s.key ||
+              (s.key === "VALIDE" && trip.status === "VALIDE") ||
+              (withBusLogistics && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && s.key === "PROF_LOGISTICS")
+            }
+            step={s.n}
+          />
         ))}
       </div>
-      {trip.data.needsBus && trip.type === "COMPLEX" && (
+      {trip.type === "COMPLEX" && !withBusLogistics && (
+        <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-left">
+          Aucun transport en bus n’a été demandé pour ce voyage : l’étape logistique (devis transporteurs) est ignorée.
+        </p>
+      )}
+      {withBusLogistics && (
         <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-8 space-y-6 text-left">
           <h2 className="text-xl font-bold text-amber-900 flex items-center gap-2">🚌 Gestion des devis Transport</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -918,8 +950,27 @@ export default function TripDetails() {
                 }} />
               </>
             )}
-            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && trip.type === "COMPLEX" && (
-              <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction("PROF_LOGISTICS", "Pédagogie validée")} />
+            {canSign && trip.status === "EN_ATTENTE_DIR_INITIAL" && trip.type === "COMPLEX" && (
+              <ActionButton
+                label="Valider Pédagogie"
+                color="bg-indigo-600"
+                onClick={() =>
+                  handleAction(
+                    withBusLogistics ? "PROF_LOGISTICS" : "EN_ATTENTE_COMPTA",
+                    withBusLogistics ? "Pédagogie validée" : "Pédagogie validée (sans transport bus)",
+                  )
+                }
+              />
+            )}
+            {(isOwner || canSign) &&
+              trip.type === "COMPLEX" &&
+              !withBusLogistics &&
+              trip.status === "PROF_LOGISTICS" && (
+              <ActionButton
+                label="Passer aux finances"
+                color="bg-indigo-600"
+                onClick={() => handleAction("EN_ATTENTE_COMPTA", "Sans bus — étape logistique non requise")}
+              />
             )}
             {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && trip.type !== "COMPLEX" && !seriesId && (
               <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction("EN_ATTENTE_COMPTA", "Pédagogie validée")} />
