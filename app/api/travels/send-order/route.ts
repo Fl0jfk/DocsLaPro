@@ -8,6 +8,9 @@ import fs from "fs/promises";
 import path from "path";
 import { extractDevisMetadataWithMistral, ocrS3Key } from "@/app/lib/travel-devis-ocr";
 
+/** Copie interne : uniquement le devis signé (sans la lettre de confirmation envoyée au transporteur). */
+const SIGNED_DEVIS_COPY_TO = "compta@docslapro.com";
+
 function buildConfirmationPDF(opts: {
   providerName: string;
   tripTitle: string;
@@ -238,6 +241,33 @@ export async function POST(req: Request) {
       ]
     };
     await transporter.sendMail(mailOptions);
+
+    try {
+      await transporter.sendMail({
+        from: `"Gestion Voyages" <${process.env.SMTP_USER}>`,
+        to: SIGNED_DEVIS_COPY_TO,
+        subject: `[Copie] Devis signé — ${tripTitle}`,
+        text: [
+          `Bonjour,`,
+          ``,
+          `Ci-joint uniquement le devis signé pour le projet « ${tripTitle} ».`,
+          `Le transporteur (${providerName}) a reçu ce devis avec la lettre de confirmation de commande ; ce message ne contient pas cette lettre.`,
+          ``,
+          `Cordialement,`,
+          `Plateforme Voyages — La Providence Nicolas Barré`,
+        ].join("\n"),
+        attachments: [
+          {
+            filename: `Devis_Signe_${tripTitle.replace(/\s+/g, "_")}.pdf`,
+            content: pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ],
+      });
+    } catch (copyErr) {
+      console.error("[send-order] copie devis signé (interne):", copyErr);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Erreur Envoi Mail:", error.message);

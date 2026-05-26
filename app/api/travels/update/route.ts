@@ -4,6 +4,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3
 import nodemailer from "nodemailer";
 import IMAGE_CATALOG from "./image-catalog.json";
 import { SCHOOL } from "@/app/lib/school";
+import { notifyComptaTravelsPhase, type TravelsTripForNotify } from "@/app/lib/travels-notify";
 
 const norm = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\s-]+/g, "");
 
@@ -167,6 +168,20 @@ export async function POST(req: Request) {
       Body: JSON.stringify(currentIndex),
       ContentType: "application/json",
     }));
+    const previousStatus =
+      existingOnS3 && typeof existingOnS3.status === "string" ? existingOnS3.status : null;
+    const newStatus = typeof objectToSave.status === "string" ? objectToSave.status : "";
+    if (newStatus === "EN_ATTENTE_COMPTA" && previousStatus !== "EN_ATTENTE_COMPTA") {
+      try {
+        await notifyComptaTravelsPhase({
+          tripId,
+          trip: objectToSave as TravelsTripForNotify,
+          previousStatus,
+        });
+      } catch (mailErr) {
+        console.error("Erreur notification compta Travels:", mailErr);
+      }
+    }
     if (isNewProject && !suppressNewTripEmail) {
       try {
         const director = resolveDirectorByEtab(innerData.etablissement);

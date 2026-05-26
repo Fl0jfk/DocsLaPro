@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { canSignTravelsDirectionForEtab, isTripOwner } from "@/app/lib/travels-direction-permissions";
+import { notifyComptaTravelsPhase } from "@/app/lib/travels-notify";
 
 const INDEX_KEY = "travels/index.json";
 
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
         const trip: any = JSON.parse(raw);
         if (trip.type !== "SIMPLE" || trip.status !== "EN_ATTENTE_DIR_INITIAL") continue;
         if (trip.data?.recurrenceSeriesId !== seriesId) continue;
+        const statusBefore = trip.status;
         trip.status = "EN_ATTENTE_COMPTA";
         trip.updatedAt = now;
         trip.history = [
@@ -149,6 +151,17 @@ export async function POST(req: Request) {
           })
         );
         syncIndexEntry(tripId, tripSummaryFromFullTrip(tripId, trip));
+        if (statusBefore !== "EN_ATTENTE_COMPTA") {
+          try {
+            await notifyComptaTravelsPhase({
+              tripId,
+              trip,
+              previousStatus: statusBefore,
+            });
+          } catch (mailErr) {
+            console.error("[series-action] notification compta:", mailErr);
+          }
+        }
         updated++;
       }
       await s3Client.send(
