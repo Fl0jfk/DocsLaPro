@@ -4,10 +4,7 @@ import { assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD, sa
 
 const s3Client = new S3Client({
   region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
+  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY!},
 });
 
 export const PENDING_REQUEST_TTL_MS = 72 * 60 * 60 * 1000;

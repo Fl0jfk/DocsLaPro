@@ -7,10 +7,7 @@ export default function SignInPage() {
         fallbackRedirectUrl="/dashboard"
         appearance={{
           variables: { colorPrimary: "#111827", colorText: "#1f2937", colorBackground: "white", borderRadius: "1rem" },
-          elements: {
-            logoImage: { width: "100px", height: "auto", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))" },
-            logoBox: "my-4",
-          },
+          elements: { logoImage: { width: "100px", height: "auto", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))" }, logoBox: "my-4"},
         }}
       />
     </div>

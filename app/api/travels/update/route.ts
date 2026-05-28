@@ -8,7 +8,6 @@ import { notifyComptaTravelsPhase, type TravelsTripForNotify } from "@/app/lib/t
 
 const norm = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\s-]+/g, "");
 
-/** Évite d’écraser des devis ajoutés par l’ingest e-mail si le client a un état React obsolète. */
 function mergeReceivedDevis(fromClient: unknown, fromS3: unknown): unknown[] {
   const clientArr = Array.isArray(fromClient) ? fromClient : [];
   const s3Arr = Array.isArray(fromS3) ? fromS3 : [];
@@ -168,8 +167,7 @@ export async function POST(req: Request) {
       Body: JSON.stringify(currentIndex),
       ContentType: "application/json",
     }));
-    const previousStatus =
-      existingOnS3 && typeof existingOnS3.status === "string" ? existingOnS3.status : null;
+    const previousStatus = existingOnS3 && typeof existingOnS3.status === "string" ? existingOnS3.status : null;
     const newStatus = typeof objectToSave.status === "string" ? objectToSave.status : "";
     if (newStatus === "EN_ATTENTE_COMPTA" && previousStatus !== "EN_ATTENTE_COMPTA") {
       try {
@@ -201,7 +199,7 @@ export async function POST(req: Request) {
           text: [
             `Bonjour ${director.directrice},`,
             ``,
-            `Un nouveau projet de sortie a été créé sur Travels et nécessite votre suivi.`,
+            `Un nouveau projet de sortie a été créé sur DocsLapro et nécessite votre suivi.`,
             ``,
             `Établissement ciblé : ${innerData.etablissement || "Groupe Scolaire"}`,
             `Créé par : ${creatorName}`,
@@ -210,7 +208,7 @@ export async function POST(req: Request) {
             `Dates : ${dateInfo}`,
             `Effectif : ${innerData.nbEleves || "—"} élèves / ${innerData.nbAccompagnateurs || "—"} accompagnateurs`,
             ``,
-            `Vous pouvez consulter le dossier dans l'espace administratif Travels.`,
+            `Vous pouvez consulter le dossier dans l'espace sortie scolaire de DocsLapro.`,
             ``,
             `Cordialement,`,
             `Plateforme Voyages`,
