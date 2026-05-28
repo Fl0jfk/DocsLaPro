@@ -1,14 +1,8 @@
 import nodemailer from "nodemailer";
 
-/** Notification étape Finances (Travels) — comptabilité. */
-const TRAVELS_COMPTA_NOTIFY_TO = [
-  "valerie.vasseur@laprovidence-nicolasbarre.fr",
-  "cecile.douaglin@laprovidence-nicolasbarre.fr",
-].join(", ");
+const TRAVELS_COMPTA_NOTIFY_TO = ["valerie.vasseur@laprovidence-nicolasbarre.fr","cecile.douaglin@laprovidence-nicolasbarre.fr",].join(", ");
 
-function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-}
+function appUrl() { return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");}
 
 function getMailer() {
   return nodemailer.createTransport({
@@ -38,7 +32,6 @@ export type TravelsTripForNotify = {
   history?: Array<{ action?: string; note?: string; user?: string; date?: string }>;
 };
 
-/** E-mail à la compta lorsque le dossier entre à l’étape Finances (EN_ATTENTE_COMPTA). */
 export async function notifyComptaTravelsPhase(params: {
   tripId: string;
   trip: TravelsTripForNotify;

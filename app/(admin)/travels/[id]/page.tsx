@@ -40,6 +40,7 @@ export default function TripDetails() {
   const [manualDevisName, setManualDevisName] = useState("");
   const [manualDevisEmail, setManualDevisEmail] = useState("");
   const [manualDevisBusy, setManualDevisBusy] = useState(false);
+  const [zeendocSendingUrl, setZeendocSendingUrl] = useState<string | null>(null);
   const rawRoles = user?.publicMetadata?.role;
   const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
   const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
@@ -55,6 +56,7 @@ export default function TripDetails() {
   const canSign = etabForSign === "École" ? (isDirectionEcole  || isEcoleDir) : etabForSign === "Collège" ? (isDirectionCollege || isCollegeDir) : etabForSign === "Lycée" ? (isDirectionLycee  || isLyceeDir) : isDirectionLycee || isLyceeDir;
   const isCompta = userRoles.includes('comptabilité') || normalizedRoles.some((r: string) => r.includes("comptabilite"));
   const isAdministratif = normalizedRoles.some((r: string) => r.includes("administratif"));
+  const canSeeTravelDocHoverActions = isDirection || isAdministratif || isCompta;
   const isOwner = user?.fullName === trip?.ownerName;
   const canManageFiles = isOwner || isDirection || isCompta;
   /** Ajout de pièces + devis manuel bus (sans retirer des fichiers ni éditer le dossier). */
@@ -135,6 +137,28 @@ export default function TripDetails() {
       console.error(err);
       if (newWindow) newWindow.close();
       alert("Erreur lors de l'ouverture du fichier.");
+    }
+  };
+  const prepareSendToZeendoc = async (file: { name?: string; url?: string }) => {
+    if (!file?.url) {
+      alert("Document invalide : URL manquante.");
+      return;
+    }
+    try {
+      setZeendocSendingUrl(file.url);
+      const res = await fetch("/api/travels/send-zeendoc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileUrl: file.url, fileName: file.name || "document" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Échec de l'envoi Zeendoc.");
+      alert("Document envoyé sur Zeendoc.");
+    } catch (err: any) {
+      console.error("[travels] send-zeendoc:", err);
+      alert(err?.message || "Impossible d'envoyer le document sur Zeendoc.");
+    } finally {
+      setZeendocSendingUrl(null);
     }
   };
   const saveUpdates = async (updatedTrip: any) => {
@@ -863,8 +887,29 @@ export default function TripDetails() {
             </div>
             <div className="flex flex-wrap gap-3 mt-2">
               {(isEditing ? editedData.attachments : trip.data.attachments)?.map((file: any, idx: number) => (
-                <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 border rounded-xl text-xs font-semibold text-indigo-600 shadow-sm">
+                <div key={idx} className="relative group flex items-center gap-2 p-2 bg-slate-50 border rounded-xl text-xs font-semibold text-indigo-600 shadow-sm">
                   <button type="button" onClick={() => openSecureFile(file.url)} className="hover:underline">📄 {file.name}</button>
+                  {canSeeTravelDocHoverActions && (
+                    <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition absolute left-1/2 -translate-x-1/2 top-full mt-2 z-20">
+                      <div className="pointer-events-auto bg-white border border-slate-200 rounded-xl shadow-lg p-2 flex items-center gap-2 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => openSecureFile(file.url)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+                        >
+                          Ouvrir
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => prepareSendToZeendoc(file)}
+                          disabled={zeendocSendingUrl === file.url}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200"
+                        >
+                          {zeendocSendingUrl === file.url ? "Envoi..." : "Envoyer Zeendoc"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {canManageFiles && (
                     <button type="button" onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 px-1 font-bold text-[10px]">✕</button>
                   )}

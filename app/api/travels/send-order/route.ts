@@ -8,8 +8,7 @@ import fs from "fs/promises";
 import path from "path";
 import { extractDevisMetadataWithMistral, ocrS3Key } from "@/app/lib/travel-devis-ocr";
 
-/** Copie interne : uniquement le devis signé (sans la lettre de confirmation envoyée au transporteur). */
-const SIGNED_DEVIS_COPY_TO = "compta@docslapro.com";
+const SIGNED_DEVIS_COPY_TO = "comptabilite@laprovidence-nicolasbarre.fr";
 
 function buildConfirmationPDF(opts: {
   providerName: string;
