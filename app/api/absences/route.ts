@@ -3,6 +3,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
 import { SCHOOL } from "@/app/lib/school";
+import { formatAbsencePeriod, normalizeAbsencePeriodInput, type AbsencePeriodType } from "@/app/lib/absence-period";
 
 type AbsenceScope = "professeur" | "ogec";
 type Etablissement = "École" | "Collège" | "Lycée";
@@ -22,8 +23,11 @@ type AbsenceRecord = {
   data: {
     scope: AbsenceScope;
     etablissement: Etablissement | null;
+    periodType?: AbsencePeriodType | null;
     startDate: string;
     endDate: string;
+    startTime?: string | null;
+    endTime?: string | null;
     reason: string;
     details: string;
   };
@@ -37,6 +41,8 @@ type AbsenceRecord = {
     uploadedBy: string;
   } | null;
   managerNote?: string;
+  /** Date de la dernière relance direction pour un justificatif (facultatif). */
+  justificatifRelanceAt?: string | null;
   history: Array<{
     at: string;
     by: string;
@@ -213,9 +219,14 @@ async function purgeExpiredAbsences(index: AbsenceRecord[]) {
 }
 
 function resolveValidationRecipients(record: AbsenceRecord) {
-  if (record.data.scope === "ogec") return [SCHOOL.absences.comptabilite].filter(Boolean);
-  if (record.data.etablissement === "École") return [SCHOOL.absences.secretariatEcole].filter(Boolean);
-  return [...SCHOOL.absences.collegeLycee].filter(Boolean);
+  if (record.data.scope === "ogec") {
+    return [...SCHOOL.absences.notifyOgecCompta].filter(Boolean);
+  }
+  if (record.data.etablissement === "École") {
+    return [SCHOOL.absences.notifyProfEcole.email].filter(Boolean);
+  }
+  // Collège ou Lycée → Sarah Villiers
+  return [SCHOOL.absences.notifyProfCollegeLycee.email].filter(Boolean);
 }
 
 export async function GET() {
@@ -253,13 +264,22 @@ export async function POST(req: Request) {
     // professeur => "professeur", other roles => "ogec"
     const scope: AbsenceScope = isTeacherRole(roles) ? "professeur" : "ogec";
     const etablissement: Etablissement | null = payload.etablissement || null;
-    const startDate = String(payload.startDate || "");
-    const endDate = String(payload.endDate || "");
+    const periodResult = normalizeAbsencePeriodInput({
+      periodType: payload.periodType,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+    });
+    if (periodResult.error || !periodResult.data) {
+      return NextResponse.json({ error: periodResult.error || "Période invalide." }, { status: 400 });
+    }
+    const period = periodResult.data;
     const reason = String(payload.reason || "").trim();
     const details = String(payload.details || "").trim();
     const justificationPayload = payload?.justification || null;
 
-    if (!startDate || !endDate || !reason) {
+    if (!reason) {
       return NextResponse.json({ error: "Champs obligatoires manquants." }, { status: 400 });
     }
     if (scope === "professeur" && !etablissement) {
@@ -284,14 +304,18 @@ export async function POST(req: Request) {
       data: {
         scope,
         etablissement: scope === "ogec" ? null : etablissement,
-        startDate,
-        endDate,
+        periodType: period.periodType,
+        startDate: period.startDate,
+        endDate: period.endDate,
+        startTime: period.startTime ?? null,
+        endTime: period.endTime ?? null,
         reason,
         details,
       },
       workflowStatus: justificationPayload?.fileName && justificationPayload?.fileUrl ? "JUSTIFICATIF_DEPOSE" : "OUVERTE",
       managerDecision: "EN_ATTENTE",
       closedAt: null,
+      justificatifRelanceAt: null,
       justification:
         justificationPayload?.fileName && justificationPayload?.fileUrl
           ? {
@@ -351,7 +375,7 @@ export async function POST(req: Request) {
           `Type : ${scope === "ogec" ? "Personnel OGEC" : "Professeur"}`,
           `Établissement : ${scope === "ogec" ? "OGEC" : etablissement || "—"}`,
           `Créateur : ${creatorName} (${creatorEmail || "email non renseigné"})`,
-          `Période : du ${formatDateFR(startDate)} au ${formatDateFR(endDate)}`,
+          `Période : ${formatAbsencePeriod(record.data)}`,
           `Motif : ${reason}`,
           details ? `Détails : ${details}` : "",
           justificationPayload?.fileName ? `Justificatif fourni : ${justificationPayload.fileName}` : `Justificatif : en attente`,
@@ -433,6 +457,7 @@ export async function PATCH(req: Request) {
           uploadedAt: new Date().toISOString(),
           uploadedBy: actor,
         },
+        justificatifRelanceAt: null,
         workflowStatus: current.workflowStatus === "CLOTUREE" ? "CLOTUREE" : "JUSTIFICATIF_DEPOSE",
         history: [
           ...(current.history || []),
@@ -444,49 +469,55 @@ export async function PATCH(req: Request) {
         ],
       };
     } else if (action === "VALIDER") {
+      const closedAt = new Date().toISOString();
       updated = {
         ...updated,
         managerDecision: "VALIDEE",
+        workflowStatus: "CLOTUREE",
+        closedAt,
+        justificatifRelanceAt: null,
         history: [
           ...(current.history || []),
           {
-            at: new Date().toISOString(),
+            at: closedAt,
             by: actor,
             action: "DECISION_VALIDEE",
             note: managerNote || undefined,
           },
         ],
       };
-      if (updated.justification?.fileName && updated.justification?.fileUrl) {
-        const recipients = resolveValidationRecipients(updated);
-        if (recipients.length > 0) {
-          try {
-            const transporter = getMailer();
-            await transporter.sendMail({
-              from: `"Absences" <${process.env.SMTP_USER}>`,
-              to: recipients.join(","),
-              subject: `Absence validée — ${updated.createdBy.name}`,
-              text: [
-                `Bonjour,`,
-                ``,
-                `Une absence a été validée.`,
-                `Personne : ${updated.createdBy.name}`,
-                `Type : ${updated.data.scope === "ogec" ? "Personnel OGEC" : "Professeur"}`,
-                `Établissement : ${updated.data.scope === "ogec" ? "OGEC" : updated.data.etablissement || "—"}`,
-                `Période : du ${formatDateFR(updated.data.startDate)} au ${formatDateFR(updated.data.endDate)}`,
-                `Motif : ${updated.data.reason}`,
-                updated.data.details ? `Détails : ${updated.data.details}` : "",
-                `Justificatif : ${updated.justification.fileName}`,
-              ]
-                .filter(Boolean)
-                .join("\n"),
-            });
-          } catch (mailErr) {
-            console.error("Absences validation mail error:", mailErr);
-          }
-        } else {
-          console.warn("Absences validation mail skipped: recipients not configured.");
+
+      const recipients = resolveValidationRecipients(updated);
+      if (recipients.length > 0) {
+        try {
+          const transporter = getMailer();
+          const justificatifLine = updated.justification?.fileName
+            ? `Justificatif : ${updated.justification.fileName}`
+            : "Justificatif : non déposé";
+          await transporter.sendMail({
+            from: `"Absences" <${process.env.SMTP_USER}>`,
+            to: recipients.join(","),
+            subject: `Absence validée — ${updated.createdBy.name}`,
+            text: [
+              `Bonjour,`,
+              ``,
+              `Une absence a été validée.`,
+              `Personne : ${updated.createdBy.name}`,
+              `Type : ${updated.data.scope === "ogec" ? "Personnel OGEC" : "Professeur"}`,
+              `Établissement : ${updated.data.scope === "ogec" ? "OGEC" : updated.data.etablissement || "—"}`,
+              `Période : ${formatAbsencePeriod(updated.data)}`,
+              `Motif : ${updated.data.reason}`,
+              updated.data.details ? `Détails : ${updated.data.details}` : "",
+              justificatifLine,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          });
+        } catch (mailErr) {
+          console.error("Absences validation mail error:", mailErr);
         }
+      } else {
+        console.warn("Absences validation mail skipped: recipients not configured.");
       }
 
       // Notification au créateur : absence validée
@@ -502,7 +533,7 @@ export async function PATCH(req: Request) {
               ``,
               `Votre absence a bien été validée.`,
               ``,
-              `Période : du ${formatDateFR(updated.data.startDate)} au ${formatDateFR(updated.data.endDate)}`,
+              `Période : ${formatAbsencePeriod(updated.data)}`,
               `Motif : ${updated.data.reason}`,
               updated.data.details ? `Détails : ${updated.data.details}` : "",
               ``,
@@ -517,13 +548,17 @@ export async function PATCH(req: Request) {
         console.error("Absences creator validation mail error:", mailErr);
       }
     } else if (action === "REFUSER") {
+      const closedAt = new Date().toISOString();
       updated = {
         ...updated,
         managerDecision: "REFUSEE",
+        workflowStatus: "CLOTUREE",
+        closedAt,
+        justificatifRelanceAt: null,
         history: [
           ...(current.history || []),
           {
-            at: new Date().toISOString(),
+            at: closedAt,
             by: actor,
             action: "DECISION_REFUSEE",
             note: managerNote || undefined,
@@ -531,37 +566,45 @@ export async function PATCH(req: Request) {
         ],
       };
     } else if (action === "RELANCER_JUSTIFICATIF") {
+      const relanceAt = new Date().toISOString();
       updated = {
         ...updated,
+        justificatifRelanceAt: relanceAt,
         history: [
           ...(current.history || []),
           {
-            at: new Date().toISOString(),
+            at: relanceAt,
             by: actor,
             action: "RELANCE_JUSTIFICATIF",
             note: managerNote || undefined,
           },
         ],
       };
-      // email relance au créateur
       try {
         if (current.createdBy.email) {
           const transporter = getMailer();
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
           await transporter.sendMail({
             from: `"Absences" <${process.env.SMTP_USER}>`,
             to: current.createdBy.email,
-            subject: "Relance justificatif — Déclaration d'absence",
+            subject: "Complément souhaité — justificatif d'absence",
             text: [
               `Bonjour ${current.createdBy.name},`,
               ``,
-              `La direction vous relance pour déposer votre justificatif d'absence.`,
+              `Votre déclaration d'absence a bien été reçue.`,
               ``,
-              `Période : du ${formatDateFR(current.data.startDate)} au ${formatDateFR(current.data.endDate)}`,
+              `La direction vous invite à déposer, si vous le souhaitez et si votre situation le nécessite, une pièce justificative pour compléter votre dossier.`,
+              `Ce document n'est pas toujours obligatoire : cela dépend du type d'absence. En revanche, si vous en disposez, merci de le transmettre.`,
+              ``,
+              `Période : ${formatAbsencePeriod(current.data)}`,
               `Motif : ${current.data.reason}`,
-              managerNote ? `Message direction : ${managerNote}` : "",
+              managerNote ? `Message de la direction : ${managerNote}` : "",
               ``,
-              `Merci de déposer votre justificatif dans l'espace Absences.`,
-              `${process.env.NEXT_PUBLIC_APP_URL || ""}/absences`,
+              `Pour déposer votre justificatif :`,
+              appUrl ? `${appUrl}/absences` : "Espace Absences de l'intranet",
+              ``,
+              `Cordialement,`,
+              `La direction`,
             ]
               .filter(Boolean)
               .join("\n"),

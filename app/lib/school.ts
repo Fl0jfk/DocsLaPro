@@ -40,10 +40,28 @@ export const SCHOOL = {
     grades: "2nde · 1ère · Terminale",
     internPlaces: 125,
   },
+  /**
+   * Routage absences (déclaration → validation direction → notification après validation).
+   * Prof : mail création → direction de l'établissement choisi ; validation → même direction uniquement.
+   * OGEC : mail création + validation → direction lycée (Mme Dona) uniquement.
+   * Adresses « après validation » : à ajuster quand les boîtes définitives sont confirmées.
+   */
   absences: {
-    comptabilite: "florian.hacqueville-mathi@ac-normandie.fr",
-    secretariatEcole: "m.leblond@laprovidence-nicolasbarre.fr",
-    collegeLycee: ["sarah@laprovidence-nicolasbarre.fr", "florian@h-me.fr"],
+    /** Après validation d'une absence professeur — École */
+    notifyProfEcole: {
+      label: "Mme Pauline LEBLOND",
+      email: "pauline.leblond@ac-normandie.fr",
+    },
+    /** Après validation d'une absence professeur — Collège ou Lycée */
+    notifyProfCollegeLycee: {
+      label: "Mme Sarah VILLIERS",
+      email: "sarah.buno@ac-normandie.fr",
+    },
+    /** Après validation d'une absence personnel OGEC — comptabilité (2 destinataires) */
+    notifyOgecCompta: [
+      "anais.boutigny@laprovidence-nicolasbarre.fr",
+      "valerie.vasseur@laprovidence-nicolasbarre.fr",
+    ] as const,
   },
   /**
    * Emails pour le routage des demandes chatbot (routeId → boîtes réelles).
