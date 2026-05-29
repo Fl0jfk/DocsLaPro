@@ -3,6 +3,14 @@
 import { useMemo, useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { formatAbsencePeriod, type AbsencePeriodType } from "@/app/lib/absence-period";
+import {
+  formatAbsenceHoursTreatment,
+  formatTransmissionSummary,
+  getHoursTreatmentOptions,
+  hoursTreatmentFieldLabel,
+  validateHoursTreatmentForAbsence,
+  type AbsenceHoursTreatment,
+} from "@/app/lib/absence-hours-treatment";
 
 type AbsenceScope = "professeur" | "ogec";
 type Etablissement = "École" | "Collège" | "Lycée";
@@ -39,6 +47,7 @@ type AbsenceItem = {
     uploadedBy: string;
   } | null;
   managerNote?: string;
+  hoursTreatment?: AbsenceHoursTreatment | null;
   justificatifRelanceAt?: string | null;
 };
 
@@ -59,16 +68,18 @@ function validationConfirmMessage(item: AbsenceItem) {
     return `${base}\n\nL'absence sera transmise à la comptabilité.`;
   }
   if (item.data.etablissement === "École") {
-    return `${base}\n\nL'absence sera transmise au secrétariat (déclaration rectorat).`;
+    return `${base}\n\nL'absence sera transmise au secrétariat.`;
   }
-  return `${base}\n\nL'absence sera transmise au secrétariat Collège/Lycée (déclaration rectorat).`;
+  return `${base}\n\nL'absence sera transmise au secrétariat.`;
 }
 
 function transmissionLabel(item: AbsenceItem) {
   if (itemDecision(item) !== "VALIDEE") return null;
-  if (item.data.scope === "ogec") return "Transmise à la comptabilité.";
-  if (item.data.etablissement === "École") return "Transmise au secrétariat — déclaration rectorat.";
-  return "Transmise au secrétariat Collège/Lycée — déclaration rectorat.";
+  return formatTransmissionSummary(item.data.scope, item.data.etablissement, item.hoursTreatment);
+}
+
+function resolvedHoursTreatment(item: AbsenceItem, draft: Record<string, string>) {
+  return draft[item.id] ?? item.hoursTreatment ?? "";
 }
 
 export default function AbsencesPage() {
@@ -88,6 +99,7 @@ export default function AbsencesPage() {
   const [details, setDetails] = useState("");
   const [justificationFile, setJustificationFile] = useState<File | null>(null);
   const [managerNotes, setManagerNotes] = useState<Record<string, string>>({});
+  const [managerHoursTreatment, setManagerHoursTreatment] = useState<Record<string, string>>({});
   const [uploadingJustificationId, setUploadingJustificationId] = useState<string | null>(null);
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
@@ -201,7 +213,18 @@ export default function AbsencesPage() {
     return false;
   };
   const updateWorkflow = async (id: string, action: "VALIDER" | "REFUSER" | "RELANCER_JUSTIFICATIF", item?: AbsenceItem) => {
-    if (action === "VALIDER" && item && !confirm(validationConfirmMessage(item))) return;
+    if (action === "VALIDER" && item) {
+      const treatmentCheck = validateHoursTreatmentForAbsence(
+        item.data.scope,
+        item.data.etablissement,
+        resolvedHoursTreatment(item, managerHoursTreatment),
+      );
+      if (!treatmentCheck.ok) {
+        alert(treatmentCheck.error);
+        return;
+      }
+      if (!confirm(validationConfirmMessage(item))) return;
+    }
     if (action === "REFUSER" && !confirm("Êtes-vous sûr de refuser cette absence ? Cette action est définitive.")) return;
     if (
       action === "RELANCER_JUSTIFICATIF" &&
@@ -220,6 +243,9 @@ export default function AbsencesPage() {
           id,
           action,
           managerNote: managerNotes[id] || "",
+          ...(action === "VALIDER"
+            ? { hoursTreatment: resolvedHoursTreatment(item!, managerHoursTreatment) }
+            : {}),
         }),
       });
       const payload = await res.json().catch(() => ({}));
@@ -509,6 +535,31 @@ export default function AbsencesPage() {
                     <p className="text-xs text-slate-500 mb-2">
                       Valider ou refuser même sans pièce jointe. « Relancer » invite le demandeur à déposer un justificatif — ou un complément si le premier ne suffit pas.
                     </p>
+                    <div className="mb-2">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                        {hoursTreatmentFieldLabel(item.data.scope)} <span className="text-rose-600">*</span>
+                      </label>
+                      <select
+                        required
+                        value={resolvedHoursTreatment(item, managerHoursTreatment)}
+                        onChange={(e) =>
+                          setManagerHoursTreatment((p) => ({ ...p, [item.id]: e.target.value }))
+                        }
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="">— Choisir —</option>
+                        {getHoursTreatmentOptions(item.data.scope, item.data.etablissement).map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {item.data.scope === "ogec"
+                          ? "Obligatoire — heures rattrapées ou déduites du salaire."
+                          : "Obligatoire — rattrapage en interne ou déclaration ONISE / rectorat."}
+                      </p>
+                    </div>
                     <textarea
                       rows={2}
                       placeholder="Note interne (optionnel)"
@@ -567,6 +618,11 @@ export default function AbsencesPage() {
                     </p>
                     {transmissionLabel(item) && (
                       <p className="text-sm text-emerald-700 font-semibold mt-2">{transmissionLabel(item)}</p>
+                    )}
+                    {formatAbsenceHoursTreatment(item.hoursTreatment) && (
+                      <p className="text-sm text-slate-700 font-semibold mt-1">
+                        {hoursTreatmentFieldLabel(item.data.scope)} : {formatAbsenceHoursTreatment(item.hoursTreatment)}
+                      </p>
                     )}
                     {item.justification?.fileUrl && (
                       <p className="text-sm text-slate-600 mt-1">

@@ -4,6 +4,12 @@ import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } fro
 import nodemailer from "nodemailer";
 import { SCHOOL } from "@/app/lib/school";
 import { formatAbsencePeriod, normalizeAbsencePeriodInput, type AbsencePeriodType } from "@/app/lib/absence-period";
+import {
+  formatHoursTreatmentCreatorMailLine,
+  formatHoursTreatmentMailLine,
+  validateHoursTreatmentForAbsence,
+  type AbsenceHoursTreatment,
+} from "@/app/lib/absence-hours-treatment";
 
 type AbsenceScope = "professeur" | "ogec";
 type Etablissement = "École" | "Collège" | "Lycée";
@@ -41,6 +47,8 @@ type AbsenceRecord = {
     uploadedBy: string;
   } | null;
   managerNote?: string;
+  /** À la discrétion de la direction lors de la validation. */
+  hoursTreatment?: AbsenceHoursTreatment | null;
   /** Date de la dernière relance direction pour un justificatif (facultatif). */
   justificatifRelanceAt?: string | null;
   history: Array<{
@@ -469,6 +477,15 @@ export async function PATCH(req: Request) {
         ],
       };
     } else if (action === "VALIDER") {
+      const treatmentResult = validateHoursTreatmentForAbsence(
+        current.data.scope,
+        current.data.etablissement,
+        body?.hoursTreatment,
+      );
+      if (!treatmentResult.ok) {
+        return NextResponse.json({ error: treatmentResult.error }, { status: 400 });
+      }
+      const hoursTreatment = treatmentResult.treatment;
       const closedAt = new Date().toISOString();
       updated = {
         ...updated,
@@ -476,6 +493,7 @@ export async function PATCH(req: Request) {
         workflowStatus: "CLOTUREE",
         closedAt,
         justificatifRelanceAt: null,
+        hoursTreatment,
         history: [
           ...(current.history || []),
           {
@@ -494,6 +512,7 @@ export async function PATCH(req: Request) {
           const justificatifLine = updated.justification?.fileName
             ? `Justificatif : ${updated.justification.fileName}`
             : "Justificatif : non déposé";
+          const treatmentLine = formatHoursTreatmentMailLine(updated.hoursTreatment!, updated.data.scope);
           await transporter.sendMail({
             from: `"Absences" <${process.env.SMTP_USER}>`,
             to: recipients.join(","),
@@ -509,6 +528,7 @@ export async function PATCH(req: Request) {
               `Motif : ${updated.data.reason}`,
               updated.data.details ? `Détails : ${updated.data.details}` : "",
               justificatifLine,
+              treatmentLine,
             ]
               .filter(Boolean)
               .join("\n"),
@@ -536,6 +556,7 @@ export async function PATCH(req: Request) {
               `Période : ${formatAbsencePeriod(updated.data)}`,
               `Motif : ${updated.data.reason}`,
               updated.data.details ? `Détails : ${updated.data.details}` : "",
+              formatHoursTreatmentCreatorMailLine(updated.hoursTreatment!, updated.data.scope),
               ``,
               `Cordialement,`,
               `L'établissement`,
