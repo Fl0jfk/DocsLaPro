@@ -591,10 +591,16 @@ export async function PATCH(req: Request) {
             text: [
               `Bonjour ${current.createdBy.name},`,
               ``,
-              `Votre déclaration d'absence a bien été reçue.`,
+              current.justification?.fileName
+                ? `La direction a examiné le justificatif déjà transmis (${current.justification.fileName}) et souhaiterait un complément ou un autre document pour finaliser votre dossier.`
+                : `Votre déclaration d'absence a bien été reçue.`,
               ``,
-              `La direction vous invite à déposer, si vous le souhaitez et si votre situation le nécessite, une pièce justificative pour compléter votre dossier.`,
-              `Ce document n'est pas toujours obligatoire : cela dépend du type d'absence. En revanche, si vous en disposez, merci de le transmettre.`,
+              current.justification?.fileName
+                ? `Merci de déposer le document complémentaire sur l'espace Absences. Il remplacera le fichier actuel.`
+                : `La direction vous invite à déposer, si vous le souhaitez et si votre situation le nécessite, une pièce justificative pour compléter votre dossier.`,
+              current.justification?.fileName
+                ? ``
+                : `Ce document n'est pas toujours obligatoire : cela dépend du type d'absence. En revanche, si vous en disposez, merci de le transmettre.`,
               ``,
               `Période : ${formatAbsencePeriod(current.data)}`,
               `Motif : ${current.data.reason}`,

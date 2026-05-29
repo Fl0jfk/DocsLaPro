@@ -203,6 +203,15 @@ export default function AbsencesPage() {
   const updateWorkflow = async (id: string, action: "VALIDER" | "REFUSER" | "RELANCER_JUSTIFICATIF", item?: AbsenceItem) => {
     if (action === "VALIDER" && item && !confirm(validationConfirmMessage(item))) return;
     if (action === "REFUSER" && !confirm("Êtes-vous sûr de refuser cette absence ? Cette action est définitive.")) return;
+    if (
+      action === "RELANCER_JUSTIFICATIF" &&
+      item?.justification?.fileUrl &&
+      !confirm(
+        "Un justificatif a déjà été déposé. Relancer quand même pour demander un complément ou un autre document ?",
+      )
+    ) {
+      return;
+    }
     try {
       const res = await fetch("/api/absences", {
         method: "PATCH",
@@ -293,10 +302,7 @@ export default function AbsencesPage() {
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-8">
         <h1 className="text-4xl font-black text-slate-900">Déclaration des absences</h1>
-        <p className="text-slate-500 font-medium mt-2 max-w-3xl">
-          La direction peut <strong>valider sans justificatif</strong> (notification comptabilité / secrétariat incluse) ou{" "}
-          <strong>relancer le demandeur</strong> pour inviter à déposer une pièce — facultatif selon le cas.
-        </p>
+        
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit">
@@ -456,16 +462,17 @@ export default function AbsencesPage() {
                     <span className="font-bold">Note direction/compta:</span> {item.managerNote}
                   </p>
                 )}
-                {item.justification?.fileUrl ? (
+                {item.justification?.fileUrl && (
                   <p className="text-sm text-slate-700 mb-3">
                     <span className="font-bold">Justificatif:</span>{" "}
                     <button type="button" onClick={() => openSecureFile(item.justification!.fileUrl)} className="text-indigo-700 underline font-semibold">
                       {item.justification.fileName || "Voir le fichier"}
                     </button>
                   </p>
-                ) : item.justificatifRelanceAt ? (
+                )}
+                {item.justificatifRelanceAt && isPendingAbsence(item) && (
                   <p className="text-sm text-amber-700 mb-3 font-semibold">
-                    Justificatif en attente (relance envoyée le{" "}
+                    {item.justification?.fileUrl ? "Complément demandé" : "Justificatif en attente"} (relance envoyée le{" "}
                     {new Date(item.justificatifRelanceAt).toLocaleDateString("fr-FR", {
                       day: "2-digit",
                       month: "2-digit",
@@ -475,11 +482,15 @@ export default function AbsencesPage() {
                     })}
                     )
                   </p>
-                ) : null}
-                {item.createdBy.userId === user?.id && !item.justification?.fileUrl && item.justificatifRelanceAt && isPendingAbsence(item) && (
+                )}
+                {item.createdBy.userId === user?.id && item.justificatifRelanceAt && isPendingAbsence(item) && (
                   <div className="mb-3">
                     <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold cursor-pointer hover:bg-slate-50">
-                      {uploadingJustificationId === item.id ? "Upload..." : "Déposer justificatif"}
+                      {uploadingJustificationId === item.id
+                        ? "Upload..."
+                        : item.justification?.fileUrl
+                          ? "Déposer un nouveau justificatif"
+                          : "Déposer justificatif"}
                       <input
                         type="file"
                         className="hidden"
@@ -496,7 +507,7 @@ export default function AbsencesPage() {
                 {canManageItem(item) && isPendingAbsence(item) && (
                   <div className="mt-3 pt-3 border-t border-slate-100">
                     <p className="text-xs text-slate-500 mb-2">
-                      Valider ou refuser même sans pièce jointe. « Relancer » invite le demandeur à déposer un justificatif si vous en avez besoin.
+                      Valider ou refuser même sans pièce jointe. « Relancer » invite le demandeur à déposer un justificatif — ou un complément si le premier ne suffit pas.
                     </p>
                     <textarea
                       rows={2}
@@ -520,15 +531,13 @@ export default function AbsencesPage() {
                       >
                         Refuser
                       </button>
-                      {!item.justification?.fileUrl && (
-                        <button
-                          type="button"
-                          onClick={() => updateWorkflow(item.id, "RELANCER_JUSTIFICATIF")}
-                          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm"
-                        >
-                          Relancer pour justificatif
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => updateWorkflow(item.id, "RELANCER_JUSTIFICATIF", item)}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm"
+                      >
+                        {item.justification?.fileUrl ? "Demander un complément" : "Relancer pour justificatif"}
+                      </button>
                     </div>
                   </div>
                 )}
