@@ -161,7 +161,7 @@ export default function TripDetails() {
       setZeendocSendingUrl(null);
     }
   };
-  const saveUpdates = async (updatedTrip: any) => {
+  const saveUpdates = async (updatedTrip: any): Promise<boolean> => {
     try {
       const res = await fetch('/api/travels/update', {
         method: 'POST',
@@ -171,9 +171,86 @@ export default function TripDetails() {
       if (res.ok) {
         setTrip(updatedTrip);
         setEditedData(updatedTrip.data);
+        return true;
       }
+      return false;
     } catch (err) {
       console.error("Erreur sauvegarde:", err);
+      return false;
+    }
+  };
+  const CIRCULAR_ATTACHMENT_NAME = "📄 Circulaire Parents";
+  const isCircularAttachment = (file: { name?: string }) =>
+    String(file.name || "").toLowerCase().includes("circulaire");
+  const generateCircularAttachment = async (): Promise<{ name: string; url: string }> => {
+    const circRes = await fetch("/api/travels/generate-circular", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tripData: trip }),
+    });
+    if (!circRes.ok) {
+      const errPayload = await circRes.json().catch(() => ({}));
+      throw new Error(errPayload?.error || "La circulaire n'a pas pu être générée.");
+    }
+    const { pdf } = await circRes.json();
+    if (!pdf) throw new Error("La circulaire n'a pas été produite.");
+    const safeTitle = String(trip.data.title || "Sortie").replace(/\s+/g, "_");
+    const fileName = `Circulaire_${safeTitle}.pdf`;
+    const uploadRes = await fetch("/api/travels/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName, fileType: "application/pdf" }),
+    });
+    if (!uploadRes.ok) throw new Error("Impossible de préparer l'enregistrement de la circulaire.");
+    const { uploadUrl, fileUrl } = await uploadRes.json();
+    if (!uploadUrl || !fileUrl) throw new Error("Réponse upload circulaire invalide.");
+    const base64Content = pdf.split(",")[1];
+    const byteArray = new Uint8Array(atob(base64Content).split("").map((c) => c.charCodeAt(0)));
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      body: new Blob([byteArray], { type: "application/pdf" }),
+    });
+    if (!putRes.ok) throw new Error("Enregistrement de la circulaire sur le serveur impossible.");
+    return { name: CIRCULAR_ATTACHMENT_NAME, url: fileUrl };
+  };
+  const mergeCircularIntoAttachments = (
+    attachments: { name: string; url: string }[],
+    circular: { name: string; url: string },
+  ) => [...attachments.filter((f) => !isCircularAttachment(f)), circular];
+  const handleRegenerateCircular = async () => {
+    if (!canSign && !isOwner) return alert("Vous n'êtes pas autorisé(e) à régénérer la circulaire.");
+    const hasExisting = (trip.data.attachments || []).some(isCircularAttachment);
+    if (
+      hasExisting &&
+      !confirm("Une circulaire existe déjà dans les documents. La remplacer par une nouvelle version ?")
+    ) {
+      return;
+    }
+    setLoadingAction("regenerate-circular");
+    try {
+      const circular = await generateCircularAttachment();
+      const updatedAttachments = mergeCircularIntoAttachments(trip.data.attachments || [], circular);
+      const updatedTrip = {
+        ...trip,
+        data: { ...trip.data, attachments: updatedAttachments },
+        history: [
+          ...(trip.history || []),
+          {
+            date: new Date().toISOString(),
+            user: user?.fullName,
+            action: "CIRCULAIRE_REGENEREE",
+            note: hasExisting ? "Circulaire remplacée." : "Circulaire régénérée.",
+          },
+        ],
+      };
+      const saved = await saveUpdates(updatedTrip);
+      if (!saved) throw new Error("Impossible d'enregistrer la circulaire dans le dossier.");
+      alert("Circulaire régénérée et ajoutée aux documents.");
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Erreur lors de la régénération de la circulaire.");
+    } finally {
+      setLoadingAction(null);
     }
   };
   const handleFinalValidation = async () => {
@@ -181,41 +258,63 @@ export default function TripDetails() {
     setLoadingAction("circular");
     try {
       let finalAttachments = [...(trip.data.attachments || [])];
-      const circRes = await fetch('/api/travels/generate-circular', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripData: trip })
-      });
-      if (circRes.ok) {
-        const { pdf } = await circRes.json();
-        const fileName = `Circulaire_${trip.data.title.replace(/\s+/g, '_')}.pdf`;
-        const uploadRes = await fetch('/api/travels/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName, fileType: "application/pdf" })
-        });
-        const { uploadUrl, fileUrl } = await uploadRes.json();
-        const base64Content = pdf.split(',')[1];
-        const byteArray = new Uint8Array(atob(base64Content).split("").map(c => c.charCodeAt(0)));
-        await fetch(uploadUrl, { method: 'PUT', body: new Blob([byteArray], { type: 'application/pdf' }) });
-        finalAttachments.push({ name: `📄 Circulaire Parents`, url: fileUrl });
+      let circularAdded = false;
+      let cuisineSent = false;
+
+      try {
+        const circular = await generateCircularAttachment();
+        finalAttachments = mergeCircularIntoAttachments(finalAttachments, circular);
+        circularAdded = true;
+      } catch (circErr) {
+        const proceed = confirm(
+          `${circErr instanceof Error ? circErr.message : "La circulaire n'a pas pu être générée."}\n\nValider le dossier quand même sans circulaire ?`,
+        );
+        if (!proceed) return;
       }
+
       if (trip.data.piqueNiqueDetails?.active) {
-        await fetch('/api/travels/send-cuisine', {
+        const cuisineRes = await fetch('/api/travels/send-cuisine', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            tripData: trip, 
+          body: JSON.stringify({
+            tripData: trip,
             userEmail: user?.primaryEmailAddress?.emailAddress,
-            userName: trip.ownerName 
-          })
+            organizerEmail: trip.ownerEmail,
+            userName: trip.ownerName,
+          }),
         });
+        if (cuisineRes.ok) {
+          cuisineSent = true;
+        } else {
+          const errPayload = await cuisineRes.json().catch(() => ({}));
+          alert(`Attention : le mail cuisine n'a pas pu être envoyé (${errPayload?.error || "erreur inconnue"}).`);
+        }
       }
-      await handleAction("VALIDE", "Dossier validé. Circulaire générée et commande cuisine envoyée.", { attachments: finalAttachments });
-      alert("Dossier validé ! La circulaire a été ajoutée aux documents.");
+
+      const historyNote = [
+        "Dossier validé.",
+        circularAdded ? "Circulaire générée." : "Circulaire non générée.",
+        trip.data.piqueNiqueDetails?.active
+          ? cuisineSent
+            ? "Commande cuisine envoyée."
+            : "Commande cuisine non envoyée."
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      await handleAction("VALIDE", historyNote, { attachments: finalAttachments });
+
+      const alertParts = ["Dossier validé !"];
+      if (circularAdded) alertParts.push("La circulaire a été ajoutée aux documents.");
+      else alertParts.push("Aucune circulaire n'a été générée — vous pouvez en déposer une manuellement.");
+      if (trip.data.piqueNiqueDetails?.active && cuisineSent) {
+        alertParts.push("Le bon de commande cuisine a été envoyé (chef + copies direction et organisateur).");
+      }
+      alert(alertParts.join("\n\n"));
     } catch (err) {
       console.error(err);
-      alert("Erreur lors de la validation finale.");
+      alert(err instanceof Error ? err.message : "Erreur lors de la validation finale.");
     } finally {
       setLoadingAction(null);
     }
@@ -876,14 +975,26 @@ export default function TripDetails() {
           <div className="md:col-span-2 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-50 pb-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Documents et Devis</span>
-              {canAddDocuments && (
-                <>
-                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50">
-                    {uploading ? "Upload..." : "+ Ajouter un document"}
+              <div className="flex items-center gap-2">
+                {trip.status === "VALIDE" && (canSign || isOwner) && (
+                  <button
+                    type="button"
+                    onClick={handleRegenerateCircular}
+                    disabled={!!loadingAction}
+                    className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-bold border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50"
+                  >
+                    {loadingAction === "regenerate-circular" ? "Génération..." : "↻ Régénérer la circulaire"}
                   </button>
-                </>
-              )}
+                )}
+                {canAddDocuments && (
+                  <>
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                    <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50">
+                      {uploading ? "Upload..." : "+ Ajouter un document"}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-3 mt-2">
               {(isEditing ? editedData.attachments : trip.data.attachments)?.map((file: any, idx: number) => (
@@ -1038,6 +1149,13 @@ export default function TripDetails() {
             )}
             {canSign && trip.status === 'EN_ATTENTE_DIR_FINAL' && (
               <ActionButton label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"} color="bg-green-600" onClick={handleFinalValidation}/>
+            )}
+            {trip.status === "VALIDE" && (canSign || isOwner) && (
+              <ActionButton
+                label={loadingAction === "regenerate-circular" ? "Génération circulaire..." : "Régénérer la circulaire"}
+                color="bg-emerald-600"
+                onClick={handleRegenerateCircular}
+              />
             )}
             {canCancelRecurrenceSession && canSign && (
               <ActionButton

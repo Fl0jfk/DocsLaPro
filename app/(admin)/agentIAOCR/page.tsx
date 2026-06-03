@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as msal from "@azure/msal-browser";
+import { buildTextFromPages } from "@/app/lib/eleves-config";
 
 const msalConfig: msal.Configuration = {
   auth: {
@@ -12,23 +13,63 @@ const msalConfig: msal.Configuration = {
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
+type ProcessResult = {
+  success: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result?: any;
+  error?: string;
+  fileName: string;
+  /** Chemin OneDrive (ex. Temp/monfichier.pdf) si le fichier est resté dans Temp */
+  tempOneDrivePath?: string;
+};
+
+type OcrData = {
+  text: string;
+  pageTexts: Record<string, string>;
+  pageCount: number;
+};
+
+type Segment = {
+  pageStart: number;
+  pageEnd: number;
+  label?: string;
+};
+
 export default function OneDriveUpDocsOCRAI() {
   const [account, setAccount] = useState<msal.AccountInfo | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [files, setFiles] = useState<any[]>([]);
-  console.log(files)
   const [error, setError] = useState("");
   const [msalReady, setMsalReady] = useState(false);
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
-  const [currentFolderPath, setCurrentFolderPath] = useState<string>("");
   const [ocrProcessing, setOcrProcessing] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [ocrResults, setOcrResults] = useState<any[]>([]);
-  const [processingStatus, setProcessingStatus] = useState<{ total: number; completed: number; failed: number; }>({ total: 0, completed: 0, failed: 0 });
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const multiInputRef = useRef<HTMLInputElement | null>(null);
+  const [ocrResults, setOcrResults] = useState<ProcessResult[]>([]);
+  const [processingStatus, setProcessingStatus] = useState({
+    total: 0,
+    completed: 0,
+    failed: 0,
+  });
+  const [pendingStandardFiles, setPendingStandardFiles] = useState<File[]>([]);
+  const [pendingClassFiles, setPendingClassFiles] = useState<File[]>([]);
+  const [isDraggingStandard, setIsDraggingStandard] = useState(false);
+  const [isDraggingClass, setIsDraggingClass] = useState(false);
+
+  const [elevesCount, setElevesCount] = useState<number | null>(null);
+  const [elevesUploading, setElevesUploading] = useState(false);
+  const [elevesMessage, setElevesMessage] = useState("");
+  const elevesInputRef = useRef<HTMLInputElement | null>(null);
+  const standardInputRef = useRef<HTMLInputElement | null>(null);
+  const classInputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadElevesCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/eleves");
+      if (!res.ok) return;
+      const data = await res.json();
+      setElevesCount(data.count ?? (Array.isArray(data.eleves) ? data.eleves.length : null));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -37,17 +78,21 @@ export default function OneDriveUpDocsOCRAI() {
         const accounts = msalInstance.getAllAccounts();
         if (accounts.length > 0) {
           setAccount(accounts[0]);
-          const tokenResponse = await msalInstance.acquireTokenSilent({ account: accounts[0], scopes: ["Files.ReadWrite", "User.Read"] });
+          const tokenResponse = await msalInstance.acquireTokenSilent({
+            account: accounts[0],
+            scopes: ["Files.ReadWrite", "User.Read"],
+          });
           setAccessToken(tokenResponse.accessToken);
-          await fetchFiles(tokenResponse.accessToken, null, "");
         }
+        await loadElevesCount();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError("Erreur init MSAL: " + err.message);
       }
     };
     init();
-  }, []);
+  }, [loadElevesCount]);
+
   useEffect(() => {
     if (!msalReady) return;
     const handleRedirect = async () => {
@@ -55,9 +100,11 @@ export default function OneDriveUpDocsOCRAI() {
         const result = await msalInstance.handleRedirectPromise();
         if (result?.account) {
           setAccount(result.account);
-          const tokenResponse = await msalInstance.acquireTokenSilent({ account: result.account, scopes: ["Files.ReadWrite", "User.Read"] });
+          const tokenResponse = await msalInstance.acquireTokenSilent({
+            account: result.account,
+            scopes: ["Files.ReadWrite", "User.Read"],
+          });
           setAccessToken(tokenResponse.accessToken);
-          await fetchFiles(tokenResponse.accessToken, null, "");
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
@@ -66,6 +113,7 @@ export default function OneDriveUpDocsOCRAI() {
     };
     handleRedirect();
   }, [msalReady]);
+
   const login = async () => {
     if (!msalReady) {
       setError("MSAL n'est pas encore initialisé.");
@@ -78,71 +126,158 @@ export default function OneDriveUpDocsOCRAI() {
       setError("Erreur login: " + err.message);
     }
   };
-  const fetchFiles = async (
-    token: string,
-    folderId: string | null,
-    folderPath: string
-  ) => {
-    try {
-      const url = folderId ? `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children` : folderPath ? `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}:/children` : "https://graph.microsoft.com/v1.0/me/drive/root/children";
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setFiles(data.value || []);
-      setCurrentFolder(folderId);
-      setCurrentFolderPath(folderPath);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError("Erreur Graph API: " + err.message);
-    }
-  };
-  async function processInBatches<T, R>(items: T[], batchSize: number, processFn: (item: T) => Promise<R>): Promise<R[]> {
-    const results: R[] = [];
-    for (let i = 0; i < items.length; i += batchSize) {
-      const batch = items.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch.map(processFn));
-      results.push(...batchResults);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const currentCompleted = results.filter((r: any) => r.success).length;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const currentFailed = results.filter((r: any) => !r.success).length;
-      setProcessingStatus((prev) => ({ total: prev.total, completed: currentCompleted, failed: currentFailed }));
-      if (i + batchSize < items.length) {
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-    }
-    return results;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const processSingleFile = async (file: File): Promise<{ success: boolean; result?: any; error?: string; fileName: string }> => {
-    try {
-      if (!accessToken) { throw new Error("Pas de token OneDrive disponible")}
-      const r1 = await fetch("/api/agentIAOCR/upload-url", {
+
+  const pollOcr = async (jobId: string, maxAttempts: number): Promise<OcrData> => {
+    for (let i = 0; i < maxAttempts; i++) {
+      const r = await fetch("/api/agentIAOCR/ocr-result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        body: JSON.stringify({ jobId }),
       });
-      if (!r1.ok) throw new Error(await r1.text());
-      const { url, key } = await r1.json();
-      const upload = await fetch(url, {
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      if (data.text) {
+        return {
+          text: data.text,
+          pageTexts: data.pageTexts || {},
+          pageCount: data.pageCount || 0,
+        };
+      }
+      if (data.status === "IN_PROGRESS") {
+        await new Promise((res) => setTimeout(res, 5000));
+      } else {
+        throw new Error("OCR Textract a échoué : " + JSON.stringify(data));
+      }
+    }
+    throw new Error("Timeout OCR : aucun texte retourné");
+  };
+
+  const uploadToS3AndOneDrive = async (
+    file: File,
+    token: string
+  ): Promise<{ key: string; tempPath: string }> => {
+    const r1 = await fetch("/api/agentIAOCR/upload-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, contentType: file.type || "application/pdf" }),
+    });
+    if (!r1.ok) throw new Error(await r1.text());
+    const { url, key } = await r1.json();
+    const upload = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": file.type || "application/pdf" },
+      body: file,
+    });
+    if (!upload.ok) throw new Error("Échec upload S3 : " + (await upload.text()));
+
+    const tempPath = `Temp/${file.name}`;
+    const odRes = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/${tempPath}:/content`,
+      {
         method: "PUT",
-        headers: { "Content-Type": file.type || "application/pdf" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": file.type || "application/pdf",
+        },
         body: file,
-      });
-      if (!upload.ok) throw new Error("Échec upload S3 : " + (await upload.text()));
-      const tempPath = `Temp/${file.name}`;
-      const odRes = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/root:/${tempPath}:/content`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": file.type || "application/pdf",
-          },
-          body: file,
-        }
+      }
+    );
+    if (!odRes.ok) {
+      throw new Error("Échec upload OneDrive Temp : " + (await odRes.text()));
+    }
+    return { key, tempPath };
+  };
+
+  const deleteOneDrivePath = async (token: string, itemPath: string) => {
+    try {
+      const res = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/root:/${itemPath}:`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
       );
-      if (!odRes.ok) { throw new Error("Échec upload OneDrive Temp : " + (await odRes.text()))}
+      if (!res.ok && res.status !== 404) {
+        console.warn("[agentIAOCR] Suppression Temp:", itemPath, await res.text());
+      }
+    } catch (e) {
+      console.warn("[agentIAOCR] Suppression Temp:", itemPath, e);
+    }
+  };
+
+  const segmentTempFileName = (
+    originalName: string,
+    pageStart: number,
+    pageEnd: number,
+    index: number
+  ) => {
+    const base = originalName.replace(/\.pdf$/i, "").replace(/[<>:"/\\|?*]/g, "_");
+    return `Temp/${base}_p${pageStart}-${pageEnd}_${index + 1}.pdf`;
+  };
+
+  const analyzeAndMove = async (
+    token: string,
+    text: string,
+    sourcePath: string,
+    displayName: string
+  ): Promise<ProcessResult> => {
+    try {
+      const r4 = await fetch("/api/agentIAOCR/analyze-doc-match-eleve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!r4.ok) throw new Error(await r4.text());
+      const ai = await r4.json();
+      if (!ai?.fileName) {
+        return {
+          success: false,
+          error: "Analyse IA incomplète.",
+          fileName: displayName,
+          result: ai,
+          tempOneDrivePath: sourcePath,
+        };
+      }
+      const newFileName = `${ai.fileName}.pdf`;
+      const targetFolderPath = ai.oneDriveFolderPath || null;
+      if (!targetFolderPath) {
+        return {
+          success: false,
+          error:
+            "Aucun élève trouvé — le fichier est dans Temp : rangez-le à la main ou repassez-le en mode Standard.",
+          fileName: displayName,
+          result: ai,
+          tempOneDrivePath: sourcePath,
+        };
+      }
+      const moveRes = await fetch("/api/agentIAOCR/move-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: token,
+          sourcePath,
+          targetFolderPath,
+          newFileName,
+        }),
+      });
+      if (!moveRes.ok) {
+        throw new Error(
+          "Le fichier n'a pas pu être déplacé : " + (await moveRes.text())
+        );
+      }
+      return { success: true, result: ai, fileName: displayName };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        success: false,
+        error: message,
+        fileName: displayName,
+        tempOneDrivePath: sourcePath,
+      };
+    }
+  };
+
+  const processSingleFile = async (file: File): Promise<ProcessResult> => {
+    try {
+      if (!accessToken) throw new Error("Pas de token OneDrive disponible");
+      const { key, tempPath } = await uploadToS3AndOneDrive(file, accessToken);
       const r2 = await fetch("/api/agentIAOCR/ocr-process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,110 +286,336 @@ export default function OneDriveUpDocsOCRAI() {
       if (!r2.ok) throw new Error(await r2.text());
       const { jobId } = await r2.json();
       if (!jobId) throw new Error("Impossible de lancer Textract");
-      let extractedText = "";
-      for (let i = 0; i < 30; i++) {
-        const r3 = await fetch("/api/agentIAOCR/ocr-result", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId }),
-        });
-        if (!r3.ok) throw new Error(await r3.text());
-        const data = await r3.json();
-        if (data.text) {
-          extractedText = data.text;
-          break;
-        }
-        if (data.status === "IN_PROGRESS") {
-          await new Promise((r) => setTimeout(r, 5000));
-        } else {
-          throw new Error("OCR Textract a échoué : " + JSON.stringify(data));
-        }
-      }
-      if (!extractedText) throw new Error("Timeout OCR : aucun texte retourné");
-      const r4 = await fetch("/api/agentIAOCR/analyze-doc-match-eleve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: extractedText }),
-      });
-      if (!r4.ok) throw new Error(await r4.text());
-      const ai = await r4.json();
-      if (ai?.fileName) {
-        const newFileName = `${ai.fileName}.pdf`;
-        const sourcePath = `Temp/${file.name}`;
-        const targetFolderPath = ai.oneDriveFolderPath || null;
-        if (!targetFolderPath) { return { success: false, error: "Aucun élève trouvé de manière fiable, veuillez ranger ce document manuellement.", fileName: file.name, result: ai } }
-        const moveRes = await fetch("/api/agentIAOCR/move-file", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            accessToken,
-            sourcePath,
-            targetFolderPath,
-            newFileName,
-          }),
-        });
-        if (!moveRes.ok) { throw new Error("Erreur le fichier n'a pas pu être déplacé, aucun dossier élèves ne correspond.: " + (await moveRes.text()))}
-      }
-      return { success: true, result: ai, fileName: file.name };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      return { success: false, error: err.message, fileName: file.name };
+      const ocr = await pollOcr(jobId, 30);
+      return await analyzeAndMove(accessToken, ocr.text, tempPath, file.name);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        success: false,
+        error: message,
+        fileName: file.name,
+        tempOneDrivePath: `Temp/${file.name}`,
+      };
     }
   };
-  const enqueueFiles = (fileList: FileList | File[]) => {
+
+  const processClassFile = async (file: File): Promise<ProcessResult[]> => {
+    const results: ProcessResult[] = [];
+    const sourceTempPath = `Temp/${file.name}`;
+    try {
+      if (!accessToken) throw new Error("Pas de token OneDrive disponible");
+      const { key } = await uploadToS3AndOneDrive(file, accessToken);
+
+      const r2 = await fetch("/api/agentIAOCR/ocr-process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+      if (!r2.ok) throw new Error(await r2.text());
+      const { jobId } = await r2.json();
+      if (!jobId) throw new Error("Impossible de lancer Textract");
+
+      const ocr = await pollOcr(jobId, 60);
+
+      const segRes = await fetch("/api/agentIAOCR/segment-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: ocr.text, pageCount: ocr.pageCount }),
+      });
+      if (!segRes.ok) throw new Error(await segRes.text());
+      const segData = await segRes.json();
+      const segments: Segment[] = segData.segments || [];
+      const mode = segData.mode as string;
+
+      if (mode === "single" || segments.length <= 1) {
+        const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
+        const slice =
+          Object.keys(ocr.pageTexts).length > 0
+            ? buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd)
+            : ocr.text;
+        const one = await analyzeAndMove(
+          accessToken,
+          slice || ocr.text,
+          sourceTempPath,
+          file.name
+        );
+        results.push(one);
+        return results;
+      }
+
+      await deleteOneDrivePath(accessToken, sourceTempPath);
+
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        const label = `${file.name} [p.${seg.pageStart}-${seg.pageEnd}]`;
+        let tempSegPath: string | undefined;
+        try {
+          const slice = buildTextFromPages(
+            ocr.pageTexts,
+            seg.pageStart,
+            seg.pageEnd
+          );
+          if (!slice.trim()) {
+            results.push({
+              success: false,
+              error:
+                "Aucun texte OCR sur ce segment — pas de PDF généré. Réexportez ce document si besoin.",
+              fileName: label,
+            });
+            continue;
+          }
+
+          const extractRes = await fetch("/api/agentIAOCR/extract-pages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              key,
+              pageStart: seg.pageStart,
+              pageEnd: seg.pageEnd,
+              filename: `${file.name.replace(/\.pdf$/i, "")}_seg${i + 1}`,
+            }),
+          });
+          if (!extractRes.ok) {
+            throw new Error(await extractRes.text());
+          }
+          const { downloadUrl } = await extractRes.json();
+          const pdfRes = await fetch(downloadUrl);
+          if (!pdfRes.ok) throw new Error("Téléchargement du segment PDF échoué");
+          const pdfBlob = await pdfRes.blob();
+
+          tempSegPath = segmentTempFileName(
+            file.name,
+            seg.pageStart,
+            seg.pageEnd,
+            i
+          );
+          const odPut = await fetch(
+            `https://graph.microsoft.com/v1.0/me/drive/root:/${tempSegPath}:/content`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/pdf",
+              },
+              body: pdfBlob,
+            }
+          );
+          if (!odPut.ok) {
+            throw new Error("Upload segment OneDrive : " + (await odPut.text()));
+          }
+
+          const r4 = await fetch("/api/agentIAOCR/analyze-doc-match-eleve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: slice }),
+          });
+          if (!r4.ok) throw new Error(await r4.text());
+          const ai = await r4.json();
+
+          if (!ai?.fileName || !ai.oneDriveFolderPath) {
+            results.push({
+              success: false,
+              error:
+                "Élève non identifié — le document découpé est dans Temp : rangez-le à la main ou repassez-le en mode Standard.",
+              fileName: label,
+              result: ai,
+              tempOneDrivePath: tempSegPath,
+            });
+            continue;
+          }
+
+          const segmentOdName = `${ai.fileName}.pdf`;
+
+          const moveRes = await fetch("/api/agentIAOCR/move-file", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken,
+              sourcePath: tempSegPath,
+              targetFolderPath: ai.oneDriveFolderPath,
+              newFileName: segmentOdName,
+            }),
+          });
+          if (!moveRes.ok) {
+            throw new Error(await moveRes.text());
+          }
+          results.push({ success: true, result: ai, fileName: label });
+        } catch (segErr: unknown) {
+          const msg = segErr instanceof Error ? segErr.message : String(segErr);
+          results.push({
+            success: false,
+            error: tempSegPath
+              ? `${msg} — document découpé laissé dans Temp.`
+              : msg,
+            fileName: label,
+            tempOneDrivePath: tempSegPath,
+          });
+        }
+        await new Promise((r) => setTimeout(r, 800));
+      }
+
+      return results;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      results.push({
+        success: false,
+        error: message,
+        fileName: file.name,
+        tempOneDrivePath: sourceTempPath,
+      });
+      return results;
+    }
+  };
+
+  async function processInBatches<T, R>(
+    items: T[],
+    batchSize: number,
+    processFn: (item: T) => Promise<R>,
+    onProgress: (results: R[]) => void
+  ): Promise<R[]> {
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(processFn));
+      results.push(...batchResults);
+      onProgress(results);
+      if (i + batchSize < items.length) {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+    return results;
+  }
+
+  const updateProgress = (results: ProcessResult[]) => {
+    setProcessingStatus({
+      total: results.length,
+      completed: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+    });
+  };
+
+  const runProcessing = async (
+    standardFiles: File[],
+    classFiles: File[]
+  ) => {
+    if (!accessToken) return;
+    setOcrProcessing(true);
+    setError("");
+    setOcrResults([]);
+    const allResults: ProcessResult[] = [];
+
+    const estimatedTotal =
+      standardFiles.length +
+      classFiles.length * 5;
+    setProcessingStatus({ total: estimatedTotal, completed: 0, failed: 0 });
+
+    try {
+      if (standardFiles.length > 0) {
+        const flat = await processInBatches(
+          standardFiles,
+          2,
+          processSingleFile,
+          () => {}
+        );
+        allResults.push(...flat);
+        updateProgress(allResults);
+      }
+
+      for (const file of classFiles) {
+        const segmentResults = await processClassFile(file);
+        allResults.push(...segmentResults);
+        updateProgress(allResults);
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+
+      setProcessingStatus({
+        total: allResults.length,
+        completed: allResults.filter((r) => r.success).length,
+        failed: allResults.filter((r) => !r.success).length,
+      });
+      setOcrResults(allResults);
+    } catch (err: unknown) {
+      setError(
+        "Erreur globale OCR / Analyse: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+    } finally {
+      setOcrProcessing(false);
+      if (standardInputRef.current) standardInputRef.current.value = "";
+      if (classInputRef.current) classInputRef.current.value = "";
+    }
+  };
+
+  useEffect(() => {
+    const hasWork =
+      pendingStandardFiles.length > 0 || pendingClassFiles.length > 0;
+    if (!ocrProcessing && hasWork && msalReady && account && accessToken) {
+      const standard = pendingStandardFiles;
+      const classF = pendingClassFiles;
+      setPendingStandardFiles([]);
+      setPendingClassFiles([]);
+      runProcessing(standard, classF);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    pendingStandardFiles,
+    pendingClassFiles,
+    ocrProcessing,
+    msalReady,
+    account,
+    accessToken,
+  ]);
+
+  const enqueueStandard = (fileList: FileList | File[]) => {
     if (!msalReady || !account || !accessToken) {
       setError("Vous devez être connecté à OneDrive avant d'envoyer des fichiers.");
       return;
     }
-    const arr = Array.from(fileList);
-    setPendingFiles((prev) => [...prev, ...arr]);
+    setPendingStandardFiles((prev) => [
+      ...prev,
+      ...Array.from(fileList).filter((f) => f.type === "application/pdf" || f.name.endsWith(".pdf")),
+    ]);
   };
-  const processQueue = async () => {
-    if (ocrProcessing) return;
-    if (pendingFiles.length === 0) return;
-    if (!msalReady || !account || !accessToken) return;
-    const filesToProcess = pendingFiles;
-    setPendingFiles([]);
-    setOcrProcessing(true);
-    setError("");
-    setOcrResults([]);
-    setProcessingStatus({ total: filesToProcess.length, completed: 0, failed: 0 });
+
+  const enqueueClass = (fileList: FileList | File[]) => {
+    if (!msalReady || !account || !accessToken) {
+      setError("Vous devez être connecté à OneDrive avant d'envoyer des fichiers.");
+      return;
+    }
+    const pdfs = Array.from(fileList).filter(
+      (f) => f.type === "application/pdf" || f.name.endsWith(".pdf")
+    );
+    if (pdfs.length !== Array.from(fileList).length) {
+      setError("Seuls les fichiers PDF sont acceptés.");
+    }
+    setPendingClassFiles((prev) => [...prev, ...pdfs]);
+  };
+
+  const handleElevesUpload = async (file: File) => {
+    setElevesUploading(true);
+    setElevesMessage("");
     try {
-      const results = await processInBatches(filesToProcess, 2, processSingleFile);
-      const completed = results.filter((r) => r.success).length;
-      const failed = results.filter((r) => !r.success).length;
-      setProcessingStatus({ total: filesToProcess.length, completed, failed });
-      setOcrResults(results);
-      await fetchFiles(accessToken, currentFolder, currentFolderPath);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError("Erreur globale OCR / Analyse: " + err.message);
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await fetch("/api/eleves", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec de la mise à jour");
+      setElevesCount(data.count);
+      setElevesMessage(data.message || `Liste mise à jour (${data.count} élèves).`);
+    } catch (e: unknown) {
+      setElevesMessage(
+        "Erreur : " + (e instanceof Error ? e.message : String(e))
+      );
     } finally {
-      setOcrProcessing(false);
-      if (multiInputRef.current) { multiInputRef.current.value = "" }
+      setElevesUploading(false);
+      if (elevesInputRef.current) elevesInputRef.current.value = "";
     }
   };
-  useEffect(() => {
-    if (!ocrProcessing && pendingFiles.length > 0 && msalReady && account && accessToken) {
-      processQueue();
-    }
-  }, [pendingFiles, ocrProcessing, msalReady, account, accessToken]);
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) { enqueueFiles(e.dataTransfer.files); }
-  };
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
+
   if (!msalReady) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -265,129 +626,375 @@ export default function OneDriveUpDocsOCRAI() {
       </div>
     );
   }
+
   const dropDisabled = !account || !accessToken || ocrProcessing;
-  const progressPercent = processingStatus.total > 0  ? ((processingStatus.completed + processingStatus.failed) / processingStatus.total) * 100  : 0;
+  const progressPercent =
+    processingStatus.total > 0
+      ? ((processingStatus.completed + processingStatus.failed) /
+          processingStatus.total) *
+        100
+      : 0;
+
+  const dropZoneClass = (active: boolean, variant: "blue" | "violet") =>
+    `relative overflow-hidden border-2 border-dashed rounded-3xl p-10 text-center transition-all duration-300 group
+    ${active ? (variant === "violet" ? "border-violet-600 bg-violet-50 scale-[1.01]" : "border-blue-600 bg-blue-50 scale-[1.01]") : "border-gray-300 bg-white hover:border-blue-400 hover:bg-gray-50"}
+    ${dropDisabled ? "opacity-60 cursor-not-allowed shadow-none" : "cursor-pointer shadow-lg hover:shadow-xl"}
+    ${ocrProcessing ? "ring-4 ring-blue-400/40 border-blue-500 bg-blue-50/80" : ""}`;
+
+  const failedResults = ocrResults.filter((r) => !r.success);
+
+  const ProcessingSpinner = ({ size = "text-7xl" }: { size?: string }) => (
+    <span
+      className={`${size} inline-block animate-spin`}
+      role="status"
+      aria-label="Analyse en cours"
+    >
+      ⚙️
+    </span>
+  );
+
   return (
     <div className="p-6 max-w-[1200px] mx-auto mt-[1vh]">
-      <div className="flex flex-col md:max-lg:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">IA Scanner & OneDrive</h1>
-          <p className="text-gray-500">Automatisez le rangement de vos documents par élève.</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            IA Scanner & OneDrive
+          </h1>
+          <p className="text-gray-500">
+            Automatisez le rangement de vos documents par élève.
+          </p>
         </div>
         {!account && (
-          <button onClick={login} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2">
+          <button
+            onClick={login}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2"
+          >
             <span>🔌</span> Se connecter à OneDrive
           </button>
         )}
       </div>
+
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-xl shadow-sm">
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-xl">
           <p className="font-bold">Attention</p>
           <p className="text-sm">{error}</p>
         </div>
       )}
+
+      <div className="mb-8 bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+        <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+          📋 Liste des élèves (S3)
+        </h4>
+        <p className="text-sm text-gray-500 mb-4">
+          Fichier JSON sur AWS : tableau avec{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">ine</code>,{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">nom</code>,{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">prenom</code>,{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">folderName</code>.
+          {elevesCount != null && (
+            <span className="ml-2 font-medium text-gray-700">
+              — {elevesCount} élève(s) enregistré(s).
+            </span>
+          )}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={elevesUploading}
+            onClick={() => elevesInputRef.current?.click()}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+          >
+            {elevesUploading ? "Envoi…" : "Remplacer la liste (.json)"}
+          </button>
+          <input
+            ref={elevesInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleElevesUpload(f);
+            }}
+          />
+        </div>
+        {elevesMessage && (
+          <p
+            className={`mt-3 text-sm ${elevesMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}
+          >
+            {elevesMessage}
+          </p>
+        )}
+      </div>
+
       {account && (
         <>
-          <div className="grid grid-cols-1 gap-8">
-            <div
-              onDragOver={dropDisabled ? undefined : handleDragOver}
-              onDragLeave={dropDisabled ? undefined : handleDragLeave}
-              onDrop={dropDisabled ? undefined : handleDrop}
-              onClick={() => !dropDisabled && multiInputRef.current?.click()}
-              className={`relative overflow-hidden border-2 border-dashed rounded-3xl p-12 text-center transition-all duration-300 group
-                ${isDragging ? "border-blue-600 bg-blue-50 scale-[1.01]" : "border-gray-300 bg-white hover:border-blue-400 hover:bg-gray-50"}
-                ${dropDisabled ? "opacity-60 cursor-not-allowed shadow-none" : "cursor-pointer shadow-xl hover:shadow-2xl"}`}
-            >
-              <div className="flex flex-col items-center">
-                <div className={`text-6xl mb-4 transition-all duration-500 ${ocrProcessing ? 'scale-110' : 'group-hover:rotate-12'}`}>
-                  {ocrProcessing ? <div className="animate-spin inline-block">⚙️</div> : "📄"}
+          {ocrProcessing && (
+            <div className="mb-8 p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-3xl shadow-xl flex flex-col items-center gap-4">
+              <ProcessingSpinner size="text-8xl" />
+              <p className="text-2xl font-extrabold text-blue-900 tracking-tight">
+                Analyse en cours…
+              </p>
+              <p className="text-center text-sm font-medium text-blue-800 max-w-lg">
+                L&apos;IA lit, découpe et range vos documents.{" "}
+                <strong>Ne fermez pas cette page</strong> — cela peut prendre
+                plusieurs minutes pour un export classe entière.
+              </p>
+              <div className="w-full max-w-lg">
+                <div className="flex justify-between text-xs font-bold text-blue-700 mb-2 uppercase">
+                  <span>Progression</span>
+                  <span>{Math.round(progressPercent)}%</span>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  {ocrProcessing ? "Analyse en cours..." : "Glissez vos documents PDF ici"}
-                </h3>
-                <p className="text-gray-500 max-w-xl mx-auto">
-                  {ocrProcessing ? "L'IA classe vos documents, vous pouvez prendre un café mais ne fermez pas la page !"  : "Ou cliquez pour parcourir vos fichiers. L'IA s'occupe de l'OCR et du rangement."}
-                </p>
+                <div className="w-full bg-white/80 rounded-full h-4 overflow-hidden border border-blue-200">
+                  <div
+                    className="bg-blue-600 h-full transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(100, progressPercent)}%` }}
+                  />
+                </div>
               </div>
-              {ocrProcessing && (
-                <div className="mt-8 w-full max-w-md mx-auto">
-                  <div className="flex justify-between text-xs font-bold text-blue-600 mb-2 uppercase tracking-wider">
-                    <span>Traitement</span>
-                    <span>{Math.round(progressPercent)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-full transition-all duration-500 ease-out animate-pulse" 
-                      style={{ width: `${progressPercent}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-              <input ref={multiInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files) { enqueueFiles(e.target.files); e.target.value = "" } }} />
             </div>
-            <div className="flex flex-col gap-4">
-              <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">📊 Session actuelle</h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-2xl">
-                    <span className="text-sm text-gray-600">Total à traiter</span>
-                    <span className="font-black text-lg">{processingStatus.total}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-green-50 rounded-2xl">
-                    <span className="text-sm text-green-700 font-medium">Succès IA</span>
-                    <span className="font-black text-lg text-green-600 tracking-tighter">+{processingStatus.completed}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-red-50 rounded-2xl">
-                    <span className="text-sm text-red-700 font-medium">Échecs / À classer</span>
-                    <span className="font-black text-lg text-red-600 tracking-tighter">-{processingStatus.failed}</span>
-                  </div>
-                </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div
+              onDragOver={
+                dropDisabled
+                  ? undefined
+                  : (e) => {
+                      e.preventDefault();
+                      setIsDraggingStandard(true);
+                    }
+              }
+              onDragLeave={() => setIsDraggingStandard(false)}
+              onDrop={
+                dropDisabled
+                  ? undefined
+                  : (e) => {
+                      e.preventDefault();
+                      setIsDraggingStandard(false);
+                      if (e.dataTransfer.files?.length) {
+                        enqueueStandard(e.dataTransfer.files);
+                      }
+                    }
+              }
+              onClick={() => !dropDisabled && standardInputRef.current?.click()}
+              className={dropZoneClass(isDraggingStandard, "blue")}
+            >
+              <span className="inline-block mb-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-black uppercase rounded-full">
+                Standard
+              </span>
+              <div className="mb-3 min-h-[4rem] flex items-center justify-center">
+                {ocrProcessing ? (
+                  <ProcessingSpinner size="text-6xl" />
+                ) : (
+                  <span className="text-5xl">📄</span>
+                )}
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">
+                {ocrProcessing ? "Analyse en cours…" : "Un PDF = un document"}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {ocrProcessing
+                  ? "Traitement en cours — patientez."
+                  : "Fichiers déjà séparés (un élève par PDF). Comportement actuel, fiable."}
+              </p>
+              <input
+                ref={standardInputRef}
+                type="file"
+                className="hidden"
+                multiple
+                accept="application/pdf,.pdf"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    enqueueStandard(e.target.files);
+                    e.target.value = "";
+                  }
+                }}
+              />
+            </div>
+
+            <div
+              onDragOver={
+                dropDisabled
+                  ? undefined
+                  : (e) => {
+                      e.preventDefault();
+                      setIsDraggingClass(true);
+                    }
+              }
+              onDragLeave={() => setIsDraggingClass(false)}
+              onDrop={
+                dropDisabled
+                  ? undefined
+                  : (e) => {
+                      e.preventDefault();
+                      setIsDraggingClass(false);
+                      if (e.dataTransfer.files?.length) {
+                        enqueueClass(e.dataTransfer.files);
+                      }
+                    }
+              }
+              onClick={() => !dropDisabled && classInputRef.current?.click()}
+              className={dropZoneClass(isDraggingClass, "violet")}
+            >
+              <span className="inline-block mb-2 px-2 py-0.5 bg-violet-100 text-violet-800 text-[10px] font-black uppercase rounded-full">
+                Expérimental
+              </span>
+              <div className="mb-3 min-h-[4rem] flex items-center justify-center">
+                {ocrProcessing ? (
+                  <ProcessingSpinner size="text-6xl" />
+                ) : (
+                  <span className="text-5xl">📚</span>
+                )}
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">
+                {ocrProcessing ? "Analyse en cours…" : "Export classe entière"}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {ocrProcessing
+                  ? "Découpe et rangement en cours…"
+                  : "Un PDF multi-pages (ex. export classe Charlemagne). Détection, découpe et rangement par élève."}
+              </p>
+              <input
+                ref={classInputRef}
+                type="file"
+                className="hidden"
+                accept="application/pdf,.pdf"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    enqueueClass([e.target.files[0]]);
+                    e.target.value = "";
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 mb-8">
+            <h4 className="font-bold text-gray-800 mb-4">📊 Session actuelle</h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 bg-gray-50 rounded-2xl text-center">
+                <span className="text-xs text-gray-600 block">Traités</span>
+                <span className="font-black text-lg">
+                  {processingStatus.completed + processingStatus.failed}
+                </span>
+              </div>
+              <div className="p-3 bg-green-50 rounded-2xl text-center">
+                <span className="text-xs text-green-700 block">Succès</span>
+                <span className="font-black text-lg text-green-600">
+                  {processingStatus.completed}
+                </span>
+              </div>
+              <div className="p-3 bg-red-50 rounded-2xl text-center">
+                <span className="text-xs text-red-700 block">Échecs</span>
+                <span className="font-black text-lg text-red-600">
+                  {processingStatus.failed}
+                </span>
               </div>
             </div>
           </div>
-          {ocrResults.length > 0 && (
-            <div className="mt-12">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-black text-gray-900">Journal d&apos;analyse</h3>
-                <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-bold rounded-full uppercase tracking-widest">Derniers scans</span>
-              </div>
-              <div className="grid grid-cols-1 gap-4">
-                {[...ocrResults].sort((a, b) => (a.success === b.success ? 0 : a.success ? 1 : -1)).map((result, index) => (
-                  <div 
-                    key={index} 
-                    className={`group p-4 rounded-2xl border transition-all duration-200 ${
-                      result.success 
-                        ? "bg-white border-gray-100 hover:border-green-200" 
-                        : "bg-red-50 border-red-100 ring-2 ring-red-500/10"
-                    }`}
+
+          {failedResults.length > 0 && (
+            <div className="mb-8 p-6 bg-red-50 border-2 border-red-300 rounded-3xl shadow-lg">
+              <h3 className="text-lg font-black text-red-900 mb-2 flex items-center gap-2">
+                <span>⚠️</span>
+                {failedResults.length} document
+                {failedResults.length > 1 ? "s" : ""} non rangé
+                {failedResults.length > 1 ? "s" : ""}
+              </h3>
+              <p className="text-sm text-red-800 mb-4 leading-relaxed">
+                Ces documents n&apos;ont pas été rangés dans un dossier élève.
+                Les PDF <strong>déjà découpés</strong> sont dans OneDrive →{" "}
+                <code className="bg-red-100 px-1.5 py-0.5 rounded font-bold">Temp</code>{" "}
+                (un fichier par document, voir chemins ci-dessous). Le PDF classe
+                d&apos;origine n&apos;y est plus : seuls les documents à traiter
+                restent visibles.
+                <br />
+                <br />
+                Pour chaque fichier : <strong>rangez-le manuellement</strong>{" "}
+                dans le bon dossier élève, ou{" "}
+                <strong>re-déposez-le dans la zone Standard</strong> (« un PDF =
+                un document ») — ne repassez pas par Expérimental, le découpage
+                est déjà fait.
+              </p>
+              <ul className="space-y-3">
+                {failedResults.map((r, index) => (
+                  <li
+                    key={index}
+                    className="p-4 bg-white rounded-xl border border-red-200"
                   >
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                      <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-xl ${
-                        result.success ? "bg-green-100 text-green-600" : "bg-red-200 text-red-600 animate-pulse"
-                      }`}>
-                        {result.success ? "✓" : "⚠️"}
-                      </div>
-                      <div className="flex-grow">
-                        <div className="flex items-center gap-3">
-                           <p className={`font-bold ${result.success ? "text-gray-800" : "text-red-700"}`}>{result.fileName}</p>
-                          {!result.success && (
-                            <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black uppercase">Action requise</span>
-                          )}
-                        </div>
-                        {result.success ? (
-                          <p className="text-xs text-gray-500 mt-1 italic line-clamp-1">Document classé avec succès : {result.result?.fileName || "Nom généré"}</p>
-                        ) : (
-                          <p className="text-sm text-red-600 mt-1 font-semibold">{result.error || "Impossible de déterminer le dossier de destination."}</p>
+                    <p className="font-bold text-red-800">{r.fileName}</p>
+                    {r.tempOneDrivePath && (
+                      <p className="text-sm text-red-700 mt-1">
+                        <span className="font-semibold">Dans OneDrive :</span>{" "}
+                        <code className="bg-gray-100 px-2 py-0.5 rounded text-xs break-all">
+                          {r.tempOneDrivePath}
+                        </code>
+                      </p>
+                    )}
+                    <p className="text-xs text-red-600 mt-2">{r.error}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {ocrResults.length > 0 && (
+            <div>
+              <h3 className="text-xl font-black text-gray-900 mb-4">
+                Journal d&apos;analyse
+              </h3>
+              <div className="grid grid-cols-1 gap-3">
+                {[...ocrResults]
+                  .sort((a, b) =>
+                    a.success === b.success ? 0 : a.success ? 1 : -1
+                  )
+                  .map((result, index) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-2xl border ${
+                        result.success
+                          ? "bg-white border-gray-100"
+                          : "bg-red-50 border-red-100 ring-2 ring-red-400/20"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p
+                          className={`font-bold ${result.success ? "text-gray-800" : "text-red-700"}`}
+                        >
+                          {result.fileName}
+                        </p>
+                        {!result.success && (
+                          <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black uppercase">
+                            Temp → Standard ou manuel
+                          </span>
                         )}
                       </div>
-                      {result.success && (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                           <pre className="text-[10px] bg-gray-50 p-2 rounded-lg max-w-xs overflow-hidden truncate">{JSON.stringify(result.result)}</pre>
-                        </div>
+                      {result.success ? (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Classé : {result.result?.fileName || "—"}
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-sm text-red-600 mt-1 font-medium">
+                            {result.error}
+                          </p>
+                          {result.tempOneDrivePath ? (
+                            <p className="text-xs text-red-800 mt-2 bg-red-100/60 p-2 rounded-lg">
+                              Dans OneDrive (Temp) :{" "}
+                              <code className="font-bold break-all">
+                                {result.tempOneDrivePath}
+                              </code>
+                            </p>
+                          ) : (
+                            <p className="text-xs text-red-700 mt-2 italic">
+                              Aucun PDF dans Temp pour cette entrée (échec avant
+                              découpe).
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           )}

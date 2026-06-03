@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { jsPDF } from 'jspdf';
 import fs from 'fs/promises';
 import path from 'path';
+import { parseTravelsS3KeyFromUrl } from "@/app/lib/travels-s3";
 import {  TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand} from "@aws-sdk/client-textract";
 
 const textractClient = new TextractClient({
@@ -23,12 +24,11 @@ export async function POST(req: Request) {
     if (documents && Array.isArray(documents)) {      
       for (const doc of documents) {
         try {
-          let docKey = doc.key;
-          if (!docKey && doc.url) {
-            const urlParts = doc.url.split(`${process.env.BUCKET_NAME}.s3.eu-west-3.amazonaws.com/`);
-            docKey = urlParts.length > 1 ? urlParts[1].split('?')[0] : doc.url.split('/').pop();
+          const docKey = doc.key || (doc.url ? parseTravelsS3KeyFromUrl(doc.url) : null);
+          if (!docKey) {
+            console.warn(`[OCR] Clé S3 introuvable pour ${doc.name || "document"}`);
+            continue;
           }
-          if (!docKey) continue;
           const startCommand = new StartDocumentTextDetectionCommand({DocumentLocation: { S3Object: { Bucket: process.env.BUCKET_NAME, Name: docKey}}});
           const startResponse = await textractClient.send(startCommand);
           const jobId = startResponse.JobId;
@@ -97,6 +97,11 @@ export async function POST(req: Request) {
         temperature: 0.5
       })
     });
+    if (!mistralResponse.ok) {
+      const errBody = await mistralResponse.text().catch(() => "");
+      console.error("Mistral API error:", mistralResponse.status, errBody);
+      return NextResponse.json({ error: "Échec génération du texte (service IA)." }, { status: 502 });
+    }
     const resData = await mistralResponse.json();
     let generatedText = resData.choices?.[0]?.message?.content || "Détails du voyage à venir...";
     generatedText = generatedText.replace(/[*#]/g, '').trim();

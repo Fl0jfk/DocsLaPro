@@ -6,28 +6,34 @@ import { SCHOOL } from "@/app/lib/school";
 
 const BMFB_LOGO_SRC = "/BMFB.png";
 
+const PARRAIN_CLUB = {
+  name: "Théo Malédon",
+  photoSrc: "/db34a.jpg",
+  clubLogoSrc: "/RealMadrid.png",
+  bio: "Joueur formé à l'école de basket du Mesnil-Esnard, joueur international et professionnel au club du Real Madrid.",
+};
+
 const BMFB = {
   fullName: "Basket Mesnil Franqueville Boos",
   shortName: "BMFB",
-  tagline: "Le basket formateur au service des jeunes du territoire",
-  practiceLines: [
-    "Séances sur les installations du BMFB.",
-    "Le club et l'établissement assurent un suivi sportif et scolaire.",
-    "Mesnil-Esnard · Franqueville-Saint-Pierre · Boos.",
-  ],
+  tagline: "Le club formateur au service des jeunes du territoire du Plateau Est",
+  practiceHeadline: "Formation Basket & progression",
+  practiceSubline: "Mesnil-Esnard · Franqueville-Saint-Pierre · Boos",
+  practiceNote:
+    "Les séances se déroulent sur les installations du BMFB. Le club et l'établissement coordonnent un suivi sportif et scolaire régulier pour les élèves engagés.",
   urlDisplay: "bmfb.fr",
   planning: [
     {
       dayLabel: "SPORT",
       dayShort: "basket",
       time: "Section Basket",
-      sub: "Entraînements encadrés par l'encadrement du BMFB.",
+      sub: "Entraînements encadrés par des éducateurs sportifs diplômés, passionnés et engagés.",
     },
     {
       dayLabel: "EQUIP",
       dayShort: "pack",
       time: "Licence & Vie de club",
-      sub: "Compétitions, esprit d'équipe et progression technique.",
+      sub: "Compétitions, respect des valeurs et progression technique.",
     },
   ],
 };
@@ -35,17 +41,17 @@ const BMFB = {
 const PROVIDENCE_OFFER = {
   localTitle: "Partenariat local : un cadre efficace",
   localBody:
-    "Le partenariat La Providence x BMFB s'adresse aux jeunes du secteur : progresser en basket sans sacrifier la réussite scolaire.",
+    "Le partenariat entre La Providence et le BMFB est une opportunité pour les jeunes passionnés(e) de basketball, souhaitant évoluer dans un environnement stimulant, proche de chez eux et qui valorise autant la performance sportive que la réussite éducative.",
   bullets: [
     {
       emoji: "🏆",
       title: "Exigence & Réussite Scolaire",
-      desc: "Suivi rigoureux pour garantir l'obtention des diplômes (Brevet, Bac).",
+      desc: "Établissement reconnu pour ses excellents taux de réussite. Nous assurons un suivi rigoureux pour garantir l'obtention des diplômes (Brevet, Bac).",
     },
     {
       emoji: "⏰",
       title: "Horaires Aménagés",
-      desc: "Emploi du temps adapté : cours, études surveillées et entraînements.",
+      desc: "L'emploi du temps est adapté pour les joueurs du BMFB, permettant de concilier les cours, les études surveillées et les séances d'entraînement.",
     },
   ],
 };
@@ -55,12 +61,16 @@ function BmfbFlyerCard({
   onLogoError,
   qrOk,
   onQrError,
+  parrainPhotoFailed,
+  onParrainPhotoError,
   priority,
 }: {
   logoFailed: boolean;
   onLogoError: () => void;
   qrOk: boolean;
   onQrError: () => void;
+  parrainPhotoFailed: boolean;
+  onParrainPhotoError: () => void;
   priority?: boolean;
 }) {
   return (
@@ -103,7 +113,7 @@ function BmfbFlyerCard({
         </div>
       </div>
 
-      <div className="relative h-[57mm] overflow-hidden bg-slate-900 shrink-0">
+      <div className="relative h-[55mm] overflow-hidden bg-slate-900 shrink-0">
         <Image
           src="/BMFBhero.jpeg"
           alt="Équipe de basket BMFB"
@@ -120,41 +130,41 @@ function BmfbFlyerCard({
           <span className="bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.15em] px-3 py-0.5 rounded-sm inline-block mb-1.5 shadow-md">
             Partenariat BMFB × Scolarité
           </span>
-          <h2 className="text-[24px] font-black text-white leading-[0.88] tracking-tighter drop-shadow-lg">
-            SECTION <br />
-            <span className="text-orange-400 italic">BASKET BMFB</span>
+          <h2 className="text-[22px] font-black text-white leading-[0.88] tracking-tighter drop-shadow-lg">
+            SECTION BASKET
+            <br />
+            <span className="text-orange-400 italic text-[15px]">MESNIL FRANQUEVILLE BOOS BMFB</span>
           </h2>
-          <p className="mt-1 text-[11px] font-bold text-white/95 leading-snug max-w-md">
-            {BMFB.tagline}
-          </p>
+          <p className="mt-1 text-[10px] font-bold text-white/95 leading-snug max-w-md">{BMFB.tagline}</p>
         </div>
       </div>
 
-      <div className="px-4 py-2 grid grid-cols-2 gap-x-4 gap-y-1.5 flex-1 min-h-0 items-start">
-        <div className="space-y-2 min-w-0">
+      <div className="px-3 py-2 grid grid-cols-2 gap-x-3 gap-y-1 flex-1 min-h-0 items-start">
+        <div className="space-y-1.5 min-w-0">
           <section>
-            <h3 className="text-[15px] font-black text-slate-900 border-l-[6px] border-orange-500 pl-3 mb-1.5 uppercase tracking-tight leading-tight">
+            <h3 className="text-[14px] font-black text-slate-900 border-l-[6px] border-orange-500 pl-2.5 mb-1 uppercase tracking-tight leading-tight">
               Le Projet Sportif (BMFB)
             </h3>
-            <p className="text-[13px] text-slate-700 leading-snug font-medium">
-              Le <strong>{BMFB.fullName}</strong> accompagne les jeunes basketteurs. Ce partenariat structure un double
-              projet sport-études dans un cadre local de proximité.
+            <p className="text-[11px] text-slate-700 leading-snug font-medium">
+              Le <strong>{BMFB.fullName}</strong> est un club formateur qui accompagne les jeunes basketteurs(es) dans
+              une dynamique de progression. Grâce à un double projet sport-études structuré, le BMFB leur permet de
+              concilier entrainements et réussite scolaire, le tout dans un cadre local de proximité.
             </p>
           </section>
 
-          <section className="bg-slate-50 p-2.5 rounded-xl border-2 border-slate-100">
-            <h3 className="text-[11px] font-black text-orange-700 mb-1.5 uppercase tracking-widest border-b border-orange-100 pb-1">
+          <section className="bg-slate-50 p-2 rounded-xl border-2 border-slate-100">
+            <h3 className="text-[10px] font-black text-orange-700 mb-1 uppercase tracking-widest border-b border-orange-100 pb-0.5">
               Organisation Basket
             </h3>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {BMFB.planning.map((slot) => (
-                <div key={slot.dayShort} className="flex items-center gap-2.5">
-                  <div className="bg-orange-500 w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-[8px] leading-tight text-center px-0.5 shrink-0">
+                <div key={slot.dayShort} className="flex items-center gap-2">
+                  <div className="bg-orange-500 w-9 h-9 rounded-lg flex items-center justify-center font-black text-white text-[7px] leading-tight text-center px-0.5 shrink-0">
                     {slot.dayLabel}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-black text-slate-900 leading-tight">{slot.time}</p>
-                    <p className="text-[11px] text-orange-600 uppercase font-bold tracking-wide leading-tight">
+                    <p className="text-[11px] font-black text-slate-900 leading-tight">{slot.time}</p>
+                    <p className="text-[9px] text-orange-600 uppercase font-bold tracking-wide leading-tight">
                       {slot.sub}
                     </p>
                   </div>
@@ -164,44 +174,79 @@ function BmfbFlyerCard({
           </section>
 
           <div className="bg-slate-900 text-white p-2 rounded-lg flex items-start gap-1.5 relative overflow-hidden">
-            <span className="text-base shrink-0 leading-none mt-px" aria-hidden>
+            <span className="text-sm shrink-0 leading-none mt-px" aria-hidden>
               📍
             </span>
-            <div className="min-w-0 space-y-0.5">
-              {BMFB.practiceLines.map((line) => (
-                <p key={line} className="text-[11px] text-slate-200 leading-[1.3] font-medium">
-                  {line}
-                </p>
-              ))}
+            <div className="min-w-0">
+              <p className="text-[9px] font-black text-orange-300 uppercase tracking-widest leading-tight">
+                {BMFB.practiceSubline}
+              </p>
+              <p className="text-[11px] font-black leading-tight">{BMFB.practiceHeadline}</p>
+              <p className="text-[9px] text-slate-300 mt-0.5 leading-snug">{BMFB.practiceNote}</p>
             </div>
           </div>
         </div>
 
-        <div className="space-y-2 min-w-0">
+        <div className="space-y-1.5 min-w-0">
           <section>
-            <h3 className="text-[15px] font-black text-slate-900 border-l-[6px] border-orange-500 pl-3 mb-1.5 uppercase tracking-tight leading-tight">
+            <h3 className="text-[14px] font-black text-slate-900 border-l-[6px] border-orange-500 pl-2.5 mb-1 uppercase tracking-tight leading-tight">
               Scolarité & Projet Éducatif
             </h3>
-            <div className="bg-gradient-to-br from-orange-500 to-orange-700 text-white p-2.5 rounded-xl relative overflow-hidden">
-              <p className="text-[11px] font-black text-orange-100 uppercase tracking-widest mb-1">Point clé</p>
-              <h4 className="text-[16px] font-black leading-tight">{PROVIDENCE_OFFER.localTitle}</h4>
-              <p className="text-[12px] text-orange-50 mt-1 leading-snug font-medium">{PROVIDENCE_OFFER.localBody}</p>
+            <div className="bg-gradient-to-br from-orange-500 to-orange-700 text-white p-2 rounded-xl relative overflow-hidden">
+              <p className="text-[9px] font-black text-orange-100 uppercase tracking-widest mb-0.5">Point clé</p>
+              <h4 className="text-[13px] font-black leading-tight">{PROVIDENCE_OFFER.localTitle}</h4>
+              <p className="text-[10px] text-orange-50 mt-0.5 leading-snug font-medium">{PROVIDENCE_OFFER.localBody}</p>
             </div>
           </section>
-          <div className="space-y-1.5">
+
+          <section className="bg-white rounded-xl border border-orange-100 shadow-sm overflow-hidden">
+            <div className="flex gap-1 items-stretch">
+              <div className="shrink-0">
+                {!parrainPhotoFailed ? (
+                  <Image
+                    src={PARRAIN_CLUB.photoSrc}
+                    alt={`Portrait ${PARRAIN_CLUB.name}`}
+                    width={44}
+                    height={52}
+                    className="w-11 h-[4.5rem] object-cover"
+                    onError={onParrainPhotoError}
+                    unoptimized
+                  />
+                ) : (
+                  <div
+                    className="w-11 h-[3.25rem] bg-orange-100 border-r border-orange-200 flex items-center justify-center text-base"
+                    aria-hidden
+                  >
+                    🏀
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 p-1.5">
+                <p className="text-[7px] font-black text-orange-600 uppercase tracking-[0.15em] leading-none">
+                  Parrain du club
+                </p>
+                <h4 className="text-[10px] font-black text-slate-900 leading-tight mt-0.5 uppercase">
+                  {PARRAIN_CLUB.name}
+                </h4>
+                <p className="text-[9px] text-slate-600 leading-snug font-medium mt-0.5">{PARRAIN_CLUB.bio}</p>
+              </div>
+            </div>
+          </section>
+
+          <div className="space-y-1">
             {PROVIDENCE_OFFER.bullets.map((item) => (
               <div
                 key={item.title}
-                className="flex gap-2 items-center bg-white p-2 rounded-xl border-2 border-slate-100 shadow-sm"
+                className="flex gap-1.5 items-center bg-white p-1.5 rounded-xl border-2 border-slate-100 shadow-sm"
               >
-                <span className="text-lg bg-slate-50 w-9 h-9 flex items-center justify-center rounded-lg shrink-0">
+                <span className="text-base bg-slate-50 w-8 h-8 flex items-center justify-center rounded-lg shrink-0">
                   {item.emoji}
                 </span>
                 <div className="min-w-0">
-                  <h4 className="text-[12px] font-black text-slate-900 uppercase tracking-tight leading-tight">
+                  <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-tight leading-tight">
                     {item.title}
                   </h4>
-                  <p className="text-[11px] text-slate-600 leading-snug font-medium mt-0.5">{item.desc}</p>
+                  <p className="text-[9px] text-slate-600 leading-snug font-medium mt-0.5">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -209,30 +254,35 @@ function BmfbFlyerCard({
         </div>
       </div>
 
-      <div className="mt-auto bg-slate-950 px-3 py-1.5 border-t-[5px] border-orange-500 shrink-0 relative z-10">
+      <div className="mt-auto bg-slate-950 px-3 py-2 border-t-[5px] border-orange-500 shrink-0 relative z-10">
         <div className="pr-[4.25rem]">
           <h3 className="text-[10px] font-black text-orange-300 uppercase tracking-[0.2em] mb-1 leading-tight">
             Inscriptions & Renseignements
           </h3>
-          <div className="flex flex-wrap gap-x-5 gap-y-0.5">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
             <div>
-              <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest leading-none">Site du Club</p>
-              <p className="text-[12px] font-bold text-white leading-tight">{BMFB.urlDisplay}</p>
+              <p className="text-[8px] text-slate-500 uppercase font-bold tracking-widest leading-none">Site du Club</p>
+              <p className="text-[11px] font-bold text-white leading-tight">{BMFB.urlDisplay}</p>
             </div>
             <div>
-              <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest leading-none">École</p>
-              <p className="text-[12px] font-bold text-white leading-tight">{SCHOOL.phone.display}</p>
-              <p className="text-[10px] text-slate-400 leading-tight">{SCHOOL.address.city}</p>
+              <p className="text-[8px] text-slate-500 uppercase font-bold tracking-widest leading-none">Encadrants</p>
+              <p className="text-[10px] font-bold text-white leading-tight">P. CHAUVET : 06 71 17 97 67</p>
+              <p className="text-[10px] font-bold text-white leading-tight">K. LE GALL : 06 25 35 76 75</p>
+            </div>
+            <div>
+              <p className="text-[8px] text-slate-500 uppercase font-bold tracking-widest leading-none">École</p>
+              <p className="text-[11px] font-bold text-white leading-tight">{SCHOOL.phone.display}</p>
+              <p className="text-[9px] text-slate-400 leading-tight">{SCHOOL.address.city}</p>
             </div>
           </div>
         </div>
         {qrOk ? (
-          <div className="absolute right-1.5 top-1/2 z-30 -translate-y-1/2 bg-white p-0 rounded-lg leading-none">
+          <div className="absolute right-1.5 top-1/2 h-[55px] w-[55px] z-30 -translate-y-1/2 bg-white rounded-lg leading-none">
             <Image
               src="/QRcodeBMFB.png"
               alt="QR code BMFB"
-              width={60}
-              height={60}
+              width={200}
+              height={200}
               className="block rounded-md"
               onError={onQrError}
             />
@@ -241,7 +291,7 @@ function BmfbFlyerCard({
       </div>
 
       <div
-        className="pointer-events-none absolute right-[6rem] bottom-[-2.5rem] z-20 h-[10rem] w-[10rem]"
+        className="pointer-events-none absolute right-[5rem] bottom-[-2.75rem] z-20 h-[9rem] w-[9rem]"
         aria-hidden
       >
         <Image
@@ -259,6 +309,7 @@ function BmfbFlyerCard({
 export default function AfficheBMFBA3Page() {
   const [logoFailed, setLogoFailed] = useState(false);
   const [qrOk, setQrOk] = useState(true);
+  const [parrainPhotoFailed, setParrainPhotoFailed] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-200 flex flex-col items-center py-10 px-4 print:p-0 print:bg-white no-scrollbar">
@@ -278,6 +329,8 @@ export default function AfficheBMFBA3Page() {
             onLogoError={() => setLogoFailed(true)}
             qrOk={qrOk}
             onQrError={() => setQrOk(false)}
+            parrainPhotoFailed={parrainPhotoFailed}
+            onParrainPhotoError={() => setParrainPhotoFailed(true)}
             priority={i === 0}
           />
         ))}

@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
   try {
-    const { tripData, userEmail, userName } = await req.json();
+    const { tripData, userEmail, userName, organizerEmail } = await req.json();
     const details = tripData.data.piqueNiqueDetails;
     if (!details || !details.active) {
       return NextResponse.json({ error: "Aucune commande cuisine à envoyer" }, { status: 400 });
@@ -175,10 +175,11 @@ export async function POST(req: Request) {
       },
     });
     const selectedDayNames = selectedDays.map(d => d.label).join(", ");
+    const ccRecipients = [...new Set([userEmail, organizerEmail, tripData.ownerEmail].filter(Boolean))];
     await transporter.sendMail({
       from: `"Gestion Sorties La Providence" <${process.env.EMAIL_USER}>`,
       to: "chef.0056isi@newrest.eu",
-      cc: userEmail,
+      cc: ccRecipients.length > 0 ? ccRecipients.join(", ") : undefined,
       subject: `Bon de commande cuisine — ${userName} — ${tripData.data.title}`,
       text: [
         `Bonjour,`,

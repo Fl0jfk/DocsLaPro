@@ -5,11 +5,17 @@ import { useState } from "react";
 import { SCHOOL } from "@/app/lib/school";
 
 const BMFB_LOGO_SRC = "/BMFB.png";
+const PARRAIN_CLUB = {
+  name: "Théo Malédon",
+  photoSrc: "/db34a.jpg",
+  clubLogoSrc: "/RealMadrid.png",
+  bio: "Joueur formé à l'école de basket du Mesnil-Esnard, joueur international et professionnel au club du Real Madrid.",
+};
 
 const BMFB = {
   fullName: "Basket Mesnil Franqueville Boos",
   shortName: "BMFB",
-  tagline: "Le basket formateur au service des jeunes du territoire",
+  tagline: "Le club formateur au service des jeunes du territoire du Plateau Est",
   practiceHeadline: "Formation Basket & progression",
   practiceSubline: "Mesnil-Esnard · Franqueville-Saint-Pierre · Boos",
   practiceNote:
@@ -27,13 +33,13 @@ const BMFB = {
       dayLabel: "SPORT",
       dayShort: "basket",
       time: "Section Basket",
-      sub: "Entraînements encadrés par l'encadrement du BMFB.",
+      sub: "Entraînements encadrés par des éducateurs sportifs diplômés, passionnés et engagés.",
     },
     {
       dayLabel: "EQUIP",
       dayShort: "pack",
       time: "Licence & Vie de club",
-      sub: "Compétitions, esprit d'équipe et progression technique.",
+      sub: "Compétitions, respect des valeurs et progression technique.",
     },
   ],
 };
@@ -41,7 +47,7 @@ const BMFB = {
 const PROVIDENCE_OFFER = {
   localTitle: "Partenariat local : un cadre efficace",
   localBody:
-    "Le partenariat La Providence x BMFB s'adresse aux jeunes du secteur. L'objectif est simple : proposer une organisation locale sérieuse pour progresser en basket sans sacrifier la réussite scolaire.",
+    "Le partenariat entre La Providence et le BMFB est une opportunité pour les jeunes passionnés(e) de basketball, souhaitant évoluer dans un environnement stimulant, proche de chez eux et qui valorise autant la performance sportive que la réussite éducative.",
   bullets: [
     {
       emoji: "🏆",
@@ -59,6 +65,7 @@ const PROVIDENCE_OFFER = {
 export default function AfficheBMFBPage() {
   const [logoFailed, setLogoFailed] = useState(false);
   const [qrOk, setQrOk] = useState(true);
+  const [parrainPhotoFailed, setParrainPhotoFailed] = useState(false);
   return (
     <div className="min-h-screen bg-slate-200 flex flex-col items-center py-10 px-4 print:p-0 print:bg-white no-scrollbar">
       <button
@@ -69,7 +76,7 @@ export default function AfficheBMFBPage() {
         <span aria-hidden>🖨️</span> Imprimer l'affiche (A4)
       </button>
       <div className="bg-white shadow-2xl w-[210mm] h-[297mm] overflow-hidden flex flex-col relative print:shadow-none print:w-full print:h-full border border-slate-100 print:border-none">
-        <div className="px-10 py-[14px] flex justify-between items-center border-b-[6px] border-orange-500">
+        <div className="px-10 py-[6px] flex justify-between items-center border-b-[6px] border-orange-500">
           <div className="flex items-center gap-6">
             <Image
               src="/logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png"
@@ -104,7 +111,7 @@ export default function AfficheBMFBPage() {
             )}
           </div>
         </div>
-        <div className="relative h-[70mm] overflow-hidden bg-slate-900 mb-2">
+        <div className="relative h-[65mm] overflow-hidden bg-slate-900 mb-2">
           <Image
             src="/BMFBhero.jpeg"
             alt="Equipe de basket BMFB"
@@ -118,30 +125,29 @@ export default function AfficheBMFBPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/35 to-transparent" />
 
-          <div className="absolute bottom-10 left-10 right-10">
+          <div className="absolute bottom-4 left-10 right-10">
             <span className="bg-orange-500 text-white text-[12px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-sm inline-block mb-3 shadow-lg">
               Partenariat BMFB × Scolarité
             </span>
             <h2 className="text-5xl sm:text-6xl font-black text-white leading-[0.85] tracking-tighter drop-shadow-2xl">
-              SECTION <br />
-              <span className="text-orange-400 italic font-black">BASKET BMFB</span>
+              SECTION BASKET<br />
+              <span className="text-orange-400 italic font-black text-4xl">MESNIL FRANQUEVILLE BOOS BMFB</span>
             </h2>
             <p className="mt-2 text-[13px] font-bold text-white/95 tracking-wide max-w-xl leading-snug">
               {BMFB.tagline}
             </p>
           </div>
         </div>
-        <div className="px-10 py-6 grid grid-cols-2 gap-x-10 gap-y-3 flex-1 min-h-0">
+        <div className="px-6 py-[15px] grid grid-cols-2 gap-x-5 gap-y-3 flex-1 min-h-0">
           <div className="space-y-4 min-w-0">
             <section>
               <h3 className="text-[17px] font-black text-slate-900 border-l-[8px] border-orange-500 pl-4 mb-6 uppercase tracking-tight leading-tight">
                 Le Projet Sportif (BMFB)
               </h3>
               <p className="text-[15px] text-slate-700 leading-snug font-medium">
-                Le <strong>{BMFB.fullName}</strong> accompagne les jeunes basketteurs dans une dynamique de progression. Ce partenariat structure un double projet sport-études dans un cadre local de proximité.
+                Le <strong>{BMFB.fullName}</strong> est un club formateur qui accompagne les jeunes basketteurs(es) dans une dynamique de progression. Grâce à un double projet sport-études structuré, le BMFB leur permet de concilier entrainements et réussite scolaire, le tout dans un cadre local de proximité.
               </p>
             </section>
-
             <section className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 shadow-sm">
               <h3 className="text-xs font-black text-orange-700 mb-4 uppercase tracking-widest border-b border-orange-100 pb-1">
                 Organisation Basket
@@ -172,7 +178,7 @@ export default function AfficheBMFBPage() {
               </div>
             </section>
           </div>
-          <div className="space-y-6 min-w-0">
+          <div className="space-y-3 min-w-0">
             <section>
               <h3 className="text-[17px] font-black text-slate-900 border-l-[8px] border-orange-500 pl-4 mb-6 uppercase tracking-tight leading-tight">
                 Scolarité & Projet Éducatif
@@ -183,8 +189,38 @@ export default function AfficheBMFBPage() {
                 <h4 className="text-xl font-black leading-tight relative">{PROVIDENCE_OFFER.localTitle}</h4>
                 <p className="text-[13px] text-red-50 mt-2 leading-snug font-medium relative">{PROVIDENCE_OFFER.localBody}</p>
               </div>
-            </section> 
-            <div className="space-y-6">
+            </section>
+            <section className="bg-white rounded-2xl border-1 border-orange-100 shadow-sm overflow-hidden">
+              <div className="flex gap-2.5 items-start">
+                <div>
+                  <>
+                  {!parrainPhotoFailed ? (
+                    <Image
+                      src={PARRAIN_CLUB.photoSrc}
+                      alt={`Portrait ${PARRAIN_CLUB.name}`}
+                      width={50}
+                      height={50}
+                      className="w-24 h-28 object-cover"
+                      onError={() => setParrainPhotoFailed(true)}
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center text-lg" aria-hidden>
+                      🏀
+                    </div>
+                  )}
+                  </>
+                </div>
+                <div className="min-w-0 flex-1 p-2.5 ">
+                  <p className="text-[9px] font-black text-orange-600 uppercase tracking-[0.2em] leading-none">
+                    Parrain du club
+                  </p>
+                  <h4 className="text-[13px] font-black text-slate-900 leading-tight mt-0.5 uppercase">{PARRAIN_CLUB.name}</h4>
+                  <p className="text-[12px] text-slate-600 leading-snug font-medium mt-1">{PARRAIN_CLUB.bio}</p>
+                </div>
+              </div>
+            </section>
+            <div className="space-y-3">
               {PROVIDENCE_OFFER.bullets.map((item) => (
                 <div
                   key={item.title}
@@ -204,16 +240,21 @@ export default function AfficheBMFBPage() {
             </div>
           </div>
         </div>
-        <div className="mt-auto bg-slate-950 px-8 py-4 border-t-[8px] border-orange-500">
+        <div className="mt-auto bg-slate-950 px-4 py-4 border-t-[8px] border-orange-500">
           <div className="flex justify-between items-center gap-8">
             <div className="flex-1 min-w-0">
               <h3 className="text-xs font-black text-orange-300 uppercase tracking-[0.3em] mb-5">
                 Inscriptions & Renseignements
               </h3>
-              <div className="flex flex-wrap gap-x-12 gap-y-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-4">
                 <div>
                   <p className="text-[11px] text-slate-500 uppercase font-bold tracking-widest mb-1">Site du Club</p>
                   <p className="text-sm font-bold text-white">{BMFB.urlDisplay}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-slate-500 uppercase font-bold tracking-widest mb-1">Encadrants</p>
+                  <p className="text-sm font-bold text-white">Pierrick CHAUVET : 06 71 17 97 67</p>
+                  <p className="text-sm font-bold text-white">Kévin LE GALL : 06 25 35 76 75</p>
                 </div>
                 <div>
                   <p className="text-[11px] text-slate-500 uppercase font-bold tracking-widest mb-1">École</p>
@@ -221,12 +262,12 @@ export default function AfficheBMFBPage() {
                   <p className="text-[10px] text-slate-400 mt-0.5">{SCHOOL.address.city}</p>
                 </div>
                 <div>
-                  <div className="left-[425px] w-[190px] h-[190px] bottom-[8px] absolute">
+                  <div className="left-[465px] w-[230px] h-[230px] bottom-[-55px] absolute">
                     <Image
                       src="/BallonBB.png"
                       alt="Ballon de basket"
-                      width={190}
-                      height={190}
+                      width={230}
+                      height={230}
                       className="object-contain"
                     />
                   </div>
