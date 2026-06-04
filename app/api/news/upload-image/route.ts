@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { tenantS3Key } from "@/app/lib/tenant";
 
-// Upload goes server-side (Next.js → S3) to avoid any browser CORS restrictions.
 const IMAGE_BUCKET = "docslaproimage";
 
 const s3 = new S3Client({
@@ -14,8 +14,9 @@ const s3 = new S3Client({
 });
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId } = gate.ctx;
 
   try {
     const formData = await req.formData();
@@ -23,7 +24,8 @@ export async function POST(req: Request) {
     if (!file) return NextResponse.json({ error: "Fichier manquant" }, { status: 400 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const key = `news/${Date.now()}-${file.name}`;
+    const rel = `news/${Date.now()}-${file.name}`;
+    const key = tenantS3Key(orgId, rel);
 
     await s3.send(
       new PutObjectCommand({
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
         Key: key,
         Body: buffer,
         ContentType: file.type,
-      })
+      }),
     );
 
     const fileUrl = `https://${IMAGE_BUCKET}.s3.${process.env.REGION}.amazonaws.com/${key}`;

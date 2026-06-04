@@ -1,6 +1,8 @@
-import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
 import { SCHOOL } from "@/app/lib/school";
+import { getTenantJson, putTenantJson, putTenantObject, getTenantS3Client, getBucketName } from "@/app/lib/tenant-s3-storage";
+import { tenantS3Key, normalizeS3KeyForTenantWrite } from "@/app/lib/tenant";
 import { LEGACY_ROUTE_TO_BRANCH, normalizeRequestBranchId, normalizeRequestEmail, isCorbeilleBranchId} from "@/app/lib/requests-board";
 import { getFirstBranchForStaffEmailFromDirectory, getStaffExecutorsForBranch, getStaffLeadersForBranch} from "@/app/lib/staff-directory";
 
@@ -61,6 +63,7 @@ export function sanitizeRequestFileName(name: string): string {
 }
 
 export async function uploadBuffersAsRequestAttachments(
+  orgId: string,
   requestId: string,
   items: { buffer: Buffer; fileName: string; contentType: string }[],
 ): Promise<RequestAttachment[]> {
@@ -72,15 +75,8 @@ export async function uploadBuffersAsRequestAttachments(
     if (!check.ok) throw new Error(check.error);
     const attId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const safe = sanitizeRequestFileName(item.fileName);
-    const key = `requests/${requestId}/files/${attId}_${safe}`;
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: key,
-        Body: item.buffer,
-        ContentType: item.contentType || "application/octet-stream",
-      }),
-    );
+    const rel = `requests/${requestId}/files/${attId}_${safe}`;
+    const key = await putTenantObject(orgId, rel, item.buffer, item.contentType || "application/octet-stream");
     out.push({
       id: attId,
       key,
@@ -199,8 +195,8 @@ export function requestShouldBePurged(record: RequestRecord, now = new Date()): 
   return now >= legacy;
 }
 
-export async function purgeExpiredRequests(): Promise<{ removed: number }> {
-  const index = await getRequestsIndex();
+export async function purgeExpiredRequests(orgId: string): Promise<{ removed: number }> {
+  const index = await getRequestsIndex(orgId);
   const now = new Date();
   const keep: RequestRecord[] = [];
   const remove: RequestRecord[] = [];
@@ -209,13 +205,13 @@ export async function purgeExpiredRequests(): Promise<{ removed: number }> {
     else keep.push(r);
   }
   if (remove.length === 0) return { removed: 0 };
-  const bucket = process.env.BUCKET_NAME!;
+  const bucket = getBucketName();
   for (const r of remove) {
     try {
       await s3Client.send(
         new DeleteObjectCommand({
           Bucket: bucket,
-          Key: `requests/${r.id}.json`,
+          Key: tenantS3Key(orgId, `requests/${r.id}.json`),
         }),
       );
     } catch (e) {
@@ -223,7 +219,7 @@ export async function purgeExpiredRequests(): Promise<{ removed: number }> {
     }
     try {
       let token: string | undefined;
-      const prefix = `requests/${r.id}/`;
+      const prefix = tenantS3Key(orgId, `requests/${r.id}/`);
       do {
         const list = await s3Client.send( new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }));
         const keys = (list.Contents ?? []).map((c) => c.Key).filter(Boolean) as string[];
@@ -241,7 +237,7 @@ export async function purgeExpiredRequests(): Promise<{ removed: number }> {
       console.error(`purge request folder ${r.id}:`, e);
     }
   }
-  await saveRequestsIndex(keep);
+  await saveRequestsIndex(orgId, keep);
   return { removed: remove.length };
 }
 
@@ -264,43 +260,17 @@ export function validateRequestInput(input: Partial<RequestCreateInput>) {
   };
 }
 
-export async function getRequestsIndex(): Promise<RequestRecord[]> {
-  try {
-    const res = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: INDEX_KEY,
-      }),
-    );
-    const body = await res.Body?.transformToString();
-    return body ? JSON.parse(body) : [];
-  } catch (error: unknown) {
-    const err = error as { name?: string };
-    if (err?.name === "NoSuchKey") return [];
-    throw error;
-  }
+export async function getRequestsIndex(orgId: string): Promise<RequestRecord[]> {
+  const hit = await getTenantJson<RequestRecord[]>(orgId, INDEX_KEY);
+  return hit?.data ?? [];
 }
 
-export async function saveRequestsIndex(index: RequestRecord[]) {
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(index),
-      ContentType: "application/json",
-    }),
-  );
+export async function saveRequestsIndex(orgId: string, index: RequestRecord[]) {
+  await putTenantJson(orgId, INDEX_KEY, index);
 }
 
-export async function saveRequestFile(record: RequestRecord) {
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: `requests/${record.id}.json`,
-      Body: JSON.stringify(record),
-      ContentType: "application/json",
-    }),
-  );
+export async function saveRequestFile(orgId: string, record: RequestRecord) {
+  await putTenantJson(orgId, `requests/${record.id}.json`, record);
 }
 
 function normalizeForMatch(input: string) {

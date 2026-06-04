@@ -1,14 +1,6 @@
 import { NextResponse } from "next/server";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
+import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import { getLegacyTenantOrgId } from "@/app/lib/tenant";
 
 const NEWS_KEY = "news/slider.json";
 
@@ -21,10 +13,10 @@ export type NewsItem = {
   title: string;
   subtitle: string;
   description: string;
-  body?: string;       // full article content, only for type "article"
+  body?: string;
   image: string;
-  images?: string[];   // additional gallery images, only for type "article"
-  link?: string;       // only for type "lien"
+  images?: string[];
+  link?: string;
   buttonText: string;
   textColor?: "white" | "black";
   buttonStyle?: "light" | "dark";
@@ -67,29 +59,21 @@ function parseNewsPayload(payload: unknown): NewsItem[] {
     .filter((x) => x.id && x.title && x.buttonText);
 }
 
+/** Actualités publiques : org legacy ou première org migrée. */
 export async function GET() {
-  try {
-    const command = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME!,
-      Key: NEWS_KEY,
+  const orgId = getLegacyTenantOrgId();
+  if (!orgId) {
+    return NextResponse.json([], {
+      headers: { "Cache-Control": "no-store, max-age=0" },
     });
-    const signedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
-
-    const res = await fetch(signedUrl);
-    if (!res.ok) {
-      console.warn(`news/slider.json inaccessible (${res.status})`);
-      return NextResponse.json([]);
+  }
+  try {
+    const hit = await getTenantJson<unknown>(orgId, NEWS_KEY);
+    if (!hit?.data) {
+      return NextResponse.json([], { headers: { "Cache-Control": "no-store, max-age=0" } });
     }
-
-    const text = await res.text();
-    if (!text.trim()) return NextResponse.json([]);
-
-    const parsed = JSON.parse(text);
-    return NextResponse.json(parseNewsPayload(parsed), {
-      headers: {
-        // Les actualités doivent refléter immédiatement les modifications de l'admin.
-        "Cache-Control": "no-store, max-age=0",
-      },
+    return NextResponse.json(parseNewsPayload(hit.data), {
+      headers: { "Cache-Control": "no-store, max-age=0" },
     });
   } catch (err: unknown) {
     console.error("Erreur chargement news JSON:", err);

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { auth } from "@clerk/nextjs/server";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { currentUser } from "@clerk/nextjs/server";
+import { isValidTravelsReopenFromValideStatus } from "@/app/lib/travels-direction-permissions";
 import nodemailer from "nodemailer";
 import IMAGE_CATALOG from "./image-catalog.json";
-import { SCHOOL } from "@/app/lib/school";
 import { notifyComptaTravelsPhase, type TravelsTripForNotify } from "@/app/lib/travels-notify";
-
-const norm = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\s-]+/g, "");
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { canSignTravelsDirectionForEtabTenant, resolveDirectorFromTenant } from "@/app/lib/tenant-establishments";
 
 function mergeReceivedDevis(fromClient: unknown, fromS3: unknown): unknown[] {
   const clientArr = Array.isArray(fromClient) ? fromClient : [];
@@ -29,17 +29,10 @@ function mergeReceivedDevis(fromClient: unknown, fromS3: unknown): unknown[] {
   return [...byId.values()];
 }
 
-const resolveDirectorByEtab = (etablissement?: string | null) => {
-  const e = norm(etablissement || "");
-  if (e === "ecole") return { label: SCHOOL.ecole.label, directrice: SCHOOL.ecole.directrice, email: SCHOOL.ecole.email };
-  if (e === "college") return { label: SCHOOL.college.label, directrice: SCHOOL.college.directrice, email: SCHOOL.college.email };
-  if (e === "lycee") return { label: SCHOOL.lycee.label, directrice: SCHOOL.lycee.directrice, email: SCHOOL.lycee.email };
-  return { label: "Groupe Scolaire", directrice: SCHOOL.lycee.directrice, email: SCHOOL.lycee.email };
-};
-
 export async function POST(req: Request) {
-  const { userId } = await auth(); 
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId } = gate.ctx;
   try {
     const body = await req.json();
     const suppressNewTripEmail = Boolean(body.suppressNewTripEmail);
@@ -81,50 +74,39 @@ export async function POST(req: Request) {
         objectToSave.imageConfigId = matchedImage.id;
       } catch (err) { console.error("Erreur IA:", err)}
     }
-    const s3Client = new S3Client({
-      region: process.env.REGION,
-      credentials: {
-        accessKeyId: process.env.ACCESS_KEY_ID!,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-      },
-    });
-    const tripKey = `travels/${tripId}.json`;
-    let existingOnS3: Record<string, unknown> | null = null;
-    try {
-      const ex = await s3Client.send(
-        new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: tripKey })
-      );
-      const raw = await ex.Body?.transformToString();
-      if (raw) existingOnS3 = JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      /* nouveau dossier */
-    }
+    const tripRel = `travels/${tripId}.json`;
+    const existingHit = await getTenantJson<Record<string, unknown>>(orgId, tripRel);
+    const existingOnS3 = existingHit?.data ?? null;
     if (existingOnS3 && Array.isArray(existingOnS3.receivedDevis)) {
       objectToSave.receivedDevis = mergeReceivedDevis(
         objectToSave.receivedDevis,
         existingOnS3.receivedDevis
       );
     }
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: tripKey,
-        Body: JSON.stringify(objectToSave),
-        ContentType: "application/json",
-      })
-    );
-    const INDEX_KEY = 'travels/index.json';
-    let currentIndex = [];
-    try {
-      const getIndexCommand = new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: INDEX_KEY,
-      });
-      const indexRes = await s3Client.send(getIndexCommand);
-      const indexBody = await indexRes.Body?.transformToString();
-      if (indexBody) currentIndex = JSON.parse(indexBody);
-    } catch (e) {
+    const previousStatus = existingOnS3 && typeof existingOnS3.status === "string" ? existingOnS3.status : null;
+    const newStatus = typeof objectToSave.status === "string" ? objectToSave.status : "";
+    if (previousStatus === "VALIDE" && newStatus !== "VALIDE" && newStatus !== previousStatus) {
+      if (!isValidTravelsReopenFromValideStatus(newStatus)) {
+        return NextResponse.json({ error: "Étape de réouverture invalide." }, { status: 400 });
+      }
+      const me = await currentUser();
+      const innerForPerm = (objectToSave.data as { etablissement?: string } | undefined) || {};
+      const etab =
+        typeof innerForPerm.etablissement === "string"
+          ? innerForPerm.etablissement
+          : typeof (existingOnS3?.data as { etablissement?: string } | undefined)?.etablissement === "string"
+            ? (existingOnS3!.data as { etablissement: string }).etablissement
+            : null;
+      if (!(await canSignTravelsDirectionForEtabTenant(me, orgId, etab))) {
+        return NextResponse.json(
+          { error: "Seule la direction de l'établissement concerné peut réouvrir un dossier finalisé." },
+          { status: 403 },
+        );
+      }
     }
+    await putTenantJson(orgId, tripRel, objectToSave);
+    const indexHit = await getTenantJson<unknown[]>(orgId, "travels/index.json");
+    let currentIndex: unknown[] = Array.isArray(indexHit?.data) ? indexHit.data : [];
     const tripSummary = {
       id: tripId,
       ownerName: objectToSave.ownerName,
@@ -161,17 +143,11 @@ export async function POST(req: Request) {
     if (existingIndex > -1) { currentIndex[existingIndex] = tripSummary;
     } else { currentIndex.push(tripSummary);
     }
-    await s3Client.send(new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(currentIndex),
-      ContentType: "application/json",
-    }));
-    const previousStatus = existingOnS3 && typeof existingOnS3.status === "string" ? existingOnS3.status : null;
-    const newStatus = typeof objectToSave.status === "string" ? objectToSave.status : "";
+    await putTenantJson(orgId, "travels/index.json", currentIndex);
     if (newStatus === "EN_ATTENTE_COMPTA" && previousStatus !== "EN_ATTENTE_COMPTA") {
       try {
         await notifyComptaTravelsPhase({
+          orgId,
           tripId,
           trip: objectToSave as TravelsTripForNotify,
           previousStatus,
@@ -182,7 +158,7 @@ export async function POST(req: Request) {
     }
     if (isNewProject && !suppressNewTripEmail) {
       try {
-        const director = resolveDirectorByEtab(innerData.etablissement);
+        const director = await resolveDirectorFromTenant(orgId, innerData.etablissement);
         const transporter = nodemailer.createTransport({
           service: "gmail",
           auth: {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { currentUser } from "@clerk/nextjs/server";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson, putTenantJson, putTenantObject } from "@/app/lib/tenant-s3-storage";
 
 type Etablissement = "École" | "Collège" | "Lycée";
 
@@ -18,19 +19,12 @@ type ConvocationRecord = {
     endAt: string;
     sourceDocument: string;
     documentKey: string;
+    documentKeys?: string[];
     confidence: number;
   };
 };
 
 const INDEX_KEY = "convocations/index.json";
-
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 const norm = (s: string) =>
   String(s || "")
@@ -49,26 +43,13 @@ function canIngest(roles: string[]) {
   );
 }
 
-async function getIndex(): Promise<ConvocationRecord[]> {
-  try {
-    const res = await s3.send(new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: INDEX_KEY }));
-    const body = await res.Body?.transformToString();
-    return body ? (JSON.parse(body) as ConvocationRecord[]) : [];
-  } catch (e: any) {
-    if (e?.name === "NoSuchKey") return [];
-    throw e;
-  }
+async function getIndex(orgId: string): Promise<ConvocationRecord[]> {
+  const hit = await getTenantJson<ConvocationRecord[]>(orgId, INDEX_KEY);
+  return hit?.data ?? [];
 }
 
-async function saveIndex(index: ConvocationRecord[]) {
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME!,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(index),
-      ContentType: "application/json",
-    }),
-  );
+async function saveIndex(orgId: string, index: ConvocationRecord[]) {
+  await putTenantJson(orgId, INDEX_KEY, index);
 }
 
 function normalizeEtablissement(value: string): Etablissement {
@@ -78,7 +59,6 @@ function normalizeEtablissement(value: string): Etablissement {
   return "Collège";
 }
 
-/** Heure locale (champs date + time du navigateur). */
 function parseLocalDateTime(dateStr: string, timeStr: string): Date | null {
   const ds = String(dateStr || "").trim();
   const ts = String(timeStr || "").trim();
@@ -127,8 +107,9 @@ function buildRecord(params: {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId } = gate.ctx;
 
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
@@ -187,14 +168,7 @@ export async function POST(req: Request) {
       const uploadedAt = Date.now();
       documentKey = `convocations/pdfs/manual_${uploadedAt}_${safeName}`;
       const buffer = Buffer.from(await file.arrayBuffer());
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: process.env.BUCKET_NAME!,
-          Key: documentKey,
-          Body: buffer,
-          ContentType: "application/pdf",
-        }),
-      );
+      await putTenantObject(orgId, documentKey, buffer, "application/pdf");
       sourceDocument = file.name || "Justificatif PDF";
     }
 
@@ -208,17 +182,10 @@ export async function POST(req: Request) {
       endAt,
     });
 
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME!,
-        Key: `convocations/${record.id}.json`,
-        Body: JSON.stringify(record),
-        ContentType: "application/json",
-      }),
-    );
+    await putTenantJson(orgId, `convocations/${record.id}.json`, record);
 
-    const currentIndex = await getIndex();
-    await saveIndex([...currentIndex, record]);
+    const currentIndex = await getIndex(orgId);
+    await saveIndex(orgId, [...currentIndex, record]);
 
     return NextResponse.json({
       success: true,

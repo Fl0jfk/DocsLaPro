@@ -1,42 +1,33 @@
 import { NextResponse, NextRequest } from "next/server";
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getAuth } from "@clerk/nextjs/server";
 import nodemailer from "nodemailer";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { loadTenantConfig } from "@/app/lib/tenant-config";
 
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY! },
-});
+const RESERVATIONS_KEY = "reservation-rooms/reservations.json";
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
 
-const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE"];
-
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    const gate = await requireTenantAuth();
+    if (!gate.ok) return gate.response;
+    const { userId, orgId } = gate.ctx;
     const body = await req.json();
     const { roomId, selectedHours, date, subject, className, comment, recurrence, untilDate, firstName, lastName, email } = body;
-    const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
-    const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
-    const resS3 = await fetch(getUrl);
-  
+    const hit = await getTenantJson<unknown[]>(orgId, RESERVATIONS_KEY);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let existing: any[] = [];
-    if (resS3.ok) {
-      const text = await resS3.text();
-      existing = text ? JSON.parse(text) : [];
-    }
+    let existing: any[] = Array.isArray(hit?.data) ? hit.data : [];
+    const profCfg = (await loadTenantConfig(orgId)).profRoom;
+    const ADMIN_LASTNAMES = profCfg.adminLastNames?.length ? profCfg.adminLastNames : [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newReservationsAdded: any[] = [];
     const isAdmin = ADMIN_LASTNAMES.includes((lastName || "").toUpperCase());
     const limitDate = new Date();
-    limitDate.setDate(limitDate.getDate() + 56); 
+    limitDate.setDate(limitDate.getDate() + (profCfg.bookingHorizonDays || 56)); 
     const groupId = recurrence !== "none" ? `group-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` : null;
     for (const hour of selectedHours) {
       const currentLoopDate = new Date(`${date}T12:00:00`); 
@@ -82,9 +73,7 @@ export async function POST(req: NextRequest) {
       }
     }
     if (newReservationsAdded.length === 0) return NextResponse.json({ error: "Aucun créneau disponible." }, { status: 409 });
-    const putCmd = new PutObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json", ContentType: "application/json" });
-    const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
-    await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
+    await putTenantJson(orgId, RESERVATIONS_KEY, existing);
     if (email) {
       const datesList = newReservationsAdded.map(r => {
         const d = new Date(r.startsAt);

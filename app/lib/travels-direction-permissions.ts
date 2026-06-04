@@ -31,3 +31,16 @@ export function canSignTravelsDirectionForEtab(user: ClerkLikeUser | null, etabl
 export function isTripOwner(tripOwnerId: string | null | undefined, clerkUserId: string | null | undefined): boolean {
   return Boolean(tripOwnerId && clerkUserId && tripOwnerId === clerkUserId);
 }
+
+/** Statuts workflow autorisés lors d'une réouverture depuis « Finalisé » (VALIDE). */
+export const TRAVELS_REOPEN_FROM_VALIDE_STATUSES = [
+  "EN_ATTENTE_DIR_INITIAL",
+  "PROF_LOGISTICS",
+  "EN_ATTENTE_BUS_SIGNATURE",
+  "EN_ATTENTE_COMPTA",
+  "EN_ATTENTE_DIR_FINAL",
+] as const;
+
+export function isValidTravelsReopenFromValideStatus(status: string): boolean {
+  return (TRAVELS_REOPEN_FROM_VALIDE_STATUSES as readonly string[]).includes(status);
+}

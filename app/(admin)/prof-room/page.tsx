@@ -1,15 +1,16 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useTenantContext } from "@/app/hooks/useTenantContext";
 
-const CLASSES_DATA: Record<string, string[]> = {
+const FALLBACK_CLASSES: Record<string, string[]> = {
   "ÉCOLE": ["CP", "CE1", "CE2", "CM1", "CM2"],
   "COLLÈGE": ["6A","6B","6C","6D","6E","6F","5A","5B","5C","5D","5E","5F","4A","4B","4C","4D","4E","4F","3A","3B","3C","3D","3E","3F"],
   "LYCÉE": ["2A","2B","2C","2D","2E","1A","1B","1C","1D","1E","1F","TA","TB","TC","TD","TE","TF"],
   "MAINTENANCE": ["MAINTENANCE"],
 };
 
-const SUBJECT_COLORS: Record<string, string> = {
+const SUBJECT_COLORS_FALLBACK: Record<string, string> = {
   "FRANCAIS": "bg-blue-600 text-white",
   "MATHS": "bg-red-600 text-white",
   "HISTOIRE-GEO": "bg-amber-700 text-white",
@@ -34,6 +35,9 @@ const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 
 export default function ProfRoomPage() {
   const { user, isLoaded } = useUser();
+  const { data: tenantCtx } = useTenantContext();
+  const CLASSES_DATA = tenantCtx?.profRoom?.classesByPole || FALLBACK_CLASSES;
+  const SUBJECT_COLORS = tenantCtx?.profRoom?.subjectColors || SUBJECT_COLORS_FALLBACK;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rooms, setRooms] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,11 +63,13 @@ export default function ProfRoomPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
   const lastName = (user?.lastName || "").toUpperCase();
-  const ADMIN_LASTNAMES = ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE", "LAQUIEVRE"];
-  const isAdmin = ADMIN_LASTNAMES.includes(lastName);
+  const adminLastNames = tenantCtx?.profRoom?.adminLastNames?.length
+    ? tenantCtx.profRoom.adminLastNames
+    : ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE", "LAQUIEVRE"];
+  const isAdmin = adminLastNames.includes(lastName);
   const todayStr = new Date().toISOString().split("T")[0];
   const maxDateLimit = new Date();
-  maxDateLimit.setDate(maxDateLimit.getDate() + 56);
+  maxDateLimit.setDate(maxDateLimit.getDate() + (tenantCtx?.profRoom?.bookingHorizonDays ?? 56));
   const maxDateStr = isAdmin ? "" : maxDateLimit.toISOString().split("T")[0];
   const myUpcomingReservations = useMemo(() => {
     return reservations.filter(r => r.userId === user?.id && r.status !== "CANCELLED" && r.startsAt >= new Date().toISOString()).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).slice(0, 5);

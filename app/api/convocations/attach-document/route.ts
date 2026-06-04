@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { currentUser } from "@clerk/nextjs/server";
 import { getDocumentKeys, isAdministratifRole } from "@/app/lib/convocations";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson, putTenantJson, putTenantObject } from "@/app/lib/tenant-s3-storage";
 
 type ConvocationRecord = {
   id: string;
@@ -24,39 +25,19 @@ type ConvocationRecord = {
 
 const INDEX_KEY = "convocations/index.json";
 
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
-async function getIndex(): Promise<ConvocationRecord[]> {
-  try {
-    const res = await s3.send(new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: INDEX_KEY }));
-    const body = await res.Body?.transformToString();
-    return body ? (JSON.parse(body) as ConvocationRecord[]) : [];
-  } catch (e: unknown) {
-    if (e && typeof e === "object" && "name" in e && e.name === "NoSuchKey") return [];
-    throw e;
-  }
+async function getIndex(orgId: string): Promise<ConvocationRecord[]> {
+  const hit = await getTenantJson<ConvocationRecord[]>(orgId, INDEX_KEY);
+  return hit?.data ?? [];
 }
 
-async function saveIndex(index: ConvocationRecord[]) {
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(index),
-      ContentType: "application/json",
-    }),
-  );
+async function saveIndex(orgId: string, index: ConvocationRecord[]) {
+  await putTenantJson(orgId, INDEX_KEY, index);
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId } = gate.ctx;
 
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
@@ -76,29 +57,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Le PDF dépasse 15 Mo." }, { status: 400 });
     }
 
-    const fileRes = await s3.send(
-      new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: `convocations/${id}.json`,
-      }),
-    );
-    const fileBody = await fileRes.Body?.transformToString();
-    if (!fileBody) return NextResponse.json({ error: "Créneau introuvable." }, { status: 404 });
+    const fileHit = await getTenantJson<ConvocationRecord>(orgId, `convocations/${id}.json`);
+    if (!fileHit?.data) return NextResponse.json({ error: "Créneau introuvable." }, { status: 404 });
 
-    const record = JSON.parse(fileBody) as ConvocationRecord;
+    const record = fileHit.data;
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const uploadedAt = Date.now();
     const newKey = `convocations/pdfs/attached_${uploadedAt}_${safeName}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME!,
-        Key: newKey,
-        Body: buffer,
-        ContentType: "application/pdf",
-      }),
-    );
+    await putTenantObject(orgId, newKey, buffer, "application/pdf");
 
     const keys = getDocumentKeys(record.data);
     keys.push(newKey);
@@ -106,18 +74,11 @@ export async function POST(req: Request) {
     record.data.documentKey = keys[0] || newKey;
     record.updatedAt = new Date().toISOString();
 
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME!,
-        Key: `convocations/${id}.json`,
-        Body: JSON.stringify(record),
-        ContentType: "application/json",
-      }),
-    );
+    await putTenantJson(orgId, `convocations/${id}.json`, record);
 
-    const index = await getIndex();
+    const index = await getIndex(orgId);
     const updatedIndex = index.map((r) => (r.id === id ? record : r));
-    await saveIndex(updatedIndex);
+    await saveIndex(orgId, updatedIndex);
 
     return NextResponse.json({
       success: true,

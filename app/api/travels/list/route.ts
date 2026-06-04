@@ -1,33 +1,17 @@
 import { NextResponse } from 'next/server';
-import { auth } from "@clerk/nextjs/server";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
-  const s3Client = new S3Client({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
   try {
-    const getCommand = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: 'travels/index.json',
-    });
-    const response = await s3Client.send(getCommand);
-    const body = await response.Body?.transformToString();
-    const trips = body ? JSON.parse(body) : [];
+    const hit = await getTenantJson<unknown[]>(gate.ctx.orgId, "travels/index.json");
+    const trips = Array.isArray(hit?.data) ? hit.data : [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sortedTrips = trips.sort((a: any, b: any) =>  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const sortedTrips = trips.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return NextResponse.json(sortedTrips);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    if (error.name === "NoSuchKey") {
-      return NextResponse.json([]);
-    }
+  } catch (error) {
     console.error("Erreur S3 List:", error);
     return NextResponse.json({ error: "Erreur lors de la récupération de l'index" }, { status: 500 });
   }

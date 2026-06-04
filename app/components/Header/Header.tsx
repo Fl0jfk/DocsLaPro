@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Logo from "../../../public/Logo header.png";
 import { SCHOOL } from "../../lib/school";
-
 const NAV = [
   { href: "/ecole",   label: "École",   activeColor: "text-yellow-500", hoverClass: "hover:text-yellow-500", dot: "bg-yellow-500" },
   { href: "/college", label: "Collège", activeColor: "text-sky-500",   hoverClass: "hover:text-sky-500",   dot: "bg-sky-500"   },

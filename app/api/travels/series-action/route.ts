@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { canSignTravelsDirectionForEtab, isTripOwner } from "@/app/lib/travels-direction-permissions";
+import { currentUser } from "@clerk/nextjs/server";
+import { isTripOwner } from "@/app/lib/travels-direction-permissions";
 import { notifyComptaTravelsPhase } from "@/app/lib/travels-notify";
-
-const INDEX_KEY = "travels/index.json";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { canSignTravelsDirectionForEtabTenant } from "@/app/lib/tenant-establishments";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function tripSummaryFromFullTrip(tripId: string, t: any) {
@@ -42,13 +42,10 @@ function tripSummaryFromFullTrip(tripId: string, t: any) {
   };
 }
 
-/**
- * POST { action: "validate_pedagogy_series", seriesId }
- * ou { action: "cancel_session", tripId } (dossier d’une série)
- */
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId } = gate.ctx;
   let body: { action?: string; seriesId?: string; tripId?: string; actorName?: string };
   try {
     body = await req.json();
@@ -57,24 +54,10 @@ export async function POST(req: Request) {
   }
   const actor =
     typeof body.actorName === "string" && body.actorName.trim() ? body.actorName.trim() : "Utilisateur";
-  const s3Client = new S3Client({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
-  const bucket = process.env.BUCKET_NAME!;
 
   try {
-    let currentIndex: unknown[] = [];
-    try {
-      const indexRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: INDEX_KEY }));
-      const indexBody = await indexRes.Body?.transformToString();
-      if (indexBody) currentIndex = JSON.parse(indexBody);
-    } catch {
-      /* vide */
-    }
+    const indexHit = await getTenantJson<unknown[]>(orgId, "travels/index.json");
+    let currentIndex: unknown[] = Array.isArray(indexHit?.data) ? indexHit.data : [];
 
     const syncIndexEntry = (tripId: string, summary: ReturnType<typeof tripSummaryFromFullTrip>) => {
       const idx = currentIndex.findIndex((e: unknown) => (e as { id?: string }).id === tripId);
@@ -91,17 +74,12 @@ export async function POST(req: Request) {
         const data = row.data || {};
         let sid: string | null | undefined = data.recurrenceSeriesId;
         if (sid === undefined && !("recurrenceSeriesId" in data)) {
-          try {
-            const getOne = await s3Client.send(
-              new GetObjectCommand({ Bucket: bucket, Key: `travels/${row.id}.json` })
-            );
-            const raw = await getOne.Body?.transformToString();
-            if (!raw) continue;
-            const full = JSON.parse(raw);
-            sid = full?.data?.recurrenceSeriesId;
-          } catch {
-            continue;
-          }
+          const fullHit = await getTenantJson<{ data?: { recurrenceSeriesId?: string } }>(
+            orgId,
+            `travels/${row.id}.json`,
+          );
+          sid = fullHit?.data?.data?.recurrenceSeriesId;
+          if (!fullHit) continue;
         }
         if (sid === seriesId) ids.push(row.id);
       }
@@ -110,31 +88,29 @@ export async function POST(req: Request) {
       }
       const me = await currentUser();
       if (!me?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-      const firstGet = await s3Client.send(
-        new GetObjectCommand({ Bucket: bucket, Key: `travels/${ids[0]}.json` })
-      );
-      const firstRaw = await firstGet.Body?.transformToString();
-      if (!firstRaw) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
-      const firstTrip = JSON.parse(firstRaw);
-      if (!canSignTravelsDirectionForEtab(me, firstTrip?.data?.etablissement)) {
+      const firstHit = await getTenantJson<{ data?: { etablissement?: string } }>(orgId, `travels/${ids[0]}.json`);
+      if (!firstHit?.data) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+      if (!(await canSignTravelsDirectionForEtabTenant(me, orgId, firstHit.data?.data?.etablissement))) {
         return NextResponse.json({ error: "Droits insuffisants" }, { status: 403 });
       }
       const now = new Date().toISOString();
       let updated = 0;
       for (const tripId of ids) {
-        const key = `travels/${tripId}.json`;
-        const getRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        const raw = await getRes.Body?.transformToString();
-        if (!raw) continue;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const trip: any = JSON.parse(raw);
+        const hit = await getTenantJson<Record<string, unknown>>(orgId, `travels/${tripId}.json`);
+        if (!hit?.data) continue;
+        const trip = hit.data as Record<string, unknown> & {
+          type?: string;
+          status?: string;
+          data?: { recurrenceSeriesId?: string };
+          history?: unknown[];
+        };
         if (trip.type !== "SIMPLE" || trip.status !== "EN_ATTENTE_DIR_INITIAL") continue;
         if (trip.data?.recurrenceSeriesId !== seriesId) continue;
         const statusBefore = trip.status;
         trip.status = "EN_ATTENTE_COMPTA";
         trip.updatedAt = now;
         trip.history = [
-          ...(trip.history || []),
+          ...(Array.isArray(trip.history) ? trip.history : []),
           {
             date: now,
             action: "EN_ATTENTE_COMPTA",
@@ -142,18 +118,12 @@ export async function POST(req: Request) {
             user: actor,
           },
         ];
-        await s3Client.send(
-          new PutObjectCommand({
-            Bucket: bucket,
-            Key: key,
-            Body: JSON.stringify(trip),
-            ContentType: "application/json",
-          })
-        );
+        await putTenantJson(orgId, `travels/${tripId}.json`, trip);
         syncIndexEntry(tripId, tripSummaryFromFullTrip(tripId, trip));
         if (statusBefore !== "EN_ATTENTE_COMPTA") {
           try {
             await notifyComptaTravelsPhase({
+              orgId,
               tripId,
               trip,
               previousStatus: statusBefore,
@@ -164,44 +134,42 @@ export async function POST(req: Request) {
         }
         updated++;
       }
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: INDEX_KEY,
-          Body: JSON.stringify(currentIndex),
-          ContentType: "application/json",
-        })
-      );
+      await putTenantJson(orgId, "travels/index.json", currentIndex);
       return NextResponse.json({ success: true, updated });
     }
 
     if (body.action === "cancel_session" && body.tripId) {
       const tripId = body.tripId;
-      const key = `travels/${tripId}.json`;
-      const getRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-      const raw = await getRes.Body?.transformToString();
-      if (!raw) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const trip: any = JSON.parse(raw);
+      const hit = await getTenantJson<Record<string, unknown>>(orgId, `travels/${tripId}.json`);
+      if (!hit?.data) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+      const trip = hit.data as Record<string, unknown> & {
+        ownerId?: string;
+        status?: string;
+        data?: { recurrenceSeriesId?: string; etablissement?: string };
+        history?: unknown[];
+      };
       const me = await currentUser();
       if (!me?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-      if (!isTripOwner(trip.ownerId, me.id) && !canSignTravelsDirectionForEtab(me, trip.data?.etablissement)) {
+      if (
+        !isTripOwner(trip.ownerId as string, me.id) &&
+        !(await canSignTravelsDirectionForEtabTenant(me, orgId, trip.data?.etablissement))
+      ) {
         return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
       }
       if (!trip.data?.recurrenceSeriesId) {
-        return NextResponse.json({ error: "Ce dossier ne fait pas partie d’une série récurrente." }, { status: 400 });
+        return NextResponse.json({ error: "Ce dossier ne fait pas partie d'une série récurrente." }, { status: 400 });
       }
       if (trip.status === "SEANCE_ANNULEE") {
         return NextResponse.json({ error: "Séance déjà annulée." }, { status: 400 });
       }
       if (trip.status === "VALIDE" || trip.status === "REJETE") {
-        return NextResponse.json({ error: "Impossible d’annuler ce dossier à ce stade." }, { status: 400 });
+        return NextResponse.json({ error: "Impossible d'annuler ce dossier à ce stade." }, { status: 400 });
       }
       const now = new Date().toISOString();
       trip.status = "SEANCE_ANNULEE";
       trip.updatedAt = now;
       trip.history = [
-        ...(trip.history || []),
+        ...(Array.isArray(trip.history) ? trip.history : []),
         {
           date: now,
           action: "SEANCE_ANNULEE",
@@ -209,23 +177,9 @@ export async function POST(req: Request) {
           user: actor,
         },
       ];
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: JSON.stringify(trip),
-          ContentType: "application/json",
-        })
-      );
+      await putTenantJson(orgId, `travels/${tripId}.json`, trip);
       syncIndexEntry(tripId, tripSummaryFromFullTrip(tripId, trip));
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: INDEX_KEY,
-          Body: JSON.stringify(currentIndex),
-          ContentType: "application/json",
-        })
-      );
+      await putTenantJson(orgId, "travels/index.json", currentIndex);
       return NextResponse.json({ success: true });
     }
 

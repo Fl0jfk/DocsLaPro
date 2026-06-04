@@ -4,17 +4,22 @@ import { useMemo } from "react";
 import RollingSlider from "../../components/Slider/SectionSlider";
 import { useData } from "@/app/contexts/data";
 import { useUser } from "@clerk/nextjs";
+import { useIsTenantOrgAdmin } from "@/app/hooks/useIsTenantOrgAdmin";
 
 export default function Home() {
   const { isLoaded, user } = useUser();
+  const isOrgAdmin = useIsTenantOrgAdmin();
   const data = useData();
   const uniqueCategories = useMemo(() => {
     if (!isLoaded || !user || !data?.categories) return [];
     const rawRoles = user.publicMetadata?.role;
     const roles = Array.isArray(rawRoles) ? rawRoles : typeof rawRoles === "string" ? [rawRoles] : [];
-    const filtered = data.categories.filter(category => (category.allowedRoles ?? []).some(r => roles.includes(r)));
+    const filtered = data.categories.filter((category) => {
+      if (category.orgAdminOnly) return isOrgAdmin;
+      return (category.allowedRoles ?? []).some((r) => roles.includes(r));
+    });
     return Array.from(new Map(filtered.map(cat => [cat.id ?? cat.name, cat])).values());
-  }, [isLoaded, user, data]);
+  }, [isLoaded, user, data, isOrgAdmin]);
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-screen w-full">

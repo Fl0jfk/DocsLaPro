@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
-import { SCHOOL } from "@/app/lib/school";
+import { loadTenantConfig, getEstablishmentByLabel } from "@/app/lib/tenant-config";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { tenantS3Key } from "@/app/lib/tenant";
+import { getBucketName, getTenantS3Client } from "@/app/lib/tenant-s3-storage";
 import { formatAbsencePeriod, normalizeAbsencePeriodInput, type AbsencePeriodType } from "@/app/lib/absence-period";
 import {
   formatHoursTreatmentCreatorMailLine,
@@ -124,17 +128,29 @@ function canManageAbsence(abs: AbsenceRecord, roles: string[]) {
   return false;
 }
 
-function resolveDecisionTarget(scope: AbsenceScope, etablissement: Etablissement | null) {
+async function resolveDecisionTarget(
+  orgId: string,
+  scope: AbsenceScope,
+  etablissement: Etablissement | null,
+) {
+  const bundle = await loadTenantConfig(orgId);
   if (scope === "ogec") {
+    const lycee = bundle.establishments.find((e) => e.id === "lycee") || bundle.establishments[bundle.establishments.length - 1];
     return {
-      roleLabel: "Direction Lycée",
-      name: SCHOOL.lycee.directrice,
-      email: SCHOOL.lycee.email,
+      roleLabel: lycee ? `Direction ${lycee.label}` : "Direction",
+      name: lycee?.directorName || bundle.identity.name,
+      email: lycee?.directorEmail || "",
     };
   }
-  if (etablissement === "École") return { roleLabel: "Direction École", name: SCHOOL.ecole.directrice, email: SCHOOL.ecole.email };
-  if (etablissement === "Collège") return { roleLabel: "Direction Collège", name: SCHOOL.college.directrice, email: SCHOOL.college.email };
-  return { roleLabel: "Direction Lycée", name: SCHOOL.lycee.directrice, email: SCHOOL.lycee.email };
+  const est = etablissement ? getEstablishmentByLabel(bundle, etablissement) : null;
+  if (est) {
+    return {
+      roleLabel: `Direction ${est.label}`,
+      name: est.directorName || est.label,
+      email: est.directorEmail || "",
+    };
+  }
+  return { roleLabel: "Direction", name: bundle.identity.name, email: "" };
 }
 
 function getMailer() {
@@ -158,31 +174,13 @@ function formatDateFR(input?: string | null) {
   });
 }
 
-async function getIndex(): Promise<AbsenceRecord[]> {
-  try {
-    const res = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: INDEX_KEY,
-      }),
-    );
-    const body = await res.Body?.transformToString();
-    return body ? JSON.parse(body) : [];
-  } catch (e: any) {
-    if (e?.name === "NoSuchKey") return [];
-    throw e;
-  }
+async function getIndex(orgId: string): Promise<AbsenceRecord[]> {
+  const hit = await getTenantJson<AbsenceRecord[]>(orgId, INDEX_KEY);
+  return hit?.data ?? [];
 }
 
-async function saveIndex(index: AbsenceRecord[]) {
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(index),
-      ContentType: "application/json",
-    }),
-  );
+async function saveIndex(orgId: string, index: AbsenceRecord[]) {
+  await putTenantJson(orgId, INDEX_KEY, index);
 }
 
 function parseDateOnly(value: string) {
@@ -191,7 +189,7 @@ function parseDateOnly(value: string) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-async function purgeExpiredAbsences(index: AbsenceRecord[]) {
+async function purgeExpiredAbsences(orgId: string, index: AbsenceRecord[]) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const keep: AbsenceRecord[] = [];
@@ -209,12 +207,13 @@ async function purgeExpiredAbsences(index: AbsenceRecord[]) {
 
   if (remove.length === 0) return keep;
 
+  const bucket = getBucketName();
   for (const rec of remove) {
     try {
       await s3Client.send(
         new DeleteObjectCommand({
-          Bucket: process.env.BUCKET_NAME,
-          Key: `absences/${rec.id}.json`,
+          Bucket: bucket,
+          Key: tenantS3Key(orgId, `absences/${rec.id}.json`),
         }),
       );
     } catch (e) {
@@ -222,31 +221,32 @@ async function purgeExpiredAbsences(index: AbsenceRecord[]) {
     }
   }
 
-  await saveIndex(keep);
+  await saveIndex(orgId, keep);
   return keep;
 }
 
-function resolveValidationRecipients(record: AbsenceRecord) {
+async function resolveValidationRecipients(orgId: string, record: AbsenceRecord) {
+  const n = (await loadTenantConfig(orgId)).notifications;
   if (record.data.scope === "ogec") {
-    return [...SCHOOL.absences.notifyOgecCompta].filter(Boolean);
+    return [...n.absencesNotifyOgecCompta].filter(Boolean);
   }
   if (record.data.etablissement === "École") {
-    return [SCHOOL.absences.notifyProfEcole.email].filter(Boolean);
+    return n.absencesNotifyProfEcole?.email ? [n.absencesNotifyProfEcole.email] : [];
   }
-  // Collège ou Lycée → Sarah Villiers
-  return [SCHOOL.absences.notifyProfCollegeLycee.email].filter(Boolean);
+  return n.absencesNotifyProfCollegeLycee?.email ? [n.absencesNotifyProfCollegeLycee.email] : [];
 }
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId, userId } = gate.ctx;
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
 
   try {
-    const rawIndex = await getIndex();
-    const index = await purgeExpiredAbsences(rawIndex);
+    const rawIndex = await getIndex(orgId);
+    const index = await purgeExpiredAbsences(orgId, rawIndex);
     const visible = index
       .filter((a) => canViewAbsence(a, userId, roles))
       .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
@@ -258,8 +258,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId, userId } = gate.ctx;
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
@@ -353,23 +354,15 @@ export async function POST(req: Request) {
       ],
     };
 
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: `absences/${id}.json`,
-        Body: JSON.stringify(record),
-        ContentType: "application/json",
-      }),
-    );
+    await putTenantJson(orgId, `absences/${id}.json`, record);
 
-    const rawIndex = await getIndex();
-    const index = await purgeExpiredAbsences(rawIndex);
+    const rawIndex = await getIndex(orgId);
+    const index = await purgeExpiredAbsences(orgId, rawIndex);
     index.push(record);
-    await saveIndex(index);
+    await saveIndex(orgId, index);
 
-    // Notification direction à la création
     try {
-      const target = resolveDecisionTarget(scope, scope === "ogec" ? null : etablissement);
+      const target = await resolveDecisionTarget(orgId, scope, scope === "ogec" ? null : etablissement);
       const transporter = getMailer();
       await transporter.sendMail({
         from: `"Absences" <${process.env.SMTP_USER}>`,
@@ -407,8 +400,9 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId, userId } = gate.ctx;
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
@@ -423,18 +417,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Paramètres invalides." }, { status: 400 });
     }
 
-    const rawIndex = await getIndex();
-    const index = await purgeExpiredAbsences(rawIndex);
+    const rawIndex = await getIndex(orgId);
+    const index = await purgeExpiredAbsences(orgId, rawIndex);
 
-    const fileRes = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: `absences/${id}.json`,
-      }),
-    );
-    const fileBody = await fileRes.Body?.transformToString();
-    if (!fileBody) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
-    const current = JSON.parse(fileBody) as AbsenceRecord;
+    const fileHit = await getTenantJson<AbsenceRecord>(orgId, `absences/${id}.json`);
+    if (!fileHit?.data) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
+    const current = fileHit.data;
 
     const actor = user?.fullName || user?.firstName || "Direction";
     const isOwner = current.createdBy.userId === userId;
@@ -505,7 +493,7 @@ export async function PATCH(req: Request) {
         ],
       };
 
-      const recipients = resolveValidationRecipients(updated);
+      const recipients = await resolveValidationRecipients(orgId, updated);
       if (recipients.length > 0) {
         try {
           const transporter = getMailer();
@@ -673,18 +661,11 @@ export async function PATCH(req: Request) {
       };
     }
 
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: `absences/${id}.json`,
-        Body: JSON.stringify(updated),
-        ContentType: "application/json",
-      }),
-    );
+    await putTenantJson(orgId, `absences/${id}.json`, updated);
 
     const pos = index.findIndex((a) => a.id === id);
     if (pos >= 0) index[pos] = updated;
-    await saveIndex(index);
+    await saveIndex(orgId, index);
 
     return NextResponse.json({ success: true });
   } catch (error) {

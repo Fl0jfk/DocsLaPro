@@ -41,6 +41,7 @@ export default function TripDetails() {
   const [manualDevisEmail, setManualDevisEmail] = useState("");
   const [manualDevisBusy, setManualDevisBusy] = useState(false);
   const [zeendocSendingUrl, setZeendocSendingUrl] = useState<string | null>(null);
+  const [reopenStep, setReopenStep] = useState("");
   const rawRoles = user?.publicMetadata?.role;
   const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
   const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
@@ -389,9 +390,25 @@ export default function TripDetails() {
         { date: new Date().toISOString(), user: user?.fullName, action: newStatus, note: note }
       ]
     };
-    await saveUpdates(updatedTrip);
+    const saved = await saveUpdates(updatedTrip);
     setIsEditing(false);
     setLoadingAction(null);
+    if (!saved) alert("Impossible d'enregistrer la modification. Réessayez.");
+  };
+  const handleReopenDossier = async (targetStatus: string, stepLabel: string) => {
+    if (!canSign || trip.status !== "VALIDE" || loadingAction) return;
+    if (
+      !confirm(
+        `Réouvrir ce dossier à l'étape « ${stepLabel} » ?\n\nLe statut ne sera plus « Finalisé » et le circuit de validation reprendra à cette étape.`,
+      )
+    ) {
+      return;
+    }
+    const note = prompt("Motif de réouverture (optionnel) :") ?? "";
+    await handleAction(
+      targetStatus,
+      note.trim() ? `Dossier réouvert : ${note.trim()}` : `Dossier réouvert à l'étape « ${stepLabel} »`,
+    );
   };
   const selectBusQuote = async (quote: any) => {
     if (!confirm(`Confirmer le choix de ${quote.providerName} ? Cela informera la direction pour signature.`)) return;
@@ -598,6 +615,19 @@ export default function TripDetails() {
           { n: "3", label: "Validation", key: "EN_ATTENTE_DIR_FINAL" },
           { n: "4", label: "Finalisé", key: "VALIDE" },
         ];
+  const reopenStepOptions: { value: string; label: string }[] = [];
+  for (const s of currentSteps) {
+    if (s.key === "VALIDE") continue;
+    reopenStepOptions.push({ value: s.key, label: s.label });
+  }
+  if (withBusLogistics && !reopenStepOptions.some((o) => o.value === "EN_ATTENTE_BUS_SIGNATURE")) {
+    const logIdx = reopenStepOptions.findIndex((o) => o.value === "PROF_LOGISTICS");
+    const busStep = { value: "EN_ATTENTE_BUS_SIGNATURE", label: "Signature devis bus" };
+    if (logIdx >= 0) reopenStepOptions.splice(logIdx + 1, 0, busStep);
+    else reopenStepOptions.push(busStep);
+  }
+  const selectedReopenStep =
+    reopenStepOptions.find((o) => o.value === reopenStep)?.value || reopenStepOptions[0]?.value || "";
   return (
     <div className="relative max-w-5xl mx-auto p-6 space-y-8">
       {loadingAction && (
@@ -1156,6 +1186,33 @@ export default function TripDetails() {
                 color="bg-emerald-600"
                 onClick={handleRegenerateCircular}
               />
+            )}
+            {canSign && trip.status === "VALIDE" && reopenStepOptions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 bg-slate-800 border border-slate-600 rounded-2xl px-4 py-3">
+                <label htmlFor="reopen-step-select" className="text-sm text-slate-300 shrink-0">
+                  Réouvrir à l&apos;étape :
+                </label>
+                <select
+                  id="reopen-step-select"
+                  value={selectedReopenStep}
+                  onChange={(e) => setReopenStep(e.target.value)}
+                  className="bg-slate-700 text-white text-sm font-medium rounded-xl px-3 py-2 border border-slate-500 outline-none focus:ring-2 focus:ring-indigo-400 min-w-[10rem]"
+                >
+                  {reopenStepOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <ActionButton
+                  label={loadingAction ? "Réouverture…" : "Réouvrir le dossier"}
+                  color="bg-violet-600"
+                  onClick={() => {
+                    const opt = reopenStepOptions.find((o) => o.value === selectedReopenStep);
+                    if (opt) handleReopenDossier(opt.value, opt.label);
+                  }}
+                />
+              </div>
             )}
             {canCancelRecurrenceSession && canSign && (
               <ActionButton

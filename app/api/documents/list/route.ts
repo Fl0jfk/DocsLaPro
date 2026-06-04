@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { getAuth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { tenantS3Key } from "@/app/lib/tenant";
 
 const s3 = new S3Client({
   region: "eu-west-3",
@@ -8,8 +10,9 @@ const s3 = new S3Client({
 });
 
 export async function GET(req: NextRequest) {
-  const { userId } = getAuth(req);
-  if (!userId) return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { userId, orgId } = gate.ctx;
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const rawRole = user.publicMetadata.role ?? [];
@@ -28,7 +31,8 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allItems: any[] = [];
     for (const folderPrefix of userFolders) {
-      const effectivePrefix = prefixParam.startsWith("documents/") ? prefixParam : `${folderPrefix}${prefixParam}`;
+      const rel = prefixParam.startsWith("documents/") ? prefixParam : `${folderPrefix}${prefixParam}`;
+      const effectivePrefix = tenantS3Key(orgId, rel);
       const command = new ListObjectsV2Command({ 
         Bucket: process.env.BUCKET_NAME!, 
         Prefix: effectivePrefix, 

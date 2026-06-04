@@ -1,6 +1,5 @@
 import nodemailer from "nodemailer";
-
-const TRAVELS_COMPTA_NOTIFY_TO = ["valerie.vasseur@laprovidence-nicolasbarre.fr","cecile.douaglin@laprovidence-nicolasbarre.fr",].join(", ");
+import { loadTenantConfig } from "@/app/lib/tenant-config";
 
 function appUrl() { return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");}
 
@@ -33,6 +32,7 @@ export type TravelsTripForNotify = {
 };
 
 export async function notifyComptaTravelsPhase(params: {
+  orgId: string;
   tripId: string;
   trip: TravelsTripForNotify;
   previousStatus?: string | null;
@@ -58,10 +58,19 @@ export async function notifyComptaTravelsPhase(params: {
   const transitionBy = lastHistory?.user?.trim() || "";
   const fromStatus = params.previousStatus?.trim() || "—";
   const link = appUrl() ? `${appUrl()}/travels/${params.tripId}` : `/travels/${params.tripId}`;
+  const bundle = await loadTenantConfig(params.orgId);
+  const toList =
+    bundle.travels.comptaEmails?.length > 0
+      ? bundle.travels.comptaEmails
+      : bundle.notifications.travelsCompta;
+  if (!toList.length) {
+    console.warn("[travels-notify] Aucun email compta configuré.");
+    return;
+  }
 
   await getMailer().sendMail({
     from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
-    to: TRAVELS_COMPTA_NOTIFY_TO,
+    to: toList.join(", "),
     subject: `[Travels] Dossier en attente comptabilité — ${title}`,
     text: [
       `Bonjour,`,
@@ -84,7 +93,7 @@ export async function notifyComptaTravelsPhase(params: {
       `Consulter le dossier : ${link}`,
       ``,
       `Cordialement,`,
-      `Plateforme Voyages — La Providence Nicolas Barré`,
+      `Plateforme Voyages — ${bundle.identity.shortName || bundle.identity.name}`,
     ]
       .filter(Boolean)
       .join("\n"),

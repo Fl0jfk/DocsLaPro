@@ -1,35 +1,39 @@
 import { NextResponse } from "next/server";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireTenantAuth, requireTenantOrgAdmin } from "@/app/lib/tenant-auth";
 
-const s3 = new S3Client({
-  region: "eu-west-3",
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
+const ROOMS_KEY = "reservation-rooms/rooms.json";
 
 export async function GET() {
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
   try {
-    const command = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: "reservation-rooms/rooms.json",
-    });
-    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("Impossible de récupérer rooms.json depuis S3");
-    }
-    const data = await response.json();
-    const rooms = Array.isArray(data) ? data : data.rooms || [];
+    const hit = await getTenantJson<{ rooms?: unknown[] } | unknown[]>(gate.ctx.orgId, ROOMS_KEY);
+    const data = hit?.data;
+    const rooms = Array.isArray(data) ? data : (data as { rooms?: unknown[] })?.rooms || [];
     return NextResponse.json({ rooms });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Erreur route /rooms:", err);
     return NextResponse.json(
-      { error: err.message || "Erreur serveur lors du chargement des salles" },
-      { status: 500 }
+      { error: err instanceof Error ? err.message : "Erreur serveur lors du chargement des salles" },
+      { status: 500 },
     );
+  }
+}
+
+export async function PUT(req: Request) {
+  const gate = await requireTenantOrgAdmin();
+  if (!gate.ok) return gate.response;
+  try {
+    const body = await req.json();
+    const rooms = Array.isArray(body?.rooms) ? body.rooms : body;
+    if (!Array.isArray(rooms)) {
+      return NextResponse.json({ error: "Format invalide : attendu { rooms: [...] }" }, { status: 400 });
+    }
+    await putTenantJson(gate.ctx.orgId, ROOMS_KEY, { rooms });
+    return NextResponse.json({ success: true, rooms });
+  } catch (err: unknown) {
+    console.error("PUT /rooms:", err);
+    return NextResponse.json({ error: "Impossible d'enregistrer les salles." }, { status: 500 });
   }
 }

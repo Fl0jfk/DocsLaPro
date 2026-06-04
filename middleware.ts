@@ -1,6 +1,14 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
+/** Pages et API réservées aux org:admin (invisibles pour le reste du personnel). */
+const isOrgAdminRoute = createRouteMatcher([
+  "/parametres(.*)",
+  "/membres(.*)",
+  "/api/members(.*)",
+  "/api/settings(.*)",
+]);
+
 const isPublicRoute = createRouteMatcher([
   '/',
   '/api/portes-ouvertes',
@@ -61,7 +69,27 @@ export default clerkMiddleware(async (auth, request) => {
     response.headers.set("Content-Security-Policy", ContentSecurityPolicy.replace(/\n/g, " "));
     return response;
   }
-  await auth.protect();
+  const authState = await auth.protect();
+
+  if (isOrgAdminRoute(request)) {
+    const orgRole = authState.orgRole;
+    const claims = authState.sessionClaims as Record<string, unknown> | undefined;
+    const pub = (claims?.publicMetadata ?? claims?.public_metadata) as Record<string, unknown> | undefined;
+    const roleArr = Array.isArray(pub?.role) ? pub.role.map(String) : pub?.role ? [String(pub.role)] : [];
+    const metaAdmin =
+      orgRole === "org:admin" ||
+      roleArr.includes("admin") ||
+      pub?.org_admin === true ||
+      pub?.platform_admin === true;
+    if (!metaAdmin) {
+      const url = new URL(request.url);
+      if (url.pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", ContentSecurityPolicy.replace(/\n/g, " "));
   return response;

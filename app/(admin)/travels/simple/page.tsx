@@ -7,6 +7,7 @@ import {
   WEEKDAY_JS_OPTIONS,
 } from "@/app/lib/simple-trip-recurrence";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTenantContext } from "@/app/hooks/useTenantContext";
 
 const CUISINE_DAYS = [
   { key: "lundi",    label: "Lun." },
@@ -31,6 +32,7 @@ const CUISINE_ROWS = [
 
 function SimpleTripFormContent() {
   const { user, isLoaded } = useUser();
+  const { data: tenantCtx } = useTenantContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
@@ -285,10 +287,18 @@ function SimpleTripFormContent() {
           <label className="block text-sm font-semibold mb-2">Établissement concerné</label>
           <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value as typeof formData.etablissement})}>
             <option value="">— Sélectionner —</option>
-            <option value="École">🏫 École</option>
-            <option value="Collège">📚 Collège</option>
-            <option value="Lycée">🎓 Lycée</option>
-            <option value="Groupe Scolaire">🏛 Groupe Scolaire</option>
+            {(tenantCtx?.establishments?.length
+              ? tenantCtx.establishments.map((e) => (
+                  <option key={e.id} value={e.label}>
+                    {e.label}
+                  </option>
+                ))
+              : [
+                  <option key="ecole" value="École">École</option>,
+                  <option key="college" value="Collège">Collège</option>,
+                  <option key="lycee" value="Lycée">Lycée</option>,
+                ])}
+            <option value="Groupe Scolaire">Groupe Scolaire</option>
           </select>
         </div>
         <div className="md:col-span-2">

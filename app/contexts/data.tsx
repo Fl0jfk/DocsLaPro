@@ -10,6 +10,8 @@ type Categories = {
   description?: string;
   allowedRoles: string[];
   external?: boolean;
+  /** Visible uniquement pour org:admin (Clerk Organizations). */
+  orgAdminOnly?: boolean;
 };
 
 type Travels = {
@@ -200,6 +202,24 @@ const STATIC_DATA: Data = {
         "direction_college",
         "direction_lycee",
       ],
+      "external": false
+    },
+    {
+      "id": 21,
+      "name": "Paramètres généraux",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+      "link": "/parametres",
+      "allowedRoles": [],
+      "orgAdminOnly": true,
+      "external": false
+    },
+    {
+      "id": 22,
+      "name": "Utilisateurs",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+      "link": "/membres",
+      "allowedRoles": [],
+      "orgAdminOnly": true,
       "external": false
     },
     {

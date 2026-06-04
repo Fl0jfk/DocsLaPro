@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
-import { SCHOOL } from "@/app/lib/school";
+import { loadTenantConfig, getEstablishmentByLabel } from "@/app/lib/tenant-config";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
 
 const INDEX_KEY = "demandes-hse/index.json";
 
@@ -73,11 +75,13 @@ function canViewDemand(rec: HseRecord, userId: string, roles: string[]) {
   return canManageDemand(rec, roles);
 }
 
-function resolveDirectorMail(etab: HseEtablissement) {
-  if (etab === "École") return { name: SCHOOL.ecole.directrice, email: SCHOOL.ecole.email, label: SCHOOL.ecole.label };
-  if (etab === "Collège")
-    return { name: SCHOOL.college.directrice, email: SCHOOL.college.email, label: SCHOOL.college.label };
-  return { name: SCHOOL.lycee.directrice, email: SCHOOL.lycee.email, label: SCHOOL.lycee.label };
+async function resolveDirectorMail(orgId: string, etab: HseEtablissement) {
+  const bundle = await loadTenantConfig(orgId);
+  const est = getEstablishmentByLabel(bundle, etab);
+  if (est) {
+    return { name: est.directorName || est.label, email: est.directorEmail || "", label: est.label };
+  }
+  return { name: bundle.identity.name, email: "", label: etab };
 }
 
 function getMailer() {
@@ -94,29 +98,13 @@ function appUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 }
 
-async function getIndex(): Promise<HseRecord[]> {
-  try {
-    const res = await s3Client.send(
-      new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: INDEX_KEY }),
-    );
-    const body = await res.Body?.transformToString();
-    return body ? (JSON.parse(body) as HseRecord[]) : [];
-  } catch (e: unknown) {
-    const err = e as { name?: string };
-    if (err?.name === "NoSuchKey") return [];
-    throw e;
-  }
+async function getIndex(orgId: string): Promise<HseRecord[]> {
+  const hit = await getTenantJson<HseRecord[]>(orgId, INDEX_KEY);
+  return hit?.data ?? [];
 }
 
-async function saveIndex(rows: HseRecord[]) {
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(rows),
-      ContentType: "application/json",
-    }),
-  );
+async function saveIndex(orgId: string, rows: HseRecord[]) {
+  await putTenantJson(orgId, INDEX_KEY, rows);
 }
 
 function isValidEtab(v: string): v is HseEtablissement {
@@ -124,8 +112,9 @@ function isValidEtab(v: string): v is HseEtablissement {
 }
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId, userId } = gate.ctx;
 
   const user = await currentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
@@ -138,7 +127,7 @@ export async function GET() {
   }
 
   try {
-    const all = await getIndex();
+    const all = await getIndex(orgId);
     const filtered = all.filter((r) => canViewDemand(r, userId, roles));
     filtered.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     return NextResponse.json({ items: filtered });
@@ -149,8 +138,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId, userId } = gate.ctx;
 
   const user = await currentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
@@ -212,11 +202,11 @@ export async function POST(req: Request) {
   };
 
   try {
-    const all = await getIndex();
+    const all = await getIndex(orgId);
     all.push(record);
-    await saveIndex(all);
+    await saveIndex(orgId, all);
 
-    const dir = resolveDirectorMail(etablissement);
+    const dir = await resolveDirectorMail(orgId, etablissement);
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         const transporter = getMailer();
@@ -258,8 +248,9 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { orgId, userId } = gate.ctx;
 
   const user = await currentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
@@ -280,7 +271,7 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const all = await getIndex();
+    const all = await getIndex(orgId);
     const idx = all.findIndex((r) => r.id === id);
     if (idx < 0) return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
 
@@ -302,7 +293,7 @@ export async function PATCH(req: Request) {
     };
 
     all[idx] = updated;
-    await saveIndex(all);
+    await saveIndex(orgId, all);
 
     const creatorEmail = updated.createdBy.email;
     const base = `${appUrl()}/demandes-hse`;
@@ -357,7 +348,8 @@ export async function PATCH(req: Request) {
         console.error("[demandes-hse] mail demandeur:", e);
       }
 
-      const opsMail = process.env.HSE_OPS_EMAIL?.trim() || DEFAULT_HSE_OPS_EMAIL;
+      const nCfg = (await loadTenantConfig(orgId)).notifications;
+      const opsMail = process.env.HSE_OPS_EMAIL?.trim() || nCfg.hseOps || DEFAULT_HSE_OPS_EMAIL;
       if (updated.status === "ACCEPTEE" && opsMail) {
         try {
           await transporter.sendMail({

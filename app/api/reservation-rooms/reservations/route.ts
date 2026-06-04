@@ -1,35 +1,21 @@
 import { NextResponse } from "next/server";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
 
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
+const RESERVATIONS_KEY = "reservation-rooms/reservations.json";
 
 export async function GET() {
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
   try {
-    const command = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: "reservation-rooms/reservations.json",
-    });
-    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("Impossible de récupérer le fichier via l'URL pré-signée");
-    }
-    const reservations = await response.json();
+    const hit = await getTenantJson<unknown[]>(gate.ctx.orgId, RESERVATIONS_KEY);
+    const reservations = Array.isArray(hit?.data) ? hit.data : [];
     return NextResponse.json({ reservations });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
     return NextResponse.json(
-      { error: err.message || "Erreur serveur" },
-      { status: 500 }
+      { error: err instanceof Error ? err.message : "Erreur serveur" },
+      { status: 500 },
     );
   }
 }
-

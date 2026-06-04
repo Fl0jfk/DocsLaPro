@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
 import { computeStaffBoardColumn, isCorbeilleBranchId, isVisibleOnStaffBoard, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
 import { getAllBranchStaffEmails, getDelegateTargetEmailsForRequest, getRequestsIndex, isLeaderForRequestBranch, purgeExpiredRequests,} from "@/app/lib/requests";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
@@ -7,8 +8,9 @@ import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 function hasStaffBoardAccess(roles: string[], email: string) { return canAccessRequestsStaffBoard(roles, email)}
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Non autorisé", { status: 401 });
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate.response;
+  const { userId, orgId } = gate.ctx;
   const user = await currentUser();
   const roleRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
@@ -17,11 +19,11 @@ export async function GET(req: NextRequest) {
   const scope = scopeParam ?? (hasStaffBoardAccess(roles, userEmail) ? "board" : "submitted");
   try {
     try {
-      await purgeExpiredRequests();
+      await purgeExpiredRequests(orgId);
     } catch (e) {
       console.error("purgeExpiredRequests:", e);
     }
-    const index = await getRequestsIndex();
+    const index = await getRequestsIndex(orgId);
     const sortDesc = (a: (typeof index)[number], b: (typeof index)[number]) => +new Date(b.updatedAt) - +new Date(a.updatedAt);
     if (scope === "submitted") {
       const mine = index.filter(
