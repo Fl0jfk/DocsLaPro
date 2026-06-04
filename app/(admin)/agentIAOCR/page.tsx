@@ -55,7 +55,25 @@ export default function OneDriveUpDocsOCRAI() {
   const [elevesCount, setElevesCount] = useState<number | null>(null);
   const [elevesUploading, setElevesUploading] = useState(false);
   const [elevesMessage, setElevesMessage] = useState("");
+  const [syncingFolders, setSyncingFolders] = useState(false);
+  const [syncReport, setSyncReport] = useState<{
+    message?: string;
+    secteurLabel?: string;
+    basePath?: string;
+    jsonForYourSecteur?: number;
+    created?: number;
+    alreadyThere?: number;
+    ambiguous?: Array<{ folderName: string; mef?: string; reason?: string }>;
+    otherSecteurCounts?: Record<string, number>;
+    mefTableConfigured?: boolean;
+  } | null>(null);
+  const [mefCounts, setMefCounts] = useState<{ total: number; lycee: number; college: number; ecole: number } | null>(
+    null,
+  );
+  const [mefUploading, setMefUploading] = useState(false);
+  const [mefMessage, setMefMessage] = useState("");
   const elevesInputRef = useRef<HTMLInputElement | null>(null);
+  const mefInputRef = useRef<HTMLInputElement | null>(null);
   const standardInputRef = useRef<HTMLInputElement | null>(null);
   const classInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -65,6 +83,17 @@ export default function OneDriveUpDocsOCRAI() {
       if (!res.ok) return;
       const data = await res.json();
       setElevesCount(data.count ?? (Array.isArray(data.eleves) ? data.eleves.length : null));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const loadMefCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/mef-secteurs");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.counts) setMefCounts(data.counts);
     } catch {
       /* ignore */
     }
@@ -85,13 +114,14 @@ export default function OneDriveUpDocsOCRAI() {
           setAccessToken(tokenResponse.accessToken);
         }
         await loadElevesCount();
+        await loadMefCounts();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError("Erreur init MSAL: " + err.message);
       }
     };
     init();
-  }, [loadElevesCount]);
+  }, [loadElevesCount, loadMefCounts]);
 
   useEffect(() => {
     if (!msalReady) return;
@@ -591,6 +621,54 @@ export default function OneDriveUpDocsOCRAI() {
     setPendingClassFiles((prev) => [...prev, ...pdfs]);
   };
 
+  const handleSyncOneDriveFolders = async () => {
+    if (!accessToken) {
+      setError("Connectez-vous à OneDrive avant de synchroniser.");
+      return;
+    }
+    setSyncingFolders(true);
+    setSyncReport(null);
+    setElevesMessage("");
+    try {
+      const res = await fetch("/api/agentIAOCR/sync-folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec synchronisation");
+      setSyncReport(data);
+      setElevesMessage(data.message || "Synchronisation terminée.");
+    } catch (e: unknown) {
+      setElevesMessage("Erreur : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSyncingFolders(false);
+    }
+  };
+
+  const handleMefUpload = async (file: File) => {
+    setMefUploading(true);
+    setMefMessage("");
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await fetch("/api/mef-secteurs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec enregistrement MEF");
+      if (data.counts) setMefCounts(data.counts);
+      setMefMessage(data.message || "Table MEF enregistrée.");
+    } catch (e: unknown) {
+      setMefMessage("Erreur : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setMefUploading(false);
+      if (mefInputRef.current) mefInputRef.current.value = "";
+    }
+  };
+
   const handleElevesUpload = async (file: File) => {
     setElevesUploading(true);
     setElevesMessage("");
@@ -686,16 +764,47 @@ export default function OneDriveUpDocsOCRAI() {
           📋 Liste des élèves (S3)
         </h4>
         <p className="text-sm text-gray-500 mb-4">
-          Fichier JSON sur AWS : tableau avec{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">ine</code>,{" "}
+          Liste élèves : <code className="text-xs bg-gray-100 px-1 rounded">ine</code>,{" "}
           <code className="text-xs bg-gray-100 px-1 rounded">nom</code>,{" "}
           <code className="text-xs bg-gray-100 px-1 rounded">prenom</code>,{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">folderName</code>.
+          <code className="text-xs bg-gray-100 px-1 rounded">folderName</code>,{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">mef</code> (code formation de la classe, export
+          Pronote / SI scolarité).
           {elevesCount != null && (
             <span className="ml-2 font-medium text-gray-700">
-              — {elevesCount} élève(s) enregistré(s).
+              — {elevesCount} élève(s) au total.
             </span>
           )}
+        </p>
+        <p className="text-sm text-gray-500 mb-4">
+          Table MEF : aussi modifiable dans{" "}
+          <a href="/parametres" className="text-indigo-600 font-medium hover:underline">
+            Paramètres → Formations MEF
+          </a>
+          . Ou upload ici : un JSON avec les libellés par secteur —{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">lycee</code>,{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">college</code>,{" "}
+          <code className="text-xs bg-gray-100 px-1 rounded">ecole</code> (tableaux de chaînes). Le secteur de
+          chaque élève = son <code className="text-xs bg-gray-100 px-1 rounded">mef</code> comparé à cette table
+          (plus de devinette sur « 2A »).
+          {mefCounts != null && mefCounts.total > 0 && (
+            <span className="ml-2 font-medium text-gray-700">
+              — {mefCounts.total} code(s) MEF ({mefCounts.lycee} lycée, {mefCounts.college} collège,{" "}
+              {mefCounts.ecole} école).
+            </span>
+          )}
+        </p>
+        <pre className="text-xs bg-slate-100 rounded-lg p-3 mb-4 overflow-x-auto text-slate-600">
+{`{
+  "lycee": ["01234567890123", "09876543210987"],
+  "college": ["11111111111111"],
+  "ecole": ["22222222222222"]
+}`}
+        </pre>
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4">
+          Chaque secrétariat ne synchronise que <strong>son</strong> OneDrive. Avec la table MEF, seuls les élèves
+          dont le <code className="text-xs">mef</code> est listé pour votre secteur sont pris en compte — « 2A » dans
+          le nom du dossier ne sert qu’au libellé OneDrive.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -705,6 +814,22 @@ export default function OneDriveUpDocsOCRAI() {
             className="px-4 py-2 bg-gray-800 hover:bg-gray-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
           >
             {elevesUploading ? "Envoi…" : "Remplacer la liste (.json)"}
+          </button>
+          <button
+            type="button"
+            disabled={mefUploading}
+            onClick={() => mefInputRef.current?.click()}
+            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+          >
+            {mefUploading ? "Envoi…" : "Table MEF secteurs (.json)"}
+          </button>
+          <button
+            type="button"
+            disabled={syncingFolders || !accessToken}
+            onClick={handleSyncOneDriveFolders}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+          >
+            {syncingFolders ? "Synchronisation…" : "Synchroniser dossiers OneDrive"}
           </button>
           <input
             ref={elevesInputRef}
@@ -716,13 +841,53 @@ export default function OneDriveUpDocsOCRAI() {
               if (f) handleElevesUpload(f);
             }}
           />
+          <input
+            ref={mefInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleMefUpload(f);
+            }}
+          />
         </div>
+        {mefMessage && (
+          <p
+            className={`mt-2 text-sm ${mefMessage.startsWith("Erreur") ? "text-red-600" : "text-slate-700"}`}
+          >
+            {mefMessage}
+          </p>
+        )}
         {elevesMessage && (
           <p
             className={`mt-3 text-sm ${elevesMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}
           >
             {elevesMessage}
           </p>
+        )}
+        {syncReport && (
+          <div className="mt-4 p-4 bg-slate-50 rounded-xl text-sm text-slate-700 space-y-1">
+            <p>
+              <strong>{syncReport.secteurLabel}</strong> — {syncReport.basePath}
+            </p>
+            <p>
+              JSON pour votre secteur : {syncReport.jsonForYourSecteur} · Créés : {syncReport.created} · Déjà
+              là : {syncReport.alreadyThere}
+            </p>
+            {syncReport.otherSecteurCounts && (
+              <p className="text-xs text-slate-500">
+                Autres secteurs (non synchronisés chez vous) — Lycée :{" "}
+                {syncReport.otherSecteurCounts.lycee}, Collège : {syncReport.otherSecteurCounts.college}, École :{" "}
+                {syncReport.otherSecteurCounts.ecole}
+              </p>
+            )}
+            {(syncReport.ambiguous?.length ?? 0) > 0 && (
+              <p className="text-xs text-amber-700">
+                {syncReport.ambiguous?.length} élève(s) non classés (MEF manquant ou absent de la table).
+              </p>
+            )}
+          </div>
         )}
       </div>
 

@@ -26,8 +26,12 @@ export async function PUT(req: NextRequest) {
     if (!validated.ok) {
       return NextResponse.json({ error: validated.error }, { status: 400 });
     }
-    await putTenantJson(gate.ctx.orgId, KEY, validated.data);
-    return NextResponse.json({ success: true, count: validated.data.length });
+    await putTenantJson(gate.ctx.orgId, KEY, validated.eleves);
+    return NextResponse.json({
+      success: true,
+      count: validated.eleves.length,
+      message: `Liste mise à jour (${validated.eleves.length} élèves).`,
+    });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

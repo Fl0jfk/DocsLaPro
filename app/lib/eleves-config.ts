@@ -3,6 +3,11 @@ export type EleveConfig = {
   nom: string;
   prenom: string;
   folderName: string;
+  /** Code ou libellé MEF / formation (export Pronote) — rattachement Lycée / Collège / École. */
+  mef?: string;
+  /** Alias de mef si l'export nomme la colonne « formation ». */
+  formation?: string;
+  secteur?: string;
 };
 
 export function validateElevesJson(
@@ -26,6 +31,8 @@ export function validateElevesJson(
     const nom = String(o.nom ?? "").trim();
     const prenom = String(o.prenom ?? "").trim();
     const folderName = String(o.folderName ?? "").trim();
+    const mef = String(o.mef ?? o.formation ?? "").trim();
+    const secteur = String(o.secteur ?? "").trim();
     if (!nom || !prenom || !folderName) {
       return {
         ok: false,
@@ -39,7 +46,14 @@ export function validateElevesJson(
       }
       ines.add(key);
     }
-    eleves.push({ ine, nom, prenom, folderName });
+    eleves.push({
+      ine,
+      nom,
+      prenom,
+      folderName,
+      ...(mef ? { mef } : {}),
+      ...(secteur ? { secteur } : {}),
+    });
   }
   return { ok: true, eleves };
 }

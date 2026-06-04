@@ -4,7 +4,20 @@ import { useEffect, useState } from "react";
 import RequireOrgAdmin from "@/app/components/RequireOrgAdmin";
 import { useIsTenantOrgAdmin } from "@/app/hooks/useIsTenantOrgAdmin";
 
-type Tab = "tenant" | "establishments" | "notifications" | "rooms" | "prof-room";
+type Tab = "tenant" | "establishments" | "notifications" | "mef" | "rooms" | "prof-room";
+
+type MefSecteursConfig = { lycee: string[]; college: string[]; ecole: string[] };
+
+function linesToList(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function listToLines(arr: string[]): string {
+  return (arr || []).join("\n");
+}
 
 export default function ParametresPage() {
   const isOrgAdmin = useIsTenantOrgAdmin();
@@ -25,6 +38,10 @@ export default function ParametresPage() {
   >([]);
   const [notifications, setNotifications] = useState<Record<string, unknown>>({});
   const [rooms, setRooms] = useState<Array<{ id: string; name: string; building?: string }>>([]);
+  const [mefLycee, setMefLycee] = useState("");
+  const [mefCollege, setMefCollege] = useState("");
+  const [mefEcole, setMefEcole] = useState("");
+  const [mefMessage, setMefMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOrgAdmin) {
@@ -51,6 +68,14 @@ export default function ParametresPage() {
         const rRes = await fetch("/api/reservation-rooms/rooms");
         const rj = await rRes.json();
         if (rRes.ok) setRooms(rj.rooms || []);
+        const mRes = await fetch("/api/mef-secteurs");
+        const mj = await mRes.json();
+        if (mRes.ok && mj.config) {
+          const c = mj.config as MefSecteursConfig;
+          setMefLycee(listToLines(c.lycee));
+          setMefCollege(listToLines(c.college));
+          setMefEcole(listToLines(c.ecole));
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
       } finally {
@@ -91,6 +116,7 @@ export default function ParametresPage() {
             ["tenant", "Identité"],
             ["establishments", "Établissements"],
             ["notifications", "Notifications"],
+            ["mef", "Formations MEF"],
             ["rooms", "Salles"],
           ] as const
         ).map(([k, label]) => (
@@ -269,6 +295,106 @@ export default function ParametresPage() {
           >
             Enregistrer les notifications
           </button>
+        </div>
+      )}
+
+      {tab === "mef" && (
+        <div className="bg-white rounded-2xl border p-6 space-y-5">
+          <p className="text-sm text-slate-600">
+            Table des formations (libellés ou codes MEF) pour l&apos;agent IA OneDrive : chaque{" "}
+            <strong>organisation</strong> a son propre fichier sur S3 (
+            <code className="text-xs bg-slate-100 px-1 rounded">settings/mef-secteurs.json</code>
+            ). Une ligne = une formation. Les élèves sont rattachés via le champ <code className="text-xs">mef</code>{" "}
+            de la liste élèves.
+          </p>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Lycée</label>
+            <textarea
+              className="w-full border rounded-xl p-3 text-sm font-mono min-h-[140px]"
+              placeholder={"2NDE GENERALE ET TECHNOLOGIQUE\nTERMINALE GENERALE\n…"}
+              value={mefLycee}
+              onChange={(e) => setMefLycee(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Collège</label>
+            <textarea
+              className="w-full border rounded-xl p-3 text-sm font-mono min-h-[120px]"
+              placeholder={"6EME\n5EME\n3EME\n…"}
+              value={mefCollege}
+              onChange={(e) => setMefCollege(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">École</label>
+            <textarea
+              className="w-full border rounded-xl p-3 text-sm font-mono min-h-[160px]"
+              placeholder={"Cycle 2 - COURS PREPARATOIRE\nCycle 1 - GRANDE SECTION\n…"}
+              value={mefEcole}
+              onChange={(e) => setMefEcole(e.target.value)}
+            />
+          </div>
+          {mefMessage && (
+            <p className={`text-sm ${mefMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}>
+              {mefMessage}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                setMefMessage(null);
+                setError(null);
+                try {
+                  const body: MefSecteursConfig = {
+                    lycee: linesToList(mefLycee),
+                    college: linesToList(mefCollege),
+                    ecole: linesToList(mefEcole),
+                  };
+                  const res = await fetch("/api/mef-secteurs", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                  });
+                  const j = await res.json();
+                  if (!res.ok) throw new Error(j.error || "Échec enregistrement");
+                  setMefMessage(j.message || "Table MEF enregistrée.");
+                } catch (e) {
+                  const msg = e instanceof Error ? e.message : "Erreur";
+                  setMefMessage("Erreur : " + msg);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
+            >
+              Enregistrer les formations MEF
+            </button>
+            <label className="cursor-pointer text-sm font-bold text-indigo-600 hover:underline self-center">
+              Importer un .json
+              <input
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try {
+                    const parsed = JSON.parse(await f.text()) as MefSecteursConfig;
+                    setMefLycee(listToLines(parsed.lycee || []));
+                    setMefCollege(listToLines(parsed.college || []));
+                    setMefEcole(listToLines(parsed.ecole || []));
+                    setMefMessage("Fichier chargé dans le formulaire — cliquez sur Enregistrer pour pousser sur S3.");
+                  } catch {
+                    setMefMessage("Erreur : JSON invalide.");
+                  }
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
         </div>
       )}
 

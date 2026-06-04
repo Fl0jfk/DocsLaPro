@@ -1,0 +1,71 @@
+const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
+
+function encodePath(path: string): string {
+  return path
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+}
+
+export async function graphGetItemByPath(accessToken: string, itemPath: string) {
+  const res = await fetch(`${GRAPH_BASE}/me/drive/root:/${encodePath(itemPath)}:`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+/** Liste les noms des sous-dossiers directs d'un chemin (une page, jusqu'à 500). */
+export async function listChildFolderNames(accessToken: string, folderPath: string): Promise<Set<string>> {
+  const names = new Set<string>();
+  const url = `${GRAPH_BASE}/me/drive/root:/${encodePath(folderPath)}:/children?$select=name,folder&$top=500`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) return names;
+  const data = await res.json();
+  for (const item of data.value ?? []) {
+    if (item.folder && item.name) names.add(String(item.name));
+  }
+  return names;
+}
+
+/** Crée un dossier enfant sous parentPath s'il n'existe pas. */
+export async function ensureChildFolder(
+  accessToken: string,
+  parentPath: string,
+  folderName: string,
+): Promise<{ created: boolean; existed: boolean; path: string }> {
+  const safeName = folderName.replace(/[\\/:*?"<>|]+/g, "_").trim();
+  const fullPath = parentPath ? `${parentPath.replace(/\/+$/, "")}/${safeName}` : safeName;
+  const existing = await graphGetItemByPath(accessToken, fullPath);
+  if (existing?.id) return { created: false, existed: true, path: fullPath };
+
+  const parent = parentPath.replace(/\/+$/, "") || "";
+  const createUrl = parent
+    ? `${GRAPH_BASE}/me/drive/root:/${encodePath(parent)}:/children`
+    : `${GRAPH_BASE}/me/drive/root/children`;
+
+  const res = await fetch(createUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: safeName, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Création dossier « ${safeName} » : ${err}`);
+  }
+  return { created: true, existed: false, path: fullPath };
+}
+
+/** Crée toute la chaîne de dossiers (ex. Dossier élèves / Lycée). */
+export async function ensureFolderPath(accessToken: string, fullPath: string): Promise<void> {
+  const parts = fullPath.split("/").filter(Boolean);
+  let acc = "";
+  for (const part of parts) {
+    await ensureChildFolder(accessToken, acc, part);
+    acc = acc ? `${acc}/${part}` : part;
+  }
+}

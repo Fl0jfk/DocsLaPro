@@ -1,37 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import type { EleveConfig } from "@/app/lib/eleves-config";
+import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
+import {
+  filterElevesForSecteur,
+  getOneDriveProfileForClerkLastName,
+  oneDrivePathForEleve,
+} from "@/app/lib/onedrive-eleves";
 
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.SECRET_ACCESS_KEY || "",
-  },
-});
-
-const BUCKET = process.env.BUCKET_NAME!;
 const KEY = "eleves.json";
 
-type EleveConfig = {
-  ine: string;
-  nom: string;
-  prenom: string;
-  folderName: string;
-};
-
-const USER_ONEDRIVE_BASES: Record<string, string> = { "HACQUEVILLE-MATHI": "Dossier élèves/Lycée", "VILLIER": "Dossier élèves/Collège", "LEBLOND": "Dossier élèves/École"};
-
-async function getElevesFromS3(): Promise<EleveConfig[]> {
-  const res = await s3.send(
-    new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: KEY,
-    })
-  );
-  const body = await res.Body?.transformToString("utf-8");
-  if (!body) return [];
-  return JSON.parse(body) as EleveConfig[];
+async function getElevesFromS3(orgId: string): Promise<EleveConfig[]> {
+  const hit = await getTenantJson<EleveConfig[]>(orgId, KEY);
+  return Array.isArray(hit?.data) ? hit.data : [];
 }
 
 function normalize(str: string): string {
@@ -59,8 +42,11 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
     if (!userId) { return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })}
+    const gate = await requireTenantAuth();
+    if (!gate.ok) return gate.response;
     const user = await currentUser();
-    const lastName = (user?.lastName || "").toUpperCase();
+    const lastName = (user?.lastName || "").trim();
+    const odProfile = getOneDriveProfileForClerkLastName(lastName);
     const { text } = await req.json();
     if (!text) { return NextResponse.json({ error: 'text requis' }, { status: 400 })}
     const extractionPrompt = `
@@ -140,7 +126,11 @@ export async function POST(req: Request) {
     let oneDriveFolderPath: string | null = null;
     let matchedEleve: { ine: string; nom: string; prenom: string; folderName: string } | null = null;
     try {
-      const eleves = await getElevesFromS3();
+      const mefMap = await loadMefSecteurMap(gate.ctx.orgId);
+      const allEleves = await getElevesFromS3(gate.ctx.orgId);
+      const eleves = odProfile
+        ? filterElevesForSecteur(allEleves, odProfile.secteur, mefMap)
+        : allEleves;
       const { ine, nom, prénom } = extracted;
       if (ine && ine !== "non_trouvé") {
         const ineTrim = ine.trim().toUpperCase();
@@ -206,9 +196,8 @@ export async function POST(req: Request) {
           }
         }
       }
-      if (matchedEleve?.folderName) {
-        const userBase = (lastName && USER_ONEDRIVE_BASES[lastName]) || "Dossier élèves/Lycée";
-        oneDriveFolderPath = `${userBase}/${matchedEleve.folderName}`;
+      if (matchedEleve?.folderName && odProfile) {
+        oneDriveFolderPath = oneDrivePathForEleve(odProfile.basePath, matchedEleve.folderName);
       }
     } catch (e) {
       console.error("Erreur matching interne:", e);

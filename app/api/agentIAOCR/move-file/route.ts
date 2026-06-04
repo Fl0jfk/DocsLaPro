@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
+import { ensureFolderPath } from "@/app/lib/graph-onedrive-folders";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
@@ -44,6 +45,18 @@ export async function POST(req: Request) {
     if (!sourceItemId || !driveId) {
       return NextResponse.json({ error: "Impossible de récupérer l'ID du fichier source ou du drive" },{ status: 500 });
     }
+    try {
+      await ensureFolderPath(accessToken, targetFolderPath);
+    } catch (ensureErr) {
+      return NextResponse.json(
+        {
+          error: "Impossible de créer le dossier cible OneDrive",
+          details: ensureErr instanceof Error ? ensureErr.message : String(ensureErr),
+        },
+        { status: 500 },
+      );
+    }
+
     const targetFolderRes = await fetch(
       `${GRAPH_BASE}/me/drive/root:/${targetFolderPath}:`,
       {
