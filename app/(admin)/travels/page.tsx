@@ -2,12 +2,13 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
 export default function TripDashboard() {
   const { isLoaded, isSignedIn} = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showModal, setShowModal] = useState(false);
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,11 @@ export default function TripDashboard() {
     };
     if (isLoaded && isSignedIn) {fetchTrips()}
   }, [isLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") setShowModal(true);
+  }, [searchParams]);
+
   if (!isLoaded || !isSignedIn) return null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatDate = (trip: any, field: 'created' | 'travel') => {

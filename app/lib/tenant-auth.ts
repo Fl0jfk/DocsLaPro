@@ -1,13 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { requireRegistryAdmin } from "@/app/lib/registry-admin-auth";
-import {
-  isOrgAdminFromPublicMetadata,
-  resolveTenantSession,
-  type ResolvedTenantSession,
-} from "@/app/lib/tenant-session";
-import { findUserInRegistry, hasGlobalAdminRole, readUsersRegistry } from "@/app/lib/users-registry";
-import { getLegacyTenantOrgId } from "@/app/lib/tenant";
+import { isOrgAdminFromPublicMetadata, resolveTenantSession } from "@/app/lib/tenant-session";
 
 export type TenantAuthContext = {
   userId: string;
@@ -15,7 +8,7 @@ export type TenantAuthContext = {
   orgRole: string | null;
 };
 
-function toCtx(session: ResolvedTenantSession): TenantAuthContext {
+function toCtx(session: { userId: string; orgId: string; orgRole: string | null }): TenantAuthContext {
   return { userId: session.userId, orgId: session.orgId, orgRole: session.orgRole };
 }
 
@@ -24,49 +17,49 @@ export async function requireTenantAuth(): Promise<
 > {
   const session = await resolveTenantSession();
   if (!session) {
-    const legacy = getLegacyTenantOrgId();
     return {
       ok: false,
-      response: NextResponse.json(
-        {
-          error: legacy
-            ? "Session invalide. Reconnectez-vous."
-            : "Configuration tenant manquante (LEGACY_TENANT_ORG_ID ou TENANT_ORG_ID).",
-          code: "TENANT_REQUIRED",
-        },
-        { status: 403 },
-      ),
+      response: NextResponse.json({ error: "Non autorisé.", code: "AUTH_REQUIRED" }, { status: 401 }),
     };
   }
   return { ok: true, ctx: toCtx(session) };
 }
 
-/** Admin : rôle `admin` dans users-registry.json (sync Clerk) ou legacy metadata. */
-export async function isTenantOrgAdmin(orgId: string): Promise<boolean> {
-  const session = await resolveTenantSession();
-  if (!session || session.orgId !== orgId) return false;
-  const registry = await readUsersRegistry();
-  const hit = findUserInRegistry(registry, { clerkUserId: session.userId });
-  if (hit && hit.orgId === orgId && hasGlobalAdminRole(hit.user.roles)) return true;
+export async function isTenantOrgAdmin(_orgId?: string): Promise<boolean> {
   const user = await currentUser();
   return isOrgAdminFromPublicMetadata(user?.publicMetadata);
 }
 
-/** @deprecated Utiliser requireRegistryAdmin — conservé pour les imports existants. */
 export async function requireTenantOrgAdmin(): Promise<
   { ok: true; ctx: TenantAuthContext } | { ok: false; response: NextResponse }
 > {
   return requireRegistryAdmin();
 }
 
-/** Routes publiques : orgId via header ou body. */
+/** Admin intranet : rôle `admin` (ou legacy) dans les métadonnées Clerk. */
+export async function requireRegistryAdmin(): Promise<
+  { ok: true; ctx: TenantAuthContext } | { ok: false; response: NextResponse }
+> {
+  const gate = await requireTenantAuth();
+  if (!gate.ok) return gate;
+
+  if (await isTenantOrgAdmin()) {
+    return gate;
+  }
+
+  return {
+    ok: false,
+    response: NextResponse.json(
+      { error: "Réservé aux utilisateurs avec le rôle admin.", code: "ADMIN_REQUIRED" },
+      { status: 403 },
+    ),
+  };
+}
+
+/** @deprecated Plus de tenant public par orgId — conservé pour routes publiques legacy. */
 export function resolvePublicTenantId(
-  headerOrgId: string | null | undefined,
-  bodyOrgId: string | null | undefined,
+  _headerOrgId: string | null | undefined,
+  _bodyOrgId: string | null | undefined,
 ): string | null {
-  const h = headerOrgId?.trim();
-  if (h) return h;
-  const b = bodyOrgId?.trim();
-  if (b) return b;
-  return getLegacyTenantOrgId();
+  return "";
 }

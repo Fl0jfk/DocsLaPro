@@ -28,3 +28,7 @@ export function intranetRolesFromMetadata(meta: unknown): string[] {
   const role = (meta as Record<string, unknown> | undefined)?.role;
   return normalizeIntranetRoles(role);
 }
+
+export function hasGlobalAdminRole(roles: string[]): boolean {
+  return roles.includes("admin");
+}

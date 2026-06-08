@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import RollingSlider from "../../components/Slider/SectionSlider";
+import ExternalQuickLinks from "@/app/components/Dashboard/ExternalQuickLinks";
 import { useData } from "@/app/contexts/data";
 import { useUser } from "@clerk/nextjs";
 import { useIsTenantOrgAdmin } from "@/app/hooks/useIsTenantOrgAdmin";
@@ -20,6 +21,13 @@ export default function Home() {
     });
     return Array.from(new Map(filtered.map(cat => [cat.id ?? cat.name, cat])).values());
   }, [isLoaded, user, data, isOrgAdmin]);
+
+  const quickLinks = useMemo(() => {
+    if (!isLoaded || !user || !data?.externalQuickLinks) return [];
+    const rawRoles = user.publicMetadata?.role;
+    const roles = Array.isArray(rawRoles) ? rawRoles : typeof rawRoles === "string" ? [rawRoles] : [];
+    return data.externalQuickLinks.filter((l) => (l.allowedRoles ?? []).some((r) => roles.includes(r)));
+  }, [isLoaded, user, data]);
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-screen w-full">
@@ -38,6 +46,7 @@ export default function Home() {
       <div className="z-10 w-full flex flex-col flex-grow mx-auto">
         {uniqueCategories.length > 0 ? (
           <div className="w-full max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-1000 mx-auto">
+            <ExternalQuickLinks links={quickLinks} />
             <RollingSlider categories={uniqueCategories} />
           </div>
         ) : (

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { copyPendingFileToRequest, deletePendingRequestPrefix,loadPendingRequestMeta,} from "@/app/lib/request-pending-verify";
 import { RequestRecord, getPublicAppBaseUrl, getRequestsIndex, notifyRequestCreated, resolveRequestRouting, saveRequestFile, saveRequestsIndex,} from "@/app/lib/requests";
-import { getLegacyTenantOrgId } from "@/app/lib/tenant";
 
 export const runtime = "nodejs";
 
@@ -64,12 +63,10 @@ export async function GET(req: NextRequest) {
         },
       ],
     };
-    const orgId = getLegacyTenantOrgId();
-    if (!orgId) return redirectToMerci(req, { erreur: "tenant_manquant" });
-    await saveRequestFile(orgId, record);
-    const index = await getRequestsIndex(orgId);
+    await saveRequestFile("", record);
+    const index = await getRequestsIndex("");
     index.push(record);
-    await saveRequestsIndex(orgId, index);
+    await saveRequestsIndex("", index);
     await deletePendingRequestPrefix(token);
     try {
       await notifyRequestCreated(record);

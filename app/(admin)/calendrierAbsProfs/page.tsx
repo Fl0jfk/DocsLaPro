@@ -841,14 +841,14 @@ export default function ConvocationsExamensPage() {
         disabled={attachingPdf}
       />
       <div>
-        <h1 className="text-4xl font-black text-slate-900">Calendrier absences professeurs</h1>
+        <h1 className="text-4xl font-black text-slate-900">Calendrier des absences</h1>
         <p className="text-slate-500 mt-2">
           Déclarez une absence à la main (prénom, nom, dates et heures) ou importez un PDF pour une détection automatique (OCR + IA). Vous pouvez joindre un justificatif PDF même en saisie manuelle.
         </p>
       </div>
       <section className="bg-white border border-slate-200 rounded-none sm:rounded-3xl p-0 sm:p-5 -mx-6 sm:mx-0">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 px-4 pt-4 sm:px-0 sm:pt-0">
-          <h2 className="text-xl font-black text-slate-900">Calendrier des absences (professeurs)</h2>
+          <h2 className="text-xl font-black text-slate-900">Calendrier des absences</h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
             <select
               className="w-full sm:w-auto px-3 py-2 sm:py-1 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700"

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getTenantJson } from "@/app/lib/tenant-s3-storage";
-import { getLegacyTenantOrgId } from "@/app/lib/tenant";
 
 const NEWS_KEY = "news/slider.json";
 
@@ -59,16 +58,10 @@ function parseNewsPayload(payload: unknown): NewsItem[] {
     .filter((x) => x.id && x.title && x.buttonText);
 }
 
-/** Actualités publiques : org legacy ou première org migrée. */
+/** Actualités publiques (bucket racine de l'instance). */
 export async function GET() {
-  const orgId = getLegacyTenantOrgId();
-  if (!orgId) {
-    return NextResponse.json([], {
-      headers: { "Cache-Control": "no-store, max-age=0" },
-    });
-  }
   try {
-    const hit = await getTenantJson<unknown>(orgId, NEWS_KEY);
+    const hit = await getTenantJson<unknown>(null, NEWS_KEY);
     if (!hit?.data) {
       return NextResponse.json([], { headers: { "Cache-Control": "no-store, max-age=0" } });
     }

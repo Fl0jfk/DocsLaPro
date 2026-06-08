@@ -2,7 +2,9 @@
 
 import { createContext, useContext, PropsWithChildren, useEffect, useMemo, useState } from "react";
 
-type Categories = {
+export type DashboardTileVariant = "default" | "travels" | "prof-room" | "agent-ia" | "absences-calendar";
+
+export type Categories = {
   id: number;
   name: string;
   link: string;
@@ -12,6 +14,16 @@ type Categories = {
   external?: boolean;
   /** Visible uniquement pour org:admin (Clerk Organizations). */
   orgAdminOnly?: boolean;
+  /** Tuile enrichie sur le dashboard (live data + actions). */
+  variant?: DashboardTileVariant;
+};
+
+export type ExternalQuickLink = {
+  id: string;
+  name: string;
+  link: string;
+  img: string;
+  allowedRoles: string[];
 };
 
 type Travels = {
@@ -38,6 +50,7 @@ type DocumentCategory = {
 
 type Data = {
   categories: Categories[];
+  externalQuickLinks: ExternalQuickLink[];
   travels: Travels[];
   documents: DocumentCategory[];
   error: string | null;
@@ -54,14 +67,6 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 2,
-      "name": "Ecole Directe",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Ecole+direct.png",
-      "link": "https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
-      "allowedRoles": ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
-      "external": true
-    },
-    {
       "id": 3,
       "name": "Maintenance",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/maintenance.avif",
@@ -75,7 +80,8 @@ const STATIC_DATA: Data = {
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
       "link": "/travels",
       "allowedRoles": ["administratif", "comptabilite","direction_ecole","direction_lycee", "professeur","direction_college"],
-      "external": false
+      "external": false,
+      "variant": "travels"
     },
     {
       "id": 5,
@@ -94,28 +100,13 @@ const STATIC_DATA: Data = {
       "external": true
     },
     {
-      "id": 7,
-      "name": "ZeenDoc",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
-      "link": "https://armoires.zeendoc.com/_Login/Login.php",
-      "allowedRoles": ["administratif", "comptabilite", "direction_college", "direction_ecole", "direction_lycee"],
-      "external": true
-    },
-    {
       "id": 8,
       "name": "Réservation de salle",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
       "link": "/prof-room",
       "allowedRoles": ["professeur", "administratif", "direction_college", "direction_ecole", "direction_lycee", "maintenance", "education"],
-      "external": false
-    },
-    {
-      "id": 9,
-      "name": "Arena Ac Normandie",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/MIN_Education_Nationale_et_Jeunesse_RVB.jpg",
-      "link": "https://arena.ac-normandie.fr/arena/",
-      "allowedRoles": ["administratif", "direction_college", "direction_ecole", "direction_lycee"],
-      "external": true
+      "external": false,
+      "variant": "prof-room"
     },
     {
       "id": 10,
@@ -123,7 +114,8 @@ const STATIC_DATA: Data = {
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
       "link": "/agentIAOCR",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
-      "external": false
+      "external": false,
+      "variant": "agent-ia"
     },
     {
       "id": 11,
@@ -183,11 +175,12 @@ const STATIC_DATA: Data = {
     },
     {
       "id": 18,
-      "name": "Calendrier Absences professeurs",
+      "name": "Calendrier des absences",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Calendrier.jpg",
       "link": "/calendrierAbsProfs",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "education"],
-      "external": false
+      "external": false,
+      "variant": "absences-calendar"
     },
     {
       "id": 19,
@@ -231,16 +224,42 @@ const STATIC_DATA: Data = {
       "external": false
     }
   ],
+  externalQuickLinks: [
+    {
+      id: "ecole-directe",
+      name: "École Directe",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Ecole+direct.png",
+      link: "https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
+      allowedRoles: ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"],
+    },
+    {
+      id: "zeendoc",
+      name: "ZeenDoc",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/zeendoc.png",
+      link: "https://armoires.zeendoc.com/_Login/Login.php",
+      allowedRoles: ["administratif", "comptabilite", "direction_college", "direction_ecole", "direction_lycee"],
+    },
+    {
+      id: "arena",
+      name: "Arena Ac-Normandie",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/MIN_Education_Nationale_et_Jeunesse_RVB.jpg",
+      link: "https://arena.ac-normandie.fr/arena/",
+      allowedRoles: ["administratif", "direction_college", "direction_ecole", "direction_lycee"],
+    },
+  ],
   travels: [],
   documents: [],
   error: null,
 };
 const DataContext = createContext<Data | undefined>(undefined);
 export const DataProvider = ({ children }: PropsWithChildren<object>) => {
-  const [dynamicCategories, setDynamicCategories] = useState<Categories[]>([]);
+  const [dynamicQuickLinks, setDynamicQuickLinks] = useState<ExternalQuickLink[]>([]);
   useEffect(() => {
     let cancelled = false;
     const commonAllowedRoles = ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"];
+    const upsertQuickLink = (link: ExternalQuickLink) => {
+      setDynamicQuickLinks((prev) => [...prev.filter((l) => l.id !== link.id), link]);
+    };
     const loadGristCategory = async () => {
       try {
         const res = await fetch("/api/grist", { cache: "no-store" });
@@ -248,19 +267,12 @@ export const DataProvider = ({ children }: PropsWithChildren<object>) => {
         const data = (await res.json()) as { gristUrl?: string };
         const gristUrl = data?.gristUrl;
         if (!gristUrl || cancelled) return;
-        setDynamicCategories((prev) => {
-          const withoutExisting = prev.filter((c) => c.name !== "Grist");
-          return [
-            ...withoutExisting,
-            {
-              id: 999,
-              name: "Grist",
-              img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Grist.jpg",
-              link: gristUrl,
-              allowedRoles: commonAllowedRoles,
-              external: true,
-            },
-          ];
+        upsertQuickLink({
+          id: "grist",
+          name: "Grist",
+          img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Grist.jpg",
+          link: gristUrl,
+          allowedRoles: commonAllowedRoles,
         });
       } catch {
       }
@@ -272,19 +284,12 @@ export const DataProvider = ({ children }: PropsWithChildren<object>) => {
         const data = (await res.json()) as { docsUrl?: string };
         const docsUrl = data?.docsUrl;
         if (!docsUrl || cancelled) return;
-        setDynamicCategories((prev) => {
-          const withoutExisting = prev.filter((c) => c.name !== "Docs");
-          return [
-            ...withoutExisting,
-            {
-              id: 1000,
-              name: "Docs",
-              img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Docs.jpg",
-              link: docsUrl,
-              allowedRoles: commonAllowedRoles,
-              external: true,
-            },
-          ];
+        upsertQuickLink({
+          id: "docs",
+          name: "Docs",
+          img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Docs.jpg",
+          link: docsUrl,
+          allowedRoles: commonAllowedRoles,
         });
       } catch {
       }
@@ -295,9 +300,9 @@ export const DataProvider = ({ children }: PropsWithChildren<object>) => {
   const value = useMemo<Data>(
     () => ({
       ...STATIC_DATA,
-      categories: [...STATIC_DATA.categories, ...dynamicCategories],
+      externalQuickLinks: [...STATIC_DATA.externalQuickLinks, ...dynamicQuickLinks],
     }),
-    [dynamicCategories]
+    [dynamicQuickLinks]
   );
   return ( <DataContext.Provider value={value}>{children}</DataContext.Provider>);
 };

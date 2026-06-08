@@ -1,15 +1,10 @@
 "use client"
 
 import { useState, useRef } from "react";
-import Slide from "./Slide";
+import type { Categories } from "@/app/contexts/data";
+import DashboardTile from "../Dashboard/DashboardTile";
 
-export type Category = {
-  id: number;
-  name: string;
-  link: string;
-  img: string;
-  external?: boolean;
-};
+export type Category = Categories;
 
 export type SliderProps = { items: Category[]};
 
@@ -36,7 +31,7 @@ export default function Slider({ items }: SliderProps) {
   return (
     <div ref={containerRef} className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 select-none h-full w-full mx-auto" onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}>
       {items.map((category, index) => (
-        <Slide name={category.name} key={category.id} link={category.link} img={category.img} external={category.external} priority={index === 0}/>
+        <DashboardTile key={category.id} category={category} priority={index === 0} />
       ))}
     </div>
   );

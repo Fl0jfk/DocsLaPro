@@ -70,7 +70,6 @@ export default function MembresPage() {
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<RegistryUserRow[]>([]);
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
-  const [registryKey, setRegistryKey] = useState("users-registry.json");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -91,7 +90,6 @@ export default function MembresPage() {
       if (!res.ok) throw new Error(j.error || "Chargement impossible");
       setUsers(j.users ?? []);
       setRoleOptions(j.roleOptions ?? []);
-      if (j.registryKey) setRegistryKey(j.registryKey);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -220,8 +218,7 @@ export default function MembresPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Utilisateurs</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Registre <code className="bg-slate-100 px-1 rounded text-xs">{registryKey}</code> — synchronisé avec Clerk à
-            chaque modification.
+            Gestion directe via Clerk (invitations, rôles, suppression). Une instance = une application Clerk.
           </p>
         </div>
 

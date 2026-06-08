@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import * as msal from "@azure/msal-browser";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
+import { consumeDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 
 const msalConfig: msal.Configuration = {
   auth: {
@@ -36,6 +38,7 @@ type Segment = {
 };
 
 export default function OneDriveUpDocsOCRAI() {
+  const searchParams = useSearchParams();
   const [account, setAccount] = useState<msal.AccountInfo | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -122,6 +125,27 @@ export default function OneDriveUpDocsOCRAI() {
     };
     init();
   }, [loadElevesCount, loadMefCounts]);
+
+  useEffect(() => {
+    if (searchParams.get("upload") !== "1") return;
+    requestAnimationFrame(() => {
+      const el = document.getElementById("ocr-drop-standard");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.classList.add("ring-4", "ring-violet-400");
+      window.setTimeout(() => el?.classList.remove("ring-4", "ring-violet-400"), 2500);
+    });
+  }, [searchParams, msalReady]);
+
+  useEffect(() => {
+    if (!msalReady || !account || !accessToken) return;
+    const staged = consumeDashboardUpload();
+    if (!staged) return;
+    if (staged.mode === "standard") {
+      setPendingStandardFiles((prev) => [...prev, ...staged.files]);
+    } else {
+      setPendingClassFiles((prev) => [...prev, ...staged.files]);
+    }
+  }, [msalReady, account, accessToken]);
 
   useEffect(() => {
     if (!msalReady) return;
@@ -921,6 +945,7 @@ export default function OneDriveUpDocsOCRAI() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div
+              id="ocr-drop-standard"
               onDragOver={
                 dropDisabled
                   ? undefined

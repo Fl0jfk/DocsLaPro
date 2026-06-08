@@ -1,12 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { normalizeIntranetRoles } from "@/app/lib/intranet-roles";
-import { findUserInRegistry, hasGlobalAdminRole, readUsersRegistry } from "@/app/lib/users-registry";
-import { getLegacyTenantOrgId } from "@/app/lib/tenant";
-
-/** orgId technique pour S3 (organisation Clerk ou tenant fixe en .env). */
-export function getDefaultTenantOrgId(): string | null {
-  return getLegacyTenantOrgId() || process.env.TENANT_ORG_ID?.trim() || null;
-}
+import { hasGlobalAdminRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 
 export type ResolvedTenantSession = {
   userId: string;
@@ -20,33 +13,22 @@ export function isOrgAdminFromPublicMetadata(meta: unknown): boolean {
   if (!m) return false;
   if (m.org_admin === true) return true;
   if (m.platform_admin === true) return true;
-  return hasGlobalAdminRole(normalizeIntranetRoles(m.role));
+  return hasGlobalAdminRole(intranetRolesFromMetadata(m));
 }
 
-/** Session tenant : membership Clerk si présente, sinon tenant fixe (.env) pour tout le personnel. */
+/** Session : utilisateur Clerk connecté (une instance = une app Clerk + un bucket). */
 export async function resolveTenantSession(): Promise<ResolvedTenantSession | null> {
   const { userId, orgId, orgRole } = await auth();
   if (!userId) return null;
+  return {
+    userId,
+    orgId: orgId ?? "",
+    orgRole: orgRole ?? null,
+    fromOrgMembership: Boolean(orgId),
+  };
+}
 
-  const registry = await readUsersRegistry();
-  const regHit = findUserInRegistry(registry, { clerkUserId: userId });
-  if (regHit?.user.clerkUserId) {
-    const virtualRole = hasGlobalAdminRole(regHit.user.roles) ? "org:admin" : "org:member";
-    return { userId, orgId: regHit.orgId, orgRole: virtualRole, fromOrgMembership: false };
-  }
-
-  if (orgId) {
-    return { userId, orgId, orgRole: orgRole ?? null, fromOrgMembership: true };
-  }
-
-  const defaultOrg = getDefaultTenantOrgId();
-  if (!defaultOrg) return null;
-
+export async function isCurrentUserAdmin(): Promise<boolean> {
   const user = await currentUser();
-  const meta = user?.publicMetadata as Record<string, unknown> | undefined;
-  const userTenant = typeof meta?.tenantOrgId === "string" ? meta.tenantOrgId.trim() : "";
-  if (userTenant && userTenant !== defaultOrg) return null;
-
-  const virtualRole = isOrgAdminFromPublicMetadata(meta) ? "org:admin" : "org:member";
-  return { userId, orgId: defaultOrg, orgRole: virtualRole, fromOrgMembership: false };
+  return isOrgAdminFromPublicMetadata(user?.publicMetadata);
 }

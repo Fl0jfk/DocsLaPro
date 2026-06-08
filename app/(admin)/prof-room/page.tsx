@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useTenantContext } from "@/app/hooks/useTenantContext";
 
@@ -34,6 +35,7 @@ const HOURS = Array.from({ length: 10 }, (_, i) => 8 + i);
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 
 export default function ProfRoomPage() {
+  const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
   const { data: tenantCtx } = useTenantContext();
   const CLASSES_DATA = tenantCtx?.profRoom?.classesByPole || FALLBACK_CLASSES;
@@ -107,6 +109,21 @@ export default function ProfRoomPage() {
     window.addEventListener("click", closeMenu);
     return () => window.removeEventListener("click", closeMenu);
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setIsEditing(false);
+    setEditingRes(null);
+    setSelectedDate(todayStr);
+    setSelectedHours([]);
+    setSubject("");
+    setLevel("");
+    setClassName("");
+    setComment("");
+    requestAnimationFrame(() => {
+      document.getElementById("form-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [searchParams, todayStr]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleCellClick = (dateStr: string, hour: number, resExist?: any) => {
     setUpdateAllSeries(false);
