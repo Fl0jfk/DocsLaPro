@@ -47,6 +47,39 @@ function decodeAttachmentData(data) {
   return Buffer.from(b64, "base64");
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Rejoue le même POST jusqu'à completed:true (évite de repoller le mail non lu trop tôt). */
+async function waitForIngestComplete(ingestUrl, ingestSecret, body, maxAttempts = 50) {
+  let lastData = {};
+  for (let i = 0; i < maxAttempts; i++) {
+    if (i > 0) await sleep(4000);
+    const res = await fetch(ingestUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-travel-email-ingest-secret": ingestSecret,
+      },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text().catch(() => "");
+    try {
+      lastData = JSON.parse(text);
+    } catch {
+      lastData = {};
+    }
+    if (lastData.completed === true) {
+      return { ok: true, data: lastData, status: res.status };
+    }
+    if (!res.ok && res.status !== 202) {
+      return { ok: false, data: lastData, status: res.status, text };
+    }
+  }
+  return { ok: false, pending: true, data: lastData };
+}
+
 function buildOAuth() {
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
@@ -130,57 +163,32 @@ export async function handler() {
           })
         );
 
-        const res = await fetch(ingestUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-travel-email-ingest-secret": ingestSecret,
-          },
-          body: JSON.stringify({
-            s3Key,
-            fromEmail,
-            subject,
-            snippet,
-            gmailMessageId: messageId,
-            originalFilename: att.filename,
-          }),
-        });
+        const ingestBody = {
+          s3Key,
+          fromEmail,
+          subject,
+          snippet,
+          gmailMessageId: messageId,
+          originalFilename: att.filename,
+        };
 
-        const text = await res.text().catch(() => "");
-        let data = {};
-        try {
-          data = JSON.parse(text);
-        } catch {
-          /* corps non JSON */
-        }
-
-        if (!res.ok) {
+        const ingestResult = await waitForIngestComplete(ingestUrl, ingestSecret, ingestBody);
+        if (!ingestResult.ok) {
           allOk = false;
-          summary.errors.push({
-            messageId,
-            file: att.filename,
-            err: `ingest ${res.status}: ${text.slice(0, 200)}`,
-          });
-          break;
-        }
-
-        const waiting =
-          (res.status === 202 && data.accepted === true && data.completed === false) ||
-          data.pending === true;
-        if (waiting) {
-          allOk = false;
-          summary.pendingIngest = (summary.pendingIngest || 0) + 1;
-          continue;
-        }
-
-        const attachmentDone = data.completed === true;
-        if (!attachmentDone) {
-          allOk = false;
-          summary.errors.push({
-            messageId,
-            file: att.filename,
-            err: `ingest: réponse inattendue (${text.slice(0, 160)})`,
-          });
+          if (ingestResult.pending) {
+            summary.pendingIngest = (summary.pendingIngest || 0) + 1;
+            summary.errors.push({
+              messageId,
+              file: att.filename,
+              err: "ingest toujours en cours après attente — mail laissé non lu",
+            });
+          } else {
+            summary.errors.push({
+              messageId,
+              file: att.filename,
+              err: `ingest ${ingestResult.status ?? "?"}: ${JSON.stringify(ingestResult.data).slice(0, 200)}`,
+            });
+          }
           break;
         }
       }

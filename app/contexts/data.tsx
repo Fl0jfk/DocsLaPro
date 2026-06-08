@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, PropsWithChildren, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, PropsWithChildren } from "react";
 
 export type DashboardTileVariant = "default" | "travels" | "prof-room" | "agent-ia" | "absences-calendar";
 
@@ -252,60 +252,9 @@ const STATIC_DATA: Data = {
   error: null,
 };
 const DataContext = createContext<Data | undefined>(undefined);
-export const DataProvider = ({ children }: PropsWithChildren<object>) => {
-  const [dynamicQuickLinks, setDynamicQuickLinks] = useState<ExternalQuickLink[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    const commonAllowedRoles = ["direction_college", "administratif", "professeur", "direction_ecole", "direction_lycee", "maintenance", "comptabilite", "infirmerie", "education"];
-    const upsertQuickLink = (link: ExternalQuickLink) => {
-      setDynamicQuickLinks((prev) => [...prev.filter((l) => l.id !== link.id), link]);
-    };
-    const loadGristCategory = async () => {
-      try {
-        const res = await fetch("/api/grist", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { gristUrl?: string };
-        const gristUrl = data?.gristUrl;
-        if (!gristUrl || cancelled) return;
-        upsertQuickLink({
-          id: "grist",
-          name: "Grist",
-          img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Grist.jpg",
-          link: gristUrl,
-          allowedRoles: commonAllowedRoles,
-        });
-      } catch {
-      }
-    };
-    const loadDocsCategory = async () => {
-      try {
-        const res = await fetch("/api/docs", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { docsUrl?: string };
-        const docsUrl = data?.docsUrl;
-        if (!docsUrl || cancelled) return;
-        upsertQuickLink({
-          id: "docs",
-          name: "Docs",
-          img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Docs.jpg",
-          link: docsUrl,
-          allowedRoles: commonAllowedRoles,
-        });
-      } catch {
-      }
-    };
-    loadGristCategory();
-    loadDocsCategory();
-    return () => { cancelled = true; }}, []);
-  const value = useMemo<Data>(
-    () => ({
-      ...STATIC_DATA,
-      externalQuickLinks: [...STATIC_DATA.externalQuickLinks, ...dynamicQuickLinks],
-    }),
-    [dynamicQuickLinks]
-  );
-  return ( <DataContext.Provider value={value}>{children}</DataContext.Provider>);
-};
+export const DataProvider = ({ children }: PropsWithChildren<object>) => (
+  <DataContext.Provider value={STATIC_DATA}>{children}</DataContext.Provider>
+);
 export const useData = () => {
   const context = useContext(DataContext);
   if (!context) {throw new Error("useData must be used within a DataProvider")}

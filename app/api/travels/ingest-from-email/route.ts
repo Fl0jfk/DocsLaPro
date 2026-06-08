@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { NextResponse, after } from "next/server";
-import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { providerNameFromEmail } from "@/app/lib/transport-providers";
 import {  extractDevisAndMatchTripWithMistral,  ocrS3Key, type TripCandidateForMatch} from "@/app/lib/travel-devis-ocr";
@@ -10,11 +10,19 @@ const UNMATCHED_KEY = "travels/email-devis-unmatched.json";
 const INDEX_KEY = "travels/index.json";
 const MAX_CANDIDATES = 45;
 const MARKER_PREFIX = "travels/email-ingest-markers/";
-const PENDING_STALE_MS = 12 * 60 * 1000;
+const PENDING_STALE_MS = 15 * 60 * 1000;
 
 export const maxDuration = 300;
 
+/** Extrait l’id pièce jointe Gmail depuis `devis-incoming/{msgId}/{attachmentId}_{file}.pdf`. */
+function attachmentIdFromIncomingKey(s3Key: string): string | null {
+  const m = s3Key.match(/^devis-incoming\/[^/]+\/([^_]+)_/);
+  return m?.[1] ?? null;
+}
+
 function ingestMarkerKey(gmailMessageId: string, s3Key: string): string {
+  const attId = attachmentIdFromIncomingKey(s3Key);
+  if (attId) return `${MARKER_PREFIX}${gmailMessageId}/${attId}.json`;
   const h = createHash("sha256").update(`${gmailMessageId}\0${s3Key}`, "utf8").digest("hex");
   return `${MARKER_PREFIX}${h}.json`;
 }
@@ -23,13 +31,37 @@ type IngestMarker = {
   pending?: boolean;
   startedAt?: string;
   completed?: boolean;
+  failed?: boolean;
   duplicate?: boolean;
   matched?: boolean;
   tripId?: string | null;
   reason?: string | null;
   devisId?: string | null;
+  gmailMessageId?: string;
+  s3Key?: string;
   updatedAt?: string;
 };
+
+function devisAlreadyInTrip(
+  received: unknown[],
+  gmailMessageId: string,
+  s3Key: string,
+  originalFilename?: string,
+): boolean {
+  return received.some((d) => {
+    if (!d || typeof d !== "object") return false;
+    const row = d as {
+      gmailMessageId?: string;
+      s3KeyIncoming?: string;
+      originalFilename?: string | null;
+      source?: string;
+    };
+    if (row.gmailMessageId !== gmailMessageId) return false;
+    if (row.s3KeyIncoming === s3Key) return true;
+    if (row.source === "email" && originalFilename && row.originalFilename === originalFilename) return true;
+    return false;
+  });
+}
 
 async function readIngestMarker( client: S3Client,  bucket: string, key: string): Promise<IngestMarker | null> {
   try {
@@ -51,14 +83,6 @@ async function writeIngestMarker(client: S3Client, bucket: string, key: string, 
       ContentType: "application/json",
     })
   );
-}
-
-async function deleteIngestMarker(client: S3Client, bucket: string, key: string) {
-  try {
-    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-  } catch {
-    /* ignore */
-  }
 }
 
 function isAllowedIncomingKey(key: string): boolean {
@@ -277,12 +301,8 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
       return;
     }
 
-    const received = Array.isArray(tripData.receivedDevis) ? tripData.receivedDevis : [];
-    const already = received.some(
-      (d: { gmailMessageId?: string; s3KeyIncoming?: string }) =>
-        d.gmailMessageId === gmailMessageId && d.s3KeyIncoming === s3Key
-    );
-    if (already) {
+    let received = Array.isArray(tripData.receivedDevis) ? tripData.receivedDevis : [];
+    if (devisAlreadyInTrip(received, gmailMessageId, s3Key, originalFilename)) {
       await finishMarker({
         matched: true,
         tripId,
@@ -291,6 +311,21 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
       });
       return;
     }
+
+    const tripRes2 = await client.send(new GetObjectCommand({ Bucket: bucket, Key: tripKey }));
+    const tripRaw2 = await tripRes2.Body?.transformToString();
+    const tripFresh = tripRaw2 ? JSON.parse(tripRaw2) : tripData;
+    received = Array.isArray(tripFresh.receivedDevis) ? tripFresh.receivedDevis : received;
+    if (devisAlreadyInTrip(received, gmailMessageId, s3Key, originalFilename)) {
+      await finishMarker({
+        matched: true,
+        tripId,
+        duplicate: true,
+        reason: "deja_enregistre",
+      });
+      return;
+    }
+
     const newDevis = {
       id: Date.now().toString(),
       providerName,
@@ -310,12 +345,12 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
       extractedContactEmail: match.contactEmail,
     };
     received.push(newDevis);
-    tripData.receivedDevis = received;
+    tripFresh.receivedDevis = received;
     await client.send(
       new PutObjectCommand({
         Bucket: bucket,
         Key: tripKey,
-        Body: JSON.stringify(tripData),
+        Body: JSON.stringify(tripFresh),
         ContentType: "application/json",
       })
     );
@@ -327,7 +362,14 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
     });
   } catch (e) {
     console.error("[ingest-from-email] job arrière-plan:", e);
-    await deleteIngestMarker(client, bucket, markerKey);
+    await writeIngestMarker(client, bucket, markerKey, {
+      pending: false,
+      completed: true,
+      failed: true,
+      reason: e instanceof Error ? e.message : "erreur_traitement",
+      gmailMessageId,
+      s3Key,
+    });
     throw e;
   }
 }
@@ -368,15 +410,18 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       completed: true,
-      duplicate: true,
+      duplicate: Boolean(existing.duplicate),
+      failed: Boolean(existing.failed),
       matched: existing.matched ?? false,
       tripId: existing.tripId ?? null,
       reason: existing.reason ?? null,
       devisId: existing.devisId ?? null,
     });
   }
-  if (existing?.pending && existing.startedAt) {
-    const age = Date.now() - new Date(existing.startedAt).getTime();
+  if (existing?.pending) {
+    const age = existing.startedAt
+      ? Date.now() - new Date(existing.startedAt).getTime()
+      : 0;
     if (!Number.isNaN(age) && age < PENDING_STALE_MS) {
       return NextResponse.json(
         {
@@ -389,9 +434,24 @@ export async function POST(req: Request) {
         { status: 202 }
       );
     }
+    return NextResponse.json(
+      {
+        ok: true,
+        accepted: true,
+        completed: false,
+        pending: true,
+        detail: "Traitement long en cours — nouvel essai ignoré pour éviter les doublons.",
+      },
+      { status: 202 }
+    );
   }
 
-  await writeIngestMarker(client, bucket, markerKey, { pending: true, startedAt: new Date().toISOString()});
+  await writeIngestMarker(client, bucket, markerKey, {
+    pending: true,
+    startedAt: new Date().toISOString(),
+    gmailMessageId,
+    s3Key,
+  });
   const candidates = await loadTripCandidates(client, bucket);
   const providerName = providerNameFromEmail(fromEmail) ?? "Transporteur (e-mail)";
   after(() =>
@@ -413,7 +473,7 @@ export async function POST(req: Request) {
       ok: true,
       accepted: true,
       completed: false,
-      detail: "Textract + Mistral s'exécutent après la réponse HTTP. Relance la Lambda une fois terminé : le 2e appel verra completed:true et pourra marquer le mail lu."},
+      detail: "Textract + Mistral en arrière-plan. La Lambda attend completed:true avant de marquer le mail lu."},
     { status: 202 }
   );
 }

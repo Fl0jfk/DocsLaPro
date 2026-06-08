@@ -34,8 +34,9 @@ Compte utilisé : boîte **dédiée** aux devis (ex. `devis-transport@…`), pou
 ## Comportement
 
 - Ne traite que les **PDF** en pièce jointe (nom se terminant par `.pdf`).
-- L’API d’ingestion répond vite (**202**) et enchaîne Textract + Mistral **en arrière-plan** (évite les **504** du timeout ~30 s Amplify). Tant que le traitement n’est pas fini, la Lambda voit `pendingIngest` et **ne marque pas** le mail lu.
-- **Deuxième passage** (relance manuelle de la Lambda ou prochain cron) : l’API renvoie **200** avec `completed: true` (souvent `duplicate: true`) → la Lambda peut alors marquer le message lu si toutes les PJ sont OK.
+- L’API répond vite (**202**) puis traite Textract + Mistral en arrière-plan. La Lambda **attend** `completed: true` (requêtes répétées toutes les 4 s, ~3 min max) avant de marquer le mail **lu**.
+- Idempotence : marqueur S3 par message Gmail + pièce jointe ; pas de second job si un traitement est déjà en cours ; dédoublonnage côté voyage.
+- Si le traitement dépasse le délai d’attente, le mail reste **non lu** pour un nouvel essai au cycle suivant (sans créer de doublon).
 - Si l’API renvoie une erreur HTTP (4xx/5xx), le message reste non lu pour **nouvel essai** au prochain cycle.
 
 Les transporteurs doivent mettre la **référence du dossier** (ex. `Réf. 1712345678900`) dans l’objet ou le corps du mail, comme indiqué sur le PDF de demande.
