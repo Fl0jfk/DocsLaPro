@@ -577,7 +577,15 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
                               openConvocation(event.id);
                             }
                           }}
-                          title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
+                          title={
+                            event.hasDocument
+                              ? event.isOgec
+                                ? "Ouvrir le justificatif (PDF)"
+                                : "Ouvrir la convocation (PDF)"
+                              : event.isOgec
+                                ? "Absence sans justificatif"
+                                : "Convocation sans document"
+                          }
                           style={appearance.cardStyle}
                           className={[
                             "relative text-left w-full rounded-lg border px-1.5 py-1 text-[10px] leading-snug",
@@ -659,7 +667,15 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
                               openConvocation(event.id);
                             }
                           }}
-                          title={event.hasDocument ? "Ouvrir la convocation (PDF)" : "Convocation sans document"}
+                          title={
+                            event.hasDocument
+                              ? event.isOgec
+                                ? "Ouvrir le justificatif (PDF)"
+                                : "Ouvrir la convocation (PDF)"
+                              : event.isOgec
+                                ? "Absence sans justificatif"
+                                : "Convocation sans document"
+                          }
                           style={appearance.cardStyle}
                           className={[
                             "text-left w-full rounded-lg border px-2 py-1 text-[11px] leading-tight",

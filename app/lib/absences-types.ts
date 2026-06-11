@@ -97,6 +97,8 @@ export function getRoleFlags(roles: string[]) {
 
 export function canViewCalendar(roles: string[]) {
   if (isTeacherRole(roles) && !getRoleFlags(roles).isAdministratif) return false;
+  const flags = getRoleFlags(roles);
+  if (flags.isCompta) return true;
   const normalized = roles.map((r) => normRoleSpaced(r));
   return normalized.some((r) =>
     ["administratif", "direction ecole", "direction college", "direction lycee", "education"].some((allowed) =>

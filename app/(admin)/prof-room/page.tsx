@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useAppContext } from "@/app/hooks/useAppContext";
@@ -18,7 +18,7 @@ const FALLBACK_CLASSES: Record<string, string[]> = {
 const HOURS = Array.from({ length: 10 }, (_, i) => 8 + i);
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 
-export default function ProfRoomPage() {
+function ProfRoomPageContent() {
   const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
   const { data: appCtx } = useAppContext();
@@ -507,5 +507,13 @@ export default function ProfRoomPage() {
       </>
       )}
     </div>
+  );
+}
+
+export default function ProfRoomPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-slate-500 text-sm">Chargement des salles…</div>}>
+      <ProfRoomPageContent />
+    </Suspense>
   );
 }

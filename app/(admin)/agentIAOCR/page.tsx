@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import * as msal from "@azure/msal-browser";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
@@ -38,7 +38,7 @@ type Segment = {
   label?: string;
 };
 
-export default function OneDriveUpDocsOCRAI() {
+function OneDriveUpDocsOCRAIContent() {
   const searchParams = useSearchParams();
   const [account, setAccount] = useState<msal.AccountInfo | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -1311,5 +1311,13 @@ export default function OneDriveUpDocsOCRAI() {
           )}
       </>
     </div>
+  );
+}
+
+export default function OneDriveUpDocsOCRAI() {
+  return (
+    <Suspense fallback={<div className="p-8 text-slate-500 text-sm">Chargement…</div>}>
+      <OneDriveUpDocsOCRAIContent />
+    </Suspense>
   );
 }

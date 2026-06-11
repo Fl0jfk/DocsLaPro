@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import TravelsDirectionDashboardPanel from "@/app/components/travels/TravelsDirectionDashboard";
@@ -9,7 +9,7 @@ import type { TravelsDirectionDashboard } from "@/app/lib/travels-direction-dash
 import { isTripTravelDatePast } from "@/app/lib/travels-trip-helpers";
 import type { TravelsTrip } from "@/app/lib/travels-types";
 
-export default function TripDashboard() {
+function TripDashboardContent() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -293,5 +293,13 @@ export default function TripDashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TripDashboard() {
+  return (
+    <Suspense fallback={<div className="p-8 text-slate-500 text-sm">Chargement des sorties…</div>}>
+      <TripDashboardContent />
+    </Suspense>
   );
 }

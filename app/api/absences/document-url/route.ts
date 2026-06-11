@@ -5,6 +5,7 @@ import { canViewCalendar } from "@/app/lib/absences-types";
 import { getAbsenceOrLegacyRecord } from "@/app/lib/absences-legacy-convocations";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getSignedReadUrl } from "@/app/lib/s3-storage";
+import { resolveTravelsS3ObjectKey } from "@/app/lib/travels-s3";
 
 export async function GET(req: Request) {
   const gate = await requireAuth();
@@ -25,7 +26,12 @@ export async function GET(req: Request) {
     const record = await getAbsenceOrLegacyRecord(id);
     if (!record) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
 
-    const keys = getAbsenceDocumentKeys(record);
+    const keys = [...getAbsenceDocumentKeys(record)];
+    const justificationUrl = record.justification?.fileUrl?.trim();
+    if (justificationUrl) {
+      const justKey = await resolveTravelsS3ObjectKey(justificationUrl);
+      if (justKey && !keys.includes(justKey)) keys.push(justKey);
+    }
     if (keys.length === 0) return NextResponse.json({ error: "Document introuvable." }, { status: 404 });
 
     const index = Number.isFinite(docIndex) ? Math.max(0, Math.min(keys.length - 1, Math.floor(docIndex))) : 0;
