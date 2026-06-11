@@ -9,7 +9,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="fr">
         <body>
           {children}
-          <ChatbotBubbleClient />
+          <ChatbotBubbleClient/>
         </body>
       </html>
     </ClerkProvider>
