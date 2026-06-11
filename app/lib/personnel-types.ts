@@ -93,6 +93,53 @@ export type OnboardingSignature = {
   status: "en_attente" | "signe";
   signedAt?: string | null;
   signedBy?: string | null;
+  signEmail?: string | null;
+  signToken?: string | null;
+  signSentAt?: string | null;
+  signResponseIp?: string | null;
+};
+
+export type OffboardingStatus = "en_cours" | "termine";
+
+export type PersonnelOffboarding = {
+  id: string;
+  status: OffboardingStatus;
+  endDate: string;
+  checklist: Array<{ id: string; label: string; done: boolean }>;
+  signatures: OnboardingSignature[];
+  notes?: string;
+};
+
+export type PersonnelLeaveType = "conge_paye" | "rtt" | "sans_solde" | "autre";
+export type PersonnelLeaveStatus = "en_attente" | "validee" | "refusee" | "annulee";
+
+export type PersonnelLeaveRequest = {
+  id: string;
+  personnelId: string;
+  personnelName: string;
+  type: PersonnelLeaveType;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+  status: PersonnelLeaveStatus;
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  decisionNote?: string;
+};
+
+export const PERSONNEL_LEAVE_TYPE_LABELS: Record<PersonnelLeaveType, string> = {
+  conge_paye: "Congé payé",
+  rtt: "RTT",
+  sans_solde: "Sans solde",
+  autre: "Autre",
+};
+
+export const PERSONNEL_LEAVE_STATUS_LABELS: Record<PersonnelLeaveStatus, string> = {
+  en_attente: "En attente",
+  validee: "Validée",
+  refusee: "Refusée",
+  annulee: "Annulée",
 };
 
 export type PersonnelOnboarding = {
@@ -123,7 +170,10 @@ export type PersonnelRecord = {
   medecineTravail: PersonnelMedecineTravail;
   entretiens: PersonnelEntretien[];
   onboarding?: PersonnelOnboarding | null;
+  offboarding?: PersonnelOffboarding | null;
   profile?: PersonnelProfile;
+  establishment?: string | null;
+  managerId?: string | null;
 };
 
 export type PersonnelIndexEntry = {
@@ -147,6 +197,8 @@ export type SharedPersonnelDocument = {
 
 export const PERSONNEL_INDEX_KEY = "personnel-ogec/index.json";
 export const PERSONNEL_SHARED_DOCS_KEY = "personnel-ogec/shared-documents.json";
+export const PERSONNEL_LEAVES_KEY = "personnel-ogec/leave-requests.json";
+export const PERSONNEL_SIGNATURE_TOKEN_PREFIX = "personnel-ogec/signature-tokens/";
 
 export const OGEC_STAFF_ROLES = ["administratif", "maintenance", "education", "comptabilite"] as const;
 
@@ -273,6 +325,26 @@ export function sanitizeRecordForViewer(
     medecineTravail: isRh ? record.medecineTravail : isSelf ? { ...record.medecineTravail, notes: undefined } : {},
     entretiens: isRh ? record.entretiens : isSelf ? record.entretiens.filter((e) => e.status === "realise") : [],
     onboarding: isRh ? record.onboarding : null,
+    offboarding: isRh ? record.offboarding : null,
+  };
+}
+
+export function defaultOffboarding(endDate: string): PersonnelOffboarding {
+  return {
+    id: uid("off"),
+    status: "en_cours",
+    endDate,
+    checklist: [
+      { id: uid("chk"), label: "Restitution badge et clés", done: false },
+      { id: uid("chk"), label: "Restitution matériel informatique", done: false },
+      { id: uid("chk"), label: "Documents de fin de contrat remis", done: false },
+      { id: uid("chk"), label: "Solde de tout compte / attestations", done: false },
+    ],
+    signatures: [
+      { id: uid("sig"), role: "employe", label: "Employé(e)", status: "en_attente" },
+      { id: uid("sig"), role: "directrice", label: "Direction", status: "en_attente" },
+      { id: uid("sig"), role: "compta", label: "Comptabilité", status: "en_attente" },
+    ],
   };
 }
 
@@ -341,7 +413,10 @@ export function normalizePersonnelRecord(raw: unknown): PersonnelRecord {
     medecineTravail: med,
     entretiens,
     onboarding: (o.onboarding as PersonnelOnboarding | null) || null,
+    offboarding: (o.offboarding as PersonnelOffboarding | null) || null,
     profile: normalizePersonnelProfile(o.profile),
+    establishment: str(o.establishment) || null,
+    managerId: str(o.managerId) || null,
   };
 }
 

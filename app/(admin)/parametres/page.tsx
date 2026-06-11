@@ -414,6 +414,65 @@ export default function ParametresPage() {
             value={String(notifications.photocopiesOps || "")}
             onChange={(e) => setNotifications({ ...notifications, photocopiesOps: e.target.value })}
           />
+          <hr className="border-slate-200" />
+          <p className="text-sm font-black text-slate-800">Internat — appel du soir (validation)</p>
+          <label className="block text-sm font-bold">Direction lycée</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={String((notifications.internatRollCallRecipients as { directionLycee?: string })?.directionLycee || "")}
+            onChange={(e) =>
+              setNotifications({
+                ...notifications,
+                internatRollCallRecipients: {
+                  ...((notifications.internatRollCallRecipients as object) || {}),
+                  directionLycee: e.target.value,
+                },
+              })
+            }
+          />
+          <label className="block text-sm font-bold">CPE lycée</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={String((notifications.internatRollCallRecipients as { cpeLycee?: string })?.cpeLycee || "")}
+            onChange={(e) =>
+              setNotifications({
+                ...notifications,
+                internatRollCallRecipients: {
+                  ...((notifications.internatRollCallRecipients as object) || {}),
+                  cpeLycee: e.target.value,
+                },
+              })
+            }
+          />
+          <label className="block text-sm font-bold">CPE collège</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={String((notifications.internatRollCallRecipients as { cpeCollege?: string })?.cpeCollege || "")}
+            onChange={(e) =>
+              setNotifications({
+                ...notifications,
+                internatRollCallRecipients: {
+                  ...((notifications.internatRollCallRecipients as object) || {}),
+                  cpeCollege: e.target.value,
+                },
+              })
+            }
+          />
+          <label className="block text-sm font-bold">Internat — alertes urgence (emails séparés par virgule)</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={
+              Array.isArray(notifications.internatEmergencyRecipients)
+                ? (notifications.internatEmergencyRecipients as string[]).join(", ")
+                : ""
+            }
+            onChange={(e) =>
+              setNotifications({
+                ...notifications,
+                internatEmergencyRecipients: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+              })
+            }
+          />
           <button
             type="button"
             disabled={saving}

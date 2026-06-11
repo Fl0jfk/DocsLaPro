@@ -3,6 +3,7 @@ import { STAFF_DIRECTORY } from "@/app/lib/staff-directory";
 import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
 import type {
   Establishment,
+  InternatModuleConfig,
   NotificationsConfig,
   ProfRoomModuleConfig,
   SiteIdentity,
@@ -70,6 +71,23 @@ export function defaultNotifications(): NotificationsConfig {
       email: SCHOOL.absences.notifyProfCollegeLycee.email,
     },
     absencesNotifyOgecCompta: [...SCHOOL.absences.notifyOgecCompta],
+    internatRollCallRecipients: {
+      directionLycee: SCHOOL.lycee.email,
+      cpeLycee: "florian@h-me.fr",
+      cpeCollege: SCHOOL.requestsRouting.cpeCollege,
+    },
+    internatEmergencyRecipients: [SCHOOL.lycee.email, "florian@h-me.fr", SCHOOL.requestsRouting.cpeCollege],
+  };
+}
+
+export function defaultInternatModule(): InternatModuleConfig {
+  return {
+    rollCallDeadlineHour: 22,
+    rollCallReminderHour: 21,
+    rollCallReminderEnabled: true,
+    weeklySummaryEnabled: true,
+    weeklyParentDigestEnabled: true,
+    weeklyParentDigestWeekday: 0,
   };
 }
 

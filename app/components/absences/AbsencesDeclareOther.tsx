@@ -6,6 +6,7 @@ type ManualFormState = {
   firstName: string;
   lastName: string;
   examType: string;
+  scope: "professeur" | "ogec";
   etablissement: string;
   startDate: string;
   endDate: string;
@@ -35,6 +36,7 @@ export default function AbsencesDeclareOther({ onSuccess }: Props) {
       firstName: "",
       lastName: "",
       examType: "",
+      scope: "professeur",
       etablissement: "Collège",
       startDate: t,
       endDate: t,
@@ -164,7 +166,10 @@ export default function AbsencesDeclareOther({ onSuccess }: Props) {
     fd.append("firstName", manualForm.firstName.trim());
     fd.append("lastName", manualForm.lastName.trim());
     fd.append("examType", manualForm.examType.trim());
-    fd.append("etablissement", manualForm.etablissement);
+    fd.append("scope", manualForm.scope);
+    if (manualForm.scope === "professeur") {
+      fd.append("etablissement", manualForm.etablissement);
+    }
     fd.append("startDate", manualForm.startDate);
     fd.append("endDate", manualForm.endDate);
     fd.append("startTime", manualForm.startTime);
@@ -238,18 +243,37 @@ export default function AbsencesDeclareOther({ onSuccess }: Props) {
             />
           </label>
           <label className="block max-w-xs">
-            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Établissement</span>
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Type</span>
             <select
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800"
-              value={manualForm.etablissement}
-              onChange={(e) => setManualForm((p) => ({ ...p, etablissement: e.target.value }))}
+              value={manualForm.scope}
+              onChange={(e) =>
+                setManualForm((p) => ({
+                  ...p,
+                  scope: e.target.value === "ogec" ? "ogec" : "professeur",
+                }))
+              }
               disabled={savingManual}
             >
-              <option value="École">École</option>
-              <option value="Collège">Collège</option>
-              <option value="Lycée">Lycée</option>
+              <option value="professeur">Professeur</option>
+              <option value="ogec">Personnel OGEC</option>
             </select>
           </label>
+          {manualForm.scope === "professeur" && (
+            <label className="block max-w-xs">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Établissement</span>
+              <select
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800"
+                value={manualForm.etablissement}
+                onChange={(e) => setManualForm((p) => ({ ...p, etablissement: e.target.value }))}
+                disabled={savingManual}
+              >
+                <option value="École">École</option>
+                <option value="Collège">Collège</option>
+                <option value="Lycée">Lycée</option>
+              </select>
+            </label>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
               <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Du (jour)</span>

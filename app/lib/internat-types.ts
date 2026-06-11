@@ -1,0 +1,220 @@
+export type InternatEtablissement = "Collège" | "Lycée";
+export type InternatSexe = "M" | "F";
+export type InternatWing = "garcons" | "filles" | "mixte";
+export type InternatRollMark = "present" | "absent" | "excuse" | "activite";
+
+export const INTERNAT_ROLL_MARK_LABELS: Record<InternatRollMark, string> = {
+  present: "Présent",
+  absent: "Absent",
+  excuse: "Excusé",
+  activite: "Activité ext.",
+};
+export type InternatRollCallStatus = "ouverte" | "validee";
+export type InternatAlertSeverity = "info" | "urgent" | "critique";
+
+export const INTERNAT_S3 = {
+  rooms: "internat/rooms.json",
+  students: "internat/students.json",
+  activities: "internat/activities.json",
+  rollCallPrefix: "internat/roll-calls/",
+  alertsPrefix: "internat/alerts/",
+  outingsIndex: "internat/outings-index.json",
+  outingsPrefix: "internat/outings/",
+  moduleConfig: "settings/modules/internat.json",
+} as const;
+
+export type InternatRoom = {
+  id: string;
+  label: string;
+  capacity: 2 | 3;
+  wing?: InternatWing;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InternatEleveRef = {
+  ine?: string;
+  folderName: string;
+  nom: string;
+  prenom: string;
+};
+
+export type InternatParentContact = {
+  nom?: string;
+  email?: string;
+  telephone?: string;
+};
+
+export type InternatStudent = {
+  id: string;
+  eleveRef: InternatEleveRef;
+  sexe: InternatSexe;
+  etablissement: InternatEtablissement;
+  classe: string;
+  roomId?: string | null;
+  parent1?: InternatParentContact;
+  parent2?: InternatParentContact;
+  actif: boolean;
+  createdAt: string;
+  updatedAt: string;
+  history?: Array<{ at: string; by: string; action: string; note?: string }>;
+};
+
+export type InternatOutingStatus =
+  | "pending_direction"
+  | "pending_parents"
+  | "authorized"
+  | "refused"
+  | "cancelled";
+
+export type InternatOutingDirectionStatus = "pending" | "approved" | "refused";
+
+export type InternatOutingParentStatus = "pending" | "authorized" | "refused";
+
+export type InternatOutingDirectionDecision = {
+  etablissement: InternatEtablissement;
+  token: string;
+  status: InternatOutingDirectionStatus;
+  directorEmail?: string;
+  emailSentAt?: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  note?: string;
+};
+
+export type InternatOutingParticipant = {
+  studentId: string;
+  studentName: string;
+  etablissement: InternatEtablissement;
+  classe: string;
+  parentToken: string;
+  parent1Email?: string;
+  parent2Email?: string;
+  parentStatus: InternatOutingParentStatus;
+  parentRespondedAt?: string;
+  parentRespondedBy?: string;
+  parentResponseIp?: string;
+  parentEmailsSentAt?: string;
+};
+
+export type InternatOuting = {
+  id: string;
+  title: string;
+  activity: string;
+  destination?: string;
+  accompanists: string;
+  outingDate: string;
+  departureTime?: string;
+  returnTime?: string;
+  participants: InternatOutingParticipant[];
+  directionDecisions: InternatOutingDirectionDecision[];
+  status: InternatOutingStatus;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: { userId: string; name: string };
+  cancelledAt?: string;
+  cancelledBy?: string;
+};
+
+export type InternatOutingIndexEntry = {
+  id: string;
+  title: string;
+  outingDate: string;
+  status: InternatOutingStatus;
+  participantCount: number;
+  createdAt: string;
+};
+
+export type InternatRollSection = {
+  completed: boolean;
+  completedBy?: string;
+  completedAt?: string;
+  marks: Record<string, InternatRollMark>;
+};
+
+export type InternatRollCall = {
+  date: string;
+  status: InternatRollCallStatus;
+  boys: InternatRollSection;
+  girls: InternatRollSection;
+  validatedAt?: string;
+  validatedBy?: string;
+  emailSentAt?: string;
+  /** Rappel mail si l'appel n'est pas finalisé à l'heure configurée. */
+  reminderSentAt?: string;
+  updatedAt: string;
+};
+
+export type InternatActivity = {
+  id: string;
+  date: string;
+  title: string;
+  description?: string;
+  participantIds?: string[];
+  createdAt: string;
+  createdBy: { userId: string; name: string };
+};
+
+export type InternatAlert = {
+  id: string;
+  createdAt: string;
+  severity: InternatAlertSeverity;
+  message: string;
+  location?: string;
+  studentIds?: string[];
+  createdBy: { userId: string; name: string; email?: string };
+  sentAt?: string;
+  recipients?: string[];
+};
+
+export type InternatModuleConfig = {
+  rollCallDeadlineHour?: number;
+  /** Heure (Paris) du rappel si l'appel du soir n'est pas finalisé. */
+  rollCallReminderHour?: number;
+  rollCallReminderEnabled?: boolean;
+  weeklySummaryEnabled?: boolean;
+  /** Récap hebdo aux parents : sorties prévues la semaine suivante. */
+  weeklyParentDigestEnabled?: boolean;
+  /** Jour d'envoi (0 = dimanche). */
+  weeklyParentDigestWeekday?: number;
+  weeklyParentDigestLastSent?: string;
+};
+
+export type InternatRollCallRecipients = {
+  directionLycee?: string;
+  cpeLycee?: string;
+  cpeCollege?: string;
+};
+
+export function newId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function etablissementFromSecteur(secteur?: string): InternatEtablissement {
+  const s = String(secteur || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (s.includes("college") || s.includes("colleg")) return "Collège";
+  return "Lycée";
+}
+
+export function emptyRollSection(): InternatRollSection {
+  return { completed: false, marks: {} };
+}
+
+export function emptyRollCall(date: string): InternatRollCall {
+  const now = new Date().toISOString();
+  return {
+    date,
+    status: "ouverte",
+    boys: emptyRollSection(),
+    girls: emptyRollSection(),
+    updatedAt: now,
+  };
+}
+
+export function studentDisplayName(s: InternatStudent) {
+  return `${s.eleveRef.prenom} ${s.eleveRef.nom}`.trim();
+}

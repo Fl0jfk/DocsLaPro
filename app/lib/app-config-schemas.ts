@@ -33,6 +33,12 @@ export type Establishment = {
   active?: boolean;
 };
 
+export type InternatRollCallRecipients = {
+  directionLycee?: string;
+  cpeLycee?: string;
+  cpeCollege?: string;
+};
+
 export type NotificationsConfig = {
   travelsCompta: string[];
   travelsCuisine?: string;
@@ -42,6 +48,18 @@ export type NotificationsConfig = {
   absencesNotifyProfEcole?: { label?: string; email: string };
   absencesNotifyProfCollegeLycee?: { label?: string; email: string };
   absencesNotifyOgecCompta: string[];
+  internatRollCallRecipients?: InternatRollCallRecipients;
+  internatEmergencyRecipients?: string[];
+};
+
+export type InternatModuleConfig = {
+  rollCallDeadlineHour?: number;
+  rollCallReminderHour?: number;
+  rollCallReminderEnabled?: boolean;
+  weeklySummaryEnabled?: boolean;
+  weeklyParentDigestEnabled?: boolean;
+  weeklyParentDigestWeekday?: number;
+  weeklyParentDigestLastSent?: string;
 };
 
 export type StaffDirectoryRow = {
@@ -74,6 +92,7 @@ export type AppConfigBundle = {
   staffDirectory: StaffDirectoryRow[];
   travels: TravelsModuleConfig;
   profRoom: ProfRoomModuleConfig;
+  internat: InternatModuleConfig;
 };
 
 function isEmail(s: string): boolean {
@@ -153,6 +172,19 @@ export function parseNotifications(raw: unknown): NotificationsConfig {
     if (!email || !isEmail(email)) return undefined;
     return { label: str(b.label) || undefined, email };
   };
+  const parseInternatRollCall = (block: unknown): InternatRollCallRecipients | undefined => {
+    if (!block || typeof block !== "object") return undefined;
+    const b = block as Record<string, unknown>;
+    const out: InternatRollCallRecipients = {};
+    const d = str(b.directionLycee).trim();
+    const cL = str(b.cpeLycee).trim();
+    const cC = str(b.cpeCollege).trim();
+    if (d && isEmail(d)) out.directionLycee = d;
+    if (cL && isEmail(cL)) out.cpeLycee = cL;
+    if (cC && isEmail(cC)) out.cpeCollege = cC;
+    return Object.keys(out).length ? out : undefined;
+  };
+
   return {
     travelsCompta: compta,
     travelsCuisine: str(o.travelsCuisine) || undefined,
@@ -162,6 +194,24 @@ export function parseNotifications(raw: unknown): NotificationsConfig {
     absencesNotifyProfEcole: parseNotify(o.absencesNotifyProfEcole),
     absencesNotifyProfCollegeLycee: parseNotify(o.absencesNotifyProfCollegeLycee),
     absencesNotifyOgecCompta: ogec,
+    internatRollCallRecipients: parseInternatRollCall(o.internatRollCallRecipients),
+    internatEmergencyRecipients: strArr(o.internatEmergencyRecipients).filter(isEmail),
+  };
+}
+
+export function parseInternatModule(raw: unknown): InternatModuleConfig {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const hour = Number(o.rollCallDeadlineHour);
+  const reminderHour = Number(o.rollCallReminderHour);
+  const weekday = Number(o.weeklyParentDigestWeekday);
+  return {
+    rollCallDeadlineHour: Number.isFinite(hour) ? hour : 22,
+    rollCallReminderHour: Number.isFinite(reminderHour) ? reminderHour : 21,
+    rollCallReminderEnabled: o.rollCallReminderEnabled !== false,
+    weeklySummaryEnabled: o.weeklySummaryEnabled !== false,
+    weeklyParentDigestEnabled: o.weeklyParentDigestEnabled !== false,
+    weeklyParentDigestWeekday: Number.isFinite(weekday) && weekday >= 0 && weekday <= 6 ? weekday : 0,
+    weeklyParentDigestLastSent: str(o.weeklyParentDigestLastSent) || undefined,
   };
 }
 

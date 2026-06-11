@@ -84,14 +84,45 @@ export function isTeacherRole(roles: string[]) {
   return roles.some((r) => normRole(r).includes("professeur"));
 }
 
+/** Personnel OGEC (hors enseignement) : admin, compta, éducation, direction. */
+export function isOgecStaffRole(roles: string[]) {
+  const flags = getRoleFlags(roles);
+  return (
+    flags.isAdministratif ||
+    flags.isCompta ||
+    flags.isEducation ||
+    flags.isDirectionEcole ||
+    flags.isDirectionCollege ||
+    flags.isDirectionLycee
+  );
+}
+
+/** Détermine le scope d'une auto-déclaration (avec choix explicite si double casquette). */
+export function resolveSelfDeclarationScope(roles: string[], requested?: unknown): AbsenceScope {
+  const teacher = isTeacherRole(roles);
+  const ogecStaff = isOgecStaffRole(roles);
+  const req = requested === "ogec" || requested === "professeur" ? requested : null;
+
+  if (teacher && !ogecStaff) return "professeur";
+  if (ogecStaff && !teacher) return "ogec";
+  if (teacher && ogecStaff) return req === "professeur" ? "professeur" : "ogec";
+  return req === "professeur" ? "professeur" : "ogec";
+}
+
+export function canChooseDeclarationScope(roles: string[]) {
+  return isTeacherRole(roles) && isOgecStaffRole(roles);
+}
+
 export function getRoleFlags(roles: string[]) {
+  const spaced = roles.map((r) => normRoleSpaced(r));
+  const hasToken = (token: string) => spaced.some((n) => n.includes(token));
   return {
-    isDirectionEcole: hasRole(roles, "directionecole"),
-    isDirectionCollege: hasRole(roles, "directioncollege"),
-    isDirectionLycee: hasRole(roles, "directionlycee"),
-    isCompta: hasRole(roles, "comptabilite"),
-    isAdministratif: hasRole(roles, "administratif"),
-    isEducation: hasRole(roles, "education"),
+    isDirectionEcole: hasToken("direction ecole") || hasRole(roles, "directionecole"),
+    isDirectionCollege: hasToken("direction college") || hasRole(roles, "directioncollege"),
+    isDirectionLycee: hasToken("direction lycee") || hasRole(roles, "directionlycee"),
+    isCompta: hasToken("compta"),
+    isAdministratif: hasToken("administratif"),
+    isEducation: hasToken("education"),
   };
 }
 
@@ -111,10 +142,70 @@ export function canAdminIngest(roles: string[]) {
   return canViewCalendar(roles);
 }
 
+/** Scope effectif (certains enregistrements legacy n'ont pas data.scope). */
+export function resolveAbsenceScope(abs: AbsenceRecord): AbsenceScope {
+  if (abs.data.scope === "ogec" || abs.data.scope === "professeur") return abs.data.scope;
+  if (abs.data.etablissement) return "professeur";
+  if (abs.source === "admin_manual" || abs.source === "admin_pdf") return "professeur";
+  return "ogec";
+}
+
+/** Pièces jointes absences personnel OGEC : compta et direction uniquement (jamais administratif). */
+export function canViewOgecAbsenceAttachments(roles: string[]) {
+  const flags = getRoleFlags(roles);
+  if (flags.isCompta) return true;
+  return flags.isDirectionEcole || flags.isDirectionCollege || flags.isDirectionLycee;
+}
+
+/** Pièces jointes absences professeurs : administratif et direction de l'établissement. */
+export function canViewProfAbsenceAttachments(abs: AbsenceRecord, roles: string[]) {
+  const flags = getRoleFlags(roles);
+  if (flags.isAdministratif) return true;
+  const etab = abs.data.etablissement;
+  if (etab === "École" && flags.isDirectionEcole) return true;
+  if (etab === "Collège" && flags.isDirectionCollege) return true;
+  if (etab === "Lycée" && flags.isDirectionLycee) return true;
+  return false;
+}
+
+export function canViewAbsenceAttachment(abs: AbsenceRecord, viewerUserId: string, roles: string[]) {
+  const scope = resolveAbsenceScope(abs);
+  if (scope === "ogec") {
+    if (abs.createdBy.userId === viewerUserId) return true;
+    return canViewOgecAbsenceAttachments(roles);
+  }
+  return canViewProfAbsenceAttachments(abs, roles);
+}
+
+/** Ajout / suppression de pièces jointes (hors dépôt par le demandeur sur sa propre demande). */
+export function canManageAbsenceAttachment(abs: AbsenceRecord, roles: string[]) {
+  const scope = resolveAbsenceScope(abs);
+  if (scope === "ogec") return canViewOgecAbsenceAttachments(roles);
+  return canViewProfAbsenceAttachments(abs, roles);
+}
+
+export function redactAbsenceAttachments(abs: AbsenceRecord): AbsenceRecord {
+  return {
+    ...abs,
+    justification: null,
+    data: {
+      ...abs.data,
+      documentKeys: undefined,
+      sourceDocument: undefined,
+    },
+  };
+}
+
+export function filterAbsenceForViewer(abs: AbsenceRecord, viewerUserId: string, roles: string[]): AbsenceRecord {
+  if (canViewAbsenceAttachment(abs, viewerUserId, roles)) return abs;
+  return redactAbsenceAttachments(abs);
+}
+
 export function canViewAbsence(abs: AbsenceRecord, viewerUserId: string, roles: string[]) {
   if (abs.createdBy.userId === viewerUserId) return true;
   const flags = getRoleFlags(roles);
-  if (abs.data.scope === "ogec") {
+  const scope = resolveAbsenceScope(abs);
+  if (scope === "ogec") {
     return flags.isDirectionLycee;
   }
   if (flags.isAdministratif || flags.isEducation) return true;
@@ -126,7 +217,8 @@ export function canViewAbsence(abs: AbsenceRecord, viewerUserId: string, roles: 
 
 export function canManageAbsence(abs: AbsenceRecord, roles: string[]) {
   const flags = getRoleFlags(roles);
-  if (abs.data.scope === "ogec") return flags.isDirectionLycee;
+  const scope = resolveAbsenceScope(abs);
+  if (scope === "ogec") return flags.isDirectionLycee;
   if (abs.data.etablissement === "École") return flags.isDirectionEcole;
   if (abs.data.etablissement === "Collège") return flags.isDirectionCollege;
   if (abs.data.etablissement === "Lycée") return flags.isDirectionLycee;
@@ -230,6 +322,15 @@ export function normalizeAbsenceRecord(raw: AbsenceRecord): AbsenceRecord {
         ? true
         : raw.managerDecision === "VALIDEE";
 
+  const scope: AbsenceScope =
+    data.scope === "ogec" || data.scope === "professeur"
+      ? data.scope
+      : data.etablissement
+        ? "professeur"
+        : source === "admin_manual" || source === "admin_pdf"
+          ? "professeur"
+          : "ogec";
+
   return {
     ...raw,
     source,
@@ -237,6 +338,8 @@ export function normalizeAbsenceRecord(raw: AbsenceRecord): AbsenceRecord {
     calendarVisible,
     data: {
       ...data,
+      scope,
+      etablissement: scope === "ogec" ? null : data.etablissement ?? null,
       reason,
       details: data.details ?? "",
       startAt,
@@ -249,7 +352,8 @@ export function normalizeAbsenceRecord(raw: AbsenceRecord): AbsenceRecord {
 export function buildAdminAbsenceRecord(params: {
   source: "admin_manual" | "admin_pdf";
   displayName: string;
-  etablissement: Etablissement;
+  scope?: AbsenceScope;
+  etablissement: Etablissement | null;
   reason: string;
   startAt: string;
   endAt: string;
@@ -261,6 +365,7 @@ export function buildAdminAbsenceRecord(params: {
   const now = new Date().toISOString();
   const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const documentKeys = params.documentKeys?.filter(Boolean) ?? [];
+  const scope = params.scope ?? "professeur";
   return {
     id,
     createdAt: now,
@@ -270,8 +375,8 @@ export function buildAdminAbsenceRecord(params: {
     calendarVisible: true,
     createdBy: params.createdBy,
     data: {
-      scope: "professeur",
-      etablissement: params.etablissement,
+      scope,
+      etablissement: scope === "ogec" ? null : params.etablissement,
       periodType: params.startAt.slice(0, 10) === params.endAt.slice(0, 10) ? "single_day" : "multi_day",
       startDate: params.startAt.slice(0, 10),
       endDate: params.endAt.slice(0, 10),

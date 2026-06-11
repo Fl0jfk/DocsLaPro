@@ -1,6 +1,7 @@
 import {
   parseEstablishment,
   parseEstablishmentsFile,
+  parseInternatModule,
   parseNotifications,
   parseProfRoomModule,
   parseStaffDirectoryFile,
@@ -8,6 +9,7 @@ import {
   parseTravelsModule,
   type AppConfigBundle,
   type Establishment,
+  type InternatModuleConfig,
   type NotificationsConfig,
   type ProfRoomModuleConfig,
   type SiteIdentity,
@@ -16,6 +18,7 @@ import {
 } from "@/app/lib/app-config-schemas";
 import {
   defaultEstablishments,
+  defaultInternatModule,
   defaultNotifications,
   defaultProfRoomModule,
   defaultSiteIdentity,
@@ -35,13 +38,14 @@ export function invalidateAppConfigCache() {
 export async function loadAppConfig(): Promise<AppConfigBundle> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.bundle;
 
-  const [identityRaw, estRaw, notifRaw, staffRaw, travelsRaw, profRaw] = await Promise.all([
+  const [identityRaw, estRaw, notifRaw, staffRaw, travelsRaw, profRaw, internatRaw] = await Promise.all([
     getJson<unknown>("settings/site.json"),
     getJson<unknown>("settings/establishments.json"),
     getJson<unknown>("settings/notifications.json"),
     getJson<unknown>("settings/staff-directory.json"),
     getJson<unknown>("settings/modules/travels.json"),
     getJson<unknown>("settings/modules/prof-room.json"),
+    getJson<unknown>("settings/modules/internat.json"),
   ]);
 
   const identity = identityRaw?.data ? parseSiteIdentity(identityRaw.data) : defaultSiteIdentity();
@@ -51,6 +55,7 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
   const travels = travelsRaw?.data ? parseTravelsModule(travelsRaw.data) : defaultTravelsModule();
   const profRoomRaw = profRaw?.data ? parseProfRoomModule(profRaw.data) : defaultProfRoomModule();
   const profRoom = withDefaultProfRoomSubjects(profRoomRaw);
+  const internat = internatRaw?.data ? parseInternatModule(internatRaw.data) : defaultInternatModule();
 
   const bundle: AppConfigBundle = {
     identity,
@@ -59,6 +64,7 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
     staffDirectory,
     travels,
     profRoom,
+    internat,
   };
   cache = { at: Date.now(), bundle };
   return bundle;
@@ -100,6 +106,12 @@ export async function saveProfRoomModule(data: ProfRoomModuleConfig) {
   invalidateAppConfigCache();
 }
 
+export async function saveInternatModule(data: InternatModuleConfig) {
+  const parsed = parseInternatModule(data);
+  await putJson("settings/modules/internat.json", parsed);
+  invalidateAppConfigCache();
+}
+
 export function getEstablishmentByLabel(bundle: AppConfigBundle, label: string): Establishment | null {
   const t = label.trim();
   return bundle.establishments.find((e) => e.label === t) ?? null;
@@ -116,4 +128,5 @@ export async function seedAppSettingsFromDefaults() {
   await saveStaffDirectory(defaultStaffDirectory());
   await saveTravelsModule(defaultTravelsModule());
   await saveProfRoomModule(defaultProfRoomModule());
+  await saveInternatModule(defaultInternatModule());
 }

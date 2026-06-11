@@ -9,6 +9,7 @@ import { profileFromFormData } from "@/app/lib/personnel-profile";
 import { PERSONNEL_TEMPLATE_VAR_DEFS } from "@/app/lib/personnel-template-vars";
 import {
   PERSONNEL_CATEGORY_LABELS,
+  type OnboardingSignature,
   type PersonnelRecord,
   type SharedPersonnelDocument,
 } from "@/app/lib/personnel-types";
@@ -30,8 +31,9 @@ type ModalKind = "medecine" | "entretien-plan" | "entretien-realise" | null;
 
 export default function StaffDossier({ record, canManage, sharedDocs = [], onRefresh, backHref }: Props) {
   const [tab, setTab] = useState<
-    "identite" | "docs" | "formations" | "habilitations" | "medecine" | "entretiens" | "onboarding"
+    "identite" | "docs" | "formations" | "habilitations" | "medecine" | "entretiens" | "onboarding" | "offboarding"
   >("identite");
+  const [signEmails, setSignEmails] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [depositBusy, setDepositBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -107,7 +109,76 @@ export default function StaffDossier({ record, canManage, sharedDocs = [], onRef
     { id: "medecine" as const, label: "Médecine du travail" },
     { id: "entretiens" as const, label: "Entretiens" },
     ...(record.onboarding ? [{ id: "onboarding" as const, label: "Onboarding" }] : []),
+    ...(record.offboarding || canManage ? [{ id: "offboarding" as const, label: "Offboarding" }] : []),
   ];
+
+  const renderSignatures = (kind: "onboarding" | "offboarding", signatures: OnboardingSignature[]) => {
+    if (!signatures) return null;
+    return (
+      <ul className="space-y-3">
+        {signatures.map((s) => (
+          <li key={s.id} className="rounded-xl border p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-sm">{s.label}</span>
+              {s.status === "signe" ? (
+                <span className="text-xs font-bold text-emerald-600">
+                  Signé · {s.signedAt ? new Date(s.signedAt).toLocaleDateString("fr-FR") : ""}
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-amber-600">En attente</span>
+              )}
+            </div>
+            {s.status !== "signe" && canManage && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <input
+                  type="email"
+                  className="border rounded-lg px-2 py-1 text-xs flex-1 min-w-[10rem]"
+                  placeholder="E-mail du signataire"
+                  value={signEmails[`${kind}-${s.id}`] || s.signEmail || ""}
+                  onChange={(e) =>
+                    setSignEmails((prev) => ({ ...prev, [`${kind}-${s.id}`]: e.target.value }))
+                  }
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    patch({
+                      action: "send-signature-link",
+                      kind,
+                      sigId: s.id,
+                      email: signEmails[`${kind}-${s.id}`] || s.signEmail,
+                    })
+                  }
+                  className="text-xs font-bold text-indigo-600 underline"
+                >
+                  Envoyer le lien
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    patch({
+                      action: kind === "onboarding" ? "sign-onboarding" : "sign-offboarding",
+                      sigId: s.id,
+                    })
+                  }
+                  className="text-xs font-bold text-slate-500"
+                >
+                  Marquer signé
+                </button>
+              </div>
+            )}
+            {s.signSentAt && s.status !== "signe" && (
+              <p className="text-[10px] text-slate-400">
+                Lien envoyé le {new Date(s.signSentAt).toLocaleString("fr-FR")}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -596,29 +667,71 @@ export default function StaffDossier({ record, canManage, sharedDocs = [], onRef
           </div>
 
           <div>
-            <p className="text-xs font-bold text-slate-500 mb-2">Signatures</p>
-            <ul className="space-y-2">
-              {record.onboarding.signatures.map((s) => (
-                <li key={s.id} className="flex items-center justify-between rounded-xl border p-3">
-                  <span className="font-bold text-sm">{s.label}</span>
-                  {s.status === "signe" ? (
-                    <span className="text-xs font-bold text-emerald-600">Signé · {s.signedAt ? new Date(s.signedAt).toLocaleDateString("fr-FR") : ""}</span>
-                  ) : canManage ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => patch({ action: "sign-onboarding", sigId: s.id })}
-                      className="text-xs font-bold text-indigo-600 underline"
-                    >
-                      Marquer signé
-                    </button>
-                  ) : (
-                    <span className="text-xs text-amber-600 font-bold">En attente</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <p className="text-xs font-bold text-slate-500 mb-2">Signatures (lien e-mail)</p>
+            {renderSignatures("onboarding", record.onboarding.signatures)}
           </div>
+        </div>
+      )}
+
+      {tab === "offboarding" && (
+        <div className="bg-white rounded-2xl border p-5 space-y-6">
+          {!record.offboarding ? (
+            canManage ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">Aucun parcours de sortie en cours.</p>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    const endDate = prompt("Date de fin de contrat (AAAA-MM-JJ) :");
+                    if (endDate) patch({ action: "start-offboarding", endDate });
+                  }}
+                  className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-sm"
+                >
+                  Démarrer l&apos;offboarding
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Pas d&apos;offboarding.</p>
+            )
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-slate-800">Offboarding</h3>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 capitalize">
+                  {record.offboarding.status.replace(/_/g, " ")} · fin {record.offboarding.endDate}
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 mb-2">Checklist</p>
+                <ul className="space-y-2">
+                  {record.offboarding.checklist.map((c) => (
+                    <li key={c.id} className="flex items-center gap-2">
+                      {canManage ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => patch({ action: "toggle-offboarding-checklist", itemId: c.id })}
+                          className={`w-5 h-5 rounded border flex items-center justify-center text-xs ${c.done ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300"}`}
+                        >
+                          {c.done ? "✓" : ""}
+                        </button>
+                      ) : (
+                        <span className={`w-5 h-5 rounded flex items-center justify-center text-xs ${c.done ? "bg-emerald-100 text-emerald-700" : "bg-slate-100"}`}>
+                          {c.done ? "✓" : "·"}
+                        </span>
+                      )}
+                      <span className={`text-sm ${c.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{c.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 mb-2">Signatures (lien e-mail)</p>
+                {renderSignatures("offboarding", record.offboarding.signatures)}
+              </div>
+            </>
+          )}
         </div>
       )}
 

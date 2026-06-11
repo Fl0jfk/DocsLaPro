@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
+import RhMyLeavesPanel from "@/app/components/personnel/RhMyLeavesPanel";
 import StaffDossier from "@/app/components/personnel/StaffDossier";
 import {
   canViewPersonnelDashboard,
@@ -93,6 +94,8 @@ export default function RhMoiPage() {
           )}
         </div>
       )}
+
+      <RhMyLeavesPanel personnelId={record.id} />
 
       <StaffDossier record={record} canManage={false} sharedDocs={sharedDocs} onRefresh={load} />
     </div>

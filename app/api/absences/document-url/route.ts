@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { getAbsenceDocumentKeys } from "@/app/lib/absences-documents";
-import { canViewCalendar } from "@/app/lib/absences-types";
+import { canViewAbsenceAttachment, canViewCalendar } from "@/app/lib/absences-types";
 import { getAbsenceOrLegacyRecord } from "@/app/lib/absences-legacy-convocations";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getSignedReadUrl } from "@/app/lib/s3-storage";
@@ -10,6 +10,7 @@ import { resolveTravelsS3ObjectKey } from "@/app/lib/travels-s3";
 export async function GET(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
+  const { userId } = gate.ctx;
 
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
@@ -25,6 +26,9 @@ export async function GET(req: Request) {
   try {
     const record = await getAbsenceOrLegacyRecord(id);
     if (!record) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
+    if (!canViewAbsenceAttachment(record, userId, roles)) {
+      return NextResponse.json({ error: "Accès au document non autorisé." }, { status: 403 });
+    }
 
     const keys = [...getAbsenceDocumentKeys(record)];
     const justificationUrl = record.justification?.fileUrl?.trim();

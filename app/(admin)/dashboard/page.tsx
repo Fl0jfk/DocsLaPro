@@ -6,6 +6,8 @@ import ExternalQuickLinks from "@/app/components/Dashboard/ExternalQuickLinks";
 import { useData } from "@/app/contexts/data";
 import { useUser } from "@clerk/nextjs";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
+import { hasRole } from "@/app/lib/absences-types";
+import { hasGlobalAdminRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 
 export default function Home() {
   const { isLoaded, user } = useUser();
@@ -13,11 +15,11 @@ export default function Home() {
   const data = useData();
   const uniqueCategories = useMemo(() => {
     if (!isLoaded || !user || !data?.categories) return [];
-    const rawRoles = user.publicMetadata?.role;
-    const roles = Array.isArray(rawRoles) ? rawRoles : typeof rawRoles === "string" ? [rawRoles] : [];
+    const roles = intranetRolesFromMetadata(user.publicMetadata);
     const filtered = data.categories.filter((category) => {
       if (category.orgAdminOnly) return isOrgAdmin;
-      return (category.allowedRoles ?? []).some((r) => roles.includes(r));
+      if (hasGlobalAdminRole(roles)) return true;
+      return (category.allowedRoles ?? []).some((r) => hasRole(roles, r));
     });
     return Array.from(new Map(filtered.map(cat => [cat.id ?? cat.name, cat])).values());
   }, [isLoaded, user, data, isOrgAdmin]);

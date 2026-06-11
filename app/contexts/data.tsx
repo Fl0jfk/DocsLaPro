@@ -2,7 +2,7 @@
 
 import { createContext, useContext, PropsWithChildren } from "react";
 
-export type DashboardTileVariant = "default" | "travels" | "prof-room" | "agent-ia" | "absences" | "personnel-ogec";
+export type DashboardTileVariant = "default" | "travels" | "prof-room" | "agent-ia" | "absences" | "personnel-ogec" | "internat";
 
 export type Categories = {
   id: number;
@@ -207,6 +207,15 @@ const STATIC_DATA: Data = {
       "allowedRoles": ["administratif", "comptabilite", "maintenance", "education", "direction_ecole", "direction_college", "direction_lycee", "professeur", "infirmerie", "admin"],
       "external": false,
       "variant": "personnel-ogec"
+    },
+    {
+      "id": 24,
+      "name": "Internat",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Internat.jpg",
+      "link": "/gestion-internat",
+      "allowedRoles": ["admin", "education", "administratif", "direction_college", "direction_lycee"],
+      "external": false,
+      "variant": "internat"
     }
   ],
   externalQuickLinks: [

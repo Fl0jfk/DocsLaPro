@@ -17,12 +17,18 @@ import {
   canViewAbsence,
   canViewCalendar,
   computeStartEndAt,
-  isTeacherRole,
+  filterAbsenceForViewer,
+  resolveAbsenceScope,
+  resolveSelfDeclarationScope,
   type AbsenceRecord,
   type AbsenceScope,
   type Etablissement,
 } from "@/app/lib/absences-types";
 import { getAbsenceDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/absences-documents";
+import {
+  formatJustificatifMailLine,
+  loadAbsenceValidationAttachments,
+} from "@/app/lib/absences-notify";
 import {
   getAbsenceIndex,
   getAbsenceRecord,
@@ -131,7 +137,8 @@ export async function GET(req: Request) {
     }
 
     visible.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
-    return NextResponse.json(visible);
+    const payload = visible.map((abs) => filterAbsenceForViewer(abs, userId, roles));
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("Absences list error:", error);
     return NextResponse.json({ error: "Erreur récupération absences" }, { status: 500 });
@@ -150,8 +157,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const payload = body?.data || {};
 
-    const scope: AbsenceScope = isTeacherRole(roles) ? "professeur" : "ogec";
-    const etablissement: Etablissement | null = payload.etablissement || null;
+    const scope: AbsenceScope = resolveSelfDeclarationScope(roles, payload.scope);
+    const etablissement: Etablissement | null =
+      scope === "ogec" ? null : (payload.etablissement as Etablissement | null) || null;
     const periodResult = normalizeAbsencePeriodInput({
       periodType: payload.periodType,
       startDate: payload.startDate,
@@ -303,7 +311,19 @@ export async function PATCH(req: Request) {
     const action = String(body?.action || "");
     const managerNote = String(body?.managerNote || "").trim();
     const justification = body?.justification || null;
-    if (!id || !["VALIDER", "REFUSER", "RELANCER_JUSTIFICATIF", "DEPOSER_JUSTIFICATIF", "CLOTURER", "REOUVRIR"].includes(action)) {
+    if (
+      !id ||
+      ![
+        "VALIDER",
+        "REFUSER",
+        "RELANCER_JUSTIFICATIF",
+        "DEPOSER_JUSTIFICATIF",
+        "CLOTURER",
+        "REOUVRIR",
+        "CORRIGER_SCOPE",
+        "MODIFIER_CALENDRIER",
+      ].includes(action)
+    ) {
       return NextResponse.json({ error: "Paramètres invalides." }, { status: 400 });
     }
 
@@ -318,7 +338,16 @@ export async function PATCH(req: Request) {
     if (action === "DEPOSER_JUSTIFICATIF" && !isOwner && !canManage) {
       return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
     }
-    if ((action === "CLOTURER" || action === "REOUVRIR" || action === "VALIDER" || action === "REFUSER" || action === "RELANCER_JUSTIFICATIF") && !canManage) {
+    if (
+      (action === "CLOTURER" ||
+        action === "REOUVRIR" ||
+        action === "VALIDER" ||
+        action === "REFUSER" ||
+        action === "RELANCER_JUSTIFICATIF" ||
+        action === "CORRIGER_SCOPE" ||
+        action === "MODIFIER_CALENDRIER") &&
+      !canManage
+    ) {
       return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
     }
 
@@ -385,10 +414,10 @@ export async function PATCH(req: Request) {
       if (recipients.length > 0) {
         try {
           const transporter = getMailer();
-          const justificatifLine = updated.justification?.fileName
-            ? `Justificatif : ${updated.justification.fileName}`
-            : "Justificatif : non déposé";
-          const treatmentLine = formatHoursTreatmentMailLine(updated.hoursTreatment!, updated.data.scope);
+          const mailAttachments = await loadAbsenceValidationAttachments(updated);
+          const justificatifLine = formatJustificatifMailLine(updated, mailAttachments);
+          const scope = resolveAbsenceScope(updated);
+          const treatmentLine = formatHoursTreatmentMailLine(updated.hoursTreatment!, scope);
           await transporter.sendMail({
             from: `"Absences" <${process.env.SMTP_USER}>`,
             to: recipients.join(","),
@@ -398,16 +427,25 @@ export async function PATCH(req: Request) {
               ``,
               `Une absence a été validée.`,
               `Personne : ${updated.createdBy.name}`,
-              `Type : ${updated.data.scope === "ogec" ? "Personnel OGEC" : "Professeur"}`,
-              `Établissement : ${updated.data.scope === "ogec" ? "OGEC" : updated.data.etablissement || "—"}`,
+              `Type : ${scope === "ogec" ? "Personnel OGEC" : "Professeur"}`,
+              `Établissement : ${scope === "ogec" ? "OGEC" : updated.data.etablissement || "—"}`,
               `Période : ${formatAbsencePeriod(updated.data)}`,
               `Motif : ${updated.data.reason}`,
               updated.data.details ? `Détails : ${updated.data.details}` : "",
               justificatifLine,
               treatmentLine,
+              mailAttachments.length > 0 ? `` : undefined,
+              mailAttachments.length > 0
+                ? `Les justificatifs et documents sont en pièce(s) jointe(s) à ce message.`
+                : undefined,
             ]
               .filter(Boolean)
               .join("\n"),
+            attachments: mailAttachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.contentType,
+            })),
           });
         } catch (mailErr) {
           console.error("Absences validation mail error:", mailErr);
@@ -529,7 +567,96 @@ export async function PATCH(req: Request) {
           },
         ],
       };
-    } else {
+    } else if (action === "CORRIGER_SCOPE") {
+      const newScope: AbsenceScope = body?.scope === "ogec" ? "ogec" : "professeur";
+      const etablissement: Etablissement | null =
+        newScope === "ogec"
+          ? null
+          : ((body?.etablissement as Etablissement | null) || current.data.etablissement);
+      if (newScope === "professeur" && !etablissement) {
+        return NextResponse.json({ error: "Établissement requis pour une absence professeur." }, { status: 400 });
+      }
+      updated = {
+        ...updated,
+        data: {
+          ...current.data,
+          scope: newScope,
+          etablissement: newScope === "ogec" ? null : etablissement,
+        },
+        history: [
+          ...(current.history || []),
+          {
+            at: new Date().toISOString(),
+            by: actor,
+            action: "CORRECTION_SCOPE",
+            note: newScope === "ogec" ? "Personnel OGEC" : `Professeur (${etablissement})`,
+          },
+        ],
+      };
+    } else if (action === "MODIFIER_CALENDRIER") {
+      const displayName = String(body?.displayName ?? current.displayName).trim();
+      const reason = String(body?.reason ?? current.data.reason).trim();
+      if (!displayName || !reason) {
+        return NextResponse.json({ error: "Nom et motif requis." }, { status: 400 });
+      }
+      const periodResult = normalizeAbsencePeriodInput({
+        periodType: body?.periodType,
+        startDate: body?.startDate ?? current.data.startDate,
+        endDate: body?.endDate ?? current.data.endDate,
+        startTime: body?.startTime ?? current.data.startTime,
+        endTime: body?.endTime ?? current.data.endTime,
+      });
+      if (periodResult.error || !periodResult.data) {
+        return NextResponse.json({ error: periodResult.error || "Période invalide." }, { status: 400 });
+      }
+      const period = periodResult.data;
+      const { startAt, endAt } = computeStartEndAt({
+        periodType: period.periodType,
+        startDate: period.startDate,
+        endDate: period.endDate,
+        startTime: period.startTime,
+        endTime: period.endTime,
+      });
+      const newScope: AbsenceScope =
+        body?.scope === "ogec" || body?.scope === "professeur"
+          ? body.scope
+          : resolveAbsenceScope(current);
+      const etablissement: Etablissement | null =
+        newScope === "ogec"
+          ? null
+          : ((body?.etablissement as Etablissement | null) || current.data.etablissement);
+      if (newScope === "professeur" && !etablissement) {
+        return NextResponse.json({ error: "Établissement requis pour une absence professeur." }, { status: 400 });
+      }
+      const scopeNote =
+        newScope === "ogec" ? "Personnel OGEC" : `Professeur (${etablissement})`;
+      updated = {
+        ...updated,
+        displayName,
+        data: {
+          ...current.data,
+          scope: newScope,
+          etablissement: newScope === "ogec" ? null : etablissement,
+          reason,
+          periodType: period.periodType,
+          startDate: period.startDate,
+          endDate: period.endDate,
+          startTime: period.startTime ?? null,
+          endTime: period.endTime ?? null,
+          startAt,
+          endAt,
+        },
+        history: [
+          ...(current.history || []),
+          {
+            at: new Date().toISOString(),
+            by: actor,
+            action: "MODIFICATION_CALENDRIER",
+            note: managerNote || scopeNote,
+          },
+        ],
+      };
+    } else if (action === "REOUVRIR") {
       updated = {
         ...updated,
         workflowStatus: "OUVERTE",
@@ -546,6 +673,8 @@ export async function PATCH(req: Request) {
           },
         ],
       };
+    } else {
+      return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
     }
 
     await saveAbsenceRecord(updated);
@@ -577,6 +706,9 @@ export async function DELETE(req: Request) {
   try {
     const record = await getAbsenceOrLegacyRecord(id);
     if (!record) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
+    if (!canManageAbsence(record, roles)) {
+      return NextResponse.json({ error: "Suppression non autorisée." }, { status: 403 });
+    }
 
     const docKeys = getAbsenceDocumentKeys(record);
     const bucket = getBucketName();

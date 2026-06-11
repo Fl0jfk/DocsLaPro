@@ -4,6 +4,7 @@ import type { Categories } from "@/app/contexts/data";
 import Slide from "../Slider/Slide";
 import AbsencesCalendarTile from "./AbsencesCalendarTile";
 import AgentIATile from "./AgentIATile";
+import InternatTile from "./InternatTile";
 import PersonnelOgecTile from "./PersonnelOgecTile";
 import ProfRoomTile from "./ProfRoomTile";
 import TravelsTile from "./TravelsTile";
@@ -20,6 +21,8 @@ export default function DashboardTile({ category, priority }: { category: Catego
       return <AbsencesCalendarTile category={category} priority={priority} />;
     case "personnel-ogec":
       return <PersonnelOgecTile category={category} priority={priority} />;
+    case "internat":
+      return <InternatTile category={category} priority={priority} />;
     default:
       return (
         <Slide

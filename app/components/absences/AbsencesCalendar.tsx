@@ -2,8 +2,14 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { canAdminIngest } from "@/app/lib/absences-types";
-import type { AbsenceRecord } from "@/app/lib/absences-types";
+import {
+  canManageAbsence,
+  canManageAbsenceAttachment,
+  canViewAbsenceAttachment,
+  resolveAbsenceScope,
+} from "@/app/lib/absences-types";
+import type { AbsenceRecord, AbsenceScope, Etablissement } from "@/app/lib/absences-types";
+import type { AbsencePeriodType } from "@/app/lib/absence-period";
 import {
   absencesToCalendarEvents,
   appearanceForEvent,
@@ -35,6 +41,32 @@ function calendarDayCellClass(date: Date | null, variant: "desktop" | "mobile") 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
+
+function isoToTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function recordToEditForm(record: AbsenceRecord) {
+  const d = record.data;
+  const periodType: AbsencePeriodType =
+    d.periodType ?? (d.startTime && d.endTime ? "single_day" : "multi_day");
+  const scope = resolveAbsenceScope(record);
+  return {
+    displayName: record.displayName,
+    reason: d.reason,
+    scope,
+    etablissement: (d.etablissement || "Collège") as Etablissement,
+    periodType,
+    startDate: d.startDate || d.startAt.slice(0, 10),
+    endDate: d.endDate || d.endAt.slice(0, 10),
+    startTime: (d.startTime || isoToTime(d.startAt) || "08:00").slice(0, 5),
+    endTime: (d.endTime || isoToTime(d.endAt) || "18:00").slice(0, 5),
+  };
+}
+
+type EditFormState = ReturnType<typeof recordToEditForm>;
 
 function escapeHtml(value: string) {
   return String(value || "")
@@ -311,13 +343,29 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
   const [success, setSuccess] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const selectedYear = currentMonth.getFullYear();
+  const [editRecord, setEditRecord] = useState<AbsenceRecord | null>(null);
+  const [editForm, setEditForm] = useState<EditFormState | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
-  const canAttachPdf = useMemo(() => {
-    if (!userLoaded) return false;
+  const roles = useMemo(() => {
+    if (!userLoaded) return [] as string[];
     const rolesRaw = user?.publicMetadata?.role;
-    const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
-    return canAdminIngest(roles);
+    return Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
   }, [user, userLoaded]);
+
+  const canViewDocumentsFor = useMemo(() => {
+    if (!userLoaded || !user?.id) return () => false;
+    const viewerId = user.id;
+    return (item: AbsenceRecord) => canViewAbsenceAttachment(item, viewerId, roles);
+  }, [user, userLoaded, roles]);
+
+  const canManageDocsFor = useMemo(() => {
+    return (item: AbsenceRecord) => canManageAbsenceAttachment(item, roles);
+  }, [roles]);
+
+  const canManageSlot = useMemo(() => {
+    return (item: AbsenceRecord) => canManageAbsence(item, roles);
+  }, [roles]);
 
   const fetchAbsences = async () => {
     try {
@@ -344,7 +392,12 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
     [items],
   );
 
-  const events = useMemo<CalendarEvent[]>(() => absencesToCalendarEvents(items), [items]);
+  const events = useMemo<CalendarEvent[]>(
+    () => absencesToCalendarEvents(items, { includeDocumentsFor: canViewDocumentsFor }),
+    [items, canViewDocumentsFor],
+  );
+
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
 
   const openConvocation = async (absenceId: string, docIndex = 0) => {
     setError(null);
@@ -391,7 +444,67 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
     }
   };
 
+  const deleteDocument = async (absenceId: string, docIndex = 0) => {
+    const item = itemsById.get(absenceId);
+    if (!item || !canManageDocsFor(item)) return;
+    const ok = window.confirm("Supprimer ce document ?");
+    if (!ok) return;
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/absences/delete-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: absenceId, index: docIndex }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Suppression impossible.");
+      setSuccess("Document supprimé.");
+      await fetchAbsences();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur suppression document.");
+    }
+  };
+
+  const openEdit = (id: string) => {
+    const item = itemsById.get(id);
+    if (!item || !canManageSlot(item)) return;
+    setEditRecord(item);
+    setEditForm(recordToEditForm(item));
+  };
+
+  const saveEdit = async () => {
+    if (!editRecord || !editForm) return;
+    setEditSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/absences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editRecord.id,
+          action: "MODIFIER_CALENDRIER",
+          ...editForm,
+          endDate: editForm.periodType === "single_day" ? editForm.startDate : editForm.endDate,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Modification impossible.");
+      setSuccess("Créneau modifié.");
+      setEditRecord(null);
+      setEditForm(null);
+      await fetchAbsences();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur modification.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const deleteConvocation = async (id: string) => {
+    const item = itemsById.get(id);
+    if (!item || !canManageSlot(item)) return;
     setError(null);
     setSuccess(null);
     const ok = window.confirm("Supprimer ce créneau ? Cela supprime aussi le document s'il n'est plus utilisé.");
@@ -595,6 +708,32 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
                             event.hasDocument ? "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300" : "",
                           ].join(" ")}
                         >
+                          {itemsById.get(event.id) && canManageSlot(itemsById.get(event.id)!) ? (
+                            <div className="flex justify-end gap-0.5 mb-0.5">
+                              <button
+                                type="button"
+                                title="Modifier"
+                                className="text-[9px] font-black opacity-80"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEdit(event.id);
+                                }}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                type="button"
+                                title="Supprimer"
+                                className="text-[9px] font-black text-rose-700 opacity-80"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteConvocation(event.id);
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : null}
                           <div className="font-bold break-words whitespace-normal">{event.displayName}</div>
                           <div className="break-words whitespace-normal">{event.reason}</div>
                           <div className="break-words whitespace-normal">{event.displayTime}</div>
@@ -686,7 +825,7 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
                           ].join(" ")}
                         >
                           <div className="flex justify-end items-center gap-0.5">
-                            {canAttachPdf ? (
+                            {itemsById.get(event.id) && canManageDocsFor(itemsById.get(event.id)!) ? (
                               <button
                                 type="button"
                                 aria-label="Ajouter un PDF"
@@ -702,36 +841,97 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
                                 <PaperclipIcon className="h-3 w-3" />
                               </button>
                             ) : null}
-                            {event.documentCount > 1
-                              ? Array.from({ length: event.documentCount }, (_, docIdx) => (
-                                  <button
-                                    key={docIdx}
-                                    type="button"
-                                    className="rounded px-0.5 text-[9px] font-bold underline opacity-80 hover:opacity-100"
-                                    title={`Ouvrir le PDF ${docIdx + 1}`}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      openConvocation(event.id, docIdx);
-                                    }}
-                                  >
-                                    {docIdx + 1}
-                                  </button>
-                                ))
-                              : null}
-                            <button
-                              type="button"
-                              aria-label="Supprimer le créneau"
-                              title="Supprimer le créneau"
-                              className="rounded px-1 text-[10px] font-black opacity-70 hover:opacity-100"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                deleteConvocation(event.id);
-                              }}
-                            >
-                              ✕
-                            </button>
+                            {event.hasDocument && itemsById.get(event.id) && canManageDocsFor(itemsById.get(event.id)!)
+                              ? (event.documentCount > 1
+                                  ? Array.from({ length: event.documentCount }, (_, docIdx) => (
+                                      <span key={docIdx} className="inline-flex items-center gap-0.5">
+                                        <button
+                                          type="button"
+                                          className="rounded px-0.5 text-[9px] font-bold underline opacity-80 hover:opacity-100"
+                                          title={`Ouvrir le PDF ${docIdx + 1}`}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            openConvocation(event.id, docIdx);
+                                          }}
+                                        >
+                                          {docIdx + 1}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="rounded px-0.5 text-[9px] font-black text-rose-700 opacity-80 hover:opacity-100"
+                                          title={`Supprimer le PDF ${docIdx + 1}`}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            deleteDocument(event.id, docIdx);
+                                          }}
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    ))
+                                  : (
+                                      <button
+                                        type="button"
+                                        className="rounded px-0.5 text-[9px] font-black text-rose-700 opacity-80 hover:opacity-100"
+                                        title="Supprimer le document"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          deleteDocument(event.id, 0);
+                                        }}
+                                      >
+                                        🗑
+                                      </button>
+                                    ))
+                              : event.documentCount > 1
+                                ? Array.from({ length: event.documentCount }, (_, docIdx) => (
+                                    <button
+                                      key={docIdx}
+                                      type="button"
+                                      className="rounded px-0.5 text-[9px] font-bold underline opacity-80 hover:opacity-100"
+                                      title={`Ouvrir le PDF ${docIdx + 1}`}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        openConvocation(event.id, docIdx);
+                                      }}
+                                    >
+                                      {docIdx + 1}
+                                    </button>
+                                  ))
+                                : null}
+                            {itemsById.get(event.id) && canManageSlot(itemsById.get(event.id)!) ? (
+                              <>
+                                <button
+                                  type="button"
+                                  aria-label="Modifier le créneau"
+                                  title="Modifier le créneau"
+                                  className="rounded px-1 text-[10px] font-black opacity-70 hover:opacity-100"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    openEdit(event.id);
+                                  }}
+                                >
+                                  ✎
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Supprimer le créneau"
+                                  title="Supprimer le créneau"
+                                  className="rounded px-1 text-[10px] font-black text-rose-700 opacity-70 hover:opacity-100"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    deleteConvocation(event.id);
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            ) : null}
                           </div>
                           <div className="font-bold break-words whitespace-normal">{event.displayName}</div>
                           <div className="break-words whitespace-normal">{event.reason}</div>
@@ -759,6 +959,152 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
           </p>
         )}
       </section>
+
+      {editRecord && editForm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md p-5 space-y-4">
+            <h3 className="font-black text-slate-900">Modifier l&apos;absence</h3>
+            <p className="text-xs text-slate-500">{editRecord.displayName}</p>
+            <label className="block text-sm">
+              <span className="font-bold text-slate-700">Nom affiché</span>
+              <input
+                className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                value={editForm.displayName}
+                onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="font-bold text-slate-700">Motif</span>
+              <input
+                className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                value={editForm.reason}
+                onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="font-bold text-slate-700">Type</span>
+              <select
+                className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                value={editForm.scope}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    scope: e.target.value as AbsenceScope,
+                  })
+                }
+              >
+                <option value="professeur">Professeur</option>
+                <option value="ogec">Personnel OGEC</option>
+              </select>
+            </label>
+            {editForm.scope === "professeur" && (
+              <label className="block text-sm">
+                <span className="font-bold text-slate-700">Établissement</span>
+                <select
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                  value={editForm.etablissement}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      etablissement: e.target.value as Etablissement,
+                    })
+                  }
+                >
+                  <option value="École">École</option>
+                  <option value="Collège">Collège</option>
+                  <option value="Lycée">Lycée</option>
+                </select>
+              </label>
+            )}
+            <label className="block text-sm">
+              <span className="font-bold text-slate-700">Durée</span>
+              <select
+                className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                value={editForm.periodType}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, periodType: e.target.value as AbsencePeriodType })
+                }
+              >
+                <option value="single_day">Une journée (créneau horaire)</option>
+                <option value="multi_day">Plusieurs jours</option>
+              </select>
+            </label>
+            {editForm.periodType === "single_day" ? (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-sm col-span-2">
+                  <span className="font-bold text-slate-700">Date</span>
+                  <input
+                    type="date"
+                    className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                    value={editForm.startDate}
+                    onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value, endDate: e.target.value })}
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="font-bold text-slate-700">De</span>
+                  <input
+                    type="time"
+                    className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                    value={editForm.startTime}
+                    onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="font-bold text-slate-700">À</span>
+                  <input
+                    type="time"
+                    className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                    value={editForm.endTime}
+                    onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-sm">
+                  <span className="font-bold text-slate-700">Du</span>
+                  <input
+                    type="date"
+                    className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                    value={editForm.startDate}
+                    onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="font-bold text-slate-700">Au</span>
+                  <input
+                    type="date"
+                    className="mt-1 w-full border rounded-xl px-3 py-2 text-sm"
+                    value={editForm.endDate}
+                    onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                  />
+                </label>
+              </div>
+            )}
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold"
+                disabled={editSaving}
+                onClick={() => {
+                  setEditRecord(null);
+                  setEditForm(null);
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold disabled:opacity-50"
+                disabled={editSaving}
+                onClick={() => void saveEdit()}
+              >
+                {editSaving ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

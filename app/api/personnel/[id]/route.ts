@@ -8,9 +8,16 @@ import {
   syncMedecineDerivedFields,
 } from "@/app/lib/personnel-rh-cycles";
 import { normalizePersonnelProfile } from "@/app/lib/personnel-profile";
+import { notifyPersonnelSignatureLink } from "@/app/lib/personnel-notify";
+import {
+  attachSignatureToken,
+  generatePersonnelSignToken,
+  savePersonnelSignatureRef,
+} from "@/app/lib/personnel-signature";
 import {
   canManagePersonnel,
   canViewRecord,
+  defaultOffboarding,
   sanitizeRecordForViewer,
   normalizePersonnelRecord,
   uid,
@@ -203,6 +210,72 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       const allSigned = record.onboarding.signatures.every((s) => s.status === "signe");
       if (allSigned) record.onboarding.status = "termine";
       else record.onboarding.status = "signatures";
+    } else if (action === "send-signature-link") {
+      const sigId = String(body.sigId || "");
+      const kind = body.kind === "offboarding" ? "offboarding" : "onboarding";
+      const email = String(body.email || "").trim().toLowerCase();
+      if (!email) return NextResponse.json({ error: "E-mail requis." }, { status: 400 });
+
+      const flow = kind === "offboarding" ? record.offboarding : record.onboarding;
+      if (!flow) return NextResponse.json({ error: "Parcours introuvable." }, { status: 400 });
+      const sig = flow.signatures.find((s) => s.id === sigId);
+      if (!sig) return NextResponse.json({ error: "Signature introuvable." }, { status: 404 });
+
+      const token = generatePersonnelSignToken();
+      const updatedFlow = attachSignatureToken(flow, sigId, token, email);
+      if (kind === "offboarding") record.offboarding = updatedFlow;
+      else record.onboarding = updatedFlow;
+
+      await savePersonnelSignatureRef(token, {
+        personnelId: record.id,
+        kind,
+        signatureId: sigId,
+        employeeName: record.displayName,
+        signatureLabel: sig.label,
+        createdAt: new Date().toISOString(),
+      });
+
+      const mail = await notifyPersonnelSignatureLink({
+        to: email,
+        employeeName: record.displayName,
+        signatureLabel: sig.label,
+        kind,
+        token,
+      });
+      if (!mail.sent) {
+        return NextResponse.json({ error: "E-mail non envoyé (SMTP)." }, { status: 503 });
+      }
+    } else if (action === "start-offboarding") {
+      const endDate = String(body.endDate || "").trim();
+      if (!endDate) return NextResponse.json({ error: "Date de fin requise." }, { status: 400 });
+      record.offboarding = defaultOffboarding(endDate);
+      record.active = true;
+    } else if (action === "toggle-offboarding-checklist") {
+      const itemId = String(body.itemId || "");
+      if (!record.offboarding) return NextResponse.json({ error: "Pas d'offboarding." }, { status: 400 });
+      record.offboarding.checklist = record.offboarding.checklist.map((c) =>
+        c.id === itemId ? { ...c, done: !c.done } : c,
+      );
+      const allDone = record.offboarding.checklist.every((c) => c.done);
+      const allSigned = record.offboarding.signatures.every((s) => s.status === "signe");
+      if (allDone && allSigned) {
+        record.offboarding.status = "termine";
+        record.active = false;
+      }
+    } else if (action === "sign-offboarding") {
+      const sigId = String(body.sigId || "");
+      if (!record.offboarding) return NextResponse.json({ error: "Pas d'offboarding." }, { status: 400 });
+      record.offboarding.signatures = record.offboarding.signatures.map((s) =>
+        s.id === sigId
+          ? { ...s, status: "signe", signedAt: new Date().toISOString(), signedBy: user?.fullName || user?.id || "" }
+          : s,
+      );
+      const allSigned = record.offboarding.signatures.every((s) => s.status === "signe");
+      const allDone = record.offboarding.checklist.every((c) => c.done);
+      if (allSigned && allDone) {
+        record.offboarding.status = "termine";
+        record.active = false;
+      }
     } else if (action === "update-profile") {
       if (body.firstName) record.firstName = String(body.firstName);
       if (body.lastName) record.lastName = String(body.lastName);

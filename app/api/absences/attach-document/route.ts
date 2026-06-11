@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { getAbsenceDocumentKeys } from "@/app/lib/absences-documents";
-import { canAdminIngest } from "@/app/lib/absences-types";
+import { canManageAbsenceAttachment, canViewCalendar } from "@/app/lib/absences-types";
 import { getAbsenceIndex, getAbsenceRecord, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { putObject } from "@/app/lib/s3-storage";
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
-  if (!canAdminIngest(roles)) {
+  if (!canViewCalendar(roles)) {
     return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
   }
 
@@ -30,6 +30,9 @@ export async function POST(req: Request) {
 
     const record = await getAbsenceRecord(id);
     if (!record) return NextResponse.json({ error: "Créneau introuvable." }, { status: 404 });
+    if (!canManageAbsenceAttachment(record, roles)) {
+      return NextResponse.json({ error: "Ajout de document non autorisé." }, { status: 403 });
+    }
 
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const uploadedAt = Date.now();

@@ -7,6 +7,7 @@ import {
   canAdminIngest,
   normalizeEtablissement,
   parseLocalDateTime,
+  type AbsenceScope,
 } from "@/app/lib/absences-types";
 import { getAbsenceIndex, purgeExpiredAbsences, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
 
@@ -34,7 +35,9 @@ export async function POST(req: Request) {
     const reasonRaw = String(formData.get("examType") || "").trim();
     const reason = reasonRaw || "Absence (saisie manuelle)";
 
-    const etablissement = normalizeEtablissement(String(formData.get("etablissement") || "Collège"));
+    const scope: AbsenceScope = String(formData.get("scope") || "professeur") === "ogec" ? "ogec" : "professeur";
+    const etablissement =
+      scope === "ogec" ? null : normalizeEtablissement(String(formData.get("etablissement") || "Collège"));
 
     const startDate = String(formData.get("startDate") || "").trim();
     const endDate = String(formData.get("endDate") || "").trim();
@@ -79,6 +82,7 @@ export async function POST(req: Request) {
     const record = buildAdminAbsenceRecord({
       source: "admin_manual",
       displayName,
+      scope,
       etablissement,
       reason,
       startAt,

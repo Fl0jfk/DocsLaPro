@@ -5,7 +5,16 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import AbsencesCalendar from "@/app/components/absences/AbsencesCalendar";
 import AbsencesDeclareOther from "@/app/components/absences/AbsencesDeclareOther";
-import { canViewCalendar, isAbsencePendingForManager, type AbsenceRecord } from "@/app/lib/absences-types";
+import {
+  canChooseDeclarationScope,
+  canManageAbsenceAttachment,
+  canViewAbsenceAttachment,
+  canViewCalendar,
+  isAbsencePendingForManager,
+  resolveAbsenceScope,
+  resolveSelfDeclarationScope,
+  type AbsenceRecord,
+} from "@/app/lib/absences-types";
 import { formatAbsencePeriod, type AbsencePeriodType } from "@/app/lib/absence-period";
 import {
   formatAbsenceHoursTreatment,
@@ -110,12 +119,20 @@ export default function AbsencesPageClient() {
   const isDirectionEcole = roles.some((r) => norm(r).includes("directionecole"));
   const isDirectionCollege = roles.some((r) => norm(r).includes("directioncollege"));
   const isDirectionLycee = roles.some((r) => norm(r).includes("directionlycee"));
-  const isTeacher = roles.some((r) => norm(r).includes("professeur"));
-  const scope: AbsenceScope = isTeacher ? "professeur" : "ogec";
+  const canChooseScope = canChooseDeclarationScope(roles);
+  const [declareScope, setDeclareScope] = useState<AbsenceScope>("ogec");
+  const effectiveScope = canChooseScope ? declareScope : resolveSelfDeclarationScope(roles);
   const router = useRouter();
   const searchParams = useSearchParams();
   const showCalendar = canViewCalendar(roles);
   const canTreat = isDirectionEcole || isDirectionCollege || isDirectionLycee;
+
+  const asRecord = (item: AbsenceItem) => item as unknown as AbsenceRecord;
+
+  const canViewJustificatif = (item: AbsenceItem) =>
+    canViewAbsenceAttachment(asRecord(item), user?.id || "", roles);
+
+  const canDeleteJustificatif = (item: AbsenceItem) => canManageAbsenceAttachment(asRecord(item), roles);
   const defaultTab = showCalendar ? "calendrier" : "se-declarer";
   const rawTab = searchParams.get("tab");
   const activeTab =
@@ -168,7 +185,7 @@ export default function AbsencesPageClient() {
       setError("La date de fin doit être après la date de début.");
       return;
     }
-    if (scope === "professeur" && !etablissement) {
+    if (effectiveScope === "professeur" && !etablissement) {
       setError("Merci de choisir un établissement.");
       return;
     }
@@ -201,7 +218,8 @@ export default function AbsencesPageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           data: {
-            etablissement: scope === "professeur" ? etablissement : null,
+            scope: effectiveScope,
+            etablissement: effectiveScope === "professeur" ? etablissement : null,
             periodType,
             startDate: periodType === "single_day" ? singleDayDate : startDate,
             endDate: periodType === "single_day" ? singleDayDate : endDate,
@@ -313,21 +331,66 @@ export default function AbsencesPageClient() {
     } catch (e: any) { alert(e?.message || "Erreur dépôt justificatif.");
     } finally { setUploadingJustificationId(null)}
   };
-  const openSecureFile = async (fileUrl: string) => {
-    const newWindow = window.open("", "_blank");
+  const correctScope = async (item: AbsenceItem, newScope: AbsenceScope) => {
+    const currentScope = resolveAbsenceScope(asRecord(item));
+    if (currentScope === newScope) return;
+    let etablissement: Etablissement | null = item.data.etablissement;
+    if (newScope === "ogec") {
+      etablissement = null;
+    } else if (!etablissement) {
+      const picked = prompt("Établissement pour cette absence professeur (École, Collège ou Lycée) :", "Collège");
+      if (!picked || !["École", "Collège", "Lycée"].includes(picked)) return;
+      etablissement = picked as Etablissement;
+    }
+    if (!confirm(`Reclasser cette absence en « ${newScope === "ogec" ? "Personnel OGEC" : "Professeur"} » ?`)) return;
     try {
-      const res = await fetch("/api/travels/download", {
+      const res = await fetch("/api/absences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, action: "CORRIGER_SCOPE", scope: newScope, etablissement }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Correction impossible.");
+      await fetchItems();
+      setCalendarRefresh((n) => n + 1);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erreur correction type.");
+    }
+  };
+
+  const deleteJustificatif = async (itemId: string) => {
+    if (!confirm("Supprimer ce justificatif ?")) return;
+    try {
+      const res = await fetch("/api/absences/delete-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileUrl }),
+        body: JSON.stringify({ id: itemId, target: "justification" }),
       });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Suppression impossible.");
+      await fetchItems();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erreur suppression justificatif.");
+    }
+  };
+
+  const openAbsenceDocument = async (absenceId: string, docIndex = 0) => {
+    const newWindow = window.open("", "_blank");
+    try {
+      const res = await fetch(
+        `/api/absences/document-url?id=${encodeURIComponent(absenceId)}&index=${encodeURIComponent(String(docIndex))}`,
+        { cache: "no-store" },
+      );
       const data = await res.json();
-      if (!res.ok || !data?.signedUrl) throw new Error("Impossible d'ouvrir le justificatif.");
-      if (newWindow) { newWindow.location.href = data.signedUrl;
-      } else { window.location.href = data.signedUrl}
-    } catch (e: any) {
+      if (!res.ok || !data?.url) throw new Error(data?.error || "Impossible d'ouvrir le justificatif.");
+      if (newWindow) {
+        newWindow.location.href = data.url;
+      } else {
+        window.location.href = data.url;
+      }
+    } catch (e: unknown) {
       if (newWindow) newWindow.close();
-      alert(e?.message || "Erreur d'accès au justificatif.");
+      alert(e instanceof Error ? e.message : "Erreur d'accès au justificatif.");
     }
   };
   const statusStyle = (s: AbsenceWorkflowStatus) =>
@@ -403,11 +466,32 @@ export default function AbsencesPageClient() {
         <div className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit">
           <h2 className="text-xl font-black text-slate-900 mb-4">Nouvelle absence</h2>
           <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-              <span className="font-black text-slate-700">Type détecté automatiquement :</span>{" "}
-              <span className="font-semibold text-slate-800">{scope === "professeur" ? "Professeur" : "Personnel OGEC"}</span>
-            </div>
-            {scope === "professeur" && (
+            {canChooseScope ? (
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
+                  Type d&apos;absence
+                </label>
+                <select
+                  value={declareScope}
+                  onChange={(e) => setDeclareScope(e.target.value as AbsenceScope)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"
+                >
+                  <option value="ogec">Personnel OGEC</option>
+                  <option value="professeur">Professeur</option>
+                </select>
+                <p className="text-xs text-amber-700 mt-1 font-medium">
+                  Votre compte cumule enseignement et personnel OGEC — choisissez la bonne catégorie.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                <span className="font-black text-slate-700">Type :</span>{" "}
+                <span className="font-semibold text-slate-800">
+                  {effectiveScope === "professeur" ? "Professeur" : "Personnel OGEC"}
+                </span>
+              </div>
+            )}
+            {effectiveScope === "professeur" && (
               <div>
                 <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">Établissement</label>
                 <select value={etablissement} onChange={(e) => setEtablissement(e.target.value as Etablissement)} className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white">
@@ -589,7 +673,10 @@ export default function AbsencesPageClient() {
                 <div className="flex flex-wrap gap-3 items-center justify-between mb-3">
                   <div>
                     <p className="font-black text-slate-900">
-                      {item.createdBy.name} — {item.data.scope === "ogec" ? "Personnel OGEC" : `Professeur (${item.data.etablissement})`}
+                      {item.createdBy.name} —{" "}
+                      {resolveAbsenceScope(asRecord(item)) === "ogec"
+                        ? "Personnel OGEC"
+                        : `Professeur (${item.data.etablissement || "—"})`}
                     </p>
                     <p className="text-xs text-slate-500">
                       {formatAbsencePeriod(item.data)} • {item.createdBy.email || "email non renseigné"}
@@ -617,12 +704,23 @@ export default function AbsencesPageClient() {
                     <span className="font-bold">Note direction/compta:</span> {item.managerNote}
                   </p>
                 )}
-                {item.justification?.fileUrl && (
-                  <p className="text-sm text-slate-700 mb-3">
-                    <span className="font-bold">Justificatif:</span>{" "}
-                    <button type="button" onClick={() => openSecureFile(item.justification!.fileUrl)} className="text-indigo-700 underline font-semibold">
-                      {item.justification.fileName || "Voir le fichier"}
-                    </button>
+                {item.justification?.fileUrl && canViewJustificatif(item) && (
+                  <p className="text-sm text-slate-700 mb-3 flex flex-wrap items-center gap-2">
+                    <span>
+                      <span className="font-bold">Justificatif:</span>{" "}
+                      <button type="button" onClick={() => openAbsenceDocument(item.id)} className="text-indigo-700 underline font-semibold">
+                        {item.justification.fileName || "Voir le fichier"}
+                      </button>
+                    </span>
+                    {canDeleteJustificatif(item) && (
+                      <button
+                        type="button"
+                        onClick={() => deleteJustificatif(item.id)}
+                        className="text-xs font-bold text-rose-700 underline"
+                      >
+                        Supprimer
+                      </button>
+                    )}
                   </p>
                 )}
                 {item.justificatifRelanceAt && isPendingAbsence(item) && (
@@ -661,6 +759,18 @@ export default function AbsencesPageClient() {
                 )}
                 {canManageItem(item) && isPendingAbsence(item) && (
                   <div className="mt-3 pt-3 border-t border-slate-100">
+                    <p className="text-xs text-slate-500 mb-2">
+                      Mauvais type déclaré ?{" "}
+                      <button
+                        type="button"
+                        className="font-bold text-indigo-700 underline"
+                        onClick={() =>
+                          correctScope(item, resolveAbsenceScope(asRecord(item)) === "ogec" ? "professeur" : "ogec")
+                        }
+                      >
+                        Reclasser en {resolveAbsenceScope(asRecord(item)) === "ogec" ? "Professeur" : "Personnel OGEC"}
+                      </button>
+                    </p>
                     <p className="text-xs text-slate-500 mb-2">
                       Valider ou refuser même sans pièce jointe. « Relancer » invite le demandeur à déposer un justificatif — ou un complément si le premier ne suffit pas.
                     </p>

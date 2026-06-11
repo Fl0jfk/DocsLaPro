@@ -1,4 +1,4 @@
-import type { AbsenceRecord } from "@/app/lib/absences-types";
+import { resolveAbsenceScope, type AbsenceRecord } from "@/app/lib/absences-types";
 
 export type CalendarEvent = {
   key: string;
@@ -46,17 +46,25 @@ export function sortCalendarEvents(events: CalendarEvent[]) {
   });
 }
 
-export function absencesToCalendarEvents(items: AbsenceRecord[]): CalendarEvent[] {
+export function absencesToCalendarEvents(
+  items: AbsenceRecord[],
+  opts?: { includeDocumentsFor?: (item: AbsenceRecord) => boolean },
+): CalendarEvent[] {
   const visible = items.filter((item) => item.calendarVisible);
   const out: CalendarEvent[] = [];
+  const includeDocumentsFor = opts?.includeDocumentsFor ?? (() => true);
 
   for (const item of visible) {
     const start = new Date(item.data.startAt);
     const end = new Date(item.data.endAt);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || +end <= +start) continue;
 
-    const documentCount = (item.data.documentKeys?.length ?? 0) + (item.justification?.fileUrl ? 1 : 0);
-    const isOgec = item.data.scope === "ogec";
+    const showDocuments = includeDocumentsFor(item);
+    const documentCount = showDocuments
+      ? (item.data.documentKeys?.length ?? 0) + (item.justification?.fileUrl ? 1 : 0)
+      : 0;
+    const scope = resolveAbsenceScope(item);
+    const isOgec = scope === "ogec";
 
     const day = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
@@ -81,7 +89,7 @@ export function absencesToCalendarEvents(items: AbsenceRecord[]): CalendarEvent[
         key: `${item.id}_${y}-${pad2(m + 1)}-${pad2(d)}`,
         id: item.id,
         displayName: item.displayName,
-        scope: item.data.scope,
+        scope,
         reason: item.data.reason,
         startAt,
         endAt,

@@ -1,0 +1,156 @@
+import { NextResponse } from "next/server";
+import { requireInternatManage, requireInternatAccess } from "@/app/api/internat/_auth";
+import type { EleveConfig } from "@/app/lib/eleves-config";
+import {
+  getInternatRooms,
+  getInternatStudents,
+  saveInternatStudents,
+  validateRoomCapacity,
+} from "@/app/lib/internat-storage";
+import { normalizeParentContact } from "@/app/lib/internat-outing";
+import {
+  etablissementFromSecteur,
+  newId,
+  type InternatStudent,
+} from "@/app/lib/internat-types";
+
+export async function GET() {
+  const access = await requireInternatAccess();
+  if (!access.ok) return access.response;
+  const [students, rooms] = await Promise.all([getInternatStudents(), getInternatRooms()]);
+  return NextResponse.json({ students, rooms });
+}
+
+export async function POST(req: Request) {
+  const access = await requireInternatManage();
+  if (!access.ok) return access.response;
+
+  const body = await req.json().catch(() => ({}));
+  const action = String(body.action || "create");
+
+  if (action === "import") {
+    const picks = Array.isArray(body.eleves) ? (body.eleves as EleveConfig[]) : [];
+    const students = await getInternatStudents();
+    const rooms = await getInternatRooms();
+    const now = new Date().toISOString();
+    const added: InternatStudent[] = [];
+
+    for (const e of picks) {
+      const key = String(e.folderName || e.ine || "").trim();
+      if (!key) continue;
+      if (
+        students.some(
+          (s) =>
+            s.eleveRef.folderName === e.folderName ||
+            (e.ine && s.eleveRef.ine && s.eleveRef.ine === e.ine),
+        )
+      ) {
+        continue;
+      }
+      const student: InternatStudent = {
+        id: newId("stu"),
+        eleveRef: {
+          ine: e.ine || undefined,
+          folderName: e.folderName,
+          nom: e.nom,
+          prenom: e.prenom,
+        },
+        sexe: body.defaultSexe === "F" ? "F" : "M",
+        etablissement: etablissementFromSecteur(e.secteur || e.mef),
+        classe: String(body.defaultClasse || e.folderName.split("—").pop() || "").trim() || "—",
+        actif: true,
+        createdAt: now,
+        updatedAt: now,
+        history: [{ at: now, by: access.userName, action: "IMPORT_ELEVE", note: e.folderName }],
+      };
+      added.push(student);
+      students.push(student);
+    }
+
+    await saveInternatStudents(students);
+    return NextResponse.json({ added, students, rooms });
+  }
+
+  const now = new Date().toISOString();
+  const students = await getInternatStudents();
+  const rooms = await getInternatRooms();
+  const nom = String(body.nom || "").trim();
+  const prenom = String(body.prenom || "").trim();
+  if (!nom || !prenom) {
+    return NextResponse.json({ error: "Nom et prénom requis." }, { status: 400 });
+  }
+
+  const roomId = body.roomId ? String(body.roomId) : null;
+  const draft: InternatStudent = {
+    id: newId("stu"),
+    eleveRef: {
+      folderName: `${nom} — ${prenom}`,
+      nom,
+      prenom,
+      ine: body.ine ? String(body.ine) : undefined,
+    },
+    sexe: body.sexe === "F" ? "F" : "M",
+    etablissement: body.etablissement === "Collège" ? "Collège" : "Lycée",
+    classe: String(body.classe || "").trim() || "—",
+    roomId,
+    actif: true,
+    createdAt: now,
+    updatedAt: now,
+    history: [{ at: now, by: access.userName, action: "CREATION_MANUELLE" }],
+  };
+
+  const cap = validateRoomCapacity(students, rooms, draft.id, roomId);
+  if (!cap.ok) return NextResponse.json({ error: cap.error }, { status: 400 });
+
+  students.push(draft);
+  await saveInternatStudents(students);
+  return NextResponse.json({ student: draft, students });
+}
+
+export async function PATCH(req: Request) {
+  const access = await requireInternatManage();
+  if (!access.ok) return access.response;
+
+  const body = await req.json().catch(() => ({}));
+  const id = String(body.id || "");
+  const students = await getInternatStudents();
+  const rooms = await getInternatRooms();
+  const idx = students.findIndex((s) => s.id === id);
+  if (idx < 0) return NextResponse.json({ error: "Interne introuvable." }, { status: 404 });
+
+  const now = new Date().toISOString();
+  const prev = students[idx];
+  const roomId = body.roomId !== undefined ? (body.roomId ? String(body.roomId) : null) : prev.roomId;
+
+  const cap = validateRoomCapacity(students, rooms, id, roomId);
+  if (!cap.ok) return NextResponse.json({ error: cap.error }, { status: 400 });
+
+  const updated: InternatStudent = {
+    ...prev,
+    sexe: body.sexe === "F" || body.sexe === "M" ? body.sexe : prev.sexe,
+    etablissement: body.etablissement === "Collège" ? "Collège" : body.etablissement === "Lycée" ? "Lycée" : prev.etablissement,
+    classe: body.classe !== undefined ? String(body.classe || "").trim() || prev.classe : prev.classe,
+    roomId,
+    parent1: body.parent1 !== undefined ? normalizeParentContact(body.parent1) : prev.parent1,
+    parent2: body.parent2 !== undefined ? normalizeParentContact(body.parent2) : prev.parent2,
+    actif: body.actif !== undefined ? Boolean(body.actif) : prev.actif,
+    updatedAt: now,
+    history: [
+      ...(prev.history || []),
+      { at: now, by: access.userName, action: "MODIFICATION", note: String(body.note || "") || undefined },
+    ],
+  };
+  students[idx] = updated;
+  await saveInternatStudents(students);
+  return NextResponse.json({ student: updated, students });
+}
+
+export async function DELETE(req: Request) {
+  const access = await requireInternatManage();
+  if (!access.ok) return access.response;
+  const { searchParams } = new URL(req.url);
+  const id = String(searchParams.get("id") || "");
+  const students = await getInternatStudents();
+  await saveInternatStudents(students.filter((s) => s.id !== id));
+  return NextResponse.json({ ok: true });
+}

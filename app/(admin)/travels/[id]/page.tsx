@@ -21,7 +21,7 @@ import {
   tripEffectifTotal,
 } from "@/app/lib/travels-trip-helpers";
 import type { TravelsHubTab, TravelsTrip } from "@/app/lib/travels-types";
-import { TRAVELS_HUB_TABS } from "@/app/lib/travels-types";
+import { TRAVELS_HUB_TABS, TRAVELS_STATUS_LABELS } from "@/app/lib/travels-types";
 import { orderEmailForQuote } from "@/app/lib/travels-transport-shared";
 import { TripActionsPanel } from "@/app/components/travels/hub/TripActionsPanel";
 import { TripAmendmentJournal } from "@/app/components/travels/hub/TripAmendmentJournal";
@@ -408,6 +408,7 @@ export default function TripDetails() {
     }
     if (trip.status === "BESOIN_MODIFICATION" && newStatus !== "BESOIN_MODIFICATION") {
       delete finalData.modificationRequestNote;
+      delete finalData.previousStatus;
     }
     const updatedTrip = {
       ...trip,
@@ -422,6 +423,20 @@ export default function TripDetails() {
     setIsEditing(false);
     setLoadingAction(null);
     if (!saved) alert("Impossible d'enregistrer la modification. Réessayez.");
+  };
+  const handleCancelModificationRequest = async () => {
+    if (trip.status !== "BESOIN_MODIFICATION" || loadingAction) return;
+    if (!canSign && !isCompta) return;
+    const restoreStatus = trip.data?.previousStatus || "EN_ATTENTE_DIR_INITIAL";
+    const stepLabel = TRAVELS_STATUS_LABELS[restoreStatus] || restoreStatus;
+    if (
+      !confirm(
+        `Annuler la demande de modification ?\n\nLe dossier reprendra à l'étape « ${stepLabel} » sans attendre de modification du créateur.`,
+      )
+    ) {
+      return;
+    }
+    await handleAction(restoreStatus, "Demande de modification annulée");
   };
   const handleReopenDossier = async (targetStatus: string, stepLabel: string) => {
     if (!canSign || trip.status !== "VALIDE" || loadingAction) return;
@@ -1204,10 +1219,19 @@ export default function TripDetails() {
           icon="⚠️"
           title="Modifications demandées"
           action={
-            isOwner ? (
-              <TripButton variant="warning" onClick={() => setIsEditing(true)}>
-                Modifier mon dossier
-              </TripButton>
+            isOwner || canSign || isCompta ? (
+              <div className="flex flex-wrap gap-2 shrink-0">
+                {isOwner && (
+                  <TripButton variant="warning" onClick={() => setIsEditing(true)}>
+                    Modifier mon dossier
+                  </TripButton>
+                )}
+                {(canSign || isCompta) && (
+                  <TripButton variant="secondary" onClick={handleCancelModificationRequest}>
+                    Annuler la demande
+                  </TripButton>
+                )}
+              </div>
             ) : undefined
           }
         >
