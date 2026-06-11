@@ -467,7 +467,10 @@ function OneDriveUpDocsOCRAIContent() {
       const segRes = await fetch("/api/agentIAOCR/segment-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: ocr.text, pageCount: ocr.pageCount }),
+        body: JSON.stringify({
+          pageTexts: ocr.pageTexts,
+          pageCount: ocr.pageCount,
+        }),
       });
       if (!segRes.ok) throw new Error(await segRes.text());
       const segData = await segRes.json();
