@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
+
+export const maxDuration = 120;
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";

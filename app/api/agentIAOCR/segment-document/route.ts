@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 
+export const maxDuration = 120;
+
 export type DocumentSegment = {
   pageStart: number;
   pageEnd: number;

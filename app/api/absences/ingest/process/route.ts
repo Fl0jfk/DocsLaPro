@@ -1,9 +1,9 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { readIngestJob, canIngestFromUser } from "../ingest-job";
 import { runAbsenceIngestJob, tryClaimIngestJob } from "@/app/lib/absence-ingest-process";
 
-export const maxDuration = 30;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -48,13 +48,24 @@ export async function POST(req: Request) {
 
   const claimed = await tryClaimIngestJob(jobId);
   if (claimed) {
-    const docKey = job.documentKey;
-    const fileName = job.sourceFileName;
-    after(() =>
-      runAbsenceIngestJob(jobId, docKey, fileName).catch((err) =>
-        console.error("[absences/ingest/process] after():", err),
-      ),
-    );
+    try {
+      await runAbsenceIngestJob(jobId, job.documentKey, job.sourceFileName);
+    } catch (err) {
+      console.error("[absences/ingest/process]", err);
+    }
+    const final = await readIngestJob(jobId);
+    if (final?.status === "completed") {
+      return NextResponse.json(
+        { ok: true, status: "completed", created: final.created ?? null },
+        { status: 200 },
+      );
+    }
+    if (final?.status === "failed") {
+      return NextResponse.json(
+        { ok: false, status: "failed", error: final.error ?? null, code: final.code ?? null },
+        { status: 200 },
+      );
+    }
   }
 
   return NextResponse.json(
@@ -63,7 +74,7 @@ export async function POST(req: Request) {
       accepted: true,
       claimed,
       detail: claimed
-        ? "Traitement OCR + IA démarré en arrière-plan."
+        ? "Traitement OCR + IA en cours."
         : "Traitement déjà en cours ou file d'attente ; le suivi continue.",
     },
     { status: 202 },

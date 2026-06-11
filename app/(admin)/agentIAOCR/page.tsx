@@ -5,11 +5,13 @@ import * as msal from "@azure/msal-browser";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
 import { consumeDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 
+const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+
 const msalConfig: msal.Configuration = {
   auth: {
     clientId: process.env.NEXT_PUBLIC_CLIENT_ID!,
     authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_TENANT_ID}`,
-    redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}agentIAOCR`,
+    redirectUri: `${appBaseUrl}/agentIAOCR`,
   }
 };
 

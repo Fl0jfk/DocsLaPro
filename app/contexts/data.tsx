@@ -211,7 +211,7 @@ const STATIC_DATA: Data = {
     {
       "id": 24,
       "name": "Internat",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/Internat.jpg",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Internat.jpg",
       "link": "/gestion-internat",
       "allowedRoles": ["admin", "education", "administratif", "direction_college", "direction_lycee"],
       "external": false,
