@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { INTRANET_ROLE_OPTIONS, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
-import { requireRegistryAdmin } from "@/app/lib/tenant-auth";
+import { requireAdmin } from "@/app/lib/intranet-auth";
 import {
   listClerkMembers,
   memberRowFromClerkUser,
@@ -9,7 +9,7 @@ import {
 } from "@/app/lib/clerk-users";
 
 export async function GET() {
-  const gate = await requireRegistryAdmin();
+  const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
   try {
     const users = await listClerkMembers();
@@ -25,7 +25,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const gate = await requireRegistryAdmin();
+  const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
   try {
     const body = await req.json();
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const gate = await requireRegistryAdmin();
+  const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
   try {
     const body = await req.json();
@@ -117,7 +117,7 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const gate = await requireRegistryAdmin();
+  const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
   const clerkUserId = new URL(req.url).searchParams.get("clerkUserId")?.trim();
   const email = new URL(req.url).searchParams.get("email")?.trim().toLowerCase();

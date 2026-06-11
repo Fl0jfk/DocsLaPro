@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { putJson } from "@/app/lib/s3-storage";
 import type { NewsItem } from "../get/route";
 
 const NEWS_KEY = "news/slider.json";
@@ -14,9 +14,9 @@ const isNewsAdmin = (roles: string[]) =>
   roles.some((r) => r.startsWith("direction_"));
 
 export async function POST(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { userId, orgId } = gate.ctx;
+  const { userId } = gate.ctx;
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Aucun item valide dans items" }, { status: 400 });
     }
 
-    await putTenantJson(orgId, NEWS_KEY, cleaned);
+    await putJson(NEWS_KEY, cleaned);
 
     return NextResponse.json({ success: true, count: cleaned.length });
   } catch (err: unknown) {

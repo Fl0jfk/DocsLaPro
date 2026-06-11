@@ -63,10 +63,10 @@ export async function GET(req: NextRequest) {
         },
       ],
     };
-    await saveRequestFile("", record);
-    const index = await getRequestsIndex("");
+    await saveRequestFile(record);
+    const index = await getRequestsIndex();
     index.push(record);
-    await saveRequestsIndex("", index);
+    await saveRequestsIndex(index);
     await deletePendingRequestPrefix(token);
     try {
       await notifyRequestCreated(record);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { tenantS3Key } from "@/app/lib/tenant";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { s3Key } from "@/app/lib/s3-path";
 
 const IMAGE_BUCKET = "docslaproimage";
 
@@ -14,10 +14,9 @@ const s3 = new S3Client({
 });
 
 export async function POST(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId } = gate.ctx;
-
+  
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -25,7 +24,7 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const rel = `news/${Date.now()}-${file.name}`;
-    const key = tenantS3Key(orgId, rel);
+    const key = s3Key( rel);
 
     await s3.send(
       new PutObjectCommand({

@@ -1,12 +1,12 @@
 import { CopyObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { s3Key } from "@/app/lib/tenant";
+import { s3Key } from "@/app/lib/s3-path";
 import {
-  getTenantJson,
-  getTenantS3Client,
+  getJson,
+  getS3Client,
   getBucketName,
-  putTenantJson,
-  putTenantObject,
-} from "@/app/lib/tenant-s3-storage";
+  putJson,
+  putObject,
+} from "@/app/lib/s3-storage";
 import { listClerkMembers, type ClerkMemberRow } from "@/app/lib/clerk-users";
 
 export const DOCUMENTS_QUOTA_BYTES = 2 * 1024 * 1024 * 1024;
@@ -28,6 +28,23 @@ export type DocumentItem = {
   relPath: string;
   ext?: string;
   size?: number;
+  sharedBy?: string;
+  isVirtual?: boolean;
+};
+
+/** Dossier virtuel à la racine du cloud perso (fichiers partagés reçus). */
+export const INCOMING_SHARED_FILES_FOLDER = "Fichiers partagés";
+export const FILE_SHARE_REL_PREFIX = "__fileshare__/";
+
+export type FileShareMeta = {
+  id: string;
+  ownerId: string;
+  memberIds: string[];
+  sourceRelPath: string;
+  fileName: string;
+  ext?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 const MARKER_SUFFIXES = [".keep", ".folder"];
@@ -42,6 +59,25 @@ function sharedRoot(shareId: string): string {
 
 function shareMetaRel(shareId: string): string {
   return `documents/shares/${shareId}.json`;
+}
+
+function fileShareMetaRel(fileShareId: string): string {
+  return `documents/file-shares/${fileShareId}.json`;
+}
+
+export function isIncomingSharedFilesPath(relPath: string): boolean {
+  const rel = normalizeRelPath(relPath).replace(/\/$/, "");
+  return rel === INCOMING_SHARED_FILES_FOLDER;
+}
+
+export function parseFileShareIdFromRel(relPath: string): string | null {
+  if (!relPath.startsWith(FILE_SHARE_REL_PREFIX)) return null;
+  const id = relPath.slice(FILE_SHARE_REL_PREFIX.length).replace(/\/$/, "");
+  return id || null;
+}
+
+export function isVirtualSharedFilePath(relPath: string): boolean {
+  return relPath.startsWith(FILE_SHARE_REL_PREFIX);
 }
 
 function normalizeRelPath(path: string): string {
@@ -80,12 +116,12 @@ export function resolveStoragePrefix(
 }
 
 export async function getShareMeta(shareId: string): Promise<ShareMeta | null> {
-  const hit = await getTenantJson<ShareMeta>(null, shareMetaRel(shareId));
+  const hit = await getJson<ShareMeta>(shareMetaRel(shareId));
   return hit?.data ?? null;
 }
 
 export async function listAccessibleShares(userId: string): Promise<ShareMeta[]> {
-  const client = getTenantS3Client();
+  const client = getS3Client();
   const bucket = getBucketName();
   const prefix = s3Key("documents/shares/");
   const out: ShareMeta[] = [];
@@ -101,7 +137,7 @@ export async function listAccessibleShares(userId: string): Promise<ShareMeta[]>
     );
     for (const obj of res.Contents ?? []) {
       if (!obj.Key?.endsWith(".json")) continue;
-      const rel = obj.Key.replace(/^tenants\/[^/]+\//, "").replace(/^documents\/shares\//, "").replace(/\.json$/, "");
+      const rel = obj.Key.replace(/^documents\/shares\//, "").replace(/\.json$/, "");
       const meta = await getShareMeta(rel);
       if (!meta) continue;
       if (meta.ownerId === userId || meta.memberIds.includes(userId)) {
@@ -131,7 +167,7 @@ export async function assertShareWrite(
 }
 
 export async function sumPrefixBytes(relativePrefix: string): Promise<number> {
-  const client = getTenantS3Client();
+  const client = getS3Client();
   const bucket = getBucketName();
   const prefix = s3Key(relativePrefix.replace(/^\/+/, ""));
   let total = 0;
@@ -191,12 +227,184 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} Go`;
 }
 
+export async function getFileShareMeta(fileShareId: string): Promise<FileShareMeta | null> {
+  const hit = await getJson<FileShareMeta>(fileShareMetaRel(fileShareId));
+  return hit?.data ?? null;
+}
+
+export async function listIncomingFileShares(userId: string): Promise<FileShareMeta[]> {
+  const client = getS3Client();
+  const bucket = getBucketName();
+  const prefix = s3Key("documents/file-shares/");
+  const out: FileShareMeta[] = [];
+  let token: string | undefined;
+
+  do {
+    const res = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    );
+    for (const obj of res.Contents ?? []) {
+      if (!obj.Key?.endsWith(".json")) continue;
+      const id = obj.Key
+        .replace(/^documents\/file-shares\//, "")
+        .replace(/\.json$/, "");
+      const meta = await getFileShareMeta(id);
+      if (!meta) continue;
+      if (meta.memberIds.includes(userId)) out.push(meta);
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (token);
+
+  return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function findFileShareBySource(ownerId: string, sourceRelPath: string): Promise<FileShareMeta | null> {
+  const client = getS3Client();
+  const bucket = getBucketName();
+  const prefix = s3Key("documents/file-shares/");
+  let token: string | undefined;
+  const src = normalizeRelPath(sourceRelPath);
+
+  do {
+    const res = await client.send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
+    );
+    for (const obj of res.Contents ?? []) {
+      if (!obj.Key?.endsWith(".json")) continue;
+      const id = obj.Key
+        .replace(/^documents\/file-shares\//, "")
+        .replace(/\.json$/, "");
+      const meta = await getFileShareMeta(id);
+      if (meta?.ownerId === ownerId && normalizeRelPath(meta.sourceRelPath) === src) return meta;
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (token);
+  return null;
+}
+
+export async function createOrUpdateFileShare(
+  ownerId: string,
+  sourceRelPath: string,
+  memberIds: string[],
+): Promise<{ ok: true; meta: FileShareMeta } | { ok: false; error: string }> {
+  const src = normalizeRelPath(sourceRelPath);
+  if (!src || src.includes("..") || isIncomingSharedFilesPath(src) || isVirtualSharedFilePath(src)) {
+    return { ok: false, error: "Fichier invalide." };
+  }
+
+  const sourceKey = storageKeyForItem(ownerId, "personal", null, src);
+  if (!sourceKey.ok) return { ok: false, error: sourceKey.error };
+  if (!(await storageObjectExists(sourceKey.key))) {
+    return { ok: false, error: "Fichier introuvable." };
+  }
+
+  const fullName = src.split("/").pop() ?? src;
+  const dot = fullName.lastIndexOf(".");
+  const ext = dot > 0 ? fullName.slice(dot + 1).toLowerCase() : undefined;
+  const baseName = dot > 0 ? fullName.slice(0, dot) : fullName;
+  const uniqueMembers = [...new Set(memberIds.filter((m) => m && m !== ownerId))];
+  if (uniqueMembers.length === 0) {
+    return { ok: false, error: "Sélectionnez au moins une personne." };
+  }
+
+  const existing = await findFileShareBySource(ownerId, src);
+  const now = new Date().toISOString();
+  if (existing) {
+    const merged = [...new Set([...existing.memberIds, ...uniqueMembers])];
+    const updated: FileShareMeta = { ...existing, memberIds: merged, updatedAt: now };
+    await putJson( fileShareMetaRel(existing.id), updated);
+    return { ok: true, meta: updated };
+  }
+
+  const meta: FileShareMeta = {
+    id: crypto.randomUUID(),
+    ownerId,
+    memberIds: uniqueMembers,
+    sourceRelPath: src,
+    fileName: baseName,
+    ext,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await putJson( fileShareMetaRel(meta.id), meta);
+  return { ok: true, meta };
+}
+
+export async function updateFileShareMembers(
+  ownerId: string,
+  fileShareId: string,
+  memberIds: string[],
+): Promise<{ ok: true; meta: FileShareMeta } | { ok: false; error: string }> {
+  const meta = await getFileShareMeta(fileShareId);
+  if (!meta) return { ok: false, error: "Partage introuvable." };
+  if (meta.ownerId !== ownerId) return { ok: false, error: "Seul le propriétaire peut modifier le partage." };
+  const uniqueMembers = [...new Set(memberIds.filter((m) => m && m !== ownerId))];
+  const updated: FileShareMeta = { ...meta, memberIds: uniqueMembers, updatedAt: new Date().toISOString() };
+  await putJson( fileShareMetaRel(fileShareId), updated);
+  return { ok: true, meta: updated };
+}
+
+export async function leaveFileShare(
+  userId: string,
+  fileShareId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const meta = await getFileShareMeta(fileShareId);
+  if (!meta) return { ok: false, error: "Partage introuvable." };
+  if (meta.ownerId === userId) return { ok: false, error: "Le propriétaire ne peut pas quitter son propre partage." };
+  if (!meta.memberIds.includes(userId)) return { ok: false, error: "Vous n'avez pas accès à ce fichier." };
+  const updated: FileShareMeta = {
+    ...meta,
+    memberIds: meta.memberIds.filter((id) => id !== userId),
+    updatedAt: new Date().toISOString(),
+  };
+  await putJson( fileShareMetaRel(fileShareId), updated);
+  return { ok: true };
+}
+
+export async function resolveFileShareReadKey(
+  userId: string,
+  fileShareId: string,
+): Promise<{ ok: true; key: string; meta: FileShareMeta } | { ok: false; error: string }> {
+  const meta = await getFileShareMeta(fileShareId);
+  if (!meta) return { ok: false, error: "Fichier partagé introuvable." };
+  if (meta.ownerId !== userId && !meta.memberIds.includes(userId)) {
+    return { ok: false, error: "Accès refusé." };
+  }
+  const key = storageKeyForItem(meta.ownerId, "personal", null, meta.sourceRelPath);
+  if (!key.ok) return { ok: false, error: key.error };
+  if (!(await storageObjectExists(key.key))) {
+    return { ok: false, error: "Le fichier d'origine n'existe plus." };
+  }
+  return { ok: true, key: key.key, meta };
+}
+
+async function browseIncomingSharedFiles(userId: string): Promise<DocumentItem[]> {
+  const shares = await listIncomingFileShares(userId);
+  return shares.map((s) => ({
+    type: "file" as const,
+    name: s.fileName,
+    relPath: `${FILE_SHARE_REL_PREFIX}${s.id}`,
+    ext: s.ext,
+    isVirtual: true,
+    sharedBy: s.ownerId,
+  }));
+}
+
 export async function browseDocuments(
   userId: string,
   scope: DocumentScope,
   shareId: string | null,
   relPath: string,
 ): Promise<{ ok: true; items: DocumentItem[] } | { ok: false; error: string }> {
+  if (scope === "personal" && isIncomingSharedFilesPath(relPath)) {
+    const items = await browseIncomingSharedFiles(userId);
+    return { ok: true, items };
+  }
+
   if (scope === "shared") {
     const access = await assertShareWrite(userId, shareId ?? "");
     if (!access.ok) return { ok: false, error: access.error };
@@ -205,7 +413,7 @@ export async function browseDocuments(
   const resolved = resolveStoragePrefix(userId, scope, shareId, relPath);
   if (!resolved.ok) return { ok: false, error: resolved.error };
 
-  const client = getTenantS3Client();
+  const client = getS3Client();
   const bucket = getBucketName();
   const prefix = s3Key(resolved.prefix);
 
@@ -252,7 +460,25 @@ export async function browseDocuments(
       };
     });
 
-  const items = [...folders, ...files].sort((a, b) => {
+  let items = [...folders, ...files];
+
+  if (scope === "personal" && !normalizeRelPath(relPath)) {
+    const alreadyListed = items.some(
+      (i) => i.type === "folder" && i.name === INCOMING_SHARED_FILES_FOLDER,
+    );
+    if (!alreadyListed) {
+      items.push({
+        type: "folder",
+        name: INCOMING_SHARED_FILES_FOLDER,
+        relPath: INCOMING_SHARED_FILES_FOLDER,
+        isVirtual: true,
+      });
+    }
+  }
+
+  items.sort((a, b) => {
+    if (a.name === INCOMING_SHARED_FILES_FOLDER) return -1;
+    if (b.name === INCOMING_SHARED_FILES_FOLDER) return 1;
     if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
     return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
   });
@@ -278,7 +504,7 @@ export async function createFolder(
   const resolved = resolveStoragePrefix(userId, scope, shareId, joinRel(parentRelPath, safeName));
   if (!resolved.ok) return { ok: false, error: resolved.error };
 
-  await putTenantObject(null, `${resolved.prefix}.folder`, "", "text/plain");
+  await putObject(`${resolved.prefix}.folder`, "", "text/plain");
   return { ok: true };
 }
 
@@ -310,7 +536,7 @@ export async function uploadDocumentFile(
   if (!resolved.ok) return { ok: false, error: resolved.error };
 
   const key = `${resolved.prefix}${safeName}`;
-  await putTenantObject(null, key, buffer, contentType || "application/octet-stream");
+  await putObject(key, buffer, contentType || "application/octet-stream");
   return { ok: true };
 }
 
@@ -358,8 +584,8 @@ export async function createSharedFolder(
     createdAt: now,
     updatedAt: now,
   };
-  await putTenantJson(null, shareMetaRel(id), meta);
-  await putTenantObject(null, `${sharedRoot(id)}.folder`, "", "text/plain");
+  await putJson( shareMetaRel(id), meta);
+  await putObject(`${sharedRoot(id)}.folder`, "", "text/plain");
   return meta;
 }
 
@@ -378,7 +604,7 @@ export async function updateSharedMembers(
     memberIds: uniqueMembers,
     updatedAt: new Date().toISOString(),
   };
-  await putTenantJson(null, shareMetaRel(shareId), updated);
+  await putJson( shareMetaRel(shareId), updated);
   return { ok: true, meta: updated };
 }
 
@@ -430,7 +656,7 @@ function isInsideFolder(folderRelPath: string, candidateParent: string): boolean
 }
 
 async function storageObjectExists(relativeKey: string): Promise<boolean> {
-  const client = getTenantS3Client();
+  const client = getS3Client();
   const bucket = getBucketName();
   const key = s3Key(relativeKey);
   try {
@@ -442,7 +668,7 @@ async function storageObjectExists(relativeKey: string): Promise<boolean> {
 }
 
 async function copyStorageObject(relativeSourceKey: string, relativeDestKey: string): Promise<void> {
-  const client = getTenantS3Client();
+  const client = getS3Client();
   const bucket = getBucketName();
   const sourceKey = s3Key(relativeSourceKey);
   const destKey = s3Key(relativeDestKey);
@@ -456,7 +682,7 @@ async function copyStorageObject(relativeSourceKey: string, relativeDestKey: str
 }
 
 async function deleteStorageObject(relativeKey: string): Promise<void> {
-  const client = getTenantS3Client();
+  const client = getS3Client();
   const bucket = getBucketName();
   await client.send(
     new DeleteObjectCommand({
@@ -467,7 +693,7 @@ async function deleteStorageObject(relativeKey: string): Promise<void> {
 }
 
 async function listAllStorageKeysUnderPrefix(relativePrefix: string): Promise<string[]> {
-  const client = getTenantS3Client();
+  const client = getS3Client();
   const bucket = getBucketName();
   const prefix = s3Key(relativePrefix.replace(/^\/+/, ""));
   const keys: string[] = [];
@@ -491,7 +717,7 @@ async function listAllStorageKeysUnderPrefix(relativePrefix: string): Promise<st
 }
 
 function storageKeyToRelative(storageKey: string): string {
-  return storageKey.replace(/^tenants\/[^/]+\//, "");
+  return storageKey;
 }
 
 export async function moveDocumentItem(
@@ -581,6 +807,63 @@ export async function moveDocumentItem(
   return { ok: true };
 }
 
+export async function leaveSharedFolder(
+  userId: string,
+  shareId: string,
+): Promise<{ ok: true; meta: ShareMeta } | { ok: false; error: string }> {
+  const meta = await getShareMeta(shareId);
+  if (!meta) return { ok: false, error: "Dossier partagé introuvable." };
+  if (meta.ownerId === userId) {
+    return { ok: false, error: "Le propriétaire ne peut pas quitter son dossier. Gérez le partage ou supprimez le contenu." };
+  }
+  if (!meta.memberIds.includes(userId)) {
+    return { ok: false, error: "Vous n'avez pas accès à ce dossier partagé." };
+  }
+  const updated: ShareMeta = {
+    ...meta,
+    memberIds: meta.memberIds.filter((id) => id !== userId),
+    updatedAt: new Date().toISOString(),
+  };
+  await putJson( shareMetaRel(shareId), updated);
+  return { ok: true, meta: updated };
+}
+
+const FOLDER_DELETE_CONFIRM = "supprimer";
+
+export async function deleteFolderAsOwner(
+  userId: string,
+  scope: DocumentScope,
+  shareId: string | null,
+  folderRelPath: string,
+  confirm: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (confirm.trim().toLowerCase() !== FOLDER_DELETE_CONFIRM) {
+    return { ok: false, error: `Tapez « ${FOLDER_DELETE_CONFIRM} » pour confirmer.` };
+  }
+
+  const folderRel = normalizeRelPath(folderRelPath).replace(/\/$/, "");
+
+  if (scope === "shared") {
+    if (!shareId) return { ok: false, error: "Dossier partagé introuvable." };
+    const meta = await getShareMeta(shareId);
+    if (!meta) return { ok: false, error: "Dossier partagé introuvable." };
+    if (meta.ownerId !== userId) {
+      return { ok: false, error: "Seul le propriétaire peut supprimer un dossier entier." };
+    }
+    if (!folderRel) {
+      const keys = await listAllStorageKeysUnderPrefix(sharedRoot(shareId));
+      for (const fullKey of keys) {
+        await deleteStorageObject(storageKeyToRelative(fullKey));
+      }
+      return { ok: true };
+    }
+  } else if (!folderRel) {
+    return { ok: false, error: "Impossible de supprimer la racine du cloud." };
+  }
+
+  return deleteDocumentItem(userId, scope, shareId, folderRel, "folder");
+}
+
 export async function deleteDocumentItem(
   userId: string,
   scope: DocumentScope,
@@ -590,6 +873,13 @@ export async function deleteDocumentItem(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const access = await assertWriteAccess(userId, scope, shareId);
   if (!access.ok) return access;
+
+  if (itemType === "folder" && scope === "shared" && shareId) {
+    const meta = await getShareMeta(shareId);
+    if (!meta || meta.ownerId !== userId) {
+      return { ok: false, error: "Seul le propriétaire peut supprimer un dossier." };
+    }
+  }
 
   const sourceKey = storageKeyForItem(
     userId,

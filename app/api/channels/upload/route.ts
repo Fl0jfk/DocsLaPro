@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { putTenantObject } from "@/app/lib/tenant-s3-storage";
-import { tenantS3Key } from "@/app/lib/tenant";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { putObject } from "@/app/lib/s3-storage";
+import { s3Key } from "@/app/lib/s3-path";
 
 export const config = {
   api: {
@@ -12,10 +12,9 @@ export const config = {
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId } = gate.ctx;
-  try {
+    try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
     if (!file) {
@@ -24,8 +23,8 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
     const rel = `uploads/${fileName}`;
-    await putTenantObject(orgId, rel, buffer, file.type);
-    const fileKey = tenantS3Key(orgId, rel);
+    await putObject( rel, buffer, file.type);
+    const fileKey = s3Key( rel);
     const region = process.env.REGION || "eu-west-3";
     const url = `https://${process.env.BUCKET_NAME}.s3.${region}.amazonaws.com/${fileKey}`;
     return NextResponse.json({

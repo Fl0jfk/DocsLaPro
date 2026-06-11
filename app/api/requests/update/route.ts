@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { requireAuth } from "@/app/lib/intranet-auth";
 import { REQUEST_STATUSES, RequestAttachment, RequestComment, RequestRecord, RequestStatus, assertEligibleRequestAttachment, finalizeRequestPurgeMetadata, getDefaultRequestBranchForStaffEmail, getRequestPoolEmails, getRequestsIndex, isLeaderForRequestBranch, isUserInRequestPool, notifyRequesterOnly, notifyRequestStatusMilestone, resolveRequestRouteById, saveRequestFile, saveRequestsIndex, uploadBuffersAsRequestAttachments, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";
 import { isCorbeilleBranchId, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
@@ -9,9 +9,9 @@ import { isStaffInBranchPool } from "@/app/lib/staff-directory";
 const LEGACY_ASSIGN_UNIT_TO_ROUTE: Record<string, string> = { comptabilite: "comptabilite", maintenance: "maintenance", "direction-college": "admin_college", "direction-lycee": "admin_lycee", "vie-scolaire": "vie_scolaire_infirmerie", informatique: "maintenance"};
 
 export async function PATCH(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { userId, orgId } = gate.ctx;
+  const { userId } = gate.ctx;
     const user = await currentUser();
     const actorName = user?.fullName || user?.firstName || "Équipe";
     const actorEmail = user?.primaryEmailAddress?.emailAddress || "";
@@ -50,7 +50,7 @@ export async function PATCH(req: Request) {
     const toCorbeille = contentType.includes("multipart/form-data") ? String(body?.toCorbeille || "") === "true" || String(body?.toCorbeille || "") === "on" : Boolean(body?.toCorbeille);
     if (multipartFiles.length > 0 && ["claim", "release_claim", "claim_self", "delegate_claim"].includes(action)) { return NextResponse.json({ error: "Retirez les pièces jointes pour cette action." }, { status: 400 });}
     if (!id) return NextResponse.json({ error: "id requis" }, { status: 400 });
-    const index = await getRequestsIndex(orgId);
+    const index = await getRequestsIndex();
     const pos = index.findIndex((r) => r.id === id);
     if (pos < 0) return NextResponse.json({ error: "Demande introuvable" }, { status: 404 });
     const current = index[pos] as RequestRecord;
@@ -91,8 +91,8 @@ export async function PATCH(req: Request) {
       };
       const finalized = finalizeRequestPurgeMetadata(current, delegated, now);
       index[pos] = finalized;
-      await saveRequestFile(orgId,finalized);
-      await saveRequestsIndex(orgId, index);
+      await saveRequestFile(finalized);
+      await saveRequestsIndex( index);
       return NextResponse.json({ success: true, request: finalized });
     }
     if (action === "claim" || action === "release_claim") {
@@ -147,8 +147,8 @@ export async function PATCH(req: Request) {
         };
         const finalizedClaim = finalizeRequestPurgeMetadata(current, updatedClaim, now);
         index[pos] = finalizedClaim;
-        await saveRequestFile(orgId,finalizedClaim);
-        await saveRequestsIndex(orgId, index);
+        await saveRequestFile(finalizedClaim);
+        await saveRequestsIndex( index);
         return NextResponse.json({ success: true, request: finalizedClaim });
       }
       if (toCorbeille) {
@@ -182,8 +182,8 @@ export async function PATCH(req: Request) {
         };
         const finalizedBasket = finalizeRequestPurgeMetadata(current, updatedBasket, now);
         index[pos] = finalizedBasket;
-        await saveRequestFile(orgId,finalizedBasket);
-        await saveRequestsIndex(orgId, index);
+        await saveRequestFile(finalizedBasket);
+        await saveRequestsIndex( index);
         return NextResponse.json({ success: true, request: finalizedBasket });
       }
       const existing = current.assignedTo.claimedBy;
@@ -200,8 +200,8 @@ export async function PATCH(req: Request) {
       };
       const finalizedRel = finalizeRequestPurgeMetadata(current, updatedRel, now);
       index[pos] = finalizedRel;
-      await saveRequestFile(orgId,finalizedRel);
-      await saveRequestsIndex(orgId, index);
+      await saveRequestFile(finalizedRel);
+      await saveRequestsIndex( index);
       return NextResponse.json({ success: true, request: finalizedRel });
     }
     if (action === "claim_self") {
@@ -252,8 +252,8 @@ export async function PATCH(req: Request) {
       };
       const finalizedSelf = finalizeRequestPurgeMetadata(current, updatedSelf, now);
       index[pos] = finalizedSelf;
-      await saveRequestFile(orgId,finalizedSelf);
-      await saveRequestsIndex(orgId, index);
+      await saveRequestFile(finalizedSelf);
+      await saveRequestsIndex( index);
       return NextResponse.json({ success: true, request: finalizedSelf });
     }
     const priorStatusForNotify = current.status;
@@ -338,7 +338,7 @@ export async function PATCH(req: Request) {
             contentType: f.type || "application/octet-stream",
           })),
         );
-        commentAttachments = await uploadBuffersAsRequestAttachments(orgId, id, bufs);
+        commentAttachments = await uploadBuffersAsRequestAttachments( id, bufs);
       }
       if (!commentText && commentAttachments.length > 0) commentText = "Pièce(s) jointe(s).";
       if (commentText || commentAttachments.length > 0) {
@@ -369,8 +369,8 @@ export async function PATCH(req: Request) {
     }
     const finalized = finalizeRequestPurgeMetadata(current, updated, now);
     index[pos] = finalized;
-    await saveRequestFile(orgId,finalized);
-    await saveRequestsIndex(orgId, index);
+    await saveRequestFile(finalized);
+    await saveRequestsIndex( index);
     try {
       const reachedMilestone = finalized.status !== priorStatusForNotify && (finalized.status === "EN_ATTENTE" || finalized.status === "TERMINEE");
       if (reachedMilestone) {

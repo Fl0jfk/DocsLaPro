@@ -1,18 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import nodemailer from "nodemailer";
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { parseTravelsS3KeyFromUrl } from "@/app/lib/travels-s3";
+import { fetchTravelsPdfBytes } from "@/app/lib/travels-s3";
 
 const ZEENDOC_TO = "comptabilite@laprovidence-nicolasbarre.fr";
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -34,25 +25,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    let fileBuffer: Buffer;
-    let contentType = "application/octet-stream";
-
-    const key = parseTravelsS3KeyFromUrl(fileUrl);
-    if (key && process.env.BUCKET_NAME) {
-      const res = await s3Client.send(
-        new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: key }),
-      );
-      const bytes = await res.Body?.transformToByteArray();
-      if (!bytes?.length) throw new Error("Fichier introuvable sur S3.");
-      fileBuffer = Buffer.from(bytes);
-      if (res.ContentType) contentType = res.ContentType;
-    } else {
-      const response = await fetch(fileUrl);
-      if (!response.ok) throw new Error("Impossible de récupérer le fichier.");
-      fileBuffer = Buffer.from(await response.arrayBuffer());
-      const ct = response.headers.get("content-type");
-      if (ct) contentType = ct;
-    }
+    const fileBuffer = await fetchTravelsPdfBytes(fileUrl);
+    let contentType = "application/pdf";
     if (!fileBuffer || fileBuffer.length === 0) {
       throw new Error("Pièce jointe vide : envoi annulé.");
     }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { requireAuth } from "@/app/lib/intranet-auth";
 import { createFolder, type DocumentScope } from "@/app/lib/documents-cloud";
 
 export async function POST(req: NextRequest) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
   const body = await req.json();

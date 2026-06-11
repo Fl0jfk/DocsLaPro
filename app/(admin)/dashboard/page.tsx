@@ -5,11 +5,11 @@ import RollingSlider from "../../components/Slider/SectionSlider";
 import ExternalQuickLinks from "@/app/components/Dashboard/ExternalQuickLinks";
 import { useData } from "@/app/contexts/data";
 import { useUser } from "@clerk/nextjs";
-import { useIsTenantOrgAdmin } from "@/app/hooks/useIsTenantOrgAdmin";
+import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 
 export default function Home() {
   const { isLoaded, user } = useUser();
-  const isOrgAdmin = useIsTenantOrgAdmin();
+  const isOrgAdmin = useIsOrgAdmin();
   const data = useData();
   const uniqueCategories = useMemo(() => {
     if (!isLoaded || !user || !data?.categories) return [];

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import RequireOrgAdmin from "@/app/components/RequireOrgAdmin";
-import { useIsTenantOrgAdmin } from "@/app/hooks/useIsTenantOrgAdmin";
+import ProfRoomAdminPicker, { type ClerkMemberOption } from "@/app/components/prof-room/ProfRoomAdminPicker";
+import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 
-type Tab = "tenant" | "establishments" | "notifications" | "mef" | "rooms" | "prof-room";
+type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room";
 
 type MefSecteursConfig = { lycee: string[]; college: string[]; ecole: string[] };
 
@@ -20,8 +21,8 @@ function listToLines(arr: string[]): string {
 }
 
 export default function ParametresPage() {
-  const isOrgAdmin = useIsTenantOrgAdmin();
-  const [tab, setTab] = useState<Tab>("tenant");
+  const isOrgAdmin = useIsOrgAdmin();
+  const [tab, setTab] = useState<Tab>("site");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,11 +38,15 @@ export default function ParametresPage() {
     }>
   >([]);
   const [notifications, setNotifications] = useState<Record<string, unknown>>({});
-  const [rooms, setRooms] = useState<Array<{ id: string; name: string; building?: string }>>([]);
   const [mefLycee, setMefLycee] = useState("");
   const [mefCollege, setMefCollege] = useState("");
   const [mefEcole, setMefEcole] = useState("");
   const [mefMessage, setMefMessage] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [profRoomAdminIds, setProfRoomAdminIds] = useState<string[]>([]);
+  const [profRoomLegacyLastNames, setProfRoomLegacyLastNames] = useState<string[]>([]);
+  const [clerkMembers, setClerkMembers] = useState<ClerkMemberOption[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
 
   useEffect(() => {
     if (!isOrgAdmin) {
@@ -65,9 +70,12 @@ export default function ParametresPage() {
           })),
         );
         setNotifications(j.config?.notifications || {});
-        const rRes = await fetch("/api/reservation-rooms/rooms");
-        const rj = await rRes.json();
-        if (rRes.ok) setRooms(rj.rooms || []);
+        const profRoomCfg = j.config?.profRoom || {};
+        const savedIds = Array.isArray(profRoomCfg.adminClerkUserIds) ? profRoomCfg.adminClerkUserIds : [];
+        setProfRoomAdminIds(savedIds);
+        setProfRoomLegacyLastNames(
+          Array.isArray(profRoomCfg.adminLastNames) ? profRoomCfg.adminLastNames.map((n: string) => n.toUpperCase()) : [],
+        );
         const mRes = await fetch("/api/mef-secteurs");
         const mj = await mRes.json();
         if (mRes.ok && mj.config) {
@@ -83,6 +91,85 @@ export default function ParametresPage() {
       }
     })();
   }, [isOrgAdmin]);
+
+  useEffect(() => {
+    if (!isOrgAdmin || tab !== "prof-room") return;
+    let cancelled = false;
+    (async () => {
+      setMembersLoading(true);
+      try {
+        const res = await fetch("/api/members");
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error || "Impossible de charger les membres Clerk");
+        if (cancelled) return;
+        const users = (j.users || []) as ClerkMemberOption[];
+        setClerkMembers(users);
+        setProfRoomAdminIds((prev) => {
+          if (prev.length > 0) return prev;
+          if (profRoomLegacyLastNames.length === 0) return prev;
+          const matched = users
+            .filter(
+              (m) => m.clerkUserId && m.lastName && profRoomLegacyLastNames.includes(m.lastName.toUpperCase()),
+            )
+            .map((m) => m.clerkUserId);
+          return matched.length > 0 ? matched : prev;
+        });
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Erreur chargement membres");
+      } finally {
+        if (!cancelled) setMembersLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOrgAdmin, tab, profRoomLegacyLastNames]);
+
+  const uploadHeaderLogo = async (file: File) => {
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const prep = await fetch("/api/settings/upload-logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+      });
+      const prepJson = await prep.json();
+      if (!prep.ok) throw new Error(prepJson.error || "Préparation upload impossible");
+
+      const putRes = await fetch(prepJson.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!putRes.ok) throw new Error("Envoi du fichier sur S3 impossible.");
+
+      const nextIdentity = { ...identity, headerLogoUrl: prepJson.fileUrl as string };
+      setIdentity(nextIdentity);
+
+      const saveRes = await fetch("/api/settings/site", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nextIdentity),
+      });
+      const saveJson = await saveRes.json();
+      if (!saveRes.ok) throw new Error(saveJson.error || "Enregistrement impossible");
+
+      alert("Logo mis à jour.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur upload logo");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const removeHeaderLogo = async () => {
+    if (!confirm("Supprimer le logo personnalisé et revenir au logo par défaut ?")) return;
+    const nextIdentity = { ...identity };
+    delete nextIdentity.headerLogoUrl;
+    setIdentity(nextIdentity);
+    await saveSection("site", nextIdentity);
+  };
 
   const saveSection = async (section: string, body: unknown) => {
     setSaving(true);
@@ -113,11 +200,11 @@ export default function ParametresPage() {
       <div className="flex flex-wrap gap-2">
         {(
           [
-            ["tenant", "Identité"],
+            ["site", "Identité"],
             ["establishments", "Établissements"],
             ["notifications", "Notifications"],
             ["mef", "Formations MEF"],
-            ["rooms", "Salles"],
+            ["prof-room", "Réservation salles"],
           ] as const
         ).map(([k, label]) => (
           <button
@@ -131,7 +218,7 @@ export default function ParametresPage() {
         ))}
       </div>
 
-      {tab === "tenant" && (
+      {tab === "site" && (
         <div className="bg-white rounded-2xl border p-6 space-y-4">
           <label className="block text-sm font-bold text-slate-600">Nom du groupe</label>
           <input
@@ -145,10 +232,50 @@ export default function ParametresPage() {
             value={String(identity.shortName || "")}
             onChange={(e) => setIdentity({ ...identity, shortName: e.target.value })}
           />
+
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            <label className="block text-sm font-bold text-slate-600">Logo du header (haut gauche)</label>
+            <p className="text-xs text-slate-500">
+              PNG, JPEG, WebP ou SVG. Le fichier est enregistré sur S3 et affiché sur tout le site.
+            </p>
+            {identity.headerLogoUrl ? (
+              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={String(identity.headerLogoUrl)}
+                  alt="Aperçu logo"
+                  className="max-h-16 w-auto object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={removeHeaderLogo}
+                  disabled={saving || uploadingLogo}
+                  className="text-xs font-bold text-red-600 underline disabled:opacity-50"
+                >
+                  Supprimer le logo personnalisé
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">Logo par défaut actuellement utilisé.</p>
+            )}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              disabled={uploadingLogo}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadHeaderLogo(file);
+                e.target.value = "";
+              }}
+              className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-bold hover:file:bg-indigo-100 disabled:opacity-50"
+            />
+            {uploadingLogo && <p className="text-xs text-indigo-600 font-medium">Envoi du logo en cours…</p>}
+          </div>
+
           <button
             type="button"
             disabled={saving}
-            onClick={() => saveSection("tenant", identity)}
+            onClick={() => saveSection("site", identity)}
             className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
           >
             Enregistrer l&apos;identité
@@ -398,62 +525,30 @@ export default function ParametresPage() {
         </div>
       )}
 
-      {tab === "rooms" && (
+      {tab === "prof-room" && (
         <div className="bg-white rounded-2xl border p-6 space-y-4">
-          {rooms.map((room, idx) => (
-            <div key={room.id || idx} className="flex gap-2">
-              <input
-                className="flex-1 border rounded-lg p-2 text-sm"
-                placeholder="ID salle"
-                value={room.id}
-                onChange={(e) => {
-                  const next = [...rooms];
-                  next[idx] = { ...room, id: e.target.value };
-                  setRooms(next);
-                }}
-              />
-              <input
-                className="flex-[2] border rounded-lg p-2 text-sm"
-                placeholder="Nom"
-                value={room.name}
-                onChange={(e) => {
-                  const next = [...rooms];
-                  next[idx] = { ...room, name: e.target.value };
-                  setRooms(next);
-                }}
-              />
-            </div>
-          ))}
+          <h2 className="text-lg font-bold text-slate-900">Administrateurs du module réservation de salles</h2>
+          <p className="text-sm text-slate-500">
+            Sélectionnez les personnes dans Clerk. Elles auront le mode administrateur dans l&apos;espace réservation
+            de salles et pourront gérer le paramétrage (salles, matières, couleurs).
+          </p>
+          <ProfRoomAdminPicker
+            members={clerkMembers}
+            selectedIds={profRoomAdminIds}
+            onChange={setProfRoomAdminIds}
+            loading={membersLoading}
+          />
           <button
             type="button"
-            className="text-indigo-600 font-bold text-sm"
-            onClick={() => setRooms([...rooms, { id: `salle-${Date.now()}`, name: "Nouvelle salle" }])}
-          >
-            + Ajouter une salle
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                const res = await fetch("/api/reservation-rooms/rooms", {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ rooms }),
-                });
-                const j = await res.json();
-                if (!res.ok) throw new Error(j.error);
-                alert("Salles enregistrées.");
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "Erreur");
-              } finally {
-                setSaving(false);
-              }
-            }}
+            disabled={saving || membersLoading}
+            onClick={() =>
+              saveSection("prof-room", {
+                adminClerkUserIds: profRoomAdminIds,
+              })
+            }
             className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
           >
-            Enregistrer les salles
+            Enregistrer les administrateurs
           </button>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { requireTenantAuth, resolvePublicTenantId } from "@/app/lib/tenant-auth";
+import { requireAuth } from "@/app/lib/intranet-auth";
 import { RequestRecord, getPublicAppBaseUrl, notifyRequestCreated, notifyRequestPendingVerification, resolveRequestRouting, saveRequestFile, saveRequestsIndex, getRequestsIndex, validateRequestInput, uploadBuffersAsRequestAttachments, assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";
 import { deletePendingRequestPrefix, generatePendingRequestToken, savePendingRequestWithFiles} from "@/app/lib/request-pending-verify";
 
@@ -133,10 +133,9 @@ export async function POST(req: Request) {
           "Un e-mail vient de vous être envoyé à l’adresse indiquée. Cliquez sur le lien qu’il contient pour valider votre demande et confirmer que l’e-mail est bien le vôtre.",
       });
     }
-    const orgGate = await requireTenantAuth();
+    const orgGate = await requireAuth();
     if (!orgGate.ok) return orgGate.response;
-    const { orgId } = orgGate.ctx;
-
+    
     const now = new Date().toISOString();
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const { firstName, lastName, email, phone, subject, description } = validated.value;
@@ -150,7 +149,7 @@ export async function POST(req: Request) {
           contentType: f.type || "application/octet-stream",
         })),
       );
-      attachments = await uploadBuffersAsRequestAttachments(orgId, id, bufs);
+      attachments = await uploadBuffersAsRequestAttachments( id, bufs);
     }
     const record: RequestRecord = {
       id,
@@ -186,10 +185,10 @@ export async function POST(req: Request) {
         },
       ],
     };
-    await saveRequestFile(orgId, record);
-    const index = await getRequestsIndex(orgId);
+    await saveRequestFile( record);
+    const index = await getRequestsIndex();
     index.push(record);
-    await saveRequestsIndex(orgId, index);
+    await saveRequestsIndex( index);
     try {
       await notifyRequestCreated(record);
     } catch (mailError) { console.error("Request create notification error:", mailError)}

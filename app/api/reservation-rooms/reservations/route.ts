@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { getTenantJson } from "@/app/lib/tenant-s3-storage";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getJson } from "@/app/lib/s3-storage";
+import { requireAuth } from "@/app/lib/intranet-auth";
 
 const RESERVATIONS_KEY = "reservation-rooms/reservations.json";
 
 export async function GET() {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   try {
-    const hit = await getTenantJson<unknown[]>(gate.ctx.orgId, RESERVATIONS_KEY);
+    const hit = await getJson<unknown[]>( RESERVATIONS_KEY);
     const reservations = Array.isArray(hit?.data) ? hit.data : [];
     return NextResponse.json({ reservations });
   } catch (err: unknown) {

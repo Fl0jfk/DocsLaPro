@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import { getJson } from "@/app/lib/s3-storage";
 
 const NEWS_KEY = "news/slider.json";
 
@@ -61,7 +61,7 @@ function parseNewsPayload(payload: unknown): NewsItem[] {
 /** Actualités publiques (bucket racine de l'instance). */
 export async function GET() {
   try {
-    const hit = await getTenantJson<unknown>(null, NEWS_KEY);
+    const hit = await getJson<unknown>(NEWS_KEY);
     if (!hit?.data) {
       return NextResponse.json([], { headers: { "Cache-Control": "no-store, max-age=0" } });
     }

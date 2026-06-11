@@ -1,8 +1,8 @@
 import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
 import { SCHOOL } from "@/app/lib/school";
-import { getTenantJson, putTenantJson, putTenantObject, getTenantS3Client, getBucketName } from "@/app/lib/tenant-s3-storage";
-import { tenantS3Key, normalizeS3KeyForTenantWrite } from "@/app/lib/tenant";
+import { getJson, putJson, putObject, getS3Client, getBucketName } from "@/app/lib/s3-storage";
+import { s3Key } from "@/app/lib/s3-path";
 import { LEGACY_ROUTE_TO_BRANCH, normalizeRequestBranchId, normalizeRequestEmail, isCorbeilleBranchId} from "@/app/lib/requests-board";
 import { getFirstBranchForStaffEmailFromDirectory, getStaffExecutorsForBranch, getStaffLeadersForBranch} from "@/app/lib/staff-directory";
 
@@ -63,7 +63,6 @@ export function sanitizeRequestFileName(name: string): string {
 }
 
 export async function uploadBuffersAsRequestAttachments(
-  orgId: string,
   requestId: string,
   items: { buffer: Buffer; fileName: string; contentType: string }[],
 ): Promise<RequestAttachment[]> {
@@ -76,7 +75,7 @@ export async function uploadBuffersAsRequestAttachments(
     const attId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const safe = sanitizeRequestFileName(item.fileName);
     const rel = `requests/${requestId}/files/${attId}_${safe}`;
-    const key = await putTenantObject(orgId, rel, item.buffer, item.contentType || "application/octet-stream");
+    const key = await putObject( rel, item.buffer, item.contentType || "application/octet-stream");
     out.push({
       id: attId,
       key,
@@ -195,8 +194,8 @@ export function requestShouldBePurged(record: RequestRecord, now = new Date()): 
   return now >= legacy;
 }
 
-export async function purgeExpiredRequests(orgId: string): Promise<{ removed: number }> {
-  const index = await getRequestsIndex(orgId);
+export async function purgeExpiredRequests(): Promise<{ removed: number }> {
+  const index = await getRequestsIndex();
   const now = new Date();
   const keep: RequestRecord[] = [];
   const remove: RequestRecord[] = [];
@@ -211,7 +210,7 @@ export async function purgeExpiredRequests(orgId: string): Promise<{ removed: nu
       await s3Client.send(
         new DeleteObjectCommand({
           Bucket: bucket,
-          Key: tenantS3Key(orgId, `requests/${r.id}.json`),
+          Key: s3Key( `requests/${r.id}.json`),
         }),
       );
     } catch (e) {
@@ -219,7 +218,7 @@ export async function purgeExpiredRequests(orgId: string): Promise<{ removed: nu
     }
     try {
       let token: string | undefined;
-      const prefix = tenantS3Key(orgId, `requests/${r.id}/`);
+      const prefix = s3Key( `requests/${r.id}/`);
       do {
         const list = await s3Client.send( new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }));
         const keys = (list.Contents ?? []).map((c) => c.Key).filter(Boolean) as string[];
@@ -237,7 +236,7 @@ export async function purgeExpiredRequests(orgId: string): Promise<{ removed: nu
       console.error(`purge request folder ${r.id}:`, e);
     }
   }
-  await saveRequestsIndex(orgId, keep);
+  await saveRequestsIndex(keep);
   return { removed: remove.length };
 }
 
@@ -260,17 +259,17 @@ export function validateRequestInput(input: Partial<RequestCreateInput>) {
   };
 }
 
-export async function getRequestsIndex(orgId: string): Promise<RequestRecord[]> {
-  const hit = await getTenantJson<RequestRecord[]>(orgId, INDEX_KEY);
+export async function getRequestsIndex(): Promise<RequestRecord[]> {
+  const hit = await getJson<RequestRecord[]>( INDEX_KEY);
   return hit?.data ?? [];
 }
 
-export async function saveRequestsIndex(orgId: string, index: RequestRecord[]) {
-  await putTenantJson(orgId, INDEX_KEY, index);
+export async function saveRequestsIndex(index: RequestRecord[]) {
+  await putJson(INDEX_KEY, index);
 }
 
-export async function saveRequestFile(orgId: string, record: RequestRecord) {
-  await putTenantJson(orgId, `requests/${record.id}.json`, record);
+export async function saveRequestFile(record: RequestRecord) {
+  await putJson(`requests/${record.id}.json`, record);
 }
 
 function normalizeForMatch(input: string) {

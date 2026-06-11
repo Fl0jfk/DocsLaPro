@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { requireAuth } from "@/app/lib/intranet-auth";
 import { computeStaffBoardColumn, isCorbeilleBranchId, isVisibleOnStaffBoard, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
 import { getAllBranchStaffEmails, getDelegateTargetEmailsForRequest, getRequestsIndex, isLeaderForRequestBranch, purgeExpiredRequests,} from "@/app/lib/requests";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
@@ -8,9 +8,9 @@ import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 function hasStaffBoardAccess(roles: string[], email: string) { return canAccessRequestsStaffBoard(roles, email)}
 
 export async function GET(req: NextRequest) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { userId, orgId } = gate.ctx;
+  const { userId } = gate.ctx;
   const user = await currentUser();
   const roleRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
@@ -19,11 +19,11 @@ export async function GET(req: NextRequest) {
   const scope = scopeParam ?? (hasStaffBoardAccess(roles, userEmail) ? "board" : "submitted");
   try {
     try {
-      await purgeExpiredRequests(orgId);
+      await purgeExpiredRequests();
     } catch (e) {
       console.error("purgeExpiredRequests:", e);
     }
-    const index = await getRequestsIndex(orgId);
+    const index = await getRequestsIndex();
     const sortDesc = (a: (typeof index)[number], b: (typeof index)[number]) => +new Date(b.updatedAt) - +new Date(a.updatedAt);
     if (scope === "submitted") {
       const mine = index.filter(

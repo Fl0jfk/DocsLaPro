@@ -2,6 +2,7 @@
 
 type ClerkLikeUser = {
   id?: string | null;
+  fullName?: string | null;
   publicMetadata?: Record<string, unknown> | null;
 };
 
@@ -30,6 +31,17 @@ export function canSignTravelsDirectionForEtab(user: ClerkLikeUser | null, etabl
 
 export function isTripOwner(tripOwnerId: string | null | undefined, clerkUserId: string | null | undefined): boolean {
   return Boolean(tripOwnerId && clerkUserId && tripOwnerId === clerkUserId);
+}
+
+/** ownerId Clerk en priorité, repli sur ownerName pour dossiers anciens. */
+export function isTripOwnerOrCreator(
+  trip: { ownerId?: string | null; ownerName?: string | null },
+  user: ClerkLikeUser | null | undefined,
+): boolean {
+  if (!user) return false;
+  if (isTripOwner(trip.ownerId, user.id)) return true;
+  if (trip.ownerName && user.fullName && trip.ownerName.trim() === user.fullName.trim()) return true;
+  return false;
 }
 
 /** Statuts workflow autorisés lors d'une réouverture depuis « Finalisé » (VALIDE). */

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";
 import { listChildFolderNames, ensureChildFolder, ensureFolderPath } from "@/app/lib/graph-onedrive-folders";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
@@ -15,7 +15,7 @@ const KEY = "eleves.json";
 
 export async function POST(req: Request) {
   try {
-    const gate = await requireTenantAuth();
+    const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
     const user = await currentUser();
@@ -37,10 +37,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "accessToken OneDrive requis" }, { status: 400 });
     }
 
-    const mefMap = await loadMefSecteurMap(gate.ctx.orgId);
+    const mefMap = await loadMefSecteurMap();
     const mefTableConfigured = mefMap.size > 0;
 
-    const hit = await getTenantJson<EleveConfig[]>(gate.ctx.orgId, KEY);
+    const hit = await getJson<EleveConfig[]>( KEY);
     const allEleves = Array.isArray(hit?.data) ? hit.data : [];
     const scoped = filterElevesForSecteur(allEleves, profile.secteur, mefMap);
 

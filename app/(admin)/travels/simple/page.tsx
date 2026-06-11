@@ -7,7 +7,7 @@ import {
   WEEKDAY_JS_OPTIONS,
 } from "@/app/lib/simple-trip-recurrence";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTenantContext } from "@/app/hooks/useTenantContext";
+import { useAppContext } from "@/app/hooks/useAppContext";
 
 const CUISINE_DAYS = [
   { key: "lundi",    label: "Lun." },
@@ -32,7 +32,7 @@ const CUISINE_ROWS = [
 
 function SimpleTripFormContent() {
   const { user, isLoaded } = useUser();
-  const { data: tenantCtx } = useTenantContext();
+  const { data: appCtx } = useAppContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
@@ -287,8 +287,8 @@ function SimpleTripFormContent() {
           <label className="block text-sm font-semibold mb-2">Établissement concerné</label>
           <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value as typeof formData.etablissement})}>
             <option value="">— Sélectionner —</option>
-            {(tenantCtx?.establishments?.length
-              ? tenantCtx.establishments.map((e) => (
+            {(appCtx?.establishments?.length
+              ? appCtx.establishments.map((e) => (
                   <option key={e.id} value={e.label}>
                     {e.label}
                   </option>

@@ -15,6 +15,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/travels/ingest-from-email',
   '/api/news/get',
   '/api/news/image-proxy',
+  '/api/site/public',
   '/api/supplies/send',
   '/api/chatbot',
   '/api/requests/create',

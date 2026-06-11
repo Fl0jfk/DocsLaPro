@@ -1,0 +1,218 @@
+/** Types et parseurs légers pour la configuration intranet (sans dépendance externe). */
+
+export type SiteIdentity = {
+  name: string;
+  shortName?: string;
+  /** Logo affiché en haut à gauche (URL publique S3). */
+  headerLogoUrl?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    zip?: string;
+    full?: string;
+    fullCompact?: string;
+    mapsEmbed?: string;
+    mapsItinerary?: string;
+  };
+  phone?: {
+    display?: string;
+    tel?: string;
+    hours?: string;
+  };
+  preinscriptionUrl?: string;
+  reglementFinancier?: string;
+};
+
+export type Establishment = {
+  id: string;
+  label: string;
+  directorName?: string;
+  directorEmail?: string;
+  grades?: string;
+  clerkRoleSlugs?: string[];
+  active?: boolean;
+};
+
+export type NotificationsConfig = {
+  travelsCompta: string[];
+  travelsCuisine?: string;
+  travelsZeendoc?: string;
+  hseOps?: string;
+  photocopiesOps?: string;
+  absencesNotifyProfEcole?: { label?: string; email: string };
+  absencesNotifyProfCollegeLycee?: { label?: string; email: string };
+  absencesNotifyOgecCompta: string[];
+};
+
+export type StaffDirectoryRow = {
+  email: string;
+  branchId: string;
+  role: "leader" | "executor";
+  validUntil?: string;
+};
+
+export type TravelsModuleConfig = {
+  comptaEmails: string[];
+  transportProviders: { name: string; email: string }[];
+};
+
+export type ProfRoomModuleConfig = {
+  classesByPole: Record<string, string[]>;
+  subjectColors: Record<string, string>;
+  hoursStart: number;
+  hoursEnd: number;
+  bookingHorizonDays: number;
+  adminLastNames: string[];
+  /** Utilisateurs Clerk autorisés (source de vérité pour l’UI paramètres). */
+  adminClerkUserIds: string[];
+};
+
+export type AppConfigBundle = {
+  identity: SiteIdentity;
+  establishments: Establishment[];
+  notifications: NotificationsConfig;
+  staffDirectory: StaffDirectoryRow[];
+  travels: TravelsModuleConfig;
+  profRoom: ProfRoomModuleConfig;
+};
+
+function isEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+}
+
+function str(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : fallback;
+}
+
+function strArr(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.map((x) => str(x).trim()).filter(Boolean);
+}
+
+export function parseSiteIdentity(raw: unknown): SiteIdentity {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const addr = o.address && typeof o.address === "object" ? (o.address as Record<string, unknown>) : {};
+  const phone = o.phone && typeof o.phone === "object" ? (o.phone as Record<string, unknown>) : {};
+  const name = str(o.name).trim();
+  if (!name) throw new Error("Le nom du groupe est requis.");
+  return {
+    name,
+    shortName: str(o.shortName) || undefined,
+    address: {
+      street: str(addr.street) || undefined,
+      city: str(addr.city) || undefined,
+      zip: str(addr.zip) || undefined,
+      full: str(addr.full) || undefined,
+      fullCompact: str(addr.fullCompact) || undefined,
+      mapsEmbed: str(addr.mapsEmbed) || undefined,
+      mapsItinerary: str(addr.mapsItinerary) || undefined,
+    },
+    phone: {
+      display: str(phone.display) || undefined,
+      tel: str(phone.tel) || undefined,
+      hours: str(phone.hours) || undefined,
+    },
+    preinscriptionUrl: str(o.preinscriptionUrl) || undefined,
+    reglementFinancier: str(o.reglementFinancier) || undefined,
+    headerLogoUrl: str(o.headerLogoUrl).trim() || undefined,
+  };
+}
+
+export function parseEstablishment(raw: unknown): Establishment {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const id = str(o.id).trim();
+  const label = str(o.label).trim();
+  if (!id || !label) throw new Error("Chaque établissement doit avoir un id et un libellé.");
+  const email = str(o.directorEmail).trim();
+  if (email && !isEmail(email)) throw new Error(`Email direction invalide pour ${label}.`);
+  return {
+    id,
+    label,
+    directorName: str(o.directorName) || undefined,
+    directorEmail: email || undefined,
+    grades: str(o.grades) || undefined,
+    clerkRoleSlugs: strArr(o.clerkRoleSlugs),
+    active: o.active !== false,
+  };
+}
+
+export function parseEstablishmentsFile(raw: unknown): Establishment[] {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const list = Array.isArray(o.establishments) ? o.establishments : Array.isArray(raw) ? raw : [];
+  return list.map(parseEstablishment);
+}
+
+export function parseNotifications(raw: unknown): NotificationsConfig {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const compta = strArr(o.travelsCompta).filter(isEmail);
+  const ogec = strArr(o.absencesNotifyOgecCompta).filter(isEmail);
+  const parseNotify = (block: unknown) => {
+    if (!block || typeof block !== "object") return undefined;
+    const b = block as Record<string, unknown>;
+    const email = str(b.email).trim();
+    if (!email || !isEmail(email)) return undefined;
+    return { label: str(b.label) || undefined, email };
+  };
+  return {
+    travelsCompta: compta,
+    travelsCuisine: str(o.travelsCuisine) || undefined,
+    travelsZeendoc: str(o.travelsZeendoc) || undefined,
+    hseOps: str(o.hseOps) || undefined,
+    photocopiesOps: str(o.photocopiesOps) || undefined,
+    absencesNotifyProfEcole: parseNotify(o.absencesNotifyProfEcole),
+    absencesNotifyProfCollegeLycee: parseNotify(o.absencesNotifyProfCollegeLycee),
+    absencesNotifyOgecCompta: ogec,
+  };
+}
+
+export function parseStaffDirectoryFile(raw: unknown): StaffDirectoryRow[] {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const rows = Array.isArray(o.rows) ? o.rows : [];
+  return rows.map((r) => {
+    const row = r && typeof r === "object" ? (r as Record<string, unknown>) : {};
+    const email = str(row.email).trim();
+    const branchId = str(row.branchId).trim();
+    const role = str(row.role) === "executor" ? "executor" : "leader";
+    if (!email || !isEmail(email) || !branchId) throw new Error("Ligne annuaire invalide (email, branche).");
+    return { email, branchId, role, validUntil: str(row.validUntil) || undefined };
+  });
+}
+
+export function parseTravelsModule(raw: unknown): TravelsModuleConfig {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const providers = Array.isArray(o.transportProviders) ? o.transportProviders : [];
+  return {
+    comptaEmails: strArr(o.comptaEmails).filter(isEmail),
+    transportProviders: providers.map((p) => {
+      const x = p && typeof p === "object" ? (p as Record<string, unknown>) : {};
+      const email = str(x.email).trim();
+      if (!isEmail(email)) throw new Error("Transporteur : email invalide.");
+      return { name: str(x.name) || "Transporteur", email };
+    }),
+  };
+}
+
+export function parseProfRoomModule(raw: unknown): ProfRoomModuleConfig {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const classesByPole: Record<string, string[]> = {};
+  if (o.classesByPole && typeof o.classesByPole === "object") {
+    for (const [k, v] of Object.entries(o.classesByPole as Record<string, unknown>)) {
+      classesByPole[k] = strArr(v);
+    }
+  }
+  const subjectColors: Record<string, string> = {};
+  if (o.subjectColors && typeof o.subjectColors === "object") {
+    for (const [k, v] of Object.entries(o.subjectColors as Record<string, unknown>)) {
+      subjectColors[k] = str(v);
+    }
+  }
+  return {
+    classesByPole,
+    subjectColors,
+    hoursStart: typeof o.hoursStart === "number" ? o.hoursStart : 8,
+    hoursEnd: typeof o.hoursEnd === "number" ? o.hoursEnd : 17,
+    bookingHorizonDays: typeof o.bookingHorizonDays === "number" ? o.bookingHorizonDays : 56,
+    adminLastNames: strArr(o.adminLastNames),
+    adminClerkUserIds: strArr(o.adminClerkUserIds),
+  };
+}

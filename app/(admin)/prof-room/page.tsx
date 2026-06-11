@@ -2,7 +2,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { useTenantContext } from "@/app/hooks/useTenantContext";
+import { useAppContext } from "@/app/hooks/useAppContext";
+import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
+import ProfRoomSettingsTab from "@/app/components/prof-room/ProfRoomSettingsTab";
+import { DEFAULT_PROF_ROOM_SUBJECT_COLORS } from "@/app/lib/prof-room-defaults";
+import { getSubjectColorPresentation } from "@/app/lib/prof-room-subject-colors";
 
 const FALLBACK_CLASSES: Record<string, string[]> = {
   "ÉCOLE": ["CP", "CE1", "CE2", "CM1", "CM2"],
@@ -11,35 +15,16 @@ const FALLBACK_CLASSES: Record<string, string[]> = {
   "MAINTENANCE": ["MAINTENANCE"],
 };
 
-const SUBJECT_COLORS_FALLBACK: Record<string, string> = {
-  "FRANCAIS": "bg-blue-600 text-white",
-  "MATHS": "bg-red-600 text-white",
-  "HISTOIRE-GEO": "bg-amber-700 text-white",
-  "ANGLAIS": "bg-pink-600 text-white",
-  "ESPAGNOL": "bg-rose-500 text-white",
-  "ALLEMAND": "bg-stone-600 text-white",
-  "SVT": "bg-emerald-600 text-white",
-  "PHYSIQUE-CHIMIE": "bg-yellow-500 text-white",
-  "TECHNOLOGIE": "bg-orange-600 text-white",
-  "ARTS PLASTIQUES": "bg-fuchsia-600 text-white",
-  "MUSIQUE": "bg-violet-600 text-white",
-  "LATIN-GREC": "bg-slate-400 text-white",
-  "SNT": "bg-indigo-600 text-white",
-  "SCIENCES INGENIEUR": "bg-cyan-600 text-white",
-  "SCIENCES LABO": "bg-teal-600 text-white",
-  "ST2S": "bg-lime-600 text-white",
-  "MAINTENANCE": "bg-zinc-500 text-white",
-};
-
 const HOURS = Array.from({ length: 10 }, (_, i) => 8 + i);
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
 
 export default function ProfRoomPage() {
   const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
-  const { data: tenantCtx } = useTenantContext();
-  const CLASSES_DATA = tenantCtx?.profRoom?.classesByPole || FALLBACK_CLASSES;
-  const SUBJECT_COLORS = tenantCtx?.profRoom?.subjectColors || SUBJECT_COLORS_FALLBACK;
+  const { data: appCtx } = useAppContext();
+  const isOrgAdmin = useIsOrgAdmin();
+  const CLASSES_DATA = appCtx?.profRoom?.classesByPole || FALLBACK_CLASSES;
+  const SUBJECT_COLORS = { ...DEFAULT_PROF_ROOM_SUBJECT_COLORS, ...(appCtx?.profRoom?.subjectColors || {}) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rooms, setRooms] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,16 +47,21 @@ export default function ProfRoomPage() {
   const [targetFirstName, setTargetFirstName] = useState("");
   const [targetLastName, setTargetLastName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"reservation" | "settings">("reservation");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
   const lastName = (user?.lastName || "").toUpperCase();
-  const adminLastNames = tenantCtx?.profRoom?.adminLastNames?.length
-    ? tenantCtx.profRoom.adminLastNames
+  const adminLastNames = appCtx?.profRoom?.adminLastNames?.length
+    ? appCtx.profRoom.adminLastNames
     : ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE", "LAQUIEVRE"];
-  const isAdmin = adminLastNames.includes(lastName);
+  const adminClerkUserIds = appCtx?.profRoom?.adminClerkUserIds || [];
+  const isAdmin =
+    isOrgAdmin ||
+    (user?.id ? adminClerkUserIds.includes(user.id) : false) ||
+    adminLastNames.includes(lastName);
   const todayStr = new Date().toISOString().split("T")[0];
   const maxDateLimit = new Date();
-  maxDateLimit.setDate(maxDateLimit.getDate() + (tenantCtx?.profRoom?.bookingHorizonDays ?? 56));
+  maxDateLimit.setDate(maxDateLimit.getDate() + (appCtx?.profRoom?.bookingHorizonDays ?? 56));
   const maxDateStr = isAdmin ? "" : maxDateLimit.toISOString().split("T")[0];
   const myUpcomingReservations = useMemo(() => {
     return reservations.filter(r => r.userId === user?.id && r.status !== "CANCELLED" && r.startsAt >= new Date().toISOString()).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).slice(0, 5);
@@ -257,10 +247,40 @@ export default function ProfRoomPage() {
         </div>
       )}
       <h1 className="text-4xl font-black text-slate-900 tracking-tight p-4">Réservation de salles</h1>
+      <div className="flex flex-wrap gap-2 px-4 pb-4">
+        <button
+          type="button"
+          onClick={() => setActiveTab("reservation")}
+          className={`px-5 py-2.5 rounded-xl text-sm font-black ${activeTab === "reservation" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"}`}
+        >
+          Réservation
+        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("settings")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-black ${activeTab === "settings" ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-700"}`}
+          >
+            Paramétrage
+          </button>
+        )}
+      </div>
+      {activeTab === "settings" && isAdmin ? (
+        <ProfRoomSettingsTab />
+      ) : (
+      <>
       <div className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-1/2">
-          <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} className="bg-blue-600 w-full text-center text-white font-black px-4 p-3 rounded-xl outline-none">
-            {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          <select
+            value={selectedRoom}
+            onChange={(e) => setSelectedRoom(e.target.value)}
+            className="bg-blue-600 w-full text-center text-white font-black px-4 p-3 rounded-xl outline-none"
+          >
+            {rooms.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
           </select>
           <div className="flex items-center bg-gray-100 rounded-xl w-full justify-between">
             <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 py-3 hover:bg-white rounded-lg">◀</button>
@@ -298,12 +318,16 @@ export default function ProfRoomPage() {
                 const res = reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(hourPrefix) && r.status !== "CANCELLED");
                 const isOwn = res?.userId === user.id;
                 const canModify = isAdmin || isOwn;
-                const colorClass = res ? (SUBJECT_COLORS[res.subject] || "bg-slate-600 text-white") : "";
+                const colorValue = res ? (SUBJECT_COLORS[res.subject] || "bg-slate-600 text-white") : "";
+                const colorPresentation = res ? getSubjectColorPresentation(colorValue) : null;
                 return (
                   <div key={i} onClick={() => handleCellClick(dateStr, h, res)} onContextMenu={(e) => handleContextMenu(e, dateStr, h, res)} className={`border-l relative p-1 transition-all sm:h-[120px] group ${!res ? 'hover:bg-green-50' : 'cursor-pointer'}`}>
                     {res ? (
                       <>
-                        <div className={`h-full w-full rounded-xl p-2 text-[11px] flex flex-col justify-between ${colorClass} ${isOwn ? "ring-2 ring-blue-400 ring-inset" : ""}`}>
+                        <div
+                          className={`h-full w-full rounded-xl p-2 text-[11px] flex flex-col justify-between ${colorPresentation?.className || ""} ${isOwn ? "ring-2 ring-blue-400 ring-inset" : ""}`}
+                          style={colorPresentation?.style}
+                        >
                           <div>
                             <div className="flex justify-between items-start sm:flex-col">
                               <p className="font-black uppercase leading-none truncate">{res.subject}</p>
@@ -480,6 +504,8 @@ export default function ProfRoomPage() {
           <button onClick={() => { setIsEditing(false); setEditingRes(null); setSubject(""); setClassName(""); setComment(""); setLevel(""); }} className="bg-slate-700 px-8 rounded-2xl font-bold hover:bg-slate-600 transition-colors sm:py-4">ANNULER</button>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

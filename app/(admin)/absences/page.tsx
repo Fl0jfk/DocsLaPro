@@ -2,6 +2,10 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter, useSearchParams } from "next/navigation";
+import AbsencesCalendar from "@/app/components/absences/AbsencesCalendar";
+import AbsencesDeclareOther from "@/app/components/absences/AbsencesDeclareOther";
+import { canViewCalendar, isAbsencePendingForManager, type AbsenceRecord } from "@/app/lib/absences-types";
 import { formatAbsencePeriod, type AbsencePeriodType } from "@/app/lib/absence-period";
 import {
   formatAbsenceHoursTreatment,
@@ -108,6 +112,26 @@ export default function AbsencesPage() {
   const isDirectionLycee = roles.some((r) => norm(r).includes("directionlycee"));
   const isTeacher = roles.some((r) => norm(r).includes("professeur"));
   const scope: AbsenceScope = isTeacher ? "professeur" : "ogec";
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const showCalendar = canViewCalendar(roles);
+  const canTreat = isDirectionEcole || isDirectionCollege || isDirectionLycee;
+  const defaultTab = showCalendar ? "calendrier" : "se-declarer";
+  const rawTab = searchParams.get("tab");
+  const activeTab =
+    rawTab === "declarer" || rawTab === "mes-demandes" ? "se-declarer" : rawTab || defaultTab;
+  const setTab = (tab: string) => router.push(`/absences?tab=${tab}`);
+  const [calendarRefresh, setCalendarRefresh] = useState(0);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if ((activeTab === "calendrier" || activeTab === "autre-personne") && !showCalendar) {
+      router.replace("/absences?tab=se-declarer");
+    }
+    if (rawTab === "declarer" || rawTab === "mes-demandes") {
+      router.replace("/absences?tab=se-declarer");
+    }
+  }, [activeTab, rawTab, showCalendar, isLoaded, router]);
   const fetchItems = async () => {
     try {
       setLoading(true);
@@ -319,17 +343,62 @@ export default function AbsencesPage() {
       ? "bg-rose-50 text-rose-700 border-rose-200"
       : "bg-slate-50 text-slate-700 border-slate-200";
   const sorted = useMemo(() => [...items].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)), [items]);
-  const pendingItems = sorted.filter(isPendingAbsence);
-  const treatedItems = sorted.filter(
+  const selfItems = sorted.filter((i) => {
+    if (i.createdBy.userId !== user?.id) return false;
+    const src = (i as { source?: string }).source;
+    return !src || src === "self";
+  });
+  const pendingItems = sorted.filter((i) =>
+    isAbsencePendingForManager(i as unknown as AbsenceRecord, user?.id || "", roles),
+  );
+  const treatedItems = selfItems.filter(
     (i) => !isPendingAbsence(i) && (i.workflowStatus === "CLOTUREE" || itemDecision(i) !== "EN_ATTENTE"),
   );
+  const pendingSelfCount = selfItems.filter(isPendingAbsence).length;
+  const tabs = [
+    { id: "calendrier", label: "Calendrier", show: showCalendar },
+    { id: "autre-personne", label: "Déclarer pour une autre personne", show: showCalendar },
+    { id: "se-declarer", label: "Se déclarer", show: true },
+    { id: "a-traiter", label: "À traiter", show: canTreat },
+  ].filter((t) => t.show);
+
   if (!isLoaded) return null;
   return (
     <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-4xl font-black text-slate-900">Déclaration des absences</h1>
-        
+      <div className="mb-6">
+        <h1 className="text-4xl font-black text-slate-900">Absences</h1>
+        <p className="text-slate-500 mt-2">Déclaration, suivi et calendrier des absences.</p>
       </div>
+      <nav className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 pb-3">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={[
+              "px-4 py-2 rounded-xl text-sm font-bold transition-colors",
+              activeTab === t.id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+            ].join(" ")}
+          >
+            {t.label}
+            {t.id === "a-traiter" && pendingItems.length > 0
+              ? ` (${pendingItems.length})`
+              : t.id === "se-declarer" && pendingSelfCount > 0
+                ? ` (${pendingSelfCount})`
+                : ""}
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === "calendrier" && showCalendar ? (
+        <AbsencesCalendar refreshKey={calendarRefresh} />
+      ) : null}
+
+      {activeTab === "autre-personne" && showCalendar ? (
+        <AbsencesDeclareOther onSuccess={() => setCalendarRefresh((n) => n + 1)} />
+      ) : null}
+
+      {activeTab === "se-declarer" ? (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit">
           <h2 className="text-xl font-black text-slate-900 mb-4">Nouvelle absence</h2>
@@ -446,6 +515,66 @@ export default function AbsencesPage() {
           </div>
         </div>
         <div className="xl:col-span-2 space-y-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4">
+            <h3 className="font-black text-slate-900">Mes demandes</h3>
+            <p className="text-xs text-slate-500">Vos déclarations et leur statut.</p>
+          </div>
+          {loading ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-slate-500">Chargement…</div>
+          ) : selfItems.length === 0 ? (
+            <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-8 text-slate-500">Aucune demande enregistrée.</div>
+          ) : (
+            selfItems.map((item) => (
+              <div key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+                <div className="flex flex-wrap gap-2 items-center justify-between mb-2">
+                  <p className="font-bold text-slate-800">
+                    {item.data.scope === "ogec" ? "Personnel OGEC" : `Professeur (${item.data.etablissement})`}
+                  </p>
+                  <span className={`text-xs font-black px-3 py-1 rounded-xl border ${decisionStyle(itemDecision(item))}`}>
+                    {itemDecision(item) === "VALIDEE" ? "VALIDÉE" : itemDecision(item) === "REFUSEE" ? "REFUSÉE" : "EN ATTENTE"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">{formatAbsencePeriod(item.data)}</p>
+                <p className="text-sm text-slate-700 mt-1">
+                  <span className="font-bold">Motif :</span> {item.data.reason}
+                </p>
+                {item.justificatifRelanceAt && isPendingAbsence(item) && (
+                  <div className="mt-3">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold cursor-pointer hover:bg-slate-50">
+                      {uploadingJustificationId === item.id ? "Upload…" : "Déposer justificatif"}
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          uploadJustification(item.id, f);
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+          {treatedItems.length > 0 && (
+            <div className="mt-6 space-y-3">
+              <h3 className="font-black text-slate-900">Historique traité</h3>
+              {treatedItems.map((item) => (
+                <div key={`t-${item.id}`} className="bg-white border border-slate-200 rounded-2xl p-4 opacity-90">
+                  <p className="text-xs text-slate-500">{formatAbsencePeriod(item.data)}</p>
+                  {transmissionLabel(item) && <p className="text-sm text-emerald-700 font-semibold mt-1">{transmissionLabel(item)}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      ) : null}
+
+      {activeTab === "a-traiter" && canTreat ? (
+        <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-3xl p-4">
             <h3 className="font-black text-slate-900">En attente de décision</h3>
             <p className="text-xs text-slate-500">Absences à valider, refuser ou relancer pour justificatif.</p>
@@ -595,50 +724,8 @@ export default function AbsencesPage() {
               </div>
             ))
           )}
-          {treatedItems.length > 0 && (
-            <div className="mt-8">
-              <div className="bg-white border border-slate-200 rounded-3xl p-4 mb-3">
-                <h3 className="font-black text-slate-900">Absences traitées</h3>
-                <p className="text-xs text-slate-500">Validées ou refusées — dossier clos.</p>
-              </div>
-              <div className="space-y-3">
-                {treatedItems.map((item) => (
-                  <div key={item.id} className="bg-white border border-slate-200 rounded-2xl p-4">
-                    <div className="flex flex-wrap gap-2 items-center justify-between mb-2">
-                      <p className="font-bold text-slate-800">
-                        {item.createdBy.name} — {item.data.scope === "ogec" ? "Personnel OGEC" : `Professeur (${item.data.etablissement})`}
-                      </p>
-                      <span className={`text-xs font-black px-3 py-1 rounded-xl border ${decisionStyle(itemDecision(item))}`}>
-                        {itemDecision(item) === "VALIDEE" ? "VALIDÉE" : "REFUSÉE"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      {formatAbsencePeriod(item.data)}
-                      {item.closedAt ? ` • Traitée le ${new Date(item.closedAt).toLocaleDateString("fr-FR")}` : ""}
-                    </p>
-                    {transmissionLabel(item) && (
-                      <p className="text-sm text-emerald-700 font-semibold mt-2">{transmissionLabel(item)}</p>
-                    )}
-                    {formatAbsenceHoursTreatment(item.hoursTreatment) && (
-                      <p className="text-sm text-slate-700 font-semibold mt-1">
-                        {hoursTreatmentFieldLabel(item.data.scope)} : {formatAbsenceHoursTreatment(item.hoursTreatment)}
-                      </p>
-                    )}
-                    {item.justification?.fileUrl && (
-                      <p className="text-sm text-slate-600 mt-1">
-                        Justificatif :{" "}
-                        <button type="button" onClick={() => openSecureFile(item.justification!.fileUrl)} className="text-indigo-700 underline font-semibold">
-                          {item.justification.fileName}
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

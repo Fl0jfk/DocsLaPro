@@ -1,8 +1,8 @@
-export type ConvocationRow = {
+export type AbsenceDashboardRow = {
   id: string;
+  displayName: string;
+  reason: string;
   data: {
-    teacherName: string;
-    examType: string;
     startAt: string;
     endAt: string;
   };
@@ -31,7 +31,7 @@ function sameDay(a: Date, b: Date) {
   );
 }
 
-export function absencesToday(items: ConvocationRow[]): AbsenceTodayRow[] {
+export function absencesToday(items: AbsenceDashboardRow[]): AbsenceTodayRow[] {
   const today = new Date();
   const out: AbsenceTodayRow[] = [];
 
@@ -57,8 +57,8 @@ export function absencesToday(items: ConvocationRow[]): AbsenceTodayRow[] {
 
     out.push({
       id: item.id,
-      teacherName: item.data.teacherName,
-      examType: item.data.examType,
+      teacherName: item.displayName,
+      examType: item.reason,
       timeLabel,
     });
   }

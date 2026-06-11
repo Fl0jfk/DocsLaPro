@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireTenantAuth, requireTenantOrgAdmin } from "@/app/lib/tenant-auth";
-import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireAuth, requireAdmin } from "@/app/lib/intranet-auth";
+import { getJson } from "@/app/lib/s3-storage";
 import {
   MEF_SECTEURS_KEY,
   countMefCodes,
@@ -10,9 +10,9 @@ import {
 } from "@/app/lib/mef-secteurs";
 
 export async function GET() {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const hit = await getTenantJson<MefSecteursConfig>(gate.ctx.orgId, MEF_SECTEURS_KEY);
+  const hit = await getJson<MefSecteursConfig>( MEF_SECTEURS_KEY);
   const raw = hit?.data ?? { lycee: [], college: [], ecole: [] };
   const parsed = parseMefSecteursConfig(raw);
   const config = parsed.ok ? parsed.config : { lycee: [], college: [], ecole: [] };
@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const gate = await requireTenantOrgAdmin();
+  const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
   try {
     const body = await req.json();
@@ -29,7 +29,7 @@ export async function PUT(req: Request) {
     if (!parsed.ok) {
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-    await saveMefSecteursConfig(gate.ctx.orgId, parsed.config);
+    await saveMefSecteursConfig( parsed.config);
     return NextResponse.json({
       success: true,
       counts: countMefCodes(parsed.config),

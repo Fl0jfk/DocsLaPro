@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { loadTenantConfig } from "@/app/lib/tenant-config";
+import { loadAppConfig } from "@/app/lib/app-config";
 
 function appUrl() { return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");}
 
@@ -32,7 +32,6 @@ export type TravelsTripForNotify = {
 };
 
 export async function notifyComptaTravelsPhase(params: {
-  orgId: string;
   tripId: string;
   trip: TravelsTripForNotify;
   previousStatus?: string | null;
@@ -58,7 +57,7 @@ export async function notifyComptaTravelsPhase(params: {
   const transitionBy = lastHistory?.user?.trim() || "";
   const fromStatus = params.previousStatus?.trim() || "—";
   const link = appUrl() ? `${appUrl()}/travels/${params.tripId}` : `/travels/${params.tripId}`;
-  const bundle = await loadTenantConfig(params.orgId);
+  const bundle = await loadAppConfig();
   const toList =
     bundle.travels.comptaEmails?.length > 0
       ? bundle.travels.comptaEmails

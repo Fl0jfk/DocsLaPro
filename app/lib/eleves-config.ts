@@ -58,10 +58,30 @@ export function validateElevesJson(
   return { ok: true, eleves };
 }
 
+function extractPagesFromMarkedText(
+  fullText: string,
+  pageStart: number,
+  pageEnd: number,
+): string {
+  const parts: string[] = [];
+  for (let p = pageStart; p <= pageEnd; p++) {
+    const re = new RegExp(
+      `---\\s*Page\\s*${p}\\s*---\\s*([\\s\\S]*?)(?=---\\s*Page\\s*\\d+\\s*---|$)`,
+      "i",
+    );
+    const match = fullText.match(re);
+    if (match?.[1]?.trim()) {
+      parts.push(`--- Page ${p} ---\n${match[1].trim()}`);
+    }
+  }
+  return parts.join("\n\n");
+}
+
 export function buildTextFromPages(
   pageTexts: Record<string, string>,
   pageStart: number,
-  pageEnd: number
+  pageEnd: number,
+  fullTextFallback?: string,
 ): string {
   const parts: string[] = [];
   for (let p = pageStart; p <= pageEnd; p++) {
@@ -70,5 +90,10 @@ export function buildTextFromPages(
       parts.push(`--- Page ${p} ---\n${t.trim()}`);
     }
   }
-  return parts.join("\n\n");
+  const fromPageTexts = parts.join("\n\n");
+  if (fromPageTexts.trim()) return fromPageTexts;
+  if (fullTextFallback?.trim()) {
+    return extractPagesFromMarkedText(fullTextFallback, pageStart, pageEnd);
+  }
+  return "";
 }

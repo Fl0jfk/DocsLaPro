@@ -14,6 +14,7 @@ const msalConfig: msal.Configuration = {
 };
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
+const ONEDRIVE_SCOPES = ["Files.ReadWrite", "User.Read"];
 
 type ProcessResult = {
   success: boolean;
@@ -79,6 +80,69 @@ export default function OneDriveUpDocsOCRAI() {
   const mefInputRef = useRef<HTMLInputElement | null>(null);
   const standardInputRef = useRef<HTMLInputElement | null>(null);
   const classInputRef = useRef<HTMLInputElement | null>(null);
+  const oneDriveTokenRef = useRef<string | null>(null);
+  const [checkingOneDrive, setCheckingOneDrive] = useState(false);
+  const [oneDriveVerified, setOneDriveVerified] = useState(false);
+
+  const applyOneDriveSession = useCallback((activeAccount: msal.AccountInfo | null, token: string | null) => {
+    setAccount(activeAccount);
+    setAccessToken(token);
+    oneDriveTokenRef.current = token;
+    setOneDriveVerified(Boolean(token));
+  }, []);
+
+  const ensureOneDriveConnection = useCallback(async (): Promise<string | null> => {
+    if (!msalReady) {
+      setError("Initialisation Microsoft en cours… Réessayez dans quelques secondes.");
+      return null;
+    }
+    setCheckingOneDrive(true);
+    try {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length === 0) {
+        applyOneDriveSession(null, null);
+        setError("Connectez-vous à OneDrive avant de déposer des fichiers (bouton en haut à droite).");
+        return null;
+      }
+      const activeAccount = accounts[0];
+      let token: string;
+      try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          account: activeAccount,
+          scopes: ONEDRIVE_SCOPES,
+        });
+        token = tokenResponse.accessToken;
+      } catch (err) {
+        if (err instanceof msal.InteractionRequiredAuthError) {
+          const tokenResponse = await msalInstance.acquireTokenPopup({
+            account: activeAccount,
+            scopes: ONEDRIVE_SCOPES,
+          });
+          token = tokenResponse.accessToken;
+        } else {
+          throw err;
+        }
+      }
+
+      const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!verifyRes.ok) {
+        throw new Error("Session OneDrive expirée ou accès refusé. Reconnectez-vous.");
+      }
+
+      applyOneDriveSession(activeAccount, token);
+      setError("");
+      return token;
+    } catch (err: unknown) {
+      applyOneDriveSession(msalInstance.getAllAccounts()[0] ?? null, null);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`OneDrive indisponible : ${msg}`);
+      return null;
+    } finally {
+      setCheckingOneDrive(false);
+    }
+  }, [applyOneDriveSession, msalReady]);
 
   const loadElevesCount = useCallback(async () => {
     try {
@@ -109,12 +173,22 @@ export default function OneDriveUpDocsOCRAI() {
         setMsalReady(true);
         const accounts = msalInstance.getAllAccounts();
         if (accounts.length > 0) {
-          setAccount(accounts[0]);
-          const tokenResponse = await msalInstance.acquireTokenSilent({
-            account: accounts[0],
-            scopes: ["Files.ReadWrite", "User.Read"],
-          });
-          setAccessToken(tokenResponse.accessToken);
+          try {
+            const tokenResponse = await msalInstance.acquireTokenSilent({
+              account: accounts[0],
+              scopes: ONEDRIVE_SCOPES,
+            });
+            const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
+              headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
+            });
+            if (verifyRes.ok) {
+              applyOneDriveSession(accounts[0], tokenResponse.accessToken);
+            } else {
+              applyOneDriveSession(accounts[0], null);
+            }
+          } catch {
+            applyOneDriveSession(accounts[0], null);
+          }
         }
         await loadElevesCount();
         await loadMefCounts();
@@ -124,7 +198,7 @@ export default function OneDriveUpDocsOCRAI() {
       }
     };
     init();
-  }, [loadElevesCount, loadMefCounts]);
+  }, [applyOneDriveSession, loadElevesCount, loadMefCounts]);
 
   useEffect(() => {
     if (searchParams.get("upload") !== "1") return;
@@ -137,15 +211,19 @@ export default function OneDriveUpDocsOCRAI() {
   }, [searchParams, msalReady]);
 
   useEffect(() => {
-    if (!msalReady || !account || !accessToken) return;
+    if (!msalReady) return;
     const staged = consumeDashboardUpload();
     if (!staged) return;
-    if (staged.mode === "standard") {
-      setPendingStandardFiles((prev) => [...prev, ...staged.files]);
-    } else {
-      setPendingClassFiles((prev) => [...prev, ...staged.files]);
-    }
-  }, [msalReady, account, accessToken]);
+    (async () => {
+      const token = await ensureOneDriveConnection();
+      if (!token) return;
+      if (staged.mode === "standard") {
+        setPendingStandardFiles((prev) => [...prev, ...staged.files]);
+      } else {
+        setPendingClassFiles((prev) => [...prev, ...staged.files]);
+      }
+    })();
+  }, [ensureOneDriveConnection, msalReady]);
 
   useEffect(() => {
     if (!msalReady) return;
@@ -153,12 +231,18 @@ export default function OneDriveUpDocsOCRAI() {
       try {
         const result = await msalInstance.handleRedirectPromise();
         if (result?.account) {
-          setAccount(result.account);
           const tokenResponse = await msalInstance.acquireTokenSilent({
             account: result.account,
-            scopes: ["Files.ReadWrite", "User.Read"],
+            scopes: ONEDRIVE_SCOPES,
           });
-          setAccessToken(tokenResponse.accessToken);
+          const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
+            headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
+          });
+          if (verifyRes.ok) {
+            applyOneDriveSession(result.account, tokenResponse.accessToken);
+          } else {
+            applyOneDriveSession(result.account, null);
+          }
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
@@ -166,7 +250,7 @@ export default function OneDriveUpDocsOCRAI() {
       }
     };
     handleRedirect();
-  }, [msalReady]);
+  }, [applyOneDriveSession, msalReady]);
 
   const login = async () => {
     if (!msalReady) {
@@ -174,7 +258,7 @@ export default function OneDriveUpDocsOCRAI() {
       return;
     }
     try {
-      await msalInstance.loginRedirect({ scopes: ["Files.ReadWrite", "User.Read"] });
+      await msalInstance.loginRedirect({ scopes: ONEDRIVE_SCOPES });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError("Erreur login: " + err.message);
@@ -292,10 +376,15 @@ export default function OneDriveUpDocsOCRAI() {
       const newFileName = `${ai.fileName}.pdf`;
       const targetFolderPath = ai.oneDriveFolderPath || null;
       if (!targetFolderPath) {
+        const pool = ai?.matchDebug?.elevesInPool;
+        const poolHint =
+          typeof pool === "number"
+            ? ` Liste de recherche : ${pool} élève(s).`
+            : "";
         return {
           success: false,
           error:
-            "Aucun élève trouvé — le fichier est dans Temp : rangez-le à la main ou repassez-le en mode Standard.",
+            `Aucun élève trouvé — le fichier est dans Temp.${poolHint} Rangez-le à la main ou repassez-le en mode Standard.`,
           fileName: displayName,
           result: ai,
           tempOneDrivePath: sourcePath,
@@ -330,8 +419,9 @@ export default function OneDriveUpDocsOCRAI() {
 
   const processSingleFile = async (file: File): Promise<ProcessResult> => {
     try {
-      if (!accessToken) throw new Error("Pas de token OneDrive disponible");
-      const { key, tempPath } = await uploadToS3AndOneDrive(file, accessToken);
+      const token = oneDriveTokenRef.current;
+      if (!token) throw new Error("Pas de token OneDrive disponible");
+      const { key, tempPath } = await uploadToS3AndOneDrive(file, token);
       const r2 = await fetch("/api/agentIAOCR/ocr-process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -341,7 +431,7 @@ export default function OneDriveUpDocsOCRAI() {
       const { jobId } = await r2.json();
       if (!jobId) throw new Error("Impossible de lancer Textract");
       const ocr = await pollOcr(jobId, 30);
-      return await analyzeAndMove(accessToken, ocr.text, tempPath, file.name);
+      return await analyzeAndMove(token, ocr.text, tempPath, file.name);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       return {
@@ -357,8 +447,9 @@ export default function OneDriveUpDocsOCRAI() {
     const results: ProcessResult[] = [];
     const sourceTempPath = `Temp/${file.name}`;
     try {
-      if (!accessToken) throw new Error("Pas de token OneDrive disponible");
-      const { key } = await uploadToS3AndOneDrive(file, accessToken);
+      const token = oneDriveTokenRef.current;
+      if (!token) throw new Error("Pas de token OneDrive disponible");
+      const { key } = await uploadToS3AndOneDrive(file, token);
 
       const r2 = await fetch("/api/agentIAOCR/ocr-process", {
         method: "POST",
@@ -383,12 +474,9 @@ export default function OneDriveUpDocsOCRAI() {
 
       if (mode === "single" || segments.length <= 1) {
         const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
-        const slice =
-          Object.keys(ocr.pageTexts).length > 0
-            ? buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd)
-            : ocr.text;
+        const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
         const one = await analyzeAndMove(
-          accessToken,
+          token,
           slice || ocr.text,
           sourceTempPath,
           file.name
@@ -397,7 +485,7 @@ export default function OneDriveUpDocsOCRAI() {
         return results;
       }
 
-      await deleteOneDrivePath(accessToken, sourceTempPath);
+      await deleteOneDrivePath(token, sourceTempPath);
 
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
@@ -407,7 +495,8 @@ export default function OneDriveUpDocsOCRAI() {
           const slice = buildTextFromPages(
             ocr.pageTexts,
             seg.pageStart,
-            seg.pageEnd
+            seg.pageEnd,
+            ocr.text,
           );
           if (!slice.trim()) {
             results.push({
@@ -448,7 +537,7 @@ export default function OneDriveUpDocsOCRAI() {
             {
               method: "PUT",
               headers: {
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/pdf",
               },
               body: pdfBlob,
@@ -467,10 +556,18 @@ export default function OneDriveUpDocsOCRAI() {
           const ai = await r4.json();
 
           if (!ai?.fileName || !ai.oneDriveFolderPath) {
+            const pool = ai?.matchDebug?.elevesInPool;
+            const poolHint =
+              typeof pool === "number"
+                ? ` Liste de recherche : ${pool} élève(s).`
+                : "";
+            const profileHint = ai?.matchDebug?.hasOneDriveProfile === false
+              ? " Profil OneDrive non reconnu pour votre compte Clerk."
+              : "";
             results.push({
               success: false,
               error:
-                "Élève non identifié — le document découpé est dans Temp : rangez-le à la main ou repassez-le en mode Standard.",
+                `Élève non identifié — le document découpé est dans Temp.${poolHint}${profileHint} Rangez-le à la main ou repassez-le en mode Standard.`,
               fileName: label,
               result: ai,
               tempOneDrivePath: tempSegPath,
@@ -484,7 +581,7 @@ export default function OneDriveUpDocsOCRAI() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              accessToken,
+              accessToken: token,
               sourcePath: tempSegPath,
               targetFolderPath: ai.oneDriveFolderPath,
               newFileName: segmentOdName,
@@ -552,7 +649,8 @@ export default function OneDriveUpDocsOCRAI() {
     standardFiles: File[],
     classFiles: File[]
   ) => {
-    if (!accessToken) return;
+    const token = await ensureOneDriveConnection();
+    if (!token) return;
     setOcrProcessing(true);
     setError("");
     setOcrResults([]);
@@ -603,7 +701,7 @@ export default function OneDriveUpDocsOCRAI() {
   useEffect(() => {
     const hasWork =
       pendingStandardFiles.length > 0 || pendingClassFiles.length > 0;
-    if (!ocrProcessing && hasWork && msalReady && account && accessToken) {
+    if (!ocrProcessing && hasWork && msalReady) {
       const standard = pendingStandardFiles;
       const classF = pendingClassFiles;
       setPendingStandardFiles([]);
@@ -616,29 +714,31 @@ export default function OneDriveUpDocsOCRAI() {
     pendingClassFiles,
     ocrProcessing,
     msalReady,
-    account,
-    accessToken,
   ]);
 
-  const enqueueStandard = (fileList: FileList | File[]) => {
-    if (!msalReady || !account || !accessToken) {
-      setError("Vous devez être connecté à OneDrive avant d'envoyer des fichiers.");
+  const enqueueStandard = async (fileList: FileList | File[]) => {
+    const token = await ensureOneDriveConnection();
+    if (!token) return;
+    const pdfs = Array.from(fileList).filter(
+      (f) => f.type === "application/pdf" || f.name.endsWith(".pdf"),
+    );
+    if (pdfs.length === 0) {
+      setError("Seuls les fichiers PDF sont acceptés.");
       return;
     }
-    setPendingStandardFiles((prev) => [
-      ...prev,
-      ...Array.from(fileList).filter((f) => f.type === "application/pdf" || f.name.endsWith(".pdf")),
-    ]);
+    setPendingStandardFiles((prev) => [...prev, ...pdfs]);
   };
 
-  const enqueueClass = (fileList: FileList | File[]) => {
-    if (!msalReady || !account || !accessToken) {
-      setError("Vous devez être connecté à OneDrive avant d'envoyer des fichiers.");
+  const enqueueClass = async (fileList: FileList | File[]) => {
+    const token = await ensureOneDriveConnection();
+    if (!token) return;
+    const pdfs = Array.from(fileList).filter(
+      (f) => f.type === "application/pdf" || f.name.endsWith(".pdf"),
+    );
+    if (pdfs.length === 0) {
+      setError("Seuls les fichiers PDF sont acceptés.");
       return;
     }
-    const pdfs = Array.from(fileList).filter(
-      (f) => f.type === "application/pdf" || f.name.endsWith(".pdf")
-    );
     if (pdfs.length !== Array.from(fileList).length) {
       setError("Seuls les fichiers PDF sont acceptés.");
     }
@@ -646,10 +746,8 @@ export default function OneDriveUpDocsOCRAI() {
   };
 
   const handleSyncOneDriveFolders = async () => {
-    if (!accessToken) {
-      setError("Connectez-vous à OneDrive avant de synchroniser.");
-      return;
-    }
+    const token = await ensureOneDriveConnection();
+    if (!token) return;
     setSyncingFolders(true);
     setSyncReport(null);
     setElevesMessage("");
@@ -657,7 +755,7 @@ export default function OneDriveUpDocsOCRAI() {
       const res = await fetch("/api/agentIAOCR/sync-folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken }),
+        body: JSON.stringify({ accessToken: token }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Échec synchronisation");
@@ -729,7 +827,7 @@ export default function OneDriveUpDocsOCRAI() {
     );
   }
 
-  const dropDisabled = !account || !accessToken || ocrProcessing;
+  const dropDisabled = ocrProcessing || checkingOneDrive;
   const progressPercent =
     processingStatus.total > 0
       ? ((processingStatus.completed + processingStatus.failed) /
@@ -766,14 +864,20 @@ export default function OneDriveUpDocsOCRAI() {
             Automatisez le rangement de vos documents par élève.
           </p>
         </div>
-        {!account && (
-          <button
-            onClick={login}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2"
-          >
-            <span>🔌</span> Se connecter à OneDrive
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {oneDriveVerified && accessToken ? (
+            <span className="px-4 py-2 bg-green-50 text-green-800 text-sm font-bold rounded-xl border border-green-200">
+              OneDrive connecté
+            </span>
+          ) : (
+            <button
+              onClick={login}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2"
+            >
+              <span>🔌</span> Se connecter à OneDrive
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -849,7 +953,7 @@ export default function OneDriveUpDocsOCRAI() {
           </button>
           <button
             type="button"
-            disabled={syncingFolders || !accessToken}
+            disabled={syncingFolders || checkingOneDrive}
             onClick={handleSyncOneDriveFolders}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
           >
@@ -915,8 +1019,13 @@ export default function OneDriveUpDocsOCRAI() {
         )}
       </div>
 
-      {account && (
-        <>
+      <>
+          {checkingOneDrive && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-blue-800 text-sm font-medium flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+              Vérification de la connexion OneDrive…
+            </div>
+          )}
           {ocrProcessing && (
             <div className="mb-8 p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-3xl shadow-xl flex flex-col items-center gap-4">
               <ProcessingSpinner size="text-8xl" />
@@ -980,12 +1089,18 @@ export default function OneDriveUpDocsOCRAI() {
                 )}
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-2">
-                {ocrProcessing ? "Analyse en cours…" : "Un PDF = un document"}
+                {checkingOneDrive
+                  ? "Vérification OneDrive…"
+                  : ocrProcessing
+                    ? "Analyse en cours…"
+                    : "Un PDF = un document"}
               </h3>
               <p className="text-sm text-gray-500">
-                {ocrProcessing
-                  ? "Traitement en cours — patientez."
-                  : "Fichiers déjà séparés (un élève par PDF). Comportement actuel, fiable."}
+                {checkingOneDrive
+                  ? "Connexion Microsoft vérifiée avant tout traitement."
+                  : ocrProcessing
+                    ? "Traitement en cours — patientez."
+                    : "Fichiers déjà séparés (un élève par PDF). La connexion OneDrive est vérifiée dès le dépôt."}
               </p>
               <input
                 ref={standardInputRef}
@@ -1037,12 +1152,18 @@ export default function OneDriveUpDocsOCRAI() {
                 )}
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-2">
-                {ocrProcessing ? "Analyse en cours…" : "Export classe entière"}
+                {checkingOneDrive
+                  ? "Vérification OneDrive…"
+                  : ocrProcessing
+                    ? "Analyse en cours…"
+                    : "Export classe entière"}
               </h3>
               <p className="text-sm text-gray-500">
-                {ocrProcessing
-                  ? "Découpe et rangement en cours…"
-                  : "Un PDF multi-pages (ex. export classe Charlemagne). Détection, découpe et rangement par élève."}
+                {checkingOneDrive
+                  ? "Connexion Microsoft vérifiée avant tout traitement."
+                  : ocrProcessing
+                    ? "Découpe et rangement en cours…"
+                    : "Un PDF multi-pages (ex. export classe Charlemagne). Détection, découpe et rangement par élève."}
               </p>
               <input
                 ref={classInputRef}
@@ -1188,8 +1309,7 @@ export default function OneDriveUpDocsOCRAI() {
               </div>
             </div>
           )}
-        </>
-      )}
+      </>
     </div>
   );
 }

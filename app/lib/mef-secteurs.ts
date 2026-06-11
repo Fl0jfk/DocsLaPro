@@ -1,4 +1,4 @@
-import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { getJson, putJson } from "@/app/lib/s3-storage";
 import type { Secteur } from "@/app/lib/onedrive-eleves";
 
 export const MEF_SECTEURS_KEY = "settings/mef-secteurs.json";
@@ -65,16 +65,16 @@ export function buildMefToSecteurMap(config: MefSecteursConfig): Map<string, Sec
   return map;
 }
 
-export async function loadMefSecteurMap(orgId: string): Promise<Map<string, Secteur>> {
-  const hit = await getTenantJson<MefSecteursConfig>(orgId, MEF_SECTEURS_KEY);
+export async function loadMefSecteurMap(): Promise<Map<string, Secteur>> {
+  const hit = await getJson<MefSecteursConfig>( MEF_SECTEURS_KEY);
   if (!hit?.data) return new Map();
   const parsed = parseMefSecteursConfig(hit.data);
   if (!parsed.ok) return new Map();
   return buildMefToSecteurMap(parsed.config);
 }
 
-export async function saveMefSecteursConfig(orgId: string, config: MefSecteursConfig) {
-  await putTenantJson(orgId, MEF_SECTEURS_KEY, config);
+export async function saveMefSecteursConfig( config: MefSecteursConfig) {
+  await putJson(MEF_SECTEURS_KEY, config);
 }
 
 export function countMefCodes(config: MefSecteursConfig) {

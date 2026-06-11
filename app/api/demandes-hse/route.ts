@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
-import { loadTenantConfig, getEstablishmentByLabel } from "@/app/lib/tenant-config";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { getJson, putJson } from "@/app/lib/s3-storage";
 
 const INDEX_KEY = "demandes-hse/index.json";
 
@@ -75,8 +75,8 @@ function canViewDemand(rec: HseRecord, userId: string, roles: string[]) {
   return canManageDemand(rec, roles);
 }
 
-async function resolveDirectorMail(orgId: string, etab: HseEtablissement) {
-  const bundle = await loadTenantConfig(orgId);
+async function resolveDirectorMail( etab: HseEtablissement) {
+  const bundle = await loadAppConfig();
   const est = getEstablishmentByLabel(bundle, etab);
   if (est) {
     return { name: est.directorName || est.label, email: est.directorEmail || "", label: est.label };
@@ -98,13 +98,13 @@ function appUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 }
 
-async function getIndex(orgId: string): Promise<HseRecord[]> {
-  const hit = await getTenantJson<HseRecord[]>(orgId, INDEX_KEY);
+async function getIndex(): Promise<HseRecord[]> {
+  const hit = await getJson<HseRecord[]>( INDEX_KEY);
   return hit?.data ?? [];
 }
 
-async function saveIndex(orgId: string, rows: HseRecord[]) {
-  await putTenantJson(orgId, INDEX_KEY, rows);
+async function saveIndex( rows: HseRecord[]) {
+  await putJson(INDEX_KEY, rows);
 }
 
 function isValidEtab(v: string): v is HseEtablissement {
@@ -112,9 +112,9 @@ function isValidEtab(v: string): v is HseEtablissement {
 }
 
 export async function GET() {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId, userId } = gate.ctx;
+  const { userId } = gate.ctx;
 
   const user = await currentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
@@ -127,7 +127,7 @@ export async function GET() {
   }
 
   try {
-    const all = await getIndex(orgId);
+    const all = await getIndex();
     const filtered = all.filter((r) => canViewDemand(r, userId, roles));
     filtered.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     return NextResponse.json({ items: filtered });
@@ -138,9 +138,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId, userId } = gate.ctx;
+  const { userId } = gate.ctx;
 
   const user = await currentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
@@ -202,11 +202,11 @@ export async function POST(req: Request) {
   };
 
   try {
-    const all = await getIndex(orgId);
+    const all = await getIndex();
     all.push(record);
-    await saveIndex(orgId, all);
+    await saveIndex( all);
 
-    const dir = await resolveDirectorMail(orgId, etablissement);
+    const dir = await resolveDirectorMail( etablissement);
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         const transporter = getMailer();
@@ -248,9 +248,9 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId, userId } = gate.ctx;
+  const { userId } = gate.ctx;
 
   const user = await currentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
@@ -271,7 +271,7 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const all = await getIndex(orgId);
+    const all = await getIndex();
     const idx = all.findIndex((r) => r.id === id);
     if (idx < 0) return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
 
@@ -293,7 +293,7 @@ export async function PATCH(req: Request) {
     };
 
     all[idx] = updated;
-    await saveIndex(orgId, all);
+    await saveIndex( all);
 
     const creatorEmail = updated.createdBy.email;
     const base = `${appUrl()}/demandes-hse`;
@@ -348,7 +348,7 @@ export async function PATCH(req: Request) {
         console.error("[demandes-hse] mail demandeur:", e);
       }
 
-      const nCfg = (await loadTenantConfig(orgId)).notifications;
+      const nCfg = (await loadAppConfig()).notifications;
       const opsMail = process.env.HSE_OPS_EMAIL?.trim() || nCfg.hseOps || DEFAULT_HSE_OPS_EMAIL;
       if (updated.status === "ACCEPTEE" && opsMail) {
         try {

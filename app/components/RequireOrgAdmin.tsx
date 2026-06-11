@@ -3,13 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { useIsTenantOrgAdmin } from "@/app/hooks/useIsTenantOrgAdmin";
+import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 
-/** Redirige vers le dashboard si l'utilisateur n'est pas admin tenant. */
+/** Redirige vers le dashboard si l'utilisateur n'est pas admin intranet. */
 export default function RequireOrgAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isLoaded } = useUser();
-  const isOrgAdmin = useIsTenantOrgAdmin();
+  const isOrgAdmin = useIsOrgAdmin();
 
   useEffect(() => {
     if (isLoaded && !isOrgAdmin) {

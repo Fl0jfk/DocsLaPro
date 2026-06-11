@@ -71,14 +71,46 @@ export function resolveEleveSecteur(
 
   const mef = normMefCode(String(eleve.mef ?? eleve.formation ?? ""));
   if (mef && mefMap && mefMap.size > 0) {
-    return mefMap.get(mef) ?? null;
-  }
-
-  if (mefMap && mefMap.size > 0) {
-    return null;
+    const fromMef = mefMap.get(mef);
+    if (fromMef) return fromMef;
   }
 
   return inferSecteurFromFolderName(eleve.folderName);
+}
+
+/**
+ * Pool de matching OCR.
+ * Par défaut : toute la liste eleves.json (MEF non bloquant).
+ * Filtre par secteur seulement si les MEF sont largement renseignés sur la liste
+ * (optimisation future, sans bloquer tant que ce n'est pas le cas).
+ */
+export function buildElevesPoolForOcrMatching(
+  allEleves: EleveSecteurInput[],
+  odProfile: { secteur: Secteur } | null,
+  mefMap?: Map<string, Secteur> | null,
+): { eleves: EleveSecteurInput[]; secteurFilterApplied: boolean } {
+  if (!odProfile || !mefMap || mefMap.size === 0 || allEleves.length === 0) {
+    return { eleves: allEleves, secteurFilterApplied: false };
+  }
+
+  const withResolvableMef = allEleves.filter((e) => {
+    const mef = normMefCode(String(e.mef ?? e.formation ?? ""));
+    return Boolean(mef && mefMap.has(mef));
+  });
+
+  const mefCoverageEnough =
+    withResolvableMef.length >= Math.max(10, Math.ceil(allEleves.length * 0.2));
+
+  if (!mefCoverageEnough) {
+    return { eleves: allEleves, secteurFilterApplied: false };
+  }
+
+  const scoped = filterElevesForSecteur(allEleves, odProfile.secteur, mefMap);
+  if (scoped.length === 0) {
+    return { eleves: allEleves, secteurFilterApplied: false };
+  }
+
+  return { eleves: scoped, secteurFilterApplied: true };
 }
 
 export function getOneDriveProfileForClerkLastName(lastName: string) {

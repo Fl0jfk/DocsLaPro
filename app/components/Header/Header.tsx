@@ -59,13 +59,33 @@ function UserPopover({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+type SitePublicIdentity = {
+  name?: string;
+  shortName?: string;
+  headerLogoUrl?: string | null;
+};
+
 export default function SiteHeader({ adminMode = false }: { adminMode?: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [siteIdentity, setSiteIdentity] = useState<SitePublicIdentity | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { isSignedIn } = useUser();
   const { signOut } = useClerk();
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/site/public", { cache: "no-store" });
+        const data = await res.json();
+        if (!cancelled && res.ok) setSiteIdentity(data);
+      } catch {
+        /* garde le logo par défaut */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => { setMobileOpen(false); setPopoverOpen(false); }, [pathname]);
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -81,13 +101,24 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
     return () => document.removeEventListener("mousedown", handle);
   }, []);
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const logoAlt = siteIdentity?.shortName || siteIdentity?.name || "La Providence Nicolas Barré";
+  const customLogoUrl = siteIdentity?.headerLogoUrl?.trim() || "";
   return (
     <>
       <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 print:!hidden">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
         <Link href="/" className="hover:opacity-75 transition flex-shrink-0 relative">
-            <div className="w-[110px] h-[110px] ">
-              <Image src={Logo} alt="La Providence Nicolas Barré" width={300} height={300} className="absolute top-7 left-[-20px] sm:left-0"/>
+            <div className="w-[110px] h-[110px]">
+              {customLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={customLogoUrl}
+                  alt={logoAlt}
+                  className="absolute top-7 left-[-20px] sm:left-0 max-h-[72px] w-auto object-contain"
+                />
+              ) : (
+                <Image src={Logo} alt={logoAlt} width={300} height={300} className="absolute top-7 left-[-20px] sm:left-0" />
+              )}
             </div>
           </Link>
           <nav className={`${adminMode ? "flex" : "hidden md:flex"} gap-8 text-sm font-medium text-slate-600`}>

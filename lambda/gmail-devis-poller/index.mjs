@@ -47,6 +47,28 @@ function decodeAttachmentData(data) {
   return Buffer.from(b64, "base64");
 }
 
+function decodeBase64Url(data) {
+  if (!data) return "";
+  const b64 = data.replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(b64, "base64").toString("utf8");
+}
+
+/** Corps texte brut du mail (premier part text/plain trouvé). */
+function extractPlainBodyFromPayload(payload) {
+  if (!payload) return "";
+  const mime = (payload.mimeType || "").toLowerCase();
+  if (mime === "text/plain" && payload.body?.data) {
+    return decodeBase64Url(payload.body.data).trim();
+  }
+  if (payload.parts && Array.isArray(payload.parts)) {
+    for (const part of payload.parts) {
+      const text = extractPlainBodyFromPayload(part);
+      if (text) return text;
+    }
+  }
+  return "";
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -128,10 +150,39 @@ export async function handler() {
       const fromEmail =
         (fromRaw.match(/<([^>]+)>/) || [, fromRaw])[1]?.trim() || fromRaw.trim();
       const snippet = full.data.snippet || "";
+      const emailBodyPlain = extractPlainBodyFromPayload(full.data.payload) || snippet;
 
       const attachments = [];
       collectAttachmentsFromPayload(full.data.payload, attachments);
+
       if (attachments.length === 0) {
+        const ingestBody = {
+          fromEmail,
+          subject,
+          snippet,
+          emailBodyPlain,
+          gmailMessageId: messageId,
+        };
+        const ingestResult = await waitForIngestComplete(ingestUrl, ingestSecret, ingestBody);
+        if (ingestResult.ok) {
+          await gmail.users.messages.modify({
+            userId: "me",
+            id: messageId,
+            requestBody: { removeLabelIds: ["UNREAD"] },
+          });
+          summary.processed += 1;
+        } else if (ingestResult.pending) {
+          summary.pendingIngest = (summary.pendingIngest || 0) + 1;
+          summary.errors.push({
+            messageId,
+            err: "ingest texte toujours en cours — mail laissé non lu",
+          });
+        } else {
+          summary.errors.push({
+            messageId,
+            err: `ingest texte ${ingestResult.status ?? "?"}: ${JSON.stringify(ingestResult.data).slice(0, 200)}`,
+          });
+        }
         continue;
       }
 
@@ -168,6 +219,7 @@ export async function handler() {
           fromEmail,
           subject,
           snippet,
+          emailBodyPlain,
           gmailMessageId: messageId,
           originalFilename: att.filename,
         };

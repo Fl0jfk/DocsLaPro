@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getTenantJson } from "@/app/lib/tenant-s3-storage";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { getJson } from "@/app/lib/s3-storage";
+import { requireAuth } from "@/app/lib/intranet-auth";
 
 export async function GET(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return new NextResponse("ID manquant", { status: 400 });
   try {
-    const hit = await getTenantJson<unknown>(gate.ctx.orgId, `travels/${id}.json`);
+    const hit = await getJson<unknown>( `travels/${id}.json`);
     if (!hit?.data) return NextResponse.json({ error: "Impossible de récupérer le dossier" }, { status: 404 });
     return NextResponse.json(hit.data);
   } catch (error) {

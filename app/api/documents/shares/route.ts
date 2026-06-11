@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { requireAuth } from "@/app/lib/intranet-auth";
 import {
   createSharedFolder,
   listAccessibleShares,
@@ -7,7 +7,7 @@ import {
 } from "@/app/lib/documents-cloud";
 
 export async function GET() {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
   const shares = await listAccessibleShares(gate.ctx.userId);
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
   const body = await req.json();
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
   const body = await req.json();

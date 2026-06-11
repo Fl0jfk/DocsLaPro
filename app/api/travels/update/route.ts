@@ -4,36 +4,20 @@ import { isValidTravelsReopenFromValideStatus } from "@/app/lib/travels-directio
 import nodemailer from "nodemailer";
 import IMAGE_CATALOG from "./image-catalog.json";
 import { notifyComptaTravelsPhase, type TravelsTripForNotify } from "@/app/lib/travels-notify";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
-import { canSignTravelsDirectionForEtabTenant, resolveDirectorFromTenant } from "@/app/lib/tenant-establishments";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { getJson, putJson } from "@/app/lib/s3-storage";
+import { canSignTravelsDirectionForEtab, resolveDirectorForEstablishment } from "@/app/lib/establishments";
 
+/** Le client fait foi (suppressions incluses) ; on n'ajoute depuis S3 que si le client n'envoie pas la liste. */
 function mergeReceivedDevis(fromClient: unknown, fromS3: unknown): unknown[] {
-  const clientArr = Array.isArray(fromClient) ? fromClient : [];
-  const s3Arr = Array.isArray(fromS3) ? fromS3 : [];
-  const byId = new Map<string, unknown>();
-  const idOf = (item: unknown): string | null => {
-    if (item && typeof item === "object" && "id" in item && (item as { id: unknown }).id != null) {
-      return String((item as { id: unknown }).id);
-    }
-    return null;
-  };
-  for (const item of s3Arr) {
-    const id = idOf(item);
-    if (id) byId.set(id, item);
-  }
-  for (const item of clientArr) {
-    const id = idOf(item);
-    if (id) byId.set(id, item);
-  }
-  return [...byId.values()];
+  if (Array.isArray(fromClient)) return fromClient;
+  return Array.isArray(fromS3) ? fromS3 : [];
 }
 
 export async function POST(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId } = gate.ctx;
-  try {
+    try {
     const body = await req.json();
     const suppressNewTripEmail = Boolean(body.suppressNewTripEmail);
     const tripId = body.id;
@@ -75,7 +59,7 @@ export async function POST(req: Request) {
       } catch (err) { console.error("Erreur IA:", err)}
     }
     const tripRel = `travels/${tripId}.json`;
-    const existingHit = await getTenantJson<Record<string, unknown>>(orgId, tripRel);
+    const existingHit = await getJson<Record<string, unknown>>(tripRel);
     const existingOnS3 = existingHit?.data ?? null;
     if (existingOnS3 && Array.isArray(existingOnS3.receivedDevis)) {
       objectToSave.receivedDevis = mergeReceivedDevis(
@@ -97,19 +81,21 @@ export async function POST(req: Request) {
           : typeof (existingOnS3?.data as { etablissement?: string } | undefined)?.etablissement === "string"
             ? (existingOnS3!.data as { etablissement: string }).etablissement
             : null;
-      if (!(await canSignTravelsDirectionForEtabTenant(me, orgId, etab))) {
+      if (!(await canSignTravelsDirectionForEtab(me,  etab))) {
         return NextResponse.json(
           { error: "Seule la direction de l'établissement concerné peut réouvrir un dossier finalisé." },
           { status: 403 },
         );
       }
     }
-    await putTenantJson(orgId, tripRel, objectToSave);
-    const indexHit = await getTenantJson<unknown[]>(orgId, "travels/index.json");
+    objectToSave.updatedAt = new Date().toISOString();
+    await putJson(tripRel, objectToSave);
+    const indexHit = await getJson<unknown[]>("travels/index.json");
     let currentIndex: unknown[] = Array.isArray(indexHit?.data) ? indexHit.data : [];
     const tripSummary = {
       id: tripId,
       ownerName: objectToSave.ownerName,
+      ownerId: objectToSave.ownerId,
       status: objectToSave.status,
       type: objectToSave.type,
       createdAt: objectToSave.createdAt || new Date().toISOString(),
@@ -143,12 +129,10 @@ export async function POST(req: Request) {
     if (existingIndex > -1) { currentIndex[existingIndex] = tripSummary;
     } else { currentIndex.push(tripSummary);
     }
-    await putTenantJson(orgId, "travels/index.json", currentIndex);
+    await putJson("travels/index.json", currentIndex);
     if (newStatus === "EN_ATTENTE_COMPTA" && previousStatus !== "EN_ATTENTE_COMPTA") {
       try {
-        await notifyComptaTravelsPhase({
-          orgId,
-          tripId,
+        await notifyComptaTravelsPhase({ tripId,
           trip: objectToSave as TravelsTripForNotify,
           previousStatus,
         });
@@ -158,7 +142,7 @@ export async function POST(req: Request) {
     }
     if (isNewProject && !suppressNewTripEmail) {
       try {
-        const director = await resolveDirectorFromTenant(orgId, innerData.etablissement);
+        const director = await resolveDirectorForEstablishment( innerData.etablissement);
         const transporter = nodemailer.createTransport({
           service: "gmail",
           auth: {

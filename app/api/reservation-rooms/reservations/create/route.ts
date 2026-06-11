@@ -1,8 +1,9 @@
 import { NextResponse, NextRequest } from "next/server";
 import nodemailer from "nodemailer";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
-import { loadTenantConfig } from "@/app/lib/tenant-config";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { isProfRoomModuleAdmin } from "@/app/lib/prof-room-auth";
+import { getJson, putJson } from "@/app/lib/s3-storage";
+import { loadAppConfig } from "@/app/lib/app-config";
 
 const RESERVATIONS_KEY = "reservation-rooms/reservations.json";
 
@@ -13,19 +14,18 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(req: NextRequest) {
   try {
-    const gate = await requireTenantAuth();
+    const gate = await requireAuth();
     if (!gate.ok) return gate.response;
-    const { userId, orgId } = gate.ctx;
+    const { userId } = gate.ctx;
     const body = await req.json();
     const { roomId, selectedHours, date, subject, className, comment, recurrence, untilDate, firstName, lastName, email } = body;
-    const hit = await getTenantJson<unknown[]>(orgId, RESERVATIONS_KEY);
+    const hit = await getJson<unknown[]>( RESERVATIONS_KEY);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let existing: any[] = Array.isArray(hit?.data) ? hit.data : [];
-    const profCfg = (await loadTenantConfig(orgId)).profRoom;
-    const ADMIN_LASTNAMES = profCfg.adminLastNames?.length ? profCfg.adminLastNames : [];
+    const profCfg = (await loadAppConfig()).profRoom;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newReservationsAdded: any[] = [];
-    const isAdmin = ADMIN_LASTNAMES.includes((lastName || "").toUpperCase());
+    const isAdmin = await isProfRoomModuleAdmin();
     const limitDate = new Date();
     limitDate.setDate(limitDate.getDate() + (profCfg.bookingHorizonDays || 56)); 
     const groupId = recurrence !== "none" ? `group-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` : null;
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       }
     }
     if (newReservationsAdded.length === 0) return NextResponse.json({ error: "Aucun créneau disponible." }, { status: 409 });
-    await putTenantJson(orgId, RESERVATIONS_KEY, existing);
+    await putJson(RESERVATIONS_KEY, existing);
     if (email) {
       const datesList = newReservationsAdded.map(r => {
         const d = new Date(r.startsAt);

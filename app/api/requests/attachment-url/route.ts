@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { isTenantScopedS3Key } from "@/app/lib/tenant";
+import { requireAuth } from "@/app/lib/intranet-auth";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { normalizeRequestEmail } from "@/app/lib/requests-board";
@@ -17,9 +16,9 @@ const s3 = new S3Client({
 });
 
 export async function GET(req: NextRequest) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { userId, orgId } = gate.ctx;
+  const { userId } = gate.ctx;
   const user = await currentUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const roleRaw = user?.publicMetadata?.role;
@@ -28,7 +27,7 @@ export async function GET(req: NextRequest) {
   const attachmentId = req.nextUrl.searchParams.get("attachmentId")?.trim() ?? "";
   if (!requestId || !attachmentId) {  return NextResponse.json({ error: "requestId et attachmentId requis" }, { status: 400 });}
   try {
-    const index = await getRequestsIndex(orgId);
+    const index = await getRequestsIndex();
     const record = index.find((r) => r.id === requestId);
     if (!record) return NextResponse.json({ error: "Demande introuvable" }, { status: 404 });
     const att = findRequestAttachment(record, attachmentId);
@@ -37,7 +36,7 @@ export async function GET(req: NextRequest) {
     const isRequester = record.requester.userId === userId || (userEmail && normalizeRequestEmail(record.requester.email) === normalizeRequestEmail(userEmail));
     if (!staff && !isRequester) { return NextResponse.json({ error: "Accès refusé" }, { status: 403 })}
     const relOk = att.key.includes(`requests/${requestId}/files/`);
-    if (!relOk && !isTenantScopedS3Key(att.key)) {
+    if (!relOk) {
       return NextResponse.json({ error: "Clé invalide" }, { status: 400 });
     }
     const command = new GetObjectCommand({  Bucket: process.env.BUCKET_NAME!, Key: att.key});

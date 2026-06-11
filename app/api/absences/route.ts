@@ -1,69 +1,41 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { currentUser } from "@clerk/nextjs/server";
+import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
-import { loadTenantConfig, getEstablishmentByLabel } from "@/app/lib/tenant-config";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
-import { tenantS3Key } from "@/app/lib/tenant";
-import { getBucketName, getTenantS3Client } from "@/app/lib/tenant-s3-storage";
-import { formatAbsencePeriod, normalizeAbsencePeriodInput, type AbsencePeriodType } from "@/app/lib/absence-period";
+import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { getBucketName } from "@/app/lib/s3-storage";
+import { s3Key } from "@/app/lib/s3-path";
+import { formatAbsencePeriod, normalizeAbsencePeriodInput } from "@/app/lib/absence-period";
 import {
   formatHoursTreatmentCreatorMailLine,
   formatHoursTreatmentMailLine,
   validateHoursTreatmentForAbsence,
-  type AbsenceHoursTreatment,
 } from "@/app/lib/absence-hours-treatment";
-
-type AbsenceScope = "professeur" | "ogec";
-type Etablissement = "École" | "Collège" | "Lycée";
-type AbsenceWorkflowStatus = "OUVERTE" | "JUSTIFICATIF_DEPOSE" | "CLOTUREE";
-type AbsenceDecision = "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
-
-type AbsenceRecord = {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: {
-    userId: string;
-    name: string;
-    email: string;
-    roles: string[];
-  };
-  data: {
-    scope: AbsenceScope;
-    etablissement: Etablissement | null;
-    periodType?: AbsencePeriodType | null;
-    startDate: string;
-    endDate: string;
-    startTime?: string | null;
-    endTime?: string | null;
-    reason: string;
-    details: string;
-  };
-  workflowStatus: AbsenceWorkflowStatus;
-  managerDecision: AbsenceDecision;
-  closedAt?: string | null;
-  justification?: {
-    fileName: string;
-    fileUrl: string;
-    uploadedAt: string;
-    uploadedBy: string;
-  } | null;
-  managerNote?: string;
-  /** À la discrétion de la direction lors de la validation. */
-  hoursTreatment?: AbsenceHoursTreatment | null;
-  /** Date de la dernière relance direction pour un justificatif (facultatif). */
-  justificatifRelanceAt?: string | null;
-  history: Array<{
-    at: string;
-    by: string;
-    action: string;
-    note?: string;
-  }>;
-};
-
-const INDEX_KEY = "absences/index.json";
+import {
+  canManageAbsence,
+  canViewAbsence,
+  canViewCalendar,
+  computeStartEndAt,
+  isTeacherRole,
+  type AbsenceRecord,
+  type AbsenceScope,
+  type Etablissement,
+} from "@/app/lib/absences-types";
+import { getAbsenceDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/absences-documents";
+import {
+  getAbsenceIndex,
+  getAbsenceRecord,
+  purgeExpiredAbsences,
+  saveAbsenceIndex,
+  saveAbsenceRecord,
+} from "@/app/lib/absences-storage";
+import {
+  deleteLegacyConvocation,
+  getAbsenceOrLegacyRecord,
+  isDocumentKeyReferencedInLegacy,
+  mergeLegacyConvocationsForCalendar,
+} from "@/app/lib/absences-legacy-convocations";
 
 const s3Client = new S3Client({
   region: process.env.REGION,
@@ -73,69 +45,15 @@ const s3Client = new S3Client({
   },
 });
 
-const norm = (s: string) =>
-  String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[_\s-]+/g, "");
-
-function hasRole(roles: string[], matcher: string) {
-  const m = norm(matcher);
-  return roles.some((r) => norm(r).includes(m));
+function recordKey(id: string) {
+  return `absences/${id}.json`;
 }
 
-function isTeacherRole(roles: string[]) {
-  return roles.some((r) => norm(r).includes("professeur"));
-}
-
-function getRoleFlags(roles: string[]) {
-  return {
-    isDirectionEcole: hasRole(roles, "directionecole"),
-    isDirectionCollege: hasRole(roles, "directioncollege"),
-    isDirectionLycee: hasRole(roles, "directionlycee"),
-    isCompta: hasRole(roles, "comptabilite"),
-    isAdministratif: hasRole(roles, "administratif"),
-    isEducation: hasRole(roles, "education"),
-  };
-}
-
-function canViewAbsence(abs: AbsenceRecord, viewerUserId: string, roles: string[]) {
-  if (abs.createdBy.userId === viewerUserId) return true;
-  const flags = getRoleFlags(roles);
-  if (abs.data.scope === "ogec") {
-    return flags.isDirectionEcole || flags.isDirectionCollege || flags.isDirectionLycee || flags.isCompta;
-  }
-  // Administratif / Vie scolaire: accès lecture aux absences professeurs (pour le planning)
-  if (flags.isAdministratif || flags.isEducation) return true;
-  // Direction lycée: vue globale des absences professeurs
-  if (flags.isDirectionLycee) return true;
-  if (abs.data.etablissement === "École") return flags.isDirectionEcole;
-  if (abs.data.etablissement === "Collège") return flags.isDirectionCollege;
-  if (abs.data.etablissement === "Lycée") return flags.isDirectionLycee;
-  return false;
-}
-
-function canManageAbsence(abs: AbsenceRecord, roles: string[]) {
-  const flags = getRoleFlags(roles);
-  if (abs.data.scope === "ogec") {
-    // Pour le personnel OGEC: validation uniquement par direction lycée
-    return flags.isDirectionLycee;
-  }
-  if (abs.data.etablissement === "École") return flags.isDirectionEcole;
-  if (abs.data.etablissement === "Collège") return flags.isDirectionCollege;
-  if (abs.data.etablissement === "Lycée") return flags.isDirectionLycee;
-  return false;
-}
-
-async function resolveDecisionTarget(
-  orgId: string,
-  scope: AbsenceScope,
-  etablissement: Etablissement | null,
-) {
-  const bundle = await loadTenantConfig(orgId);
+async function resolveDecisionTarget(scope: AbsenceScope, etablissement: Etablissement | null) {
+  const bundle = await loadAppConfig();
   if (scope === "ogec") {
-    const lycee = bundle.establishments.find((e) => e.id === "lycee") || bundle.establishments[bundle.establishments.length - 1];
+    const lycee =
+      bundle.establishments.find((e) => e.id === "lycee") || bundle.establishments[bundle.establishments.length - 1];
     return {
       roleLabel: lycee ? `Direction ${lycee.label}` : "Direction",
       name: lycee?.directorName || bundle.identity.name,
@@ -163,70 +81,8 @@ function getMailer() {
   });
 }
 
-function formatDateFR(input?: string | null) {
-  if (!input) return "—";
-  const d = new Date(input);
-  if (Number.isNaN(d.getTime())) return String(input);
-  return d.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-async function getIndex(orgId: string): Promise<AbsenceRecord[]> {
-  const hit = await getTenantJson<AbsenceRecord[]>(orgId, INDEX_KEY);
-  return hit?.data ?? [];
-}
-
-async function saveIndex(orgId: string, index: AbsenceRecord[]) {
-  await putTenantJson(orgId, INDEX_KEY, index);
-}
-
-function parseDateOnly(value: string) {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-async function purgeExpiredAbsences(orgId: string, index: AbsenceRecord[]) {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const keep: AbsenceRecord[] = [];
-  const remove: AbsenceRecord[] = [];
-
-  for (const rec of index) {
-    const end = parseDateOnly(rec?.data?.endDate || "");
-    if (!end) {
-      keep.push(rec);
-      continue;
-    }
-    if (end < today) remove.push(rec);
-    else keep.push(rec);
-  }
-
-  if (remove.length === 0) return keep;
-
-  const bucket = getBucketName();
-  for (const rec of remove) {
-    try {
-      await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: bucket,
-          Key: tenantS3Key(orgId, `absences/${rec.id}.json`),
-        }),
-      );
-    } catch (e) {
-      console.error(`Absences RGPD purge error (${rec.id}):`, e);
-    }
-  }
-
-  await saveIndex(orgId, keep);
-  return keep;
-}
-
-async function resolveValidationRecipients(orgId: string, record: AbsenceRecord) {
-  const n = (await loadTenantConfig(orgId)).notifications;
+async function resolveValidationRecipients(record: AbsenceRecord) {
+  const n = (await loadAppConfig()).notifications;
   if (record.data.scope === "ogec") {
     return [...n.absencesNotifyOgecCompta].filter(Boolean);
   }
@@ -236,20 +92,45 @@ async function resolveValidationRecipients(orgId: string, record: AbsenceRecord)
   return n.absencesNotifyProfCollegeLycee?.email ? [n.absencesNotifyProfCollegeLycee.email] : [];
 }
 
-export async function GET() {
-  const gate = await requireTenantAuth();
+function isTodayOverlap(record: AbsenceRecord) {
+  const today = new Date();
+  const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+  const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  const start = new Date(record.data.startAt);
+  const end = new Date(record.data.endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return +end >= +dayStart && +start <= +dayEnd;
+}
+
+export async function GET(req: Request) {
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId, userId } = gate.ctx;
+  const { userId } = gate.ctx;
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
 
+  const { searchParams } = new URL(req.url);
+  const calendarOnly = searchParams.get("calendar") === "true";
+  const todayOnly = searchParams.get("today") === "true";
+
+  if (calendarOnly && !canViewCalendar(roles)) {
+    return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
+  }
+
   try {
-    const rawIndex = await getIndex(orgId);
-    const index = await purgeExpiredAbsences(orgId, rawIndex);
-    const visible = index
-      .filter((a) => canViewAbsence(a, userId, roles))
-      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+    let index = await purgeExpiredAbsences(await getAbsenceIndex());
+    if (calendarOnly || todayOnly) {
+      index = await mergeLegacyConvocationsForCalendar(index);
+    }
+    let visible = calendarOnly
+      ? index.filter((a) => a.calendarVisible)
+      : index.filter((a) => canViewAbsence(a, userId, roles));
+    if (todayOnly) {
+      visible = visible.filter((a) => a.calendarVisible && isTodayOverlap(a));
+    }
+
+    visible.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     return NextResponse.json(visible);
   } catch (error) {
     console.error("Absences list error:", error);
@@ -258,9 +139,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId, userId } = gate.ctx;
+  const { userId } = gate.ctx;
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
@@ -269,8 +150,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const payload = body?.data || {};
 
-    // Scope is enforced by Clerk roles:
-    // professeur => "professeur", other roles => "ogec"
     const scope: AbsenceScope = isTeacherRole(roles) ? "professeur" : "ogec";
     const etablissement: Etablissement | null = payload.etablissement || null;
     const periodResult = normalizeAbsencePeriodInput({
@@ -299,11 +178,21 @@ export async function POST(req: Request) {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const creatorName = user?.fullName || user?.firstName || "Utilisateur";
     const creatorEmail = user?.primaryEmailAddress?.emailAddress || "";
+    const { startAt, endAt } = computeStartEndAt({
+      periodType: period.periodType,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      startTime: period.startTime,
+      endTime: period.endTime,
+    });
 
     const record: AbsenceRecord = {
       id,
       createdAt: now,
       updatedAt: now,
+      source: "self",
+      displayName: creatorName,
+      calendarVisible: false,
       createdBy: {
         userId,
         name: creatorName,
@@ -318,6 +207,8 @@ export async function POST(req: Request) {
         endDate: period.endDate,
         startTime: period.startTime ?? null,
         endTime: period.endTime ?? null,
+        startAt,
+        endAt,
         reason,
         details,
       },
@@ -354,15 +245,14 @@ export async function POST(req: Request) {
       ],
     };
 
-    await putTenantJson(orgId, `absences/${id}.json`, record);
+    await saveAbsenceRecord(record);
 
-    const rawIndex = await getIndex(orgId);
-    const index = await purgeExpiredAbsences(orgId, rawIndex);
+    const index = await purgeExpiredAbsences(await getAbsenceIndex());
     index.push(record);
-    await saveIndex(orgId, index);
+    await saveAbsenceIndex(index);
 
     try {
-      const target = await resolveDecisionTarget(orgId, scope, scope === "ogec" ? null : etablissement);
+      const target = await resolveDecisionTarget(scope, scope === "ogec" ? null : etablissement);
       const transporter = getMailer();
       await transporter.sendMail({
         from: `"Absences" <${process.env.SMTP_USER}>`,
@@ -400,9 +290,9 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId, userId } = gate.ctx;
+  const { userId } = gate.ctx;
   const user = await currentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
@@ -417,12 +307,9 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Paramètres invalides." }, { status: 400 });
     }
 
-    const rawIndex = await getIndex(orgId);
-    const index = await purgeExpiredAbsences(orgId, rawIndex);
-
-    const fileHit = await getTenantJson<AbsenceRecord>(orgId, `absences/${id}.json`);
-    if (!fileHit?.data) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
-    const current = fileHit.data;
+    const index = await purgeExpiredAbsences(await getAbsenceIndex());
+    const current = await getAbsenceRecord(id);
+    if (!current) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
 
     const actor = user?.fullName || user?.firstName || "Direction";
     const isOwner = current.createdBy.userId === userId;
@@ -479,6 +366,7 @@ export async function PATCH(req: Request) {
         ...updated,
         managerDecision: "VALIDEE",
         workflowStatus: "CLOTUREE",
+        calendarVisible: true,
         closedAt,
         justificatifRelanceAt: null,
         hoursTreatment,
@@ -493,7 +381,7 @@ export async function PATCH(req: Request) {
         ],
       };
 
-      const recipients = await resolveValidationRecipients(orgId, updated);
+      const recipients = await resolveValidationRecipients(updated);
       if (recipients.length > 0) {
         try {
           const transporter = getMailer();
@@ -524,11 +412,8 @@ export async function PATCH(req: Request) {
         } catch (mailErr) {
           console.error("Absences validation mail error:", mailErr);
         }
-      } else {
-        console.warn("Absences validation mail skipped: recipients not configured.");
       }
 
-      // Notification au créateur : absence validée
       try {
         if (updated.createdBy.email) {
           const transporter = getMailer();
@@ -562,6 +447,7 @@ export async function PATCH(req: Request) {
         ...updated,
         managerDecision: "REFUSEE",
         workflowStatus: "CLOTUREE",
+        calendarVisible: false,
         closedAt,
         justificatifRelanceAt: null,
         history: [
@@ -648,6 +534,7 @@ export async function PATCH(req: Request) {
         ...updated,
         workflowStatus: "OUVERTE",
         managerDecision: "EN_ATTENTE",
+        calendarVisible: false,
         closedAt: null,
         history: [
           ...(current.history || []),
@@ -661,11 +548,11 @@ export async function PATCH(req: Request) {
       };
     }
 
-    await putTenantJson(orgId, `absences/${id}.json`, updated);
+    await saveAbsenceRecord(updated);
 
     const pos = index.findIndex((a) => a.id === id);
     if (pos >= 0) index[pos] = updated;
-    await saveIndex(orgId, index);
+    await saveAbsenceIndex(index);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -674,3 +561,53 @@ export async function PATCH(req: Request) {
   }
 }
 
+export async function DELETE(req: Request) {
+  const gate = await requireAuth();
+  if (!gate.ok) return gate.response;
+
+  const user = await currentUser();
+  const rolesRaw = user?.publicMetadata?.role;
+  const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
+  if (!canViewCalendar(roles)) return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });
+
+  const { searchParams } = new URL(req.url);
+  const id = String(searchParams.get("id") || "").trim();
+  if (!id) return NextResponse.json({ error: "Paramètre 'id' manquant." }, { status: 400 });
+
+  try {
+    const record = await getAbsenceOrLegacyRecord(id);
+    if (!record) return NextResponse.json({ error: "Absence introuvable" }, { status: 404 });
+
+    const docKeys = getAbsenceDocumentKeys(record);
+    const bucket = getBucketName();
+
+    const absenceFile = await getAbsenceRecord(id);
+    let updated = await getAbsenceIndex();
+
+    if (absenceFile) {
+      await s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: bucket,
+          Key: s3Key(recordKey(id)),
+        }),
+      );
+      updated = updated.filter((r) => r.id !== id);
+      await saveAbsenceIndex(updated);
+    } else {
+      await deleteLegacyConvocation(id);
+    }
+
+    for (const docKey of docKeys) {
+      const stillUsed =
+        isDocumentKeyReferenced(updated, docKey) || (await isDocumentKeyReferencedInLegacy(docKey));
+      if (!stillUsed) {
+        await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: s3Key(docKey) }));
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Absences delete error:", error);
+    return NextResponse.json({ error: "Erreur suppression absence" }, { status: 500 });
+  }
+}

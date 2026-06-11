@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useUser } from "@clerk/nextjs";
 import { INTRANET_ROLE_OPTIONS } from "@/app/lib/intranet-roles";
 
@@ -12,6 +12,34 @@ type DocumentItem = {
   relPath: string;
   ext?: string;
   size?: number;
+  sharedBy?: string;
+  isVirtual?: boolean;
+};
+
+const INCOMING_SHARED_FILES_FOLDER = "Fichiers partagés";
+const FILE_SHARE_REL_PREFIX = "__fileshare__/";
+
+function isVirtualFileSharePath(relPath: string) {
+  return relPath.startsWith(FILE_SHARE_REL_PREFIX);
+}
+
+function fileShareIdFromPath(relPath: string) {
+  return relPath.slice(FILE_SHARE_REL_PREFIX.length).replace(/\/$/, "");
+}
+
+const FILE_EXT_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  pdf: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  doc: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  docx: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  xls: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  xlsx: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  ppt: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  pptx: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  txt: { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200" },
+  jpg: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
+  jpeg: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
+  png: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
+  zip: { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-200" },
 };
 
 type ShareInfo = {
@@ -52,18 +80,106 @@ type QuotaInfo = {
 
 type DropFile = { file: File; relPath: string };
 
-function getFileIcon(ext?: string) {
-  switch (ext?.toLowerCase()) {
-    case "pdf":
-      return "📕";
-    case "doc":
-    case "docx":
-      return "📘";
-    case "xls":
-    case "xlsx":
-      return "📗";
-  }
-  return "📄";
+function FileTypeBadge({ ext }: { ext?: string }) {
+  const key = (ext || "").toLowerCase();
+  const style = FILE_EXT_STYLES[key] ?? {
+    bg: "bg-slate-50",
+    text: "text-slate-600",
+    border: "border-slate-200",
+  };
+  const label = key ? key.toUpperCase() : "FICHIER";
+  return (
+    <div
+      className={`w-12 h-14 rounded-lg border ${style.border} ${style.bg} flex items-center justify-center shadow-sm`}
+    >
+      <span className={`text-[9px] font-black tracking-wide ${style.text}`}>{label.slice(0, 5)}</span>
+    </div>
+  );
+}
+
+function FolderIcon({ variant }: { variant?: "shared-incoming" | "default" }) {
+  const colors =
+    variant === "shared-incoming"
+      ? "border-indigo-200 bg-indigo-50 text-indigo-600"
+      : "border-amber-200 bg-amber-50 text-amber-600";
+  return (
+    <div
+      className={`w-12 h-14 rounded-lg border ${colors} flex items-center justify-center shadow-sm`}
+    >
+      <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" aria-hidden>
+        <path d="M10 4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h6z" />
+      </svg>
+    </div>
+  );
+}
+
+function ActionIconButton({
+  label,
+  onClick,
+  tone,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  tone: "indigo" | "blue" | "red" | "amber";
+  children: ReactNode;
+}) {
+  const tones = {
+    indigo: "hover:bg-indigo-50 text-indigo-700",
+    blue: "hover:bg-blue-50 text-blue-700",
+    red: "hover:bg-red-50 text-red-600",
+    amber: "hover:bg-amber-50 text-amber-700",
+  };
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`p-2 rounded-lg bg-white/90 text-slate-600 transition-colors ${tones[tone]}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function IconShare() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path
+        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconMove() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M5 9l-3 3 3 3M19 15l3-3-3-3M2 12h20" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconTrash() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconLeave() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DropFile[]> {
@@ -156,6 +272,12 @@ export default function DocumentsPage() {
   const [moveDestFolders, setMoveDestFolders] = useState<DocumentItem[]>([]);
   const [moveDestLoading, setMoveDestLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showDeleteFolder, setShowDeleteFolder] = useState(false);
+  const [deleteFolderConfirm, setDeleteFolderConfirm] = useState("");
+  const [showLeaveShare, setShowLeaveShare] = useState(false);
+  const [shareFileItem, setShareFileItem] = useState<DocumentItem | null>(null);
+  const [shareFileMembers, setShareFileMembers] = useState<string[]>([]);
+  const [incomingFileCount, setIncomingFileCount] = useState(0);
 
   const activeShare = useMemo(
     () => shares.find((s) => s.id === shareId) ?? null,
@@ -215,15 +337,28 @@ export default function DocumentsPage() {
     }
   }, [scope, shareId, currentPath]);
 
+  const refreshIncomingFileCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/documents/file-shares", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setIncomingFileCount(Array.isArray(data.shares) ? data.shares.length : 0);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     if (!isLoaded) return;
     refreshShares();
     refreshQuota();
+    refreshIncomingFileCount();
     fetch("/api/documents/peers", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setPeers(d.peers ?? []))
       .catch(() => {});
-  }, [isLoaded, refreshShares, refreshQuota]);
+  }, [isLoaded, refreshShares, refreshQuota, refreshIncomingFileCount]);
 
   useEffect(() => {
     if (isLoaded) fetchDocuments();
@@ -234,6 +369,17 @@ export default function DocumentsPage() {
     setShareId(null);
     setCurrentPath("");
   };
+
+  const openIncomingSharedFiles = () => {
+    setScope("personal");
+    setShareId(null);
+    setCurrentPath(`${INCOMING_SHARED_FILES_FOLDER}/`);
+  };
+
+  const isInIncomingSharedFolder =
+    scope === "personal" &&
+    (currentPath === `${INCOMING_SHARED_FILES_FOLDER}/` ||
+      currentPath === INCOMING_SHARED_FILES_FOLDER);
 
   const openShare = (share: ShareInfo) => {
     setScope("shared");
@@ -482,10 +628,139 @@ export default function DocumentsPage() {
     setter(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
   };
 
+  const handleDeleteCurrentFolder = async () => {
+    if (deleteFolderConfirm.trim().toLowerCase() !== "supprimer") {
+      setError('Tapez « supprimer » pour confirmer.');
+      return;
+    }
+    setActionLoading("delete-folder");
+    setError(null);
+    try {
+      const res = await fetch("/api/documents/delete-folder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope,
+          shareId,
+          folderPath: currentFolderRel,
+          confirm: deleteFolderConfirm,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Suppression impossible.");
+        return;
+      }
+      setShowDeleteFolder(false);
+      setDeleteFolderConfirm("");
+      if (pathSegments.length > 1) {
+        navigateToSegment(pathSegments.length - 2);
+      } else {
+        setCurrentPath("");
+      }
+      await fetchDocuments();
+      await refreshQuota();
+    } catch {
+      setError("Erreur lors de la suppression du dossier.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleShareFile = async () => {
+    if (!shareFileItem) return;
+    setError(null);
+    const res = await fetch("/api/documents/file-shares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourcePath: shareFileItem.relPath,
+        memberIds: shareFileMembers,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Partage impossible.");
+      return;
+    }
+    setShareFileItem(null);
+    setShareFileMembers([]);
+    await refreshIncomingFileCount();
+  };
+
+  const handleLeaveFileShare = async (item: DocumentItem) => {
+    const id = fileShareIdFromPath(item.relPath);
+    if (!id) return;
+    setActionLoading(item.relPath);
+    setError(null);
+    try {
+      const res = await fetch("/api/documents/file-shares/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileShareId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Impossible de retirer le fichier.");
+        return;
+      }
+      await fetchDocuments();
+      await refreshIncomingFileCount();
+    } catch {
+      setError("Erreur lors du retrait du fichier partagé.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleLeaveShare = async () => {
+    if (!shareId) return;
+    setActionLoading("leave-share");
+    setError(null);
+    try {
+      const res = await fetch("/api/documents/shares/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shareId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Impossible de quitter le dossier.");
+        return;
+      }
+      setShowLeaveShare(false);
+      goToPersonalRoot();
+      await refreshShares();
+    } catch {
+      setError("Erreur lors de la sortie du dossier partagé.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (!isLoaded) return null;
 
   const isSharePicker = scope === "shared" && !shareId;
-  const rootLabel = scope === "personal" ? "Mon cloud" : activeShare?.name ?? "Dossier partagé";
+  const rootLabel = isInIncomingSharedFolder
+    ? INCOMING_SHARED_FILES_FOLDER
+    : scope === "personal"
+      ? "Mon cloud"
+      : activeShare?.name ?? "Dossier partagé";
+  const isShareOwner = Boolean(activeShare?.isOwner);
+  const canDeleteCurrentFolder =
+    !isSharePicker &&
+    !isInIncomingSharedFolder &&
+    ((scope === "personal" && currentPath !== "") ||
+      (scope === "shared" && isShareOwner && shareId));
+  const currentFolderRel = currentPath.replace(/\/$/, "");
+  const deleteFolderLabel =
+    scope === "shared" && !currentFolderRel
+      ? "Supprimer tout le contenu"
+      : "Supprimer ce dossier";
+  const deleteFolderTargetName =
+    scope === "shared" && !currentFolderRel
+      ? activeShare?.name ?? "dossier partagé"
+      : pathSegments[pathSegments.length - 1] ?? "ce dossier";
 
   return (
     <main className="flex flex-col gap-5 p-4 sm:p-6 w-full mx-auto max-w-[1200px] sm:pt-[6vh]">
@@ -527,7 +802,7 @@ export default function DocumentsPage() {
           <button
             type="button"
             onClick={() => setShowNewFolder(true)}
-            disabled={isSharePicker}
+            disabled={isSharePicker || isInIncomingSharedFolder}
             className="px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Dossier
@@ -535,7 +810,7 @@ export default function DocumentsPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isSharePicker || uploading}
+            disabled={isSharePicker || isInIncomingSharedFolder || uploading}
             className="px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Ajouter un fichier
@@ -559,46 +834,87 @@ export default function DocumentsPage() {
               Gérer le partage
             </button>
           )}
+          {canDeleteCurrentFolder && (
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteFolderConfirm("");
+                setShowDeleteFolder(true);
+              }}
+              className="px-4 py-2 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50"
+            >
+              {deleteFolderLabel}
+            </button>
+          )}
+          {scope === "shared" && shareId && !isShareOwner && (
+            <button
+              type="button"
+              onClick={() => setShowLeaveShare(true)}
+              className="px-4 py-2 rounded-xl border border-amber-200 text-amber-800 text-sm font-semibold hover:bg-amber-50"
+            >
+              Quitter le dossier
+            </button>
+          )}
         </div>
       </section>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <aside className="md:w-56 shrink-0 bg-white border border-gray-200 rounded-2xl p-3 h-fit">
+      <div className="flex flex-col md:flex-row gap-4 md:items-stretch">
+        <aside className="md:w-56 shrink-0 bg-white border border-gray-200 rounded-2xl p-3 flex flex-col max-h-[min(720px,calc(100vh-10rem))] md:min-h-[480px]">
           <button
             type="button"
             onClick={goToPersonalRoot}
             className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold mb-1 ${
-              scope === "personal" ? "bg-blue-50 text-blue-700" : "hover:bg-gray-50 text-gray-700"
+              scope === "personal" && !isInIncomingSharedFolder
+                ? "bg-blue-50 text-blue-700"
+                : "hover:bg-gray-50 text-gray-700"
             }`}
           >
             Mon cloud
           </button>
-          <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-            Partagés avec moi
+          <button
+            type="button"
+            onClick={openIncomingSharedFiles}
+            className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-1 flex items-center justify-between gap-2 ${
+              isInIncomingSharedFolder
+                ? "bg-indigo-50 text-indigo-700 font-semibold"
+                : "hover:bg-gray-50 text-gray-700"
+            }`}
+          >
+            <span className="truncate">Fichiers partagés</span>
+            {incomingFileCount > 0 && (
+              <span className="shrink-0 text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">
+                {incomingFileCount}
+              </span>
+            )}
+          </button>
+          <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400 shrink-0">
+            Dossiers partagés
           </p>
-          {shares.length === 0 ? (
-            <p className="px-3 text-xs text-gray-400 italic">Aucun dossier partagé</p>
-          ) : (
-            shares.map((share) => (
-              <button
-                key={share.id}
-                type="button"
-                onClick={() => openShare(share)}
-                className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-0.5 truncate ${
-                  scope === "shared" && shareId === share.id
-                    ? "bg-blue-50 text-blue-700 font-semibold"
-                    : "hover:bg-gray-50 text-gray-700"
-                }`}
-                title={share.name}
-              >
-                {share.isOwner ? "👑 " : "👥 "}
-                {share.name}
-              </button>
-            ))
-          )}
+          <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+            {shares.length === 0 ? (
+              <p className="px-3 text-xs text-gray-400 italic">Aucun dossier partagé</p>
+            ) : (
+              shares.map((share) => (
+                <button
+                  key={share.id}
+                  type="button"
+                  onClick={() => openShare(share)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-0.5 truncate ${
+                    scope === "shared" && shareId === share.id
+                      ? "bg-blue-50 text-blue-700 font-semibold"
+                      : "hover:bg-gray-50 text-gray-700"
+                  }`}
+                  title={share.name}
+                >
+                  {share.isOwner ? "👑 " : "👥 "}
+                  {share.name}
+                </button>
+              ))
+            )}
+          </div>
         </aside>
 
-        <section className="flex-1 min-w-0">
+        <section className="flex-1 min-w-0 flex flex-col min-h-[480px] max-h-[min(720px,calc(100vh-10rem))]">
           <div className="flex items-center gap-1 text-sm text-gray-500 mb-3 flex-wrap">
             <button type="button" onClick={() => navigateToSegment(-1)} className="hover:text-blue-600 font-medium">
               {rootLabel}
@@ -627,7 +943,7 @@ export default function DocumentsPage() {
           ) : (
             <div
               className={[
-                "relative min-h-[420px] rounded-3xl border-2 border-dashed p-6 transition-colors",
+                "relative flex flex-col flex-1 min-h-0 rounded-3xl border-2 border-dashed transition-colors",
                 dragActive ? "border-blue-500 bg-blue-50/50" : "border-gray-200 bg-gray-50/40",
                 uploading ? "opacity-70 pointer-events-none" : "",
               ].join(" ")}
@@ -668,40 +984,161 @@ export default function DocumentsPage() {
                 </div>
               )}
 
+              <div className="flex-1 min-h-0 overflow-y-auto p-4">
               {items.length > 0 ? (
                 <div
-                  className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+                  className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 items-start"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {items.map((item) => (
-                    <DocumentItemCard
-                      key={item.relPath}
-                      item={item}
-                      busy={actionLoading === item.relPath || openingFile === item.relPath}
-                      onOpen={() => {
-                        if (item.type === "folder") enterFolder(item.relPath);
-                        else handleOpenFile(item.relPath);
-                      }}
-                      onMove={() => setMoveItem(item)}
-                      onDelete={() => handleDeleteItem(item)}
-                    />
-                  ))}
+                  {items.map((item) => {
+                    const virtualFile = isVirtualFileSharePath(item.relPath);
+                    const canShareFile =
+                      scope === "personal" &&
+                      !isInIncomingSharedFolder &&
+                      item.type === "file" &&
+                      !virtualFile;
+                    return (
+                      <DocumentItemCard
+                        key={item.relPath}
+                        item={item}
+                        busy={actionLoading === item.relPath || openingFile === item.relPath}
+                        onOpen={() => {
+                          if (item.type === "folder") {
+                            enterFolder(
+                              item.relPath.endsWith("/") ? item.relPath : `${item.relPath}/`,
+                            );
+                          } else handleOpenFile(item.relPath);
+                        }}
+                        onMove={virtualFile ? undefined : () => setMoveItem(item)}
+                        onDelete={virtualFile ? undefined : () => handleDeleteItem(item)}
+                        onShare={canShareFile ? () => setShareFileItem(item) : undefined}
+                        onLeave={virtualFile ? () => handleLeaveFileShare(item) : undefined}
+                        folderVariant={
+                          item.name === INCOMING_SHARED_FILES_FOLDER ? "shared-incoming" : "default"
+                        }
+                      />
+                    );
+                  })}
                 </div>
               ) : (
                 !loading && (
-                  <div className="flex flex-col items-center justify-center h-[300px] text-gray-400 pointer-events-none">
-                    <span className="text-5xl mb-4">📂</span>
-                    <p className="font-medium text-gray-600">Ce dossier est vide</p>
-                    <p className="text-sm mt-2 italic">
+                  <div className="flex flex-col items-center justify-center min-h-[240px] h-full text-gray-400 pointer-events-none">
+                    <span className="text-4xl mb-3">📂</span>
+                    <p className="font-medium text-gray-600 text-sm">Ce dossier est vide</p>
+                    <p className="text-xs mt-2 italic text-center px-4">
                       Glissez-déposez des fichiers ou dossiers ici
                     </p>
                   </div>
                 )
               )}
+              </div>
             </div>
           )}
         </section>
       </div>
+
+      {showDeleteFolder && (
+        <Modal title={deleteFolderLabel} onClose={() => setShowDeleteFolder(false)}>
+          <p className="text-sm text-gray-600 mb-3">
+            Cette action supprime définitivement <strong>{deleteFolderTargetName}</strong> et tout son
+            contenu. Elle est irréversible.
+          </p>
+          <p className="text-sm text-gray-500 mb-2">
+            Tapez <strong>supprimer</strong> pour confirmer :
+          </p>
+          <input
+            autoFocus
+            value={deleteFolderConfirm}
+            onChange={(e) => setDeleteFolderConfirm(e.target.value)}
+            placeholder="supprimer"
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm mb-4"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDeleteFolder(false)}
+              className="px-4 py-2 text-sm rounded-xl border"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteCurrentFolder}
+              disabled={
+                deleteFolderConfirm.trim().toLowerCase() !== "supprimer" ||
+                actionLoading === "delete-folder"
+              }
+              className="px-4 py-2 text-sm rounded-xl bg-red-600 text-white font-semibold disabled:opacity-40"
+            >
+              {actionLoading === "delete-folder" ? "Suppression…" : "Supprimer définitivement"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {showLeaveShare && activeShare && (
+        <Modal title="Quitter le dossier partagé" onClose={() => setShowLeaveShare(false)}>
+          <p className="text-sm text-gray-600 mb-4">
+            Vous ne verrez plus <strong>{activeShare.name}</strong> dans vos dossiers partagés. Le
+            propriétaire pourra vous y réintégrer à tout moment via « Gérer le partage ».
+          </p>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setShowLeaveShare(false)} className="px-4 py-2 text-sm rounded-xl border">
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleLeaveShare}
+              disabled={actionLoading === "leave-share"}
+              className="px-4 py-2 text-sm rounded-xl bg-amber-600 text-white font-semibold disabled:opacity-40"
+            >
+              {actionLoading === "leave-share" ? "En cours…" : "Quitter"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {shareFileItem && (
+        <Modal
+          title={`Partager « ${shareFileItem.name}${shareFileItem.ext ? `.${shareFileItem.ext}` : ""} »`}
+          onClose={() => {
+            setShareFileItem(null);
+            setShareFileMembers([]);
+          }}
+          wide
+        >
+          <p className="text-sm text-gray-500 mb-3">
+            Les personnes choisies verront ce fichier dans leur dossier « Fichiers partagés ».
+          </p>
+          <PeerPicker
+            peers={filteredPeers}
+            search={peerSearch}
+            onSearch={setPeerSearch}
+            selected={shareFileMembers}
+            onToggle={(id) => toggleMember(id, shareFileMembers, setShareFileMembers)}
+          />
+          <div className="flex justify-end gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShareFileItem(null);
+                setShareFileMembers([]);
+              }}
+              className="px-4 py-2 text-sm rounded-xl border"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleShareFile}
+              disabled={shareFileMembers.length === 0}
+              className="px-4 py-2 text-sm rounded-xl bg-indigo-600 text-white font-semibold disabled:opacity-40"
+            >
+              Partager
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {showNewFolder && (
         <Modal title="Nouveau dossier" onClose={() => setShowNewFolder(false)}>
@@ -830,13 +1267,21 @@ function DocumentItemCard({
   onOpen,
   onMove,
   onDelete,
+  onShare,
+  onLeave,
+  folderVariant,
 }: {
   item: DocumentItem;
   busy?: boolean;
   onOpen: () => void;
-  onMove: () => void;
-  onDelete: () => void;
+  onMove?: () => void;
+  onDelete?: () => void;
+  onShare?: () => void;
+  onLeave?: () => void;
+  folderVariant?: "shared-incoming" | "default";
 }) {
+  const hasSecondaryActions = Boolean(onShare || onMove || onDelete || onLeave);
+
   return (
     <div
       role="button"
@@ -848,48 +1293,65 @@ function DocumentItemCard({
           onOpen();
         }
       }}
-      className="group relative flex flex-col items-center p-4 rounded-2xl hover:bg-white hover:shadow-lg transition-all border border-transparent hover:border-gray-100 cursor-pointer"
+      className="group relative flex flex-col items-center p-2.5 rounded-xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100 cursor-pointer w-full min-w-0 overflow-visible"
     >
-      <div className="absolute inset-0 rounded-2xl bg-slate-900/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 z-10 transition-opacity p-2">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }}
-          className="w-full max-w-[120px] px-3 py-1.5 rounded-lg bg-white text-gray-900 text-xs font-bold hover:bg-gray-100"
-        >
-          Ouvrir
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMove();
-          }}
-          className="w-full max-w-[120px] px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
-        >
-          Déplacer
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="w-full max-w-[120px] px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700"
-        >
-          Supprimer
-        </button>
+      <div className="absolute -left-2 -right-2 top-0 bottom-0 rounded-xl bg-slate-900/65 opacity-0 group-hover:opacity-100 flex flex-col items-stretch justify-between z-10 transition-opacity px-2.5 py-2 shadow-lg">
+        <div className="flex-1 flex items-center justify-center min-h-[3.5rem] px-0.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+            className="w-full px-2 py-2.5 rounded-lg bg-white text-gray-900 text-xs font-bold hover:bg-gray-50 shadow-sm"
+          >
+            Ouvrir
+          </button>
+        </div>
+        {hasSecondaryActions && (
+          <div className="flex items-center justify-center gap-2 pt-1.5 px-0.5">
+            {onShare && (
+              <ActionIconButton label="Partager" onClick={onShare} tone="indigo">
+                <IconShare />
+              </ActionIconButton>
+            )}
+            {onMove && (
+              <ActionIconButton label="Déplacer" onClick={onMove} tone="blue">
+                <IconMove />
+              </ActionIconButton>
+            )}
+            {onDelete && (
+              <ActionIconButton label="Supprimer" onClick={onDelete} tone="red">
+                <IconTrash />
+              </ActionIconButton>
+            )}
+            {onLeave && (
+              <ActionIconButton label="Retirer" onClick={onLeave} tone="amber">
+                <IconLeave />
+              </ActionIconButton>
+            )}
+          </div>
+        )}
       </div>
-      <div className="text-5xl mb-2 group-hover:scale-105 transition-transform">
-        {item.type === "folder" ? "📁" : getFileIcon(item.ext)}
+      <div className="mb-1.5 group-hover:scale-[1.03] transition-transform shrink-0">
+        {item.type === "folder" ? (
+          <FolderIcon variant={folderVariant} />
+        ) : (
+          <FileTypeBadge ext={item.ext} />
+        )}
       </div>
-      <span className="text-center text-xs font-semibold text-gray-700 line-clamp-2 w-full">
+      <span className="text-center text-[10px] font-medium text-gray-700 w-full leading-snug break-words px-0.5">
         {item.name}
-        {item.ext && <span className="text-gray-400 uppercase text-[9px] block">.{item.ext}</span>}
       </span>
-      {busy && <span className="mt-1 text-[10px] text-blue-600 font-bold">…</span>}
+      {item.type === "file" && item.ext && (
+        <span className="text-[9px] font-bold uppercase text-gray-400 mt-0.5">{item.ext}</span>
+      )}
+      {item.isVirtual && (
+        <span className="text-[8px] text-indigo-500 font-medium mt-0.5 text-center leading-tight">
+          Partagé
+        </span>
+      )}
+      {busy && <span className="mt-0.5 text-[9px] text-blue-600 font-bold">…</span>}
     </div>
   );
 }

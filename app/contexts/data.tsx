@@ -2,7 +2,7 @@
 
 import { createContext, useContext, PropsWithChildren } from "react";
 
-export type DashboardTileVariant = "default" | "travels" | "prof-room" | "agent-ia" | "absences-calendar";
+export type DashboardTileVariant = "default" | "travels" | "prof-room" | "agent-ia" | "absences" | "personnel-ogec";
 
 export type Categories = {
   id: number;
@@ -92,14 +92,6 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 6,
-      "name": "Base de données Elèves",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/BDD.jpg",
-      "link": "https://lyceelaprovidencenbarre-my.sharepoint.com/:f:/g/personal/florian_hacqueville_laprovidence-nicolasbarre_fr/El7spw2Xkz5Jhj7mfvCF3GQBF_SXsR3v_8S_7G4lMJMKMQ?e=fI8DPd",
-      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
-      "external": true
-    },
-    {
       "id": 8,
       "name": "Réservation de salle",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
@@ -126,20 +118,13 @@ const STATIC_DATA: Data = {
       "external": false
     },
     {
-      "id": 12,
-      "name": "Ajout d'actualités sur le site",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/News.jpg",
-      "link": "/add-news-site",
-      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
-      "external": false
-    },
-    {
       "id": 13,
-      "name": "Déclaration d'absences",
+      "name": "Absences",
       "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
       "link": "/absences",
       "allowedRoles": ["professeur", "administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite", "education"],
-      "external": false
+      "external": false,
+      "variant": "absences"
     },
     {
       "id": 14,
@@ -172,15 +157,6 @@ const STATIC_DATA: Data = {
       "link": "/chatbot-knowledge",
       "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
-    },
-    {
-      "id": 18,
-      "name": "Calendrier des absences",
-      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Calendrier.jpg",
-      "link": "/calendrierAbsProfs",
-      "allowedRoles": ["administratif", "direction_ecole", "direction_college", "direction_lycee", "education"],
-      "external": false,
-      "variant": "absences-calendar"
     },
     {
       "id": 19,
@@ -222,6 +198,15 @@ const STATIC_DATA: Data = {
       "link": "/demandes-hse",
       "allowedRoles": ["professeur", "direction_ecole", "direction_college", "direction_lycee"],
       "external": false
+    },
+    {
+      "id": 23,
+      "name": "Module RH",
+      "img": "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Organigramme.jpg",
+      "link": "/rh",
+      "allowedRoles": ["administratif", "comptabilite", "maintenance", "education", "direction_ecole", "direction_college", "direction_lycee", "professeur", "infirmerie", "admin"],
+      "external": false,
+      "variant": "personnel-ogec"
     }
   ],
   externalQuickLinks: [

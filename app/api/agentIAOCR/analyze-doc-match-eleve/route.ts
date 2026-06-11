@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
-  filterElevesForSecteur,
+  buildElevesPoolForOcrMatching,
   getOneDriveProfileForClerkLastName,
   oneDrivePathForEleve,
 } from "@/app/lib/onedrive-eleves";
 
 const KEY = "eleves.json";
 
-async function getElevesFromS3(orgId: string): Promise<EleveConfig[]> {
-  const hit = await getTenantJson<EleveConfig[]>(orgId, KEY);
+async function getElevesFromS3(): Promise<EleveConfig[]> {
+  const hit = await getJson<EleveConfig[]>( KEY);
   return Array.isArray(hit?.data) ? hit.data : [];
 }
 
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { userId } = getAuth(req as any);
     if (!userId) { return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })}
-    const gate = await requireTenantAuth();
+    const gate = await requireAuth();
     if (!gate.ok) return gate.response;
     const user = await currentUser();
     const lastName = (user?.lastName || "").trim();
@@ -125,12 +125,33 @@ export async function POST(req: Request) {
     }
     let oneDriveFolderPath: string | null = null;
     let matchedEleve: { ine: string; nom: string; prenom: string; folderName: string } | null = null;
+    let matchDebug: Record<string, unknown> = {};
     try {
-      const mefMap = await loadMefSecteurMap(gate.ctx.orgId);
-      const allEleves = await getElevesFromS3(gate.ctx.orgId);
-      const eleves = odProfile
-        ? filterElevesForSecteur(allEleves, odProfile.secteur, mefMap)
-        : allEleves;
+      const mefMap = await loadMefSecteurMap();
+      const allEleves = await getElevesFromS3();
+      const { eleves, secteurFilterApplied } = buildElevesPoolForOcrMatching(
+        allEleves,
+        odProfile,
+        mefMap,
+      );
+      matchDebug = {
+        totalEleves: allEleves.length,
+        elevesInPool: eleves.length,
+        secteurFilterApplied,
+        secteur: odProfile?.secteur ?? null,
+        secteurLabel: odProfile?.label ?? null,
+        mefCodesInTable: mefMap.size,
+        hasOneDriveProfile: Boolean(odProfile),
+        ...(allEleves.length === 0
+          ? { emptyPoolReason: "Liste eleves.json vide sur S3." }
+          : {}),
+        ...(!odProfile
+          ? {
+              emptyPoolReason:
+                "Profil OneDrive non reconnu pour votre nom Clerk — le chemin de rangement sera indisponible.",
+            }
+          : {}),
+      };
       const { ine, nom, prénom } = extracted;
       if (ine && ine !== "non_trouvé") {
         const ineTrim = ine.trim().toUpperCase();
@@ -201,6 +222,10 @@ export async function POST(req: Request) {
       }
     } catch (e) {
       console.error("Erreur matching interne:", e);
+      matchDebug = {
+        ...matchDebug,
+        matchingError: e instanceof Error ? e.message : String(e),
+      };
     }
     const namingPrompt = `
       Tu es un système de nommage de fichiers pour une école.
@@ -256,6 +281,7 @@ export async function POST(req: Request) {
       rawExtraction: extracted,
       oneDriveFolderPath,
       matchedEleve,
+      matchDebug,
     });
   } catch (error) {
     console.error('Erreur analyse Mistral:', error);

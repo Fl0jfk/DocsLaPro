@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { tenantS3Key } from "@/app/lib/tenant";
-import { getBucketName } from "@/app/lib/tenant-s3-storage";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
+import { s3Key } from "@/app/lib/s3-path";
+import { getBucketName } from "@/app/lib/s3-storage";
+import { publicS3UrlForKey } from "@/app/lib/travels-s3";
+import { requireAuth } from "@/app/lib/intranet-auth";
 
 export async function POST(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   try {
     const { fileName, fileType } = await req.json();
-    const fileKey = tenantS3Key(gate.ctx.orgId, `attachments/${Date.now()}-${fileName}`);
+    const fileKey = s3Key( `attachments/${Date.now()}-${fileName}`);
     const s3Client = new S3Client({
       region: process.env.REGION,
       credentials: {
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     return NextResponse.json({
       uploadUrl,
-      fileUrl: `https://${bucket}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`,
+      fileUrl: publicS3UrlForKey(fileKey),
     });
   } catch (error) {
     console.error(error);

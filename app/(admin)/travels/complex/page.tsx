@@ -4,26 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useState, Suspense, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-const CUISINE_DAYS = [
-  { key: "lundi",    label: "Lun." },
-  { key: "mardi",    label: "Mar." },
-  { key: "mercredi", label: "Mer." },
-  { key: "jeudi",    label: "Jeu." },
-  { key: "vendredi", label: "Ven." },
-];
-
-const CUISINE_ROWS = [
-  { key: "picnicTotal",  label: "Pique-nique (total)",     type: "number" },
-  { key: "picnicNoPork", label: "dont Sans porc",           type: "number" },
-  { key: "picnicVeg",    label: "dont Végétarien",          type: "number" },
-  { key: "selfAdults",   label: "Repas au self (adultes)",  type: "number" },
-  { key: "selfStudents", label: "Repas au self (élèves)",   type: "number" },
-  { key: "coffee",       label: "Café / thé / chocolat",   type: "number" },
-  { key: "juice",        label: "Jus de fruits",            type: "number" },
-  { key: "cakes",        label: "Petits gâteaux",           type: "number" },
-  { key: "pastries",     label: "Viennoiserie",             type: "number" },
-  { key: "other",        label: "Autre",                    type: "text"   },
-];
+import { CUISINE_DAYS_UI as CUISINE_DAYS, CUISINE_ROWS_UI as CUISINE_ROWS } from "@/app/lib/travels-cuisine-form";
 
 function ComplexTripFormContent() {
   const { user, isLoaded } = useUser();
@@ -119,6 +100,7 @@ function ComplexTripFormContent() {
     const tripId = `trip-${Date.now()}`;
     const payload = {
       id: tripId,
+      ownerId: user?.id,
       ownerName: user?.fullName || "Professeur inconnu",
       ownerEmail: user?.primaryEmailAddress?.emailAddress,
       status: "EN_ATTENTE_DIR_INITIAL",

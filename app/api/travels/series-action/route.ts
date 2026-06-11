@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { isTripOwner } from "@/app/lib/travels-direction-permissions";
 import { notifyComptaTravelsPhase } from "@/app/lib/travels-notify";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
-import { canSignTravelsDirectionForEtabTenant } from "@/app/lib/tenant-establishments";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { getJson, putJson } from "@/app/lib/s3-storage";
+import { canSignTravelsDirectionForEtab } from "@/app/lib/establishments";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function tripSummaryFromFullTrip(tripId: string, t: any) {
@@ -43,10 +43,9 @@ function tripSummaryFromFullTrip(tripId: string, t: any) {
 }
 
 export async function POST(req: Request) {
-  const gate = await requireTenantAuth();
+  const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-  const { orgId } = gate.ctx;
-  let body: { action?: string; seriesId?: string; tripId?: string; actorName?: string };
+    let body: { action?: string; seriesId?: string; tripId?: string; actorName?: string };
   try {
     body = await req.json();
   } catch {
@@ -56,7 +55,7 @@ export async function POST(req: Request) {
     typeof body.actorName === "string" && body.actorName.trim() ? body.actorName.trim() : "Utilisateur";
 
   try {
-    const indexHit = await getTenantJson<unknown[]>(orgId, "travels/index.json");
+    const indexHit = await getJson<unknown[]>("travels/index.json");
     let currentIndex: unknown[] = Array.isArray(indexHit?.data) ? indexHit.data : [];
 
     const syncIndexEntry = (tripId: string, summary: ReturnType<typeof tripSummaryFromFullTrip>) => {
@@ -74,8 +73,7 @@ export async function POST(req: Request) {
         const data = row.data || {};
         let sid: string | null | undefined = data.recurrenceSeriesId;
         if (sid === undefined && !("recurrenceSeriesId" in data)) {
-          const fullHit = await getTenantJson<{ data?: { recurrenceSeriesId?: string } }>(
-            orgId,
+          const fullHit = await getJson<{ data?: { recurrenceSeriesId?: string } }>(
             `travels/${row.id}.json`,
           );
           sid = fullHit?.data?.data?.recurrenceSeriesId;
@@ -88,15 +86,15 @@ export async function POST(req: Request) {
       }
       const me = await currentUser();
       if (!me?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-      const firstHit = await getTenantJson<{ data?: { etablissement?: string } }>(orgId, `travels/${ids[0]}.json`);
+      const firstHit = await getJson<{ data?: { etablissement?: string } }>( `travels/${ids[0]}.json`);
       if (!firstHit?.data) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
-      if (!(await canSignTravelsDirectionForEtabTenant(me, orgId, firstHit.data?.data?.etablissement))) {
+      if (!(await canSignTravelsDirectionForEtab(me,  firstHit.data?.data?.etablissement))) {
         return NextResponse.json({ error: "Droits insuffisants" }, { status: 403 });
       }
       const now = new Date().toISOString();
       let updated = 0;
       for (const tripId of ids) {
-        const hit = await getTenantJson<Record<string, unknown>>(orgId, `travels/${tripId}.json`);
+        const hit = await getJson<Record<string, unknown>>(`travels/${tripId}.json`);
         if (!hit?.data) continue;
         const trip = hit.data as Record<string, unknown> & {
           type?: string;
@@ -118,13 +116,11 @@ export async function POST(req: Request) {
             user: actor,
           },
         ];
-        await putTenantJson(orgId, `travels/${tripId}.json`, trip);
+        await putJson(`travels/${tripId}.json`, trip);
         syncIndexEntry(tripId, tripSummaryFromFullTrip(tripId, trip));
         if (statusBefore !== "EN_ATTENTE_COMPTA") {
           try {
-            await notifyComptaTravelsPhase({
-              orgId,
-              tripId,
+            await notifyComptaTravelsPhase({ tripId,
               trip,
               previousStatus: statusBefore,
             });
@@ -134,13 +130,13 @@ export async function POST(req: Request) {
         }
         updated++;
       }
-      await putTenantJson(orgId, "travels/index.json", currentIndex);
+      await putJson("travels/index.json", currentIndex);
       return NextResponse.json({ success: true, updated });
     }
 
     if (body.action === "cancel_session" && body.tripId) {
       const tripId = body.tripId;
-      const hit = await getTenantJson<Record<string, unknown>>(orgId, `travels/${tripId}.json`);
+      const hit = await getJson<Record<string, unknown>>(`travels/${tripId}.json`);
       if (!hit?.data) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
       const trip = hit.data as Record<string, unknown> & {
         ownerId?: string;
@@ -152,7 +148,7 @@ export async function POST(req: Request) {
       if (!me?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
       if (
         !isTripOwner(trip.ownerId as string, me.id) &&
-        !(await canSignTravelsDirectionForEtabTenant(me, orgId, trip.data?.etablissement))
+        !(await canSignTravelsDirectionForEtab(me,  trip.data?.etablissement))
       ) {
         return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
       }
@@ -177,9 +173,9 @@ export async function POST(req: Request) {
           user: actor,
         },
       ];
-      await putTenantJson(orgId, `travels/${tripId}.json`, trip);
+      await putJson(`travels/${tripId}.json`, trip);
       syncIndexEntry(tripId, tripSummaryFromFullTrip(tripId, trip));
-      await putTenantJson(orgId, "travels/index.json", currentIndex);
+      await putJson("travels/index.json", currentIndex);
       return NextResponse.json({ success: true });
     }
 

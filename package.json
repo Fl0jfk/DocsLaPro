@@ -25,13 +25,15 @@
     "html5-qrcode": "latest",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
+    "jszip": "^3.10.1",
     "next": "^15.5.1",
     "nodemailer": "latest",
     "pdf-lib": "^1.17.1",
     "qrcode": "latest",
     "qrcode.react": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "latest",

@@ -3,38 +3,78 @@
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-
-function orderEmailForQuote(quote: {
-  extractedContactEmail?: string | null;
-  providerEmail?: string | null;
-  email?: string | null;
-} | null | undefined): string {
-  if (!quote) return "";
-  const a = quote.extractedContactEmail?.trim();
-  const b = quote.providerEmail?.trim();
-  const c = quote.email?.trim();
-  return (a || b || c || "").trim();
-}
-
-function isValidEmailLoose(s: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
-}
-
-/** Voyage complexe avec demande de transport bus (étape logistique / devis). */
-function complexNeedsBus(trip: { type?: string; data?: { needsBus?: boolean } } | null) {
-  return trip?.type === "COMPLEX" && Boolean(trip?.data?.needsBus);
-}
+import { useTravelsPermissions } from "@/app/hooks/useTravelsPermissions";
+import {
+  CUISINE_DAYS_UI,
+  CUISINE_ROWS_UI,
+  emptyCuisineDetails,
+  getTotalMeals,
+} from "@/app/lib/travels-cuisine-form";
+import {
+  busLogisticsActive,
+  complexNeedsBus,
+  cuisineEffectifChanged,
+  datesChangedSinceSnapshot,
+  effectifChangedSinceSnapshot,
+  isValidEmailLoose,
+  getModificationRequestNote,
+  tripEffectifTotal,
+} from "@/app/lib/travels-trip-helpers";
+import type { TravelsHubTab, TravelsTrip } from "@/app/lib/travels-types";
+import { TRAVELS_HUB_TABS } from "@/app/lib/travels-types";
+import { orderEmailForQuote } from "@/app/lib/travels-transport-shared";
+import { TripActionsPanel } from "@/app/components/travels/hub/TripActionsPanel";
+import { TripAmendmentJournal } from "@/app/components/travels/hub/TripAmendmentJournal";
+import { TripHubNav } from "@/app/components/travels/hub/TripHubNav";
+import { TripRemindersBanner } from "@/app/components/travels/hub/TripRemindersBanner";
+import {
+  TripAlert,
+  TripBusQuoteCard,
+  TripButton,
+  TripDecisionPanel,
+  TripDocumentChip,
+  TripField,
+  TripFieldActions,
+  TripFieldValue,
+  TripHeroHeader,
+  TripInput,
+  TripLoadingOverlay,
+  TripPageShell,
+  TripQuickStats,
+  TripSection,
+  TripTextarea,
+  TripWorkflowStepper,
+} from "@/app/components/travels/TripDetailUI";
 
 export default function TripDetails() {
   const { id } = useParams();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isLoaded: isUserLoaded } = useUser();
-  const [trip, setTrip] = useState<any>(null);
+  const [trip, setTrip] = useState<TravelsTrip | null>(null);
+  const [hubTab, setHubTab] = useState<TravelsHubTab>("overview");
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<any>(null);
   const [showCuisineModal, setShowCuisineModal] = useState(false);
+  const [showEffectifModal, setShowEffectifModal] = useState(false);
+  const [effectifFollowUp, setEffectifFollowUp] = useState<{
+    sendTransport: boolean;
+    sendCuisine: boolean;
+    savedTrip: any;
+  } | null>(null);
+  const [draftNbEleves, setDraftNbEleves] = useState("");
+  const [draftNbAccompagnateurs, setDraftNbAccompagnateurs] = useState("");
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [draftStartDate, setDraftStartDate] = useState("");
+  const [draftEndDate, setDraftEndDate] = useState("");
+  const [draftStartTime, setDraftStartTime] = useState("");
+  const [draftEndTime, setDraftEndTime] = useState("");
+  const [dateFollowUp, setDateFollowUp] = useState<{
+    sendTransport: boolean;
+    sendCuisine: boolean;
+    savedTrip: TravelsTrip;
+  } | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [manualDevisName, setManualDevisName] = useState("");
@@ -42,66 +82,32 @@ export default function TripDetails() {
   const [manualDevisBusy, setManualDevisBusy] = useState(false);
   const [zeendocSendingUrl, setZeendocSendingUrl] = useState<string | null>(null);
   const [reopenStep, setReopenStep] = useState("");
-  const rawRoles = user?.publicMetadata?.role;
-  const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
-  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
-  const normalizedRoles = userRoles.map((r: string) => norm(String(r)));
-  const isDirectionLycee = userRoles.includes('direction_lycee');
-  const isDirectionCollege = userRoles.includes('direction collège');
-  const isDirectionEcole = userRoles.includes('direction école');
-  const etabForSign = trip?.data?.etablissement || "";
-  const isEcoleDir = normalizedRoles.some((r: string) => r.includes("directionecole") || r.includes("directionecol") || (r.includes("direction") && r.includes("ecole")));
-  const isCollegeDir = normalizedRoles.some((r: string) => r.includes("directioncollege") || (r.includes("direction") && r.includes("college")));
-  const isLyceeDir = normalizedRoles.some((r: string) => r.includes("directionlycee") || (r.includes("direction") && r.includes("lycee")));
-  const isDirection = isDirectionLycee || isDirectionCollege || isDirectionEcole || isEcoleDir || isCollegeDir || isLyceeDir;
-  const canSign = etabForSign === "École" ? (isDirectionEcole  || isEcoleDir) : etabForSign === "Collège" ? (isDirectionCollege || isCollegeDir) : etabForSign === "Lycée" ? (isDirectionLycee  || isLyceeDir) : isDirectionLycee || isLyceeDir;
-  const isCompta = userRoles.includes('comptabilité') || normalizedRoles.some((r: string) => r.includes("comptabilite"));
-  const isAdministratif = normalizedRoles.some((r: string) => r.includes("administratif"));
-  const canSeeTravelDocHoverActions = isDirection || isAdministratif || isCompta;
-  const isOwner = user?.fullName === trip?.ownerName;
-  const canManageFiles = isOwner || isDirection || isCompta;
-  /** Ajout de pièces + devis manuel bus (sans retirer des fichiers ni éditer le dossier). */
-  const canAddDocuments = canManageFiles || isAdministratif;
-  const canUseInternalThread = isOwner || isDirection || isCompta;
-  const CUISINE_DAYS = [{ key: "lundi", label: "Lun." },{ key: "mardi", label: "Mar." },{ key: "mercredi", label: "Mer." },{ key: "jeudi", label: "Jeu." },{ key: "vendredi", label: "Ven." }];
-  const CUISINE_ROWS = [
-    { key: "picnicTotal", label: "Pique-nique (total)", type: "number" },
-    { key: "picnicNoPork", label: "dont Sans porc", type: "number" },
-    { key: "picnicVeg", label: "dont Végétarien", type: "number" },
-    { key: "selfAdults", label: "Repas au self (adultes)", type: "number" },
-    { key: "selfStudents", label: "Repas au self (élèves)", type: "number" },
-    { key: "coffee", label: "Café / thé / chocolat", type: "number" },
-    { key: "juice", label: "Jus de fruits", type: "number" },
-    { key: "cakes", label: "Petits gâteaux", type: "number" },
-    { key: "pastries", label: "Viennoiserie", type: "number" },
-    { key: "other", label: "Autre", type: "text" },
-  ];
-  const emptyCuisineDetails = () => ({
-    active: false,
-    deliveryTime: "",
-    deliveryPlace: "Self",
-    daysSelection: { lundi: false, mardi: false, mercredi: false, jeudi: false, vendredi: false },
-    orders: {
-      lundi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
-      mardi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
-      mercredi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
-      jeudi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
-      vendredi: { picnicTotal: "", picnicNoPork: "", picnicVeg: "", selfAdults: "", selfStudents: "", coffee: "", juice: "", cakes: "", pastries: "", other: "" },
-    },
-  });
-  const getTotalMeals = (details: any): number => {
-    if (!details?.active) return 0;
-    if (details?.orders) {
-      return CUISINE_DAYS.reduce((sum, { key }) => {
-        const dayEnabled = details.daysSelection?.[key];
-        if (!dayEnabled) return sum;
-        const val = Number(details.orders?.[key]?.picnicTotal || 0);
-        return sum + (Number.isFinite(val) ? val : 0);
-      }, 0);
-    }
-    const legacy = Number(details?.picnicTotal || 0);
-    return Number.isFinite(legacy) ? legacy : 0;
-  };
+  const perms = useTravelsPermissions(trip);
+  const {
+    isOwner,
+    isDirection,
+    canSign,
+    isCompta,
+    canSeeTravelDocHoverActions,
+    canManageFiles,
+    canAddDocuments,
+    canUseInternalThread,
+    canEditEffectif,
+  } = perms;
+  const CUISINE_DAYS = CUISINE_DAYS_UI;
+  const CUISINE_ROWS = CUISINE_ROWS_UI;
+  useEffect(() => {
+    if (!trip) return;
+    const withBus = complexNeedsBus(trip);
+    const hasCuisine = Boolean(trip.data?.piqueNiqueDetails?.active);
+    const allowed = TRAVELS_HUB_TABS.filter((t) => {
+      if (t.id === "transport" && !withBus) return false;
+      if (t.id === "cuisine" && !hasCuisine) return false;
+      return true;
+    }).map((t) => t.id);
+    if (!allowed.includes(hubTab)) setHubTab("overview");
+  }, [trip, hubTab]);
+
   useEffect(() => {
     const fetchTrip = async () => {
       try {
@@ -120,24 +126,28 @@ export default function TripDetails() {
     };
     if (id) fetchTrip();
   }, [id]);
-  const openSecureFile = async (fileUrl: string) => {
+  const openSecureFile = async (fileUrl: string, s3Key?: string | null) => {
     const newWindow = window.open("", "_blank");
     try {
-      const res = await fetch('/api/travels/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl })
+      const res = await fetch("/api/travels/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileUrl, s3Key: s3Key || undefined }),
       });
-      const { signedUrl } = await res.json();
-      if (!signedUrl) throw new Error("Lien signé manquant");
+      const data = await res.json();
+      if (!res.ok || !data.signedUrl) {
+        throw new Error(data?.error || "Impossible d'ouvrir le document.");
+      }
       if (newWindow) {
-        newWindow.location.href = signedUrl;
+        newWindow.location.href = data.signedUrl;
         newWindow.focus();
-      } else { window.location.href = signedUrl}
+      } else {
+        window.location.href = data.signedUrl;
+      }
     } catch (err) {
       console.error(err);
       if (newWindow) newWindow.close();
-      alert("Erreur lors de l'ouverture du fichier.");
+      alert(err instanceof Error ? err.message : "Erreur lors de l'ouverture du fichier.");
     }
   };
   const prepareSendToZeendoc = async (file: { name?: string; url?: string }) => {
@@ -278,14 +288,17 @@ export default function TripDetails() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            tripData: trip,
+            tripId: trip.id,
             userEmail: user?.primaryEmailAddress?.emailAddress,
             organizerEmail: trip.ownerEmail,
             userName: trip.ownerName,
+            mode: 'initial',
           }),
         });
         if (cuisineRes.ok) {
           cuisineSent = true;
+          const cuisinePayload = await cuisineRes.json().catch(() => ({}));
+          if (cuisinePayload.trip) setTrip(cuisinePayload.trip);
         } else {
           const errPayload = await cuisineRes.json().catch(() => ({}));
           alert(`Attention : le mail cuisine n'a pas pu être envoyé (${errPayload?.error || "erreur inconnue"}).`);
@@ -380,7 +393,13 @@ export default function TripDetails() {
   const handleAction = async (newStatus: string, note: string = "", extraData: any = null) => {
     if (!loadingAction) setLoadingAction("action");
     const baseData = isEditing ? { ...trip.data, ...editedData } : trip.data;
-    const finalData = extraData ? { ...baseData, ...extraData } : baseData;
+    const finalData = { ...(extraData ? { ...baseData, ...extraData } : baseData) };
+    if (newStatus === "BESOIN_MODIFICATION" && note.trim()) {
+      finalData.modificationRequestNote = note.trim();
+    }
+    if (trip.status === "BESOIN_MODIFICATION" && newStatus !== "BESOIN_MODIFICATION") {
+      delete finalData.modificationRequestNote;
+    }
     const updatedTrip = {
       ...trip,
       status: newStatus,
@@ -414,6 +433,290 @@ export default function TripDetails() {
     if (!confirm(`Confirmer le choix de ${quote.providerName} ? Cela informera la direction pour signature.`)) return;
     const updatedTrip = { ...trip, status: "EN_ATTENTE_BUS_SIGNATURE", data: { ...trip.data, selectedBusQuote: quote } };
     await saveUpdates(updatedTrip);
+  };
+
+  const deleteBusQuote = async (quote: { id?: string; providerName?: string }) => {
+    if (!canSign) return alert("Seule la direction de l'établissement concerné peut supprimer un devis.");
+    const label = quote.providerName || "ce transporteur";
+    if (!confirm(`Êtes-vous bien sûr de supprimer le devis de ${label} ?`)) return;
+    if (!quote.id) return alert("Identifiant du devis manquant.");
+    setLoadingAction(`delete-quote-${quote.id}`);
+    try {
+      const res = await fetch("/api/travels/delete-bus-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId: trip.id, quoteId: quote.id }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Suppression impossible.");
+      setTrip(payload.trip);
+      setEditedData(payload.trip?.data);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Erreur lors de la suppression du devis.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const requestAmendedBusQuote = async (opts?: { skipConfirm?: boolean; tripRef?: any }) => {
+    if (!isOwner && !canSign) return alert("Vous n'êtes pas autorisé(e) à relancer une demande de devis.");
+    const tripRef = opts?.tripRef || trip;
+    if (isEditing && !opts?.skipConfirm) {
+      return alert("Enregistrez d'abord les modifications d'effectif avant d'envoyer l'avenant.");
+    }
+    const snap = tripRef.data?.transportQuoteSnapshot;
+    const nbEleves = Number(tripRef.data?.nbEleves) || 0;
+    const nbAcc = Number(tripRef.data?.nbAccompagnateurs) || 0;
+    const selected = tripRef.data?.selectedBusQuote;
+    const signed = Boolean(tripRef.data?.signedQuoteUrl);
+    const targetLabel =
+      selected?.providerName && orderEmailForQuote(selected)
+        ? `${selected.providerName} (${orderEmailForQuote(selected)})`
+        : "tous les transporteurs";
+
+    if (!opts?.skipConfirm) {
+      let msg =
+        `Envoyer une demande de devis rectifié (avenant effectif) à ${targetLabel} ?\n\n` +
+        `Effectif actuel : ${nbEleves + nbAcc} personnes (${nbEleves} élèves, ${nbAcc} accomp.).`;
+      if (snap) {
+        const prev = Number(snap.nbEleves) + Number(snap.nbAccompagnateurs || 0);
+        msg += `\nDernier devis demandé pour : ${prev} personnes.`;
+      }
+      if (signed) {
+        msg += "\n\nLa commande avait déjà été signée : le transporteur recevra un avenant pour réviser son devis.";
+      }
+      if (!confirm(msg)) return;
+    }
+
+    setLoadingAction("amendment-quote");
+    try {
+      const res = await fetch("/api/travels/send-transport-amendment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tripId: tripRef.id,
+          userName: user?.fullName || "La Providence",
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Envoi impossible.");
+      setTrip(payload.trip);
+      setEditedData(payload.trip?.data);
+      if (!opts?.skipConfirm) {
+        alert(
+          payload.singleProvider
+            ? "Avenant envoyé au transporteur sélectionné."
+            : "Avenant envoyé à tous les transporteurs.",
+        );
+      }
+      return payload;
+    } catch (err) {
+      console.error(err);
+      if (!opts?.skipConfirm) {
+        alert(err instanceof Error ? err.message : "Erreur lors de l'envoi de l'avenant.");
+      }
+      throw err;
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const sendCuisineAmendment = async (opts?: { skipConfirm?: boolean; tripRef?: any }) => {
+    const tripRef = opts?.tripRef || trip;
+    if (!tripRef.data?.piqueNiqueDetails?.active) {
+      return alert("Aucune commande cuisine active sur ce dossier.");
+    }
+    if (!tripRef.data?.cuisineOrderSentAt) {
+      return alert("Aucune commande cuisine n'a encore été envoyée au chef.");
+    }
+    if (!opts?.skipConfirm) {
+      const ok = confirm(
+        "Renvoyer la commande cuisine au chef (annule et remplace) ?\n\nLe mail précisera qu'il s'agit de la dernière commande en date.",
+      );
+      if (!ok) return;
+    }
+    setLoadingAction("cuisine-amendment");
+    try {
+      const res = await fetch("/api/travels/send-cuisine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tripId: tripRef.id,
+          mode: "amendment",
+          userEmail: user?.primaryEmailAddress?.emailAddress,
+          organizerEmail: tripRef.ownerEmail,
+          userName: user?.fullName || tripRef.ownerName,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Envoi impossible.");
+      if (payload.trip) {
+        setTrip(payload.trip);
+        setEditedData(payload.trip.data);
+      }
+      if (!opts?.skipConfirm) alert("Commande cuisine renvoyée au chef (annule et remplace).");
+      return payload;
+    } catch (err) {
+      console.error(err);
+      if (!opts?.skipConfirm) {
+        alert(err instanceof Error ? err.message : "Erreur lors du renvoi cuisine.");
+      }
+      throw err;
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const openEffectifModal = () => {
+    setDraftNbEleves(String(trip.data?.nbEleves ?? ""));
+    setDraftNbAccompagnateurs(String(trip.data?.nbAccompagnateurs ?? ""));
+    setShowEffectifModal(true);
+  };
+
+  const saveEffectifChange = async () => {
+    const nbEleves = Number(draftNbEleves);
+    const nbAcc = Number(draftNbAccompagnateurs);
+    if (!Number.isFinite(nbEleves) || nbEleves < 0 || !Number.isFinite(nbAcc) || nbAcc < 0) {
+      return alert("Indiquez des effectifs valides (nombres positifs).");
+    }
+    const prevEleves = Number(trip.data?.nbEleves) || 0;
+    const prevAcc = Number(trip.data?.nbAccompagnateurs) || 0;
+    if (nbEleves === prevEleves && nbAcc === prevAcc) {
+      setShowEffectifModal(false);
+      return alert("Aucun changement d'effectif.");
+    }
+
+    const updatedTrip = {
+      ...trip,
+      data: { ...trip.data, nbEleves, nbAccompagnateurs: nbAcc },
+      history: [
+        ...(trip.history || []),
+        {
+          date: new Date().toISOString(),
+          user: user?.fullName,
+          action: "EFFECTIF_MODIFIE",
+          note: `Effectif : ${prevEleves}+${prevAcc} → ${nbEleves}+${nbAcc} (élèves + accomp.)`,
+        },
+      ],
+    };
+    const saved = await saveUpdates(updatedTrip);
+    if (!saved) return alert("Impossible d'enregistrer l'effectif.");
+
+    setShowEffectifModal(false);
+
+    const busActive = busLogisticsActive(updatedTrip);
+    const cuisineActive =
+      Boolean(updatedTrip.data?.piqueNiqueDetails?.active) && Boolean(updatedTrip.data?.cuisineOrderSentAt);
+
+    if (busActive || cuisineActive) {
+      setEffectifFollowUp({
+        sendTransport: busActive,
+        sendCuisine: cuisineActive,
+        savedTrip: updatedTrip,
+      });
+    } else {
+      alert("Effectif enregistré.");
+    }
+  };
+
+  const runEffectifFollowUp = async () => {
+    if (!effectifFollowUp) return;
+    const { sendTransport, sendCuisine, savedTrip } = effectifFollowUp;
+    setEffectifFollowUp(null);
+    const results: string[] = [];
+    const errors: string[] = [];
+
+    if (sendTransport) {
+      try {
+        const payload = await requestAmendedBusQuote({ skipConfirm: true, tripRef: savedTrip });
+        results.push(
+          payload?.singleProvider
+            ? "Avenant transport envoyé au transporteur sélectionné."
+            : "Avenant transport envoyé à tous les transporteurs.",
+        );
+      } catch {
+        errors.push("Échec de l'envoi de l'avenant transport.");
+      }
+    }
+    if (sendCuisine) {
+      try {
+        await sendCuisineAmendment({ skipConfirm: true, tripRef: savedTrip });
+        results.push("Commande cuisine renvoyée au chef (annule et remplace).");
+      } catch {
+        errors.push("Échec du renvoi de la commande cuisine.");
+      }
+    }
+
+    const msg = ["Effectif enregistré.", ...results, ...errors].filter(Boolean).join("\n\n");
+    alert(msg);
+  };
+
+  const openDateModal = () => {
+    setDraftStartDate(String(trip.data?.startDate || trip.data?.date || ""));
+    setDraftEndDate(String(trip.data?.endDate || ""));
+    setDraftStartTime(String(trip.data?.startTime || ""));
+    setDraftEndTime(String(trip.data?.endTime || ""));
+    setShowDateModal(true);
+  };
+
+  const saveDateChange = async () => {
+    const updatedTrip: TravelsTrip = {
+      ...trip,
+      data: {
+        ...trip.data,
+        startDate: draftStartDate,
+        endDate: trip.type === "COMPLEX" ? draftEndDate : draftStartDate,
+        date: draftStartDate,
+        startTime: draftStartTime,
+        endTime: draftEndTime,
+      },
+      history: [
+        ...(trip.history || []),
+        {
+          date: new Date().toISOString(),
+          user: user?.fullName,
+          action: "DATES_MODIFIEES",
+          note: `Horaires/dates mis à jour`,
+        },
+      ],
+    };
+    const saved = await saveUpdates(updatedTrip);
+    if (!saved) return alert("Impossible d'enregistrer les dates.");
+    setShowDateModal(false);
+
+    const busActive = busLogisticsActive(updatedTrip);
+    const cuisineActive =
+      Boolean(updatedTrip.data?.piqueNiqueDetails?.active) && Boolean(updatedTrip.data?.cuisineOrderSentAt);
+    if (busActive || cuisineActive) {
+      setDateFollowUp({ sendTransport: busActive, sendCuisine: cuisineActive, savedTrip: updatedTrip });
+    } else {
+      alert("Dates enregistrées.");
+    }
+  };
+
+  const runDateFollowUp = async () => {
+    if (!dateFollowUp) return;
+    const { sendTransport, sendCuisine, savedTrip } = dateFollowUp;
+    setDateFollowUp(null);
+    const results: string[] = [];
+    if (sendTransport) {
+      try {
+        await requestAmendedBusQuote({ skipConfirm: true, tripRef: savedTrip });
+        results.push("Relance transport envoyée (dates modifiées).");
+      } catch {
+        results.push("Échec relance transport.");
+      }
+    }
+    if (sendCuisine) {
+      try {
+        await sendCuisineAmendment({ skipConfirm: true, tripRef: savedTrip });
+        results.push("Commande cuisine renvoyée.");
+      } catch {
+        results.push("Échec relance cuisine.");
+      }
+    }
+    alert(["Dates enregistrées.", ...results].join("\n\n"));
   };
 
   const addManualBusQuote = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -474,6 +777,7 @@ export default function TripDetails() {
       setManualDevisBusy(false);
     }
   };
+
   const signBusQuote = async () => {
     if (!canSign) return alert("Vous n'êtes pas autorisé(e) à signer ce dossier.");
     if (!confirm("Voulez-vous signer le devis et envoyer la commande au transporteur ?")) return;
@@ -528,7 +832,16 @@ export default function TripDetails() {
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? "Date à préciser" : d.toLocaleDateString('fr-FR');
   };
-  if (!isUserLoaded || !trip) return <p className="p-10 text-center font-medium text-slate-500">Chargement du dossier...</p>;
+  if (!isUserLoaded || !trip) {
+    return (
+      <TripPageShell>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm font-medium text-slate-500">Chargement du dossier…</p>
+        </div>
+      </TripPageShell>
+    );
+  }
   const seriesId = trip.data?.recurrenceSeriesId as string | undefined;
   const seriesIndex = trip.data?.recurrenceIndex as number | undefined;
   const seriesTotal = trip.data?.recurrenceTotal as number | undefined;
@@ -593,6 +906,38 @@ export default function TripDetails() {
     }
   };
   const withBusLogistics = complexNeedsBus(trip);
+  const etabForSign = trip.data?.etablissement || "";
+  const transportSnapshot = trip.data?.transportQuoteSnapshot;
+  const currentEffectifTotal =
+    Number(trip.data?.nbEleves) + Number(trip.data?.nbAccompagnateurs || 0);
+  const snapshotEffectifTotal = transportSnapshot
+    ? Number(transportSnapshot.nbEleves) + Number(transportSnapshot.nbAccompagnateurs || 0)
+    : null;
+  const effectifChanged = effectifChangedSinceSnapshot(trip.data, transportSnapshot);
+  const datesChanged = datesChangedSinceSnapshot(trip.data, trip.data.transportDateSnapshot);
+  const canRequestAmendedQuote =
+    withBusLogistics &&
+    (isOwner || canSign) &&
+    Boolean(transportSnapshot || trip.data?.selectedBusQuote || trip.data?.signedQuoteUrl);
+  const cuisineOrderSent = Boolean(trip.data?.cuisineOrderSentAt);
+  const cuisineChanged = cuisineEffectifChanged(trip.data);
+  const canEditDates = canEditEffectif;
+  const hasCuisineOrder = Boolean(trip.data.piqueNiqueDetails?.active);
+  const visibleHubTabs = TRAVELS_HUB_TABS.filter((t) => {
+    if (t.id === "transport" && !withBusLogistics) return false;
+    if (t.id === "cuisine" && !hasCuisineOrder) return false;
+    return true;
+  });
+  const documentCount =
+    (trip.data.attachments?.length || 0) +
+    (withBusLogistics ? trip.receivedDevis?.length || 0 : 0) +
+    (trip.data.signedQuoteUrl ? 1 : 0);
+  const modificationRequestNote = getModificationRequestNote(trip);
+  const hubBadges: Partial<Record<TravelsHubTab, number>> = {
+    journal: (trip.data.transportAmendments?.length || 0) + (trip.data.cuisineAmendments?.length || 0),
+    transport: withBusLogistics ? trip.receivedDevis?.length || 0 : undefined,
+    documents: documentCount,
+  };
   const currentSteps =
     trip.type === "COMPLEX"
       ? withBusLogistics
@@ -628,131 +973,187 @@ export default function TripDetails() {
   }
   const selectedReopenStep =
     reopenStepOptions.find((o) => o.value === reopenStep)?.value || reopenStepOptions[0]?.value || "";
+  const dateLabel =
+    trip.type === "COMPLEX"
+      ? `${formatSafeDate(trip.data.startDate)} → ${formatSafeDate(trip.data.endDate)}`
+      : formatSafeDate(trip.data.date);
+  const loadingOverlayMode =
+    loadingAction === "circular" ? "circular" : loadingAction === "signing" ? "signing" : "default";
+
   return (
-    <div className="relative max-w-5xl mx-auto p-6 space-y-8">
-      {loadingAction && (
-        <div className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in fade-in zoom-in duration-300">
-            <div className="relative flex justify-center">
-              <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-              <span className="absolute inset-0 flex items-center justify-center text-xl">
-                {loadingAction === "circular" ? "📄" : loadingAction === "signing" ? "✍️" : "⏳"}
-              </span>
-            </div>
-            {loadingAction === "circular" ? (
-              <>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-slate-900">Génération de la circulaire</h3>
-                  <p className="text-slate-500 text-sm leading-relaxed">
-                    Analyse des documents en cours. Cela peut prendre <strong>une dizaine de secondes</strong>.
-                    <br /><br />
-                    <span className="text-indigo-600 font-semibold italic">Merci de ne pas quitter cette page.</span>
-                  </p>
-                </div>
-                <div className="bg-indigo-50 p-4 rounded-2xl">
-                  <p className="text-[11px] text-indigo-700 font-medium">
-                    💡 Une fois terminé, le document se trouvera dans les pièces du dossier sous le nom <strong>"Circulaire Parents"</strong>.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold text-slate-900">
-                  {loadingAction === "signing" ? "Signature en cours…" : "Traitement en cours…"}
-                </h3>
-                <p className="text-slate-500 text-sm">Merci de patienter.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {trip.status === "SEANCE_ANNULEE" && (
-        <div className="bg-slate-100 border border-slate-300 p-5 rounded-2xl text-left">
-          <p className="font-bold text-slate-800">Séance annulée</p>
-          <p className="text-sm text-slate-600 mt-1">
-            Ce créneau ne fait plus partie du circuit de validation. Les autres dossiers de la série éventuelle restent inchangés.
-          </p>
-        </div>
-      )}
-      {trip.status === "BESOIN_MODIFICATION" && !isEditing && (
-        <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4 text-left">
-            <span className="text-3xl">⚠️</span>
-            <div>
-              <p className="font-bold text-orange-900">Action requise : Modifications demandées</p>
-              <p className="text-orange-700 text-sm italic">"{trip.history?.[trip.history.length - 1]?.note}"</p>
-            </div>
-          </div>
-          {isOwner && (
-            <button onClick={() => setIsEditing(true)} className="bg-orange-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-orange-600 transition-all active:scale-95">
-              Modifier mon dossier
-            </button>
-          )}
-        </div>
-      )}
-      <div className="flex justify-between items-center">
-        <button onClick={() => router.push('/travels')} className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-2xl font-bold transition-all active:scale-95">
-          ← Retour
-        </button>
+    <TripPageShell>
+      {loadingAction && <TripLoadingOverlay mode={loadingOverlayMode as "circular" | "signing" | "default"} />}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <TripButton variant="ghost" size="sm" onClick={() => router.push("/travels")}>
+          ← Retour aux voyages
+        </TripButton>
         {isEditing && (
           <div className="flex gap-2">
-            <button onClick={() => setIsEditing(false)} className="bg-slate-200 text-slate-700 px-6 py-2.5 rounded-2xl font-bold">Annuler</button>
-            <button 
+            <TripButton variant="secondary" onClick={() => setIsEditing(false)}>
+              Annuler
+            </TripButton>
+            <TripButton
+              variant="success"
               onClick={() => handleAction(trip.data.previousStatus || "EN_ATTENTE_DIR_INITIAL", "Modifications effectuées")}
               disabled={uploading}
-              className="bg-green-600 text-white px-6 py-2.5 rounded-2xl font-bold shadow-lg disabled:opacity-50"
             >
-              {uploading ? "Envoi..." : "✅ Enregistrer et Renvoyer"}
-            </button>
+              {uploading ? "Envoi…" : "Enregistrer et renvoyer"}
+            </TripButton>
           </div>
         )}
       </div>
-      <div className="flex justify-between items-start border-b pb-6 text-left">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">{trip.data.title}</h1>
-          <p className="text-slate-500 mt-1 uppercase text-xs font-black tracking-tighter">
-            {" "}
-            {trip.type === "COMPLEX" ? "📁 Dossier Voyage Complexe" : "📄 Sortie Simple"} • Par {trip.ownerName}
-            {isRecurrenceTrip && seriesIndex != null && seriesTotal != null && (
-              <span className="ml-2 normal-case font-bold text-indigo-600">
-                · Série {seriesIndex}/{seriesTotal}
-              </span>
-            )}
-          </p>
-        </div>
-        <div className={`px-6 py-2 rounded-full font-bold text-sm uppercase tracking-wider ${trip.status === "BESOIN_MODIFICATION" ? "bg-orange-100 text-orange-700 animate-pulse" : "bg-indigo-100 text-indigo-700"}`}>
-          {trip.status}
-        </div>
-      </div>
-      <div
-        className={`grid gap-4 text-center ${
-          trip.type === "COMPLEX" ? (withBusLogistics ? "grid-cols-5" : "grid-cols-4") : "grid-cols-4"
-        }`}
-      >
-        {currentSteps.map((s) => (
-          <Step
-            key={s.n}
-            label={s.label}
-            active={
-              trip.status === s.key ||
-              (s.key === "VALIDE" && trip.status === "VALIDE") ||
-              (withBusLogistics && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && s.key === "PROF_LOGISTICS")
-            }
-            step={s.n}
-          />
-        ))}
-      </div>
-      {trip.type === "COMPLEX" && !withBusLogistics && (
-        <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-left">
-          Aucun transport en bus n’a été demandé pour ce voyage : l’étape logistique (devis transporteurs) est ignorée.
-        </p>
+
+      {trip.status === "ANNULE" && (
+        <TripAlert tone="warning" icon="🚫" title="Sortie annulée">
+          {trip.data.cancelReason ? String(trip.data.cancelReason) : "Ce dossier a été annulé."}
+        </TripAlert>
       )}
-      {withBusLogistics && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-8 space-y-6 text-left">
-          <h2 className="text-xl font-bold text-amber-900 flex items-center gap-2">🚌 Gestion des devis Transport</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      {trip.status === "SEANCE_ANNULEE" && (
+        <TripAlert tone="muted" icon="🚫" title="Séance annulée">
+          Ce créneau ne fait plus partie du circuit de validation. Les autres dossiers de la série restent inchangés.
+        </TripAlert>
+      )}
+
+      {trip.status === "BESOIN_MODIFICATION" && !isEditing && (
+        <TripAlert
+          tone="warning"
+          icon="⚠️"
+          title="Modifications demandées"
+          action={
+            isOwner ? (
+              <TripButton variant="warning" onClick={() => setIsEditing(true)}>
+                Modifier mon dossier
+              </TripButton>
+            ) : undefined
+          }
+        >
+          <span className="italic">
+            &quot;{modificationRequestNote || "Merci d'ajuster le dossier selon les remarques de la direction."}&quot;
+          </span>
+        </TripAlert>
+      )}
+
+      <TripHeroHeader
+        title={trip.data.title}
+        typeLabel={trip.type === "COMPLEX" ? "Voyage scolaire" : "Sortie de proximité"}
+        ownerName={trip.ownerName}
+        etablissement={trip.data.etablissement}
+        seriesLabel={
+          isRecurrenceTrip && seriesIndex != null && seriesTotal != null
+            ? `Série ${seriesIndex}/${seriesTotal}`
+            : null
+        }
+        status={trip.status}
+        statusPulse={trip.status === "BESOIN_MODIFICATION"}
+      />
+
+      <TripQuickStats
+        items={[
+          { label: "Destination", value: trip.data.destination || "—", icon: "📍" },
+          { label: "Dates", value: dateLabel, icon: "📅" },
+          {
+            label: "Effectif",
+            value: `${trip.data.nbEleves || 0} él. · ${trip.data.nbAccompagnateurs || 0} acc.`,
+            icon: "👥",
+            action: canEditEffectif ? (
+              <button
+                type="button"
+                onClick={openEffectifModal}
+                className="text-[10px] font-bold text-indigo-600 hover:underline mt-0.5"
+              >
+                Modifier
+              </button>
+            ) : undefined,
+          },
+          {
+            label: "Budget",
+            value: trip.data.finalTotalCost
+              ? `${trip.data.finalTotalCost} € validé`
+              : `${Math.round(Number(trip.data.coutTotal) || 0)} € prévu`,
+            icon: "💶",
+          },
+        ]}
+      />
+
+      <TripWorkflowStepper
+        steps={currentSteps}
+        currentStatus={trip.status}
+        busSignatureOnLogistics={withBusLogistics}
+      />
+
+      <div className="mt-4 mb-2">
+        <TripHubNav active={hubTab} onChange={setHubTab} badges={hubBadges} tabs={visibleHubTabs} />
+      </div>
+      <TripRemindersBanner tripId={trip.id} />
+
+      {trip.type === "COMPLEX" && !withBusLogistics && hubTab === "overview" && (
+        <TripAlert tone="info" icon="ℹ️" title="Sans transport bus">
+          L&apos;étape logistique (devis transporteurs) est ignorée pour ce voyage.
+        </TripAlert>
+      )}
+      {hubTab === "transport" && withBusLogistics && (
+        <TripSection
+          title="Devis transport"
+          subtitle="Offres reçues par e-mail ou ajoutées manuellement"
+          icon="🚌"
+          accent="amber"
+          action={
+            canRequestAmendedQuote ? (
+              <TripButton
+                variant="warning"
+                size="sm"
+                onClick={() => requestAmendedBusQuote()}
+                disabled={loadingAction === "amendment-quote"}
+              >
+                {loadingAction === "amendment-quote" ? "Envoi…" : "Devis rectifié (effectif)"}
+              </TripButton>
+            ) : undefined
+          }
+        >
+          {trip.data.transportProviderConfirmation && (
+            <TripAlert tone="success" title="Confirmation transporteur reçue" icon="✅">
+              <p className="text-xs leading-relaxed">{trip.data.transportProviderConfirmation.summary}</p>
+              {trip.data.transportProviderConfirmation.receivedAt && (
+                <p className="text-[10px] text-emerald-800/80 mt-1">
+                  {new Date(trip.data.transportProviderConfirmation.receivedAt).toLocaleString("fr-FR")}
+                  {trip.data.transportProviderConfirmation.providerName
+                    ? ` · ${trip.data.transportProviderConfirmation.providerName}`
+                    : ""}
+                </p>
+              )}
+              {trip.data.transportProviderConfirmation.pdfUrl && (
+                <TripButton
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  className="mt-2"
+                  onClick={() =>
+                    openSecureFile(
+                      trip.data.transportProviderConfirmation!.pdfUrl!,
+                      trip.data.transportProviderConfirmation!.s3KeyIncoming,
+                    )
+                  }
+                >
+                  Voir le PDF de confirmation
+                </TripButton>
+              )}
+            </TripAlert>
+          )}
+          {(effectifChanged || datesChanged) && (
+            <TripAlert tone="warning" title="Dossier modifié depuis la dernière demande transport">
+              <span className="text-xs">
+                Dernier envoi : {snapshotEffectifTotal} pers. · Actuel : {currentEffectifTotal} pers.
+                {trip.data?.selectedBusQuote
+                  ? ` → avenant vers ${trip.data.selectedBusQuote.providerName} uniquement.`
+                  : " → avenant vers tous les transporteurs."}
+              </span>
+            </TripAlert>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
             <div className="space-y-3">
-              <p className="text-xs font-bold text-amber-700 uppercase">Offres déposées :</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Offres reçues</p>
               {trip.receivedDevis && trip.receivedDevis.length > 0 ? (
                 trip.receivedDevis.map((quote: any, idx: number) => {
                   const reviewBus =
@@ -762,12 +1163,44 @@ export default function TripDetails() {
                       quote.matchConfidence !== "high");
                   const borderSelected = trip.data.selectedBusQuote?.fileUrl === quote.fileUrl;
                   return (
-                  <div key={quote.id || idx} className={`p-4 rounded-2xl border-2 flex justify-between items-center gap-3 ${borderSelected ? "border-green-500 bg-white shadow-md" : reviewBus ? "border-orange-400 bg-orange-50/80" : "border-white bg-white/50"}`}>
-                    <div className="text-left min-w-0 flex-1">
-                      <p className="font-bold text-slate-800">{quote.providerName}</p>
-                      <p className="text-indigo-600 font-black text-xs italic">
+                  <TripBusQuoteCard
+                    key={quote.id || idx}
+                    selected={borderSelected}
+                    review={reviewBus}
+                    actions={
+                      <>
+                        <div className="flex gap-2">
+                          <TripButton
+                            variant="ghost"
+                            size="sm"
+                            type="button"
+                            onClick={() => openSecureFile(quote.fileUrl, quote.s3KeyIncoming)}
+                          >
+                            Voir PDF
+                          </TripButton>
+                          {isOwner && trip.status === "PROF_LOGISTICS" && (
+                            <TripButton variant="primary" size="sm" onClick={() => selectBusQuote(quote)}>
+                              Choisir
+                            </TripButton>
+                          )}
+                        </div>
+                        {canSign && (
+                          <button
+                            type="button"
+                            onClick={() => deleteBusQuote(quote)}
+                            disabled={!!loadingAction}
+                            className="text-[10px] font-bold text-rose-600 hover:text-rose-800 disabled:opacity-50 text-center"
+                          >
+                            {loadingAction === `delete-quote-${quote.id}` ? "Suppression…" : "Supprimer"}
+                          </button>
+                        )}
+                      </>
+                    }
+                  >
+                      <p className="font-bold text-slate-900">{quote.providerName}</p>
+                      <p className="text-indigo-600 font-semibold text-xs mt-0.5">
                         Devis reçu
-                        {quote.source === "email" ? " (e-mail)" : quote.source === "manual" ? " (ajout manuel)" : ""}
+                        {quote.source === "email" ? " · e-mail" : quote.source === "manual" ? " · manuel" : ""}
                       </p>
                       {reviewBus && (
                         <p className="mt-1 text-[10px] font-bold text-orange-800 uppercase tracking-wide">
@@ -805,44 +1238,37 @@ export default function TripDetails() {
                           </p>
                         );
                       })()}
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button type="button" onClick={() => openSecureFile(quote.fileUrl)} className="text-[10px] font-bold text-slate-500 underline">Voir PDF</button>
-                      {isOwner && trip.status === "PROF_LOGISTICS" && (
-                        <button onClick={() => selectBusQuote(quote)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">Choisir</button>
-                      )}
-                    </div>
-                  </div>
+                  </TripBusQuoteCard>
                   );
                 })
               ) : (
-                <p className="text-xs text-slate-400 italic">En attente de devis par e-mail...</p>
+                <p className="text-sm text-slate-400 italic py-4 text-center rounded-xl border border-dashed border-amber-200">
+                  En attente de devis par e-mail…
+                </p>
               )}
               {canAddDocuments && (
-                <form onSubmit={addManualBusQuote} className="mt-4 p-4 rounded-2xl border border-dashed border-amber-400/80 bg-amber-100/30 space-y-3 text-left">
-                  <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">
-                    Ajouter un devis à la main
+                <form onSubmit={addManualBusQuote} className="mt-4 p-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 space-y-3 text-left">
+                  <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">Ajout manuel</p>
+                  <p className="text-[11px] text-amber-900/70 leading-snug">
+                    Déposez le PDF et l&apos;e-mail du transporteur si le devis n&apos;arrive pas par la boîte dédiée.
                   </p>
-                  <p className="text-[11px] text-amber-900/80 leading-snug">
-                    Si les devis n’arrivent pas par la boîte dédiée (mail lu, polling, etc.), déposez le PDF ici et l’e-mail du transporteur : après choix et signature, la commande partira vers cette adresse.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      Nom du transporteur
-                      <input
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Transporteur
+                      <TripInput
+                        className="mt-1"
                         value={manualDevisName}
                         onChange={(ev) => setManualDevisName(ev.target.value)}
                         placeholder="ex. Cars Dupont"
                         disabled={manualDevisBusy}
                       />
                     </label>
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      E-mail du transporteur (commande)
-                      <input
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      E-mail (commande)
+                      <TripInput
                         type="email"
                         required
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                        className="mt-1"
                         value={manualDevisEmail}
                         onChange={(ev) => setManualDevisEmail(ev.target.value)}
                         placeholder="contact@transporteur.fr"
@@ -850,353 +1276,691 @@ export default function TripDetails() {
                       />
                     </label>
                   </div>
-                  <label className="block text-[11px] font-semibold text-slate-700">
+                  <label className="block text-[11px] font-semibold text-slate-600">
                     PDF du devis
                     <input
                       name="manualDevisPdf"
                       type="file"
                       accept="application/pdf"
-                      className="mt-1 block w-full text-sm text-slate-600"
+                      className="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-amber-100 file:font-semibold file:text-amber-900"
                       disabled={manualDevisBusy}
                     />
                   </label>
-                  <button
-                    type="submit"
-                    disabled={manualDevisBusy}
-                    className="bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-800 disabled:opacity-50"
-                  >
+                  <TripButton type="submit" variant="warning" size="sm" disabled={manualDevisBusy}>
                     {manualDevisBusy ? "Envoi…" : "Ajouter ce devis"}
-                  </button>
+                  </TripButton>
                 </form>
               )}
             </div>
-            <div className="bg-white/60 rounded-2xl p-6 border border-amber-200 flex flex-col justify-center items-center text-center">
+            <div className="rounded-xl border border-amber-200 bg-white p-6 flex flex-col justify-center min-h-[12rem]">
               {trip.data.selectedBusQuote ? (
-                <>
-                  <p className="text-sm text-amber-900 mb-2 font-bold">Devis sélectionné : {trip.data.selectedBusQuote.providerName}</p>
-                  {orderEmailForQuote(trip.data.selectedBusQuote) && (
-                    <p className="text-xs text-amber-800 mb-3">
-                      Envoi de la commande à :{" "}
-                      <span className="font-mono font-bold">{orderEmailForQuote(trip.data.selectedBusQuote)}</span>
-                    </p>
-                  )}
+                <div className="text-center space-y-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Devis retenu</p>
+                    <p className="text-lg font-bold text-slate-900 mt-1">{trip.data.selectedBusQuote.providerName}</p>
+                    {orderEmailForQuote(trip.data.selectedBusQuote) && (
+                      <p className="text-xs text-slate-500 mt-1 font-mono">{orderEmailForQuote(trip.data.selectedBusQuote)}</p>
+                    )}
+                  </div>
                   {isDirection && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && (
                     <div className="flex flex-col gap-3 w-full">
                       {canSign ? (
-                        <button onClick={signBusQuote} disabled={!!loadingAction} className="bg-green-600 text-white px-6 py-4 rounded-xl font-bold shadow-xl hover:scale-105 transition-all disabled:opacity-50">
-                          ✍️ Signer & Commander
-                        </button>
+                        <TripButton variant="success" size="lg" onClick={signBusQuote} disabled={!!loadingAction} className="w-full">
+                          ✍️ Signer et commander
+                        </TripButton>
                       ) : (
-                        <div className="bg-amber-100 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800 text-left">
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-900 text-left">
                           <p className="font-bold mb-1">Signature réservée</p>
-                          <p>Ce dossier concerne l&apos;<strong>{etabForSign || "ensemble du groupe"}</strong>. Seule la direction de cet établissement peut signer.</p>
+                          <p>
+                            Dossier <strong>{etabForSign || "groupe scolaire"}</strong> — direction concernée uniquement.
+                          </p>
                         </div>
                       )}
-                      <button onClick={() => { const n = prompt("Pourquoi refusez-vous ce devis ?"); if(n) handleAction("PROF_LOGISTICS", n); }} className="text-xs font-bold text-red-600 underline">
+                      <button
+                        type="button"
+                        onClick={() => { const n = prompt("Pourquoi refusez-vous ce devis ?"); if (n) handleAction("PROF_LOGISTICS", n); }}
+                        className="text-xs font-bold text-rose-600 hover:underline"
+                      >
                         Refuser ce choix
                       </button>
                     </div>
                   )}
-                  {(trip.status === "EN_ATTENTE_COMPTA" || trip.status === "EN_ATTENTE_DIR_FINAL" || trip.status === "VALIDE") && <p className="text-green-600 font-bold flex items-center gap-2 text-sm">✅ Commandé & Signé</p>}
-                </>
+                  {(trip.status === "EN_ATTENTE_COMPTA" || trip.status === "EN_ATTENTE_DIR_FINAL" || trip.status === "VALIDE") && (
+                    <p className="inline-flex items-center gap-2 text-emerald-700 font-bold text-sm bg-emerald-50 px-4 py-2 rounded-full">
+                      ✓ Commandé et signé
+                    </p>
+                  )}
+                </div>
               ) : (
-                <p className="text-sm text-slate-400 italic font-medium">Le créateur sélectionnera un devis à l'étape Logistique.</p>
+                <p className="text-sm text-slate-400 italic text-center">
+                  Le créateur choisira un devis à l&apos;étape logistique.
+                </p>
               )}
             </div>
           </div>
-        </div>
+          {Array.isArray(trip.data.transportEmailMessages) && trip.data.transportEmailMessages.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-amber-200/80">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-3">
+                Infos reçues par e-mail (IA)
+              </p>
+              <div className="space-y-3">
+                {trip.data.transportEmailMessages.map((msg: {
+                  id: string;
+                  messageType?: string;
+                  summary?: string;
+                  subject?: string;
+                  fromEmail?: string;
+                  driverName?: string | null;
+                  driverPhone?: string | null;
+                  details?: string | null;
+                  pdfUrl?: string | null;
+                  s3KeyIncoming?: string | null;
+                  receivedAt?: string;
+                  matchConfidence?: string | null;
+                }) => {
+                  const typeLabel =
+                    msg.messageType === "confirmation_commande"
+                      ? "Confirmation"
+                      : msg.messageType === "info_transport"
+                        ? "Info transport"
+                        : msg.messageType === "devis_pdf"
+                          ? "Devis"
+                          : "Message";
+                  return (
+                    <div
+                      key={msg.id}
+                      className="rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 text-sm text-slate-800"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                          {typeLabel}
+                        </span>
+                        {msg.receivedAt && (
+                          <span className="text-[10px] text-slate-500">
+                            {new Date(msg.receivedAt).toLocaleString("fr-FR")}
+                          </span>
+                        )}
+                        {msg.matchConfidence && msg.matchConfidence !== "high" && (
+                          <span className="text-[10px] text-amber-700 font-semibold">À vérifier</span>
+                        )}
+                      </div>
+                      {msg.summary && <p className="leading-snug">{msg.summary}</p>}
+                      {(msg.driverName || msg.driverPhone) && (
+                        <p className="mt-2 text-xs text-slate-700">
+                          {msg.driverName && <span className="font-semibold">Chauffeur : {msg.driverName}</span>}
+                          {msg.driverName && msg.driverPhone ? " · " : null}
+                          {msg.driverPhone && <span className="font-mono">{msg.driverPhone}</span>}
+                        </p>
+                      )}
+                      {msg.details && (
+                        <p className="mt-2 text-xs text-slate-600 whitespace-pre-wrap">{msg.details}</p>
+                      )}
+                      {msg.pdfUrl && (
+                        <TripButton
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          className="mt-2"
+                          onClick={() => openSecureFile(msg.pdfUrl!, msg.s3KeyIncoming)}
+                        >
+                          Voir la pièce jointe PDF
+                        </TripButton>
+                      )}
+                      <p className="mt-2 text-[10px] text-slate-500 truncate" title={msg.subject}>
+                        {msg.fromEmail} — {msg.subject}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </TripSection>
       )}
-      <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-left">
-        <h2 className="text-xl font-bold mb-6 text-slate-800">Informations Logistiques</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-          <DetailItem label="Destination" value={trip.data.destination} wrap />
-          <EditableDetail isEditing={isEditing} label="Classes concernées" value={isEditing ? editedData.classes : trip.data.classes} onChange={(v) => setEditedData({...editedData, classes: v})} />
-          <div className="flex flex-col border-b border-slate-50 pb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Effectifs</span>
+      {hubTab === "overview" && (
+      <TripSection title="Détails du dossier" subtitle="Informations logistiques et pédagogiques" icon="📋">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+          <TripField label="Destination" span={2}>
+            <TripFieldValue value={trip.data.destination} multiline />
+          </TripField>
+          <TripField label="Classes concernées">
             {isEditing ? (
-              <div className="flex gap-4">
-                <div className="flex flex-col"><span className="text-[9px]">Élèves</span><input type="number" className="border rounded p-1 w-20" value={editedData.nbEleves} onChange={(e) => setEditedData({...editedData, nbEleves: e.target.value})} /></div>
-                <div className="flex flex-col"><span className="text-[9px]">Accomp.</span><input type="number" className="border rounded p-1 w-20" value={editedData.nbAccompagnateurs} onChange={(e) => setEditedData({...editedData, nbAccompagnateurs: Number(e.target.value)})} /></div>
-              </div>
+              <TripInput value={editedData.classes} onChange={(e) => setEditedData({ ...editedData, classes: e.target.value })} />
             ) : (
-              <span className="text-slate-700 font-medium">{trip.data.nbEleves} élèves | {trip.data.nbAccompagnateurs || "0"} accompagnateurs</span>
+              <TripFieldValue value={trip.data.classes} />
             )}
-          </div>
-          <EditableDetail isEditing={isEditing} label="Noms des accompagnateurs" value={isEditing ? editedData.nomsAccompagnateurs : trip.data.nomsAccompagnateurs} onChange={(v) => setEditedData({...editedData, nomsAccompagnateurs: v})} />
-          <div className="flex flex-col border-b border-slate-50 pb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dates</span>
+          </TripField>
+          <TripField label="Accompagnateurs">
             {isEditing ? (
-              <div className="flex gap-2">
-                <input type="date" className="text-sm border p-1 rounded" value={editedData.startDate || editedData.date || ""} onChange={(e) => setEditedData({...editedData, startDate: e.target.value, date: e.target.value})} />
-                {trip.type === "COMPLEX" && <input type="date" className="text-sm border p-1 rounded" value={editedData.endDate || ""} onChange={(e) => setEditedData({...editedData, endDate: e.target.value})} />}
-              </div>
+              <TripInput value={editedData.nomsAccompagnateurs} onChange={(e) => setEditedData({ ...editedData, nomsAccompagnateurs: e.target.value })} />
             ) : (
-              <span className="text-slate-700 font-medium">{trip.type === "COMPLEX" ? `Du ${formatSafeDate(trip.data.startDate)} au ${formatSafeDate(trip.data.endDate)}` : `Le ${formatSafeDate(trip.data.date)}`}</span>
+              <TripFieldValue value={trip.data.nomsAccompagnateurs} />
             )}
-          </div>
-          <div className="flex flex-col border-b border-slate-50 pb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Horaires</span>
+          </TripField>
+          <TripField label="Effectifs">
             {isEditing ? (
-              <div className="flex gap-2">
-                <input type="text" className="text-sm border p-1 rounded w-24" placeholder="Départ" value={editedData.startTime} onChange={(e) => setEditedData({...editedData, startTime: e.target.value})} />
-                <input type="text" className="text-sm border p-1 rounded w-24" placeholder="Retour" value={editedData.endTime} onChange={(e) => setEditedData({...editedData, endTime: e.target.value})} />
-              </div>
-            ) : (
-              <span className="text-slate-700 font-medium">{`Départ: ${trip.data.startTime} | Retour: ${trip.data.endTime}`}</span>
-            )}
-          </div>
-          <div className="flex flex-col border-b border-slate-50 pb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Budget prévisionnel</span>
-            {isEditing ? (
-              <div className="flex items-center gap-2">
-                <input type="number" className="text-sm border p-1 rounded w-32" value={editedData.coutTotal} onChange={(e) => setEditedData({...editedData, coutTotal: Number(e.target.value)})} />
-                <span className="text-slate-600 font-bold text-xs uppercase">€ Total</span>
-              </div>
-            ) : (
-              <div className="flex flex-col">
-                <span className="text-slate-700 font-medium">{Math.round(Number(trip.data.coutTotal))} € (Total prévisionnel)</span>
-                {trip.data.finalTotalCost && (
-                  <span className="text-green-600 font-bold text-sm">Validé Compta : {trip.data.finalTotalCost} € ({trip.data.costPerStudent} €/élève)</span>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col border-b border-slate-50 pb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Restauration</span>
-            {isEditing ? (
-              <div className="mt-2 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCuisineModal(true)}
-                  className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${editedData?.piqueNiqueDetails?.active ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}
-                >
-                  <div className="text-left">
-                    <h3 className="font-bold text-slate-900">Commande Restauration</h3>
-                    <p className="text-xs text-slate-500">
-                      {editedData?.piqueNiqueDetails?.active ? `✅ Configurée (${getTotalMeals(editedData.piqueNiqueDetails)} repas pique-nique)` : "Cliquer pour configurer"}
-                    </p>
-                  </div>
-                  <span className="text-xl">🥪</span>
-                </button>
-              </div>
-            ) : (
-                <div className="flex flex-col gap-1">
-                  <span className="text-slate-700 font-medium">{trip.data.piqueNiqueDetails?.active ? "🥪 Commande cuisine configurée" : "🍴 Pas de commande cuisine"}</span>
-                  {trip.data.piqueNiqueDetails?.active && (
-                    <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full w-fit">
-                      {getTotalMeals(trip.data.piqueNiqueDetails)} repas pique-nique — {Object.values(trip.data.piqueNiqueDetails.daysSelection || {}).filter(Boolean).length} jour(s)
-                    </span>
-                  )}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <span className="text-[9px] text-slate-400">Élèves</span>
+                  <TripInput type="number" value={editedData.nbEleves} onChange={(e) => setEditedData({ ...editedData, nbEleves: e.target.value })} />
                 </div>
-            )}
-          </div>
-          <div className="md:col-span-2 flex flex-col border-b border-slate-50 pb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Objectifs pédagogiques</span>
-            {isEditing ? (
-              <textarea 
-                className="text-sm border p-2 rounded w-full mt-2 min-h-[80px]" 
-                value={editedData.objectifs} 
-                onChange={(e) => setEditedData({...editedData, objectifs: e.target.value})}
-              />
+                <div className="flex-1">
+                  <span className="text-[9px] text-slate-400">Accomp.</span>
+                  <TripInput type="number" value={editedData.nbAccompagnateurs} onChange={(e) => setEditedData({ ...editedData, nbAccompagnateurs: Number(e.target.value) })} />
+                </div>
+              </div>
             ) : (
-              <p className="text-slate-700 font-medium mt-1 text-sm leading-relaxed">{trip.data.objectifs || "Aucun objectif renseigné."}</p>
-            )}
-          </div>
-          <div className="md:col-span-2 space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Documents et Devis</span>
-              <div className="flex items-center gap-2">
-                {trip.status === "VALIDE" && (canSign || isOwner) && (
-                  <button
-                    type="button"
-                    onClick={handleRegenerateCircular}
-                    disabled={!!loadingAction}
-                    className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-bold border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50"
-                  >
-                    {loadingAction === "regenerate-circular" ? "Génération..." : "↻ Régénérer la circulaire"}
-                  </button>
+              <>
+                <TripFieldValue value={`${trip.data.nbEleves} élèves · ${trip.data.nbAccompagnateurs || "0"} accompagnateurs`} />
+                {(canEditEffectif ||
+                  (withBusLogistics && effectifChanged) ||
+                  (cuisineOrderSent && trip.data?.piqueNiqueDetails?.active && cuisineChanged)) && (
+                  <TripFieldActions>
+                    {canEditEffectif && (
+                      <button
+                        type="button"
+                        onClick={openEffectifModal}
+                        className="text-xs font-bold text-indigo-600 hover:underline"
+                      >
+                        Modifier l&apos;effectif
+                      </button>
+                    )}
+                    {withBusLogistics && effectifChanged && (
+                      <button
+                        type="button"
+                        onClick={() => requestAmendedBusQuote()}
+                        disabled={loadingAction === "amendment-quote"}
+                        className="text-xs font-bold text-amber-700 hover:underline disabled:opacity-50"
+                      >
+                        Demander un devis rectifié (transport)
+                      </button>
+                    )}
+                    {cuisineOrderSent && trip.data?.piqueNiqueDetails?.active && cuisineChanged && (
+                      <button
+                        type="button"
+                        onClick={() => sendCuisineAmendment()}
+                        disabled={loadingAction === "cuisine-amendment"}
+                        className="text-xs font-bold text-emerald-700 hover:underline disabled:opacity-50"
+                      >
+                        Renvoyer commande cuisine (annule et remplace)
+                      </button>
+                    )}
+                  </TripFieldActions>
                 )}
-                {canAddDocuments && (
+              </>
+            )}
+          </TripField>
+          <TripField label="Dates">
+            {isEditing ? (
+              <div className="flex gap-2 flex-wrap">
+                <TripInput type="date" value={editedData.startDate || editedData.date || ""} onChange={(e) => setEditedData({ ...editedData, startDate: e.target.value, date: e.target.value })} />
+                {trip.type === "COMPLEX" && (
+                  <TripInput type="date" value={editedData.endDate || ""} onChange={(e) => setEditedData({ ...editedData, endDate: e.target.value })} />
+                )}
+              </div>
+            ) : (
+              <>
+                <TripFieldValue value={dateLabel} />
+                {(canEditDates || datesChanged) && (
+                  <TripFieldActions>
+                    {canEditDates && (
+                      <button type="button" onClick={openDateModal} className="text-xs font-bold text-indigo-600 hover:underline">
+                        Modifier dates & horaires
+                      </button>
+                    )}
+                    {datesChanged && (
+                      <p className="text-[10px] text-amber-700 font-semibold">Dates modifiées depuis le dernier envoi transport</p>
+                    )}
+                  </TripFieldActions>
+                )}
+              </>
+            )}
+          </TripField>
+          <TripField label="Horaires">
+            {isEditing ? (
+              <div className="flex gap-2">
+                <TripInput placeholder="Départ" value={editedData.startTime} onChange={(e) => setEditedData({ ...editedData, startTime: e.target.value })} />
+                <TripInput placeholder="Retour" value={editedData.endTime} onChange={(e) => setEditedData({ ...editedData, endTime: e.target.value })} />
+              </div>
+            ) : (
+              <TripFieldValue value={`Départ ${trip.data.startTime || "—"} · Retour ${trip.data.endTime || "—"}`} />
+            )}
+          </TripField>
+          <TripField label="Budget">
+            {isEditing ? (
+              <div className="flex items-center gap-2">
+                <TripInput type="number" className="max-w-[8rem]" value={editedData.coutTotal} onChange={(e) => setEditedData({ ...editedData, coutTotal: Number(e.target.value) })} />
+                <span className="text-xs font-bold text-slate-500">€ total</span>
+              </div>
+            ) : (
+              <div>
+                <TripFieldValue value={`${Math.round(Number(trip.data.coutTotal))} € prévisionnel`} />
+                {trip.data.finalTotalCost && (
+                  <p className="text-emerald-700 font-bold text-sm mt-1">
+                    Validé compta : {trip.data.finalTotalCost} € ({trip.data.costPerStudent} €/élève)
+                  </p>
+                )}
+              </div>
+            )}
+          </TripField>
+          <TripField label="Restauration">
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={() => setShowCuisineModal(true)}
+                className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all text-left ${
+                  editedData?.piqueNiqueDetails?.active ? "border-emerald-400 bg-emerald-50" : "border-slate-200 bg-slate-50"
+                }`}
+              >
+                <div>
+                  <p className="font-bold text-slate-900 text-sm">Commande restauration</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {editedData?.piqueNiqueDetails?.active
+                      ? `${getTotalMeals(editedData.piqueNiqueDetails)} repas configurés`
+                      : "Configurer"}
+                  </p>
+                </div>
+                <span className="text-xl">🥪</span>
+              </button>
+            ) : (
+              <div>
+                <TripFieldValue value={trip.data.piqueNiqueDetails?.active ? "Commande cuisine configurée" : "Pas de commande cuisine"} />
+                {trip.data.piqueNiqueDetails?.active && (
                   <>
-                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
-                    <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50">
-                      {uploading ? "Upload..." : "+ Ajouter un document"}
+                    <span className="inline-block mt-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      {getTotalMeals(trip.data.piqueNiqueDetails)} repas ·{" "}
+                      {Object.values(trip.data.piqueNiqueDetails.daysSelection || {}).filter(Boolean).length} jour(s)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setHubTab("cuisine")}
+                      className="mt-2 block text-xs font-bold text-emerald-700 hover:underline"
+                    >
+                      Voir le détail restauration →
                     </button>
                   </>
                 )}
               </div>
+            )}
+          </TripField>
+          <TripField label="Objectifs pédagogiques" span={2}>
+            {isEditing ? (
+              <TripTextarea value={editedData.objectifs} onChange={(e) => setEditedData({ ...editedData, objectifs: e.target.value })} />
+            ) : (
+              <TripFieldValue value={trip.data.objectifs || "Aucun objectif renseigné."} multiline />
+            )}
+          </TripField>
+        </div>
+        {documentCount > 0 && (
+          <p className="mt-6 text-xs text-slate-500">
+            {documentCount} document{documentCount > 1 ? "s" : ""} dans le dossier —{" "}
+            <button type="button" onClick={() => setHubTab("documents")} className="font-bold text-indigo-600 hover:underline">
+              voir l&apos;onglet Documents
+            </button>
+          </p>
+        )}
+      </TripSection>
+      )}
+
+      {hubTab === "cuisine" && hasCuisineOrder && (
+        <TripSection
+          title="Commande restauration"
+          subtitle="Bon de commande envoyé au chef ou en préparation"
+          icon="🍽️"
+          accent="emerald"
+          action={
+            cuisineOrderSent && (isOwner || canSign) ? (
+              <TripButton
+                variant="warning"
+                size="sm"
+                onClick={() => sendCuisineAmendment()}
+                disabled={loadingAction === "cuisine-amendment"}
+              >
+                {loadingAction === "cuisine-amendment" ? "Envoi…" : "Annule et remplace"}
+              </TripButton>
+            ) : undefined
+          }
+        >
+          {(() => {
+            const details = trip.data.piqueNiqueDetails as {
+              deliveryTime?: string;
+              deliveryPlace?: string;
+              daysSelection?: Record<string, boolean>;
+              orders?: Record<string, Record<string, string>>;
+            };
+            const selectedDayKeys = CUISINE_DAYS.filter((d) => details?.daysSelection?.[d.key]);
+            return (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
+                    <p className="text-[10px] font-bold uppercase text-emerald-700">Livraison</p>
+                    <p className="font-bold text-slate-900 mt-1">
+                      {details?.deliveryPlace || "—"} à {details?.deliveryTime || "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">Repas commandés</p>
+                    <p className="font-bold text-slate-900 mt-1">{getTotalMeals(trip.data.piqueNiqueDetails)} au total</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">Envoi au chef</p>
+                    <p className="font-bold text-slate-900 mt-1">
+                      {cuisineOrderSent
+                        ? `Envoyé le ${new Date(trip.data.cuisineOrderSentAt!).toLocaleDateString("fr-FR")}`
+                        : "Pas encore envoyé (validation finale)"}
+                    </p>
+                    {(trip.data.cuisineAmendments?.length || 0) > 0 && (
+                      <p className="text-[10px] text-amber-700 mt-1">{trip.data.cuisineAmendments!.length} rectification(s)</p>
+                    )}
+                  </div>
+                </div>
+                {cuisineChanged && (
+                  <TripAlert tone="warning" title="Effectif modifié depuis la dernière commande">
+                    <button
+                      type="button"
+                      onClick={() => sendCuisineAmendment()}
+                      className="text-xs font-bold text-emerald-800 underline mt-1"
+                    >
+                      Renvoyer la commande au chef
+                    </button>
+                  </TripAlert>
+                )}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-xs border-collapse min-w-[520px]">
+                    <thead>
+                      <tr className="bg-emerald-600 text-white">
+                        <th className="text-left p-2.5 font-semibold">Désignation</th>
+                        {selectedDayKeys.map((d) => (
+                          <th key={d.key} className="p-2.5 text-center font-semibold">{d.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {CUISINE_ROWS.map((row, rowIdx) => (
+                        <tr key={row.key} className={rowIdx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                          <td className="p-2 font-medium text-slate-700">{row.label}</td>
+                          {selectedDayKeys.map((d) => (
+                            <td key={d.key} className="p-2 text-center text-slate-600">
+                              {details?.orders?.[d.key]?.[row.key] || "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-slate-500 italic">
+                  Effectif dossier : {trip.data.nbEleves} élèves, {trip.data.nbAccompagnateurs || 0} accompagnateurs — {dateLabel}
+                </p>
+              </div>
+            );
+          })()}
+        </TripSection>
+      )}
+
+      {hubTab === "documents" && (
+        <TripSection title="Documents du dossier" subtitle="Pièces jointes, devis transport et circulaire" icon="📁">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <p className="text-sm text-slate-600">{documentCount} document{documentCount > 1 ? "s" : ""} au total</p>
+            <div className="flex flex-wrap gap-2">
+              {trip.status === "VALIDE" && (canSign || isOwner) && (
+                <TripButton variant="secondary" size="sm" onClick={handleRegenerateCircular} disabled={!!loadingAction}>
+                  {loadingAction === "regenerate-circular" ? "Génération…" : "Régénérer circulaire"}
+                </TripButton>
+              )}
+              {canAddDocuments && (
+                <>
+                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                  <TripButton variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                    {uploading ? "Upload…" : "+ Document"}
+                  </TripButton>
+                </>
+              )}
             </div>
-            <div className="flex flex-wrap gap-3 mt-2">
-              {(isEditing ? editedData.attachments : trip.data.attachments)?.map((file: any, idx: number) => (
-                <div key={idx} className="relative group flex items-center gap-2 p-2 bg-slate-50 border rounded-xl text-xs font-semibold text-indigo-600 shadow-sm">
-                  <button type="button" onClick={() => openSecureFile(file.url)} className="hover:underline">📄 {file.name}</button>
-                  {canSeeTravelDocHoverActions && (
-                    <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition absolute left-1/2 -translate-x-1/2 top-full mt-2 z-20">
-                      <div className="pointer-events-auto bg-white border border-slate-200 rounded-xl shadow-lg p-2 flex items-center gap-2 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => openSecureFile(file.url)}
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
-                        >
-                          Ouvrir
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => prepareSendToZeendoc(file)}
-                          disabled={zeendocSendingUrl === file.url}
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200"
-                        >
-                          {zeendocSendingUrl === file.url ? "Envoi..." : "Envoyer Zeendoc"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {canManageFiles && (
-                    <button type="button" onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 px-1 font-bold text-[10px]">✕</button>
+          </div>
+
+          {documentCount === 0 ? (
+            <p className="text-sm text-slate-400 italic py-8 text-center">Aucun document dans ce dossier.</p>
+          ) : (
+            <div className="space-y-8">
+              {((isEditing ? editedData.attachments : trip.data.attachments) || []).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Pièces jointes</p>
+                  <div className="flex flex-wrap gap-2">
+                    {((isEditing ? editedData.attachments : trip.data.attachments) || []).map((file: {
+                      name: string;
+                      url: string;
+                      s3Key?: string;
+                    }, idx: number) => (
+                      <TripDocumentChip
+                        key={`att_${idx}`}
+                        name={file.name}
+                        onOpen={() => openSecureFile(file.url, file.s3Key)}
+                        onZeendoc={canSeeTravelDocHoverActions ? () => prepareSendToZeendoc(file) : undefined}
+                        zeendocBusy={zeendocSendingUrl === file.url}
+                        showZeendoc={canSeeTravelDocHoverActions}
+                        onRemove={canManageFiles ? () => removeFile(idx) : undefined}
+                        canRemove={canManageFiles}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {withBusLogistics && ((trip.receivedDevis?.length || 0) > 0 || trip.data.signedQuoteUrl) && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-3">Devis transport bus</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(trip.receivedDevis || []).map((quote: {
+                      id?: string;
+                      providerName?: string;
+                      fileUrl?: string;
+                      s3KeyIncoming?: string;
+                    }, idx: number) => {
+                      const selected = trip.data.selectedBusQuote?.fileUrl === quote.fileUrl;
+                      const label = `🚌 ${quote.providerName || "Transporteur"}${selected ? " (retenu)" : ""}`;
+                      return (
+                        <TripDocumentChip
+                          key={quote.id || `devis_${idx}`}
+                          name={label}
+                          onOpen={() => quote.fileUrl && openSecureFile(quote.fileUrl, quote.s3KeyIncoming)}
+                          onZeendoc={
+                            quote.fileUrl && canSeeTravelDocHoverActions
+                              ? () => prepareSendToZeendoc({ name: label, url: quote.fileUrl! })
+                              : undefined
+                          }
+                          zeendocBusy={zeendocSendingUrl === quote.fileUrl}
+                          showZeendoc={canSeeTravelDocHoverActions}
+                          onRemove={canSign && quote.id ? () => deleteBusQuote(quote) : undefined}
+                          canRemove={canSign}
+                        />
+                      );
+                    })}
+                    {trip.data.signedQuoteUrl && (
+                      <TripDocumentChip
+                        key="signed_bus"
+                        name="🚌 Devis bus signé"
+                        onOpen={() => openSecureFile(trip.data.signedQuoteUrl!)}
+                        onZeendoc={
+                          canSeeTravelDocHoverActions
+                            ? () =>
+                                prepareSendToZeendoc({
+                                  name: "Devis bus signé",
+                                  url: trip.data.signedQuoteUrl!,
+                                })
+                            : undefined
+                        }
+                        zeendocBusy={zeendocSendingUrl === trip.data.signedQuoteUrl}
+                        showZeendoc={canSeeTravelDocHoverActions}
+                      />
+                    )}
+                  </div>
+                  {(trip.receivedDevis?.length || 0) > 0 && (
+                    <p className="text-[10px] text-slate-500 mt-2">
+                      Choix et validation des devis : onglet Transport.
+                    </p>
                   )}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        </div>
-      </div>
+          )}
+        </TripSection>
+      )}
 
-      {canUseInternalThread && (
-        <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm text-left space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">Fil interne (post-it)</h2>
-              <p className="text-xs text-slate-500 mt-1">Visible uniquement par le créateur, la direction et la comptabilité.</p>
-            </div>
+      {hubTab === "journal" && <TripAmendmentJournal trip={trip} />}
+
+      {hubTab === "actions" && (
+        <TripActionsPanel
+          trip={trip}
+          canManage={isOwner || canSign}
+          onTripUpdated={(t) => {
+            setTrip(t);
+            setEditedData(t.data);
+          }}
+        />
+      )}
+
+      {(hubTab === "overview" || hubTab === "messages") && canUseInternalThread && (
+        <TripSection
+          title="Fil interne"
+          subtitle="Échanges entre créateur, direction et comptabilité"
+          icon="💬"
+          action={
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              {(trip.messages || []).length} message(s)
+              {(trip.messages || []).length} message{(trip.messages || []).length > 1 ? "s" : ""}
             </span>
-          </div>
-
-          <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+          }
+        >
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3 mb-4">
             {(trip.messages || []).length === 0 ? (
-              <p className="text-sm text-slate-400 italic">Aucun message interne pour le moment.</p>
+              <p className="text-sm text-slate-400 italic text-center py-6">Aucun message pour le moment.</p>
             ) : (
               [...(trip.messages || [])]
                 .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
                 .map((msg: any) => (
-                  <div key={msg.id || `${msg.user}_${msg.date}`} className="bg-white border border-slate-100 rounded-xl p-3">
+                  <div key={msg.id || `${msg.user}_${msg.date}`} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-bold text-slate-700">{msg.user} <span className="text-slate-400 font-medium">({msg.role || "—"})</span></p>
+                      <p className="text-xs font-bold text-slate-800">
+                        {msg.user}{" "}
+                        <span className="text-slate-400 font-medium">· {msg.role || "—"}</span>
+                      </p>
                       <p className="text-[10px] text-slate-400">{new Date(msg.date).toLocaleString("fr-FR")}</p>
                     </div>
-                    <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{msg.text}</p>
+                    <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                   </div>
                 ))
             )}
           </div>
-
-          <div className="space-y-3">
-            <textarea
-              value={draftMessage}
-              onChange={(e) => setDraftMessage(e.target.value)}
-              placeholder="Écrire un message interne... (ex: l'hôtel est trop cher, pouvez-vous proposer une alternative ?)"
-              className="w-full min-h-[90px] rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
-            />
-            <div className="flex justify-end">
-              <button
-                onClick={postInternalMessage}
-                disabled={!draftMessage.trim()}
-                className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-indigo-700 transition"
-              >
-                Envoyer le message
-              </button>
-            </div>
+          <TripTextarea
+            value={draftMessage}
+            onChange={(e) => setDraftMessage(e.target.value)}
+            placeholder="Message interne… (ex. : proposer une alternative d'hébergement)"
+          />
+          <div className="flex justify-end mt-3">
+            <TripButton onClick={postInternalMessage} disabled={!draftMessage.trim()}>
+              Envoyer
+            </TripButton>
           </div>
-        </div>
+        </TripSection>
       )}
-      {(isDirection || isCompta) && !isEditing && trip.status !== "BESOIN_MODIFICATION" && trip.status !== "SEANCE_ANNULEE" && (
-        <div className="bg-slate-900 text-white p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl text-left">
-          <div className="text-center md:text-left">
-            <p className="font-bold text-lg">Espace Décisionnaire</p>
-          </div>
-          <div className="flex flex-wrap gap-3 items-center">
+
+      {hubTab === "overview" && (isDirection || isCompta) && !isEditing && trip.status !== "BESOIN_MODIFICATION" && trip.status !== "SEANCE_ANNULEE" && trip.status !== "ANNULE" && (
+        <TripDecisionPanel title="Espace décisionnaire">
+          <div className="flex flex-wrap gap-2 items-center lg:flex-1">
             {isDirection && !canSign && (
-              <div className="bg-slate-800 border border-slate-600 rounded-2xl px-5 py-3 text-sm text-slate-300 max-w-xs text-left">
-                <p className="font-bold text-white mb-0.5">Accès en lecture seule</p>
-                <p>Ce dossier concerne <span className="font-semibold text-amber-300">{etabForSign || "le groupe scolaire"}</span>. Seule la direction de cet établissement peut valider ou rejeter.</p>
+              <div className="w-full sm:max-w-md rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-slate-300">
+                <p className="font-bold text-white text-xs uppercase tracking-wide mb-1">Lecture seule</p>
+                Dossier <span className="text-amber-300 font-semibold">{etabForSign || "groupe scolaire"}</span> — validation réservée à la direction concernée.
               </div>
             )}
-            {((canSign && (trip.status === 'EN_ATTENTE_DIR_INITIAL' || trip.status === 'EN_ATTENTE_BUS_SIGNATURE' || trip.status === 'EN_ATTENTE_DIR_FINAL')) || (isCompta && trip.status === 'EN_ATTENTE_COMPTA')) && (
+          </div>
+          <div className="flex flex-wrap gap-2 justify-end">
+            {((canSign && (trip.status === "EN_ATTENTE_DIR_INITIAL" || trip.status === "EN_ATTENTE_BUS_SIGNATURE" || trip.status === "EN_ATTENTE_DIR_FINAL")) || (isCompta && trip.status === "EN_ATTENTE_COMPTA")) && (
               <>
                 {canSign && (
-                  <ActionButton label="Refus Définitif" color="bg-red-600" onClick={() => { const n = prompt("Motif du refus définitif :"); if(n) handleAction("REJETE", n); }} />
+                  <TripButton variant="danger" size="sm" onClick={() => { const n = prompt("Motif du refus définitif :"); if (n) handleAction("REJETE", n); }}>
+                    Refus définitif
+                  </TripButton>
                 )}
-                <ActionButton label="Demander Modifs" color="bg-orange-500" onClick={() => {
-                  const n = prompt("Précisez les changements attendus :");
-                  if(n) {
-                    const returnTo = trip.status === "EN_ATTENTE_DIR_FINAL" ? "EN_ATTENTE_COMPTA" : trip.status;
-                    handleAction("BESOIN_MODIFICATION", n, { previousStatus: returnTo });
-                  }
-                }} />
+                <TripButton
+                  variant="warning"
+                  size="sm"
+                  onClick={() => {
+                    const n = prompt("Précisez les changements attendus :");
+                    if (n) {
+                      const returnTo = trip.status === "EN_ATTENTE_DIR_FINAL" ? "EN_ATTENTE_COMPTA" : trip.status;
+                      handleAction("BESOIN_MODIFICATION", n, { previousStatus: returnTo });
+                    }
+                  }}
+                >
+                  Demander des modifs
+                </TripButton>
               </>
             )}
             {canSign && trip.status === "EN_ATTENTE_DIR_INITIAL" && trip.type === "COMPLEX" && (
-              <ActionButton
-                label="Valider Pédagogie"
-                color="bg-indigo-600"
+              <TripButton
+                variant="primary"
+                size="sm"
                 onClick={() =>
                   handleAction(
                     withBusLogistics ? "PROF_LOGISTICS" : "EN_ATTENTE_COMPTA",
                     withBusLogistics ? "Pédagogie validée" : "Pédagogie validée (sans transport bus)",
                   )
                 }
-              />
+              >
+                Valider pédagogie
+              </TripButton>
             )}
-            {(isOwner || canSign) &&
-              trip.type === "COMPLEX" &&
-              !withBusLogistics &&
-              trip.status === "PROF_LOGISTICS" && (
-              <ActionButton
-                label="Passer aux finances"
-                color="bg-indigo-600"
-                onClick={() => handleAction("EN_ATTENTE_COMPTA", "Sans bus — étape logistique non requise")}
-              />
+            {(isOwner || canSign) && trip.type === "COMPLEX" && !withBusLogistics && trip.status === "PROF_LOGISTICS" && (
+              <TripButton variant="primary" size="sm" onClick={() => handleAction("EN_ATTENTE_COMPTA", "Sans bus — étape logistique non requise")}>
+                Passer aux finances
+              </TripButton>
             )}
-            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && trip.type !== "COMPLEX" && !seriesId && (
-              <ActionButton label="Valider Pédagogie" color="bg-indigo-600" onClick={() => handleAction("EN_ATTENTE_COMPTA", "Pédagogie validée")} />
+            {canSign && trip.status === "EN_ATTENTE_DIR_INITIAL" && trip.type !== "COMPLEX" && !seriesId && (
+              <TripButton variant="primary" size="sm" onClick={() => handleAction("EN_ATTENTE_COMPTA", "Pédagogie validée")}>
+                Valider pédagogie
+              </TripButton>
             )}
-            {canSign && trip.status === 'EN_ATTENTE_DIR_INITIAL' && trip.type !== "COMPLEX" && seriesId && (
-              <ActionButton
-                label={loadingAction ? "Validation série…" : "Valider toute la série (pédagogie)"}
-                color="bg-indigo-600"
-                onClick={validateSeriesPedagogy}
-              />
+            {canSign && trip.status === "EN_ATTENTE_DIR_INITIAL" && trip.type !== "COMPLEX" && seriesId && (
+              <TripButton variant="primary" size="sm" onClick={validateSeriesPedagogy}>
+                {loadingAction ? "Validation série…" : "Valider toute la série"}
+              </TripButton>
             )}
-            {isCompta && trip.status === 'EN_ATTENTE_COMPTA' && (
-              <ActionButton label="Valider Budget Global" color="bg-green-600" onClick={() => {
-                const total = prompt("Montant GLOBAL final (€) :");
-                if(total) {
-                  const student = prompt("Coût par ÉLÈVE final (€) :");
-                  if(student) handleAction("EN_ATTENTE_DIR_FINAL", "Budget validé", { finalTotalCost: total, costPerStudent: student });
-                }
-              }} />
+            {isCompta && trip.status === "EN_ATTENTE_COMPTA" && (
+              <TripButton
+                variant="success"
+                size="sm"
+                onClick={() => {
+                  const total = prompt("Montant GLOBAL final (€) :");
+                  if (total) {
+                    const student = prompt("Coût par ÉLÈVE final (€) :");
+                    if (student) handleAction("EN_ATTENTE_DIR_FINAL", "Budget validé", { finalTotalCost: total, costPerStudent: student });
+                  }
+                }}
+              >
+                Valider budget
+              </TripButton>
             )}
-            {canSign && trip.status === 'EN_ATTENTE_DIR_FINAL' && (
-              <ActionButton label={loadingAction ? "Finalisation..." : "Validation Finale Dossier"} color="bg-green-600" onClick={handleFinalValidation}/>
+            {canSign && trip.status === "EN_ATTENTE_DIR_FINAL" && (
+              <TripButton variant="success" size="sm" onClick={handleFinalValidation}>
+                {loadingAction ? "Finalisation…" : "Validation finale"}
+              </TripButton>
             )}
             {trip.status === "VALIDE" && (canSign || isOwner) && (
-              <ActionButton
-                label={loadingAction === "regenerate-circular" ? "Génération circulaire..." : "Régénérer la circulaire"}
-                color="bg-emerald-600"
-                onClick={handleRegenerateCircular}
-              />
+              <TripButton variant="success" size="sm" onClick={handleRegenerateCircular} disabled={!!loadingAction}>
+                {loadingAction === "regenerate-circular" ? "Génération…" : "Régénérer circulaire"}
+              </TripButton>
             )}
             {canSign && trip.status === "VALIDE" && reopenStepOptions.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 bg-slate-800 border border-slate-600 rounded-2xl px-4 py-3">
-                <label htmlFor="reopen-step-select" className="text-sm text-slate-300 shrink-0">
-                  Réouvrir à l&apos;étape :
+              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+                <label htmlFor="reopen-step-select" className="text-xs text-slate-300 shrink-0">
+                  Réouvrir :
                 </label>
                 <select
                   id="reopen-step-select"
                   value={selectedReopenStep}
                   onChange={(e) => setReopenStep(e.target.value)}
-                  className="bg-slate-700 text-white text-sm font-medium rounded-xl px-3 py-2 border border-slate-500 outline-none focus:ring-2 focus:ring-indigo-400 min-w-[10rem]"
+                  className="bg-slate-800 text-white text-sm font-medium rounded-lg px-2 py-1.5 border border-slate-600 outline-none focus:ring-2 focus:ring-indigo-400 min-w-[8rem]"
                 >
                   {reopenStepOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -1204,50 +1968,221 @@ export default function TripDetails() {
                     </option>
                   ))}
                 </select>
-                <ActionButton
-                  label={loadingAction ? "Réouverture…" : "Réouvrir le dossier"}
-                  color="bg-violet-600"
+                <TripButton
+                  variant="dark"
+                  size="sm"
                   onClick={() => {
                     const opt = reopenStepOptions.find((o) => o.value === selectedReopenStep);
                     if (opt) handleReopenDossier(opt.value, opt.label);
                   }}
-                />
+                >
+                  {loadingAction ? "…" : "Réouvrir"}
+                </TripButton>
               </div>
             )}
             {canCancelRecurrenceSession && canSign && (
-              <ActionButton
-                label="Annuler cette séance seule"
-                color="bg-slate-500"
-                onClick={cancelRecurrenceSession}
-              />
+              <TripButton variant="secondary" size="sm" onClick={cancelRecurrenceSession}>
+                Annuler cette séance
+              </TripButton>
             )}
+          </div>
+        </TripDecisionPanel>
+      )}
+
+      {canCancelRecurrenceSession && !isEditing && !canSign && isOwner && trip.status !== "SEANCE_ANNULEE" && (
+        <TripAlert
+          tone="warning"
+          title="Série récurrente"
+          action={
+            <TripButton variant="warning" size="sm" disabled={!!loadingAction} onClick={cancelRecurrenceSession}>
+              Annuler cette séance seule
+            </TripButton>
+          }
+        >
+          Retirer uniquement ce créneau sans modifier les autres dossiers de la série.
+        </TripAlert>
+      )}
+      {showEffectifModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[75] p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Modifier l&apos;effectif</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              Créateur ou direction — mise à jour sans rouvrir tout le dossier.
+            </p>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Élèves</label>
+                <TripInput
+                  type="number"
+                  min={0}
+                  value={draftNbEleves}
+                  onChange={(e) => setDraftNbEleves(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Accompagnateurs</label>
+                <TripInput
+                  type="number"
+                  min={0}
+                  value={draftNbAccompagnateurs}
+                  onChange={(e) => setDraftNbAccompagnateurs(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-3 mb-6">
+              Si un devis transport ou une commande cuisine a déjà été envoyé(e), vous pourrez déclencher les relances juste après l&apos;enregistrement.
+            </p>
+            <div className="flex gap-3">
+              <TripButton variant="secondary" className="flex-1" onClick={() => setShowEffectifModal(false)}>
+                Annuler
+              </TripButton>
+              <TripButton variant="primary" className="flex-1" onClick={saveEffectifChange}>
+                Enregistrer
+              </TripButton>
+            </div>
           </div>
         </div>
       )}
-      {canCancelRecurrenceSession && !isEditing && !canSign && isOwner && trip.status !== "SEANCE_ANNULEE" && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-left">
-          <p className="text-sm text-amber-900">
-            <span className="font-bold">Série récurrente :</span> vous pouvez retirer uniquement ce créneau sans modifier les autres dossiers.
-          </p>
-          <button
-            type="button"
-            disabled={!!loadingAction}
-            onClick={cancelRecurrenceSession}
-            className="shrink-0 px-5 py-2.5 rounded-xl bg-amber-700 text-white text-sm font-bold hover:bg-amber-800 disabled:opacity-50"
-          >
-            Annuler cette séance seule
-          </button>
+
+      {effectifFollowUp && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-lg w-full shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Effectif enregistré</h2>
+            <p className="text-sm text-slate-500 mb-5">Souhaitez-vous notifier les prestataires du changement ?</p>
+            <div className="space-y-3 mb-6">
+              {effectifFollowUp.sendTransport && (
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-100 bg-amber-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={effectifFollowUp.sendTransport}
+                    onChange={(e) =>
+                      setEffectifFollowUp({ ...effectifFollowUp, sendTransport: e.target.checked })
+                    }
+                  />
+                  <span className="text-sm text-slate-700">
+                    <strong>Demander un nouveau devis transport</strong>
+                    <br />
+                    <span className="text-xs text-slate-500">
+                      {effectifFollowUp.savedTrip.data?.selectedBusQuote
+                        ? `Uniquement ${effectifFollowUp.savedTrip.data.selectedBusQuote.providerName}.`
+                        : "À tous les transporteurs référencés."}
+                    </span>
+                  </span>
+                </label>
+              )}
+              {effectifFollowUp.sendCuisine && (
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-emerald-100 bg-emerald-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={effectifFollowUp.sendCuisine}
+                    onChange={(e) =>
+                      setEffectifFollowUp({ ...effectifFollowUp, sendCuisine: e.target.checked })
+                    }
+                  />
+                  <span className="text-sm text-slate-700">
+                    <strong>Renvoyer la commande cuisine (annule et remplace)</strong>
+                    <br />
+                    <span className="text-xs text-slate-500">
+                      Mail au chef avec formules de politesse et nouvelle commande en pièce jointe.
+                    </span>
+                  </span>
+                </label>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <TripButton variant="secondary" className="flex-1" onClick={() => setEffectifFollowUp(null)}>
+                Plus tard
+              </TripButton>
+              <TripButton
+                variant="primary"
+                className="flex-1"
+                onClick={runEffectifFollowUp}
+                disabled={
+                  !effectifFollowUp.sendTransport && !effectifFollowUp.sendCuisine
+                }
+              >
+                Envoyer les relances
+              </TripButton>
+            </div>
+          </div>
         </div>
       )}
-      {showCuisineModal && isEditing && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-[2rem] p-8 max-w-5xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Bon de commande Cuisine</h2>
-                <p className="text-slate-500 text-sm">Modification de la commande restauration</p>
+
+      {showDateModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[75] p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Modifier dates & horaires</h2>
+            <p className="text-sm text-slate-500 mb-6">Créateur ou direction — relances transport/cuisine proposées après enregistrement.</p>
+            <div className="space-y-4 mb-6">
+              <div className="flex gap-2 flex-wrap">
+                <div className="flex-1 min-w-[8rem]">
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Date début</label>
+                  <TripInput type="date" value={draftStartDate} onChange={(e) => setDraftStartDate(e.target.value)} />
+                </div>
+                {trip.type === "COMPLEX" && (
+                  <div className="flex-1 min-w-[8rem]">
+                    <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Date fin</label>
+                    <TripInput type="date" value={draftEndDate} onChange={(e) => setDraftEndDate(e.target.value)} />
+                  </div>
+                )}
               </div>
-              <button onClick={() => setShowCuisineModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Départ</label>
+                  <TripInput type="time" value={draftStartTime} onChange={(e) => setDraftStartTime(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Retour</label>
+                  <TripInput type="time" value={draftEndTime} onChange={(e) => setDraftEndTime(e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <TripButton variant="secondary" className="flex-1" onClick={() => setShowDateModal(false)}>Annuler</TripButton>
+              <TripButton variant="primary" className="flex-1" onClick={saveDateChange}>Enregistrer</TripButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dateFollowUp && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-lg w-full shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Dates enregistrées</h2>
+            <p className="text-sm text-slate-500 mb-5">Notifier les prestataires du changement de planning ?</p>
+            <div className="space-y-3 mb-6">
+              {dateFollowUp.sendTransport && (
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-amber-100 bg-amber-50">
+                  <input type="checkbox" checked={dateFollowUp.sendTransport} onChange={(e) => setDateFollowUp({ ...dateFollowUp, sendTransport: e.target.checked })} />
+                  <span className="text-sm"><strong>Relancer le transporteur</strong> (avenant dates)</span>
+                </label>
+              )}
+              {dateFollowUp.sendCuisine && (
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-emerald-100 bg-emerald-50">
+                  <input type="checkbox" checked={dateFollowUp.sendCuisine} onChange={(e) => setDateFollowUp({ ...dateFollowUp, sendCuisine: e.target.checked })} />
+                  <span className="text-sm"><strong>Renvoyer commande cuisine</strong></span>
+                </label>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <TripButton variant="secondary" className="flex-1" onClick={() => setDateFollowUp(null)}>Plus tard</TripButton>
+              <TripButton variant="primary" className="flex-1" onClick={runDateFollowUp} disabled={!dateFollowUp.sendTransport && !dateFollowUp.sendCuisine}>Envoyer</TripButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCuisineModal && isEditing && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-5xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Bon de commande cuisine</h2>
+                <p className="text-slate-500 text-sm mt-0.5">Configuration de la commande restauration</p>
+              </div>
+              <TripButton variant="ghost" size="sm" onClick={() => setShowCuisineModal(false)}>✕</TripButton>
             </div>
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl">
@@ -1355,78 +2290,27 @@ export default function TripDetails() {
               </div>
               <p className="text-[10px] text-slate-500 italic bg-amber-50 border border-amber-100 p-2.5 rounded-lg">⚠️ Rappel : fournir la liste des élèves/adultes 15 jours avant, et l’affiner 24h avant.</p>
             </div>
-            <div className="flex gap-3 mt-10">
-              <button
-                type="button"
+            <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+              <TripButton
+                variant="danger"
+                className="flex-1"
                 onClick={() => {
                   setEditedData((prev: any) => ({
                     ...prev,
-                    piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: false }
+                    piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: false },
                   }));
                   setShowCuisineModal(false);
                 }}
-                className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold"
               >
-                ANNULER LA COMMANDE
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCuisineModal(false)}
-                className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100"
-              >
-                ENREGISTRER LE BON
-              </button>
+                Annuler la commande
+              </TripButton>
+              <TripButton variant="primary" className="flex-[2]" onClick={() => setShowCuisineModal(false)}>
+                Enregistrer le bon
+              </TripButton>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Step({ label, active, step }: { label: string, active: boolean, step: string }) {
-  return (
-    <div className={`p-4 rounded-2xl border-2 transition-all ${active ? 'border-indigo-500 bg-indigo-50 scale-105 shadow-sm' : 'border-slate-100 opacity-50'}`}>
-      <p className="text-[10px] font-bold uppercase text-indigo-600 text-left">Étape {step}</p>
-      <p className="font-bold text-slate-800 text-xs text-left">{label}</p>
-    </div>
-  );
-}
-
-function DetailItem({ label, value, wrap }: { label: string; value: string; wrap?: boolean }) {
-  return (
-    <div
-      className={`flex flex-col border-b border-slate-50 pb-2 text-left ${wrap ? "md:col-span-2" : ""}`}
-    >
-      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-      <span
-        className={
-          wrap
-            ? "text-slate-700 font-medium whitespace-pre-wrap break-words leading-relaxed"
-            : "text-slate-700 font-medium truncate"
-        }
-      >
-        {value || "—"}
-      </span>
-    </div>
-  );
-}
-
-function EditableDetail({ isEditing, label, value, onChange, type = "text" }: { isEditing: boolean, label: string, value: any, onChange: (v: string) => void, type?: string }) {
-  return (
-    <div className="flex flex-col border-b border-slate-50 pb-2 text-left">
-      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-      {isEditing ? (
-        <input type={type} className="text-sm border-b-2 border-indigo-300 outline-none bg-indigo-50 px-1 font-medium text-slate-700 w-full" value={value} onChange={(e) => onChange(e.target.value)} />
-      ) : (
-        <span className="text-slate-700 font-medium">{value || "—"}</span>
-      )}
-    </div>
-  );
-}
-
-function ActionButton({ label, color, onClick }: { label: string, color: string, onClick: () => void }) {
-  return (
-    <button onClick={onClick} className={`${color} px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:scale-105 transition-transform`}>{label}</button>
+    </TripPageShell>
   );
 }

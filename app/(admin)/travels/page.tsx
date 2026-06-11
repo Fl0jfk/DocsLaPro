@@ -1,45 +1,89 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import TravelsDirectionDashboardPanel from "@/app/components/travels/TravelsDirectionDashboard";
+import type { TravelsDirectionDashboard } from "@/app/lib/travels-direction-dashboard";
+import { isTripTravelDatePast } from "@/app/lib/travels-trip-helpers";
+import type { TravelsTrip } from "@/app/lib/travels-types";
 
 export default function TripDashboard() {
-  const { isLoaded, isSignedIn} = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showModal, setShowModal] = useState(false);
-  const [trips, setTrips] = useState([]);
+  const [trips, setTrips] = useState<TravelsTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterEtab, setFilterEtab] = useState("");
-  useEffect(() => {
-    const fetchTrips = async () => {
-      try {
-        const res = await fetch('/api/travels/list');
-        if (res.ok) {
-          const data = await res.json();
-          setTrips(data);
-        }
-      } catch (error) {
-        console.error("Erreur chargement voyages:", error);
-      } finally {
-        setLoading(false);
+  const [directionDashboard, setDirectionDashboard] = useState<TravelsDirectionDashboard | null>(null);
+  const [reminderCount, setReminderCount] = useState(0);
+
+  const loadTrips = useCallback(async () => {
+    try {
+      const res = await fetch("/api/travels/list");
+      if (res.ok) {
+        const data = await res.json();
+        setTrips(data);
       }
-    };
-    if (isLoaded && isSignedIn) {fetchTrips()}
-  }, [isLoaded, isSignedIn]);
+    } catch (error) {
+      console.error("Erreur chargement voyages:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadReminders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/travels/reminders");
+      if (res.ok) {
+        const data = await res.json();
+        setReminderCount(Number(data.count) || 0);
+      }
+    } catch {
+      setReminderCount(0);
+    }
+  }, []);
+
+  const loadDirectionDashboard = useCallback(async () => {
+    try {
+      const res = await fetch("/api/travels/dashboard");
+      if (!res.ok) return;
+      const payload = await res.json();
+      if (payload.isDirection && payload.dashboard) {
+        setDirectionDashboard(payload.dashboard);
+      }
+    } catch (error) {
+      console.error("Erreur dashboard voyages:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      loadTrips();
+      loadDirectionDashboard();
+      loadReminders();
+    }
+  }, [isLoaded, isSignedIn, loadTrips, loadDirectionDashboard, loadReminders]);
 
   useEffect(() => {
     if (searchParams.get("new") === "1") setShowModal(true);
   }, [searchParams]);
 
+  const filteredTrips = useMemo(() => {
+    if (!filterEtab) return trips;
+    return trips.filter(
+      (t) => (t.data?.etablissement || "Groupe Scolaire") === filterEtab,
+    );
+  }, [trips, filterEtab]);
+
   if (!isLoaded || !isSignedIn) return null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const formatDate = (trip: any, field: 'created' | 'travel') => {
+
+  const formatDate = (trip: TravelsTrip, field: "created" | "travel") => {
     let val;
     if (field === 'created') { val = trip.createdAt || trip.updatedAt;
-    } else { val = trip.data?.date;}
+    } else { val = trip.data?.startDate || trip.data?.date;}
     if (!val) return "À préciser";
     const d = new Date(val);
     return isNaN(d.getTime()) ? val : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -58,6 +102,7 @@ export default function TripDashboard() {
       case 'REJET_MODIF': return 'bg-rose-50 text-rose-700 border-rose-100';
       case 'EN_ATTENTE_DIR_INITIAL': return 'bg-blue-50 text-blue-700 border-blue-100';
       case 'SEANCE_ANNULEE': return 'bg-slate-100 text-slate-600 border-slate-200';
+      case 'ANNULE': return 'bg-red-50 text-red-700 border-red-100';
       default: return 'bg-amber-50 text-amber-700 border-amber-100';
     }
   };
@@ -65,13 +110,21 @@ export default function TripDashboard() {
     <div className="max-w-7xl mx-auto p-6 min-h-screen mt-[1vh]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Espace Voyages</h1>
-          <p className="text-slate-500 font-medium">Gestion des déplacements scolaires.</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Module Voyage</h1>
+          <p className="text-slate-500 font-medium">
+            Gestion des sorties — transport, cuisine, documents et suivi.
+            {reminderCount > 0 && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">
+                {reminderCount} rappel{reminderCount > 1 ? "s" : ""}
+              </span>
+            )}
+          </p>
         </div>
         <button onClick={() => setShowModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg transition-all">
           + Nouvelle demande
         </button>
       </div>
+      {directionDashboard && <TravelsDirectionDashboardPanel data={directionDashboard} />}
       <div className="flex gap-2 flex-wrap mb-6">
         {["Tous", "École", "Collège", "Lycée", "Groupe Scolaire"].map((f) => {
           const active = (f === "Tous" && !filterEtab) || filterEtab === f;
@@ -91,30 +144,34 @@ export default function TripDashboard() {
           );
         })}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-8">
-        {loading ? (
-          <div className="col-span-full text-center py-20">Chargement des dossiers...</div>
-        ) : trips.length > 0 ? (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (filterEtab ? (trips as any[]).filter((t: any) => (t.data?.etablissement || "Groupe Scolaire") === filterEtab) : trips
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ).map((trip: any) => {
-            const isComplex = trip.type === "COMPLEX" || trip.data?.transport;
-            const imageUrl = trip.imageUrl || trip.data?.imageUrl || trip.data?.data?.imageUrl;
+      {loading ? (
+        <div className="text-center py-20">Chargement des dossiers...</div>
+      ) : filteredTrips.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {filteredTrips.map((trip) => {
+            const isComplex = trip.type === "COMPLEX" || Boolean((trip.data as { transport?: unknown })?.transport);
+            const imageUrl =
+              (typeof trip.imageUrl === "string" && trip.imageUrl) ||
+              (typeof trip.data?.imageUrl === "string" ? trip.data.imageUrl : undefined);
             const etabLabel = trip.data?.etablissement || "Groupe Scolaire";
             const etabStyle = ETAB_STYLE[etabLabel] ?? ETAB_STYLE["Groupe Scolaire"];
+            const isPast = isTripTravelDatePast(trip);
             return (
-              <div 
-                key={trip.id} 
+              <div
+                key={trip.id}
                 onClick={() => router.push(`/travels/${trip.id}`)}
-                className="group bg-white border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer transform-gpu"
+                className={`group min-w-0 rounded-[2.5rem] overflow-hidden border transition-all duration-300 cursor-pointer transform-gpu ${
+                  isPast
+                    ? "bg-slate-100/90 border-slate-200 opacity-60 grayscale hover:opacity-75 hover:grayscale-[0.85]"
+                    : "bg-white border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1"
+                }`}
               >
                 <div className={`h-1.5 w-full ${etabStyle.stripe}`} />
                 <div className="h-44 w-full relative bg-slate-100 overflow-hidden isolate" style={{ maskImage: 'radial-gradient(white, black)' }}>
                   {imageUrl ? (
                     <Image 
                       src={imageUrl} 
-                      alt={trip.data?.title}
+                      alt={trip.data?.title || "Sortie scolaire"}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       width={500}
                       height={300}
@@ -158,17 +215,14 @@ export default function TripDashboard() {
                         </p>
                         <p className="text-sm text-slate-500">
                           {trip.type === "COMPLEX" ? (
-                            <span>Du {new Date(trip.data.startDate).toLocaleDateString()} au {new Date(trip.data.endDate).toLocaleDateString()}</span>
-                          ) : (
                             <span>
-                              Le{" "}
-                              {trip.data?.date
-                                ? (() => {
-                                    const d = new Date(trip.data.date);
-                                    return isNaN(d.getTime()) ? "à préciser" : d.toLocaleDateString("fr-FR");
-                                  })()
-                                : "à préciser"}
+                              Du {formatDate(trip, "travel")} au{" "}
+                              {trip.data?.endDate
+                                ? new Date(trip.data.endDate).toLocaleDateString("fr-FR")
+                                : "—"}
                             </span>
+                          ) : (
+                            <span>Le {formatDate(trip, "travel")}</span>
                           )}
                         </p>
                       </div>
@@ -201,13 +255,13 @@ export default function TripDashboard() {
                 </div>
               </div>
             );
-          })
-        ) : (
-          <div className="col-span-full text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-            <p className="text-slate-400 font-bold text-xl">Aucun dossier en cours.</p>
-          </div>
-        )}
-      </div>
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+          <p className="text-slate-400 font-bold text-xl">Aucun dossier en cours.</p>
+        </div>
+      )}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />

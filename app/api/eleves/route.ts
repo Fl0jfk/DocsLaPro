@@ -1,15 +1,15 @@
 import { NextResponse, NextRequest } from "next/server";
 import { validateElevesJson } from "@/app/lib/eleves-config";
-import { requireTenantAuth } from "@/app/lib/tenant-auth";
-import { getTenantJson, putTenantJson } from "@/app/lib/tenant-s3-storage";
+import { requireAuth } from "@/app/lib/intranet-auth";
+import { getJson, putJson } from "@/app/lib/s3-storage";
 
 const KEY = "eleves.json";
 
 export async function GET(req: NextRequest) {
   try {
-    const gate = await requireTenantAuth();
+    const gate = await requireAuth();
     if (!gate.ok) return gate.response;
-    const hit = await getTenantJson<unknown[]>(gate.ctx.orgId, KEY);
+    const hit = await getJson<unknown[]>( KEY);
     const eleves = Array.isArray(hit?.data) ? hit.data : [];
     return NextResponse.json({ count: eleves.length, eleves });
   } catch (error) {
@@ -19,14 +19,14 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const gate = await requireTenantAuth();
+    const gate = await requireAuth();
     if (!gate.ok) return gate.response;
     const body = await req.json();
     const validated = validateElevesJson(body);
     if (!validated.ok) {
       return NextResponse.json({ error: validated.error }, { status: 400 });
     }
-    await putTenantJson(gate.ctx.orgId, KEY, validated.eleves);
+    await putJson(KEY, validated.eleves);
     return NextResponse.json({
       success: true,
       count: validated.eleves.length,
