@@ -633,7 +633,7 @@ export default function TripDetails() {
     setShowBudgetModal(true);
   };
 
-  const cloneCuisineDetails = (src: typeof trip.data.piqueNiqueDetails) => {
+  const cloneCuisineDetails = (src: TravelsTrip["data"]["piqueNiqueDetails"] | undefined) => {
     if (!src) return emptyCuisineDetails();
     return JSON.parse(JSON.stringify({ ...emptyCuisineDetails(), ...src })) as ReturnType<typeof emptyCuisineDetails>;
   };
