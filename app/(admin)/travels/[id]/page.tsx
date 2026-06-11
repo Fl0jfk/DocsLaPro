@@ -65,6 +65,15 @@ export default function TripDetails() {
   } | null>(null);
   const [draftNbEleves, setDraftNbEleves] = useState("");
   const [draftNbAccompagnateurs, setDraftNbAccompagnateurs] = useState("");
+  const [draftNomsAccompagnateurs, setDraftNomsAccompagnateurs] = useState("");
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [draftCoutTotal, setDraftCoutTotal] = useState("");
+  const [cuisineModalStandalone, setCuisineModalStandalone] = useState(false);
+  const [draftCuisineDetails, setDraftCuisineDetails] = useState<ReturnType<typeof emptyCuisineDetails> | null>(null);
+  const [cuisineFollowUp, setCuisineFollowUp] = useState<{
+    mode: "initial" | "amendment";
+    savedTrip: TravelsTrip;
+  } | null>(null);
   const [showDateModal, setShowDateModal] = useState(false);
   const [draftStartDate, setDraftStartDate] = useState("");
   const [draftEndDate, setDraftEndDate] = useState("");
@@ -522,6 +531,50 @@ export default function TripDetails() {
     }
   };
 
+  const sendInitialCuisine = async (opts?: { skipConfirm?: boolean; tripRef?: TravelsTrip }) => {
+    const tripRef = opts?.tripRef || trip;
+    if (!tripRef?.data?.piqueNiqueDetails?.active) {
+      return alert("Aucune commande cuisine active sur ce dossier.");
+    }
+    if (tripRef.data?.cuisineOrderSentAt) {
+      return sendCuisineAmendment(opts);
+    }
+    if (!opts?.skipConfirm) {
+      const ok = confirm("Envoyer la commande cuisine au chef ?\n\nUn PDF sera joint au mail (chef + copies direction et organisateur).");
+      if (!ok) return;
+    }
+    setLoadingAction("cuisine-initial");
+    try {
+      const res = await fetch("/api/travels/send-cuisine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tripId: tripRef.id,
+          mode: "initial",
+          userEmail: user?.primaryEmailAddress?.emailAddress,
+          organizerEmail: tripRef.ownerEmail,
+          userName: user?.fullName || tripRef.ownerName,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "Envoi impossible.");
+      if (payload.trip) {
+        setTrip(payload.trip);
+        setEditedData(payload.trip.data);
+      }
+      if (!opts?.skipConfirm) alert("Commande cuisine envoyée au chef.");
+      return payload;
+    } catch (err) {
+      console.error(err);
+      if (!opts?.skipConfirm) {
+        alert(err instanceof Error ? err.message : "Erreur lors de l'envoi cuisine.");
+      }
+      throw err;
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const sendCuisineAmendment = async (opts?: { skipConfirm?: boolean; tripRef?: any }) => {
     const tripRef = opts?.tripRef || trip;
     if (!tripRef.data?.piqueNiqueDetails?.active) {
@@ -571,32 +624,161 @@ export default function TripDetails() {
   const openEffectifModal = () => {
     setDraftNbEleves(String(trip.data?.nbEleves ?? ""));
     setDraftNbAccompagnateurs(String(trip.data?.nbAccompagnateurs ?? ""));
+    setDraftNomsAccompagnateurs(String(trip.data?.nomsAccompagnateurs ?? ""));
     setShowEffectifModal(true);
+  };
+
+  const openBudgetModal = () => {
+    setDraftCoutTotal(String(trip.data?.coutTotal ?? ""));
+    setShowBudgetModal(true);
+  };
+
+  const cloneCuisineDetails = (src: typeof trip.data.piqueNiqueDetails) => {
+    if (!src) return emptyCuisineDetails();
+    return JSON.parse(JSON.stringify({ ...emptyCuisineDetails(), ...src })) as ReturnType<typeof emptyCuisineDetails>;
+  };
+
+  const openCuisineModalForOwner = () => {
+    setDraftCuisineDetails(cloneCuisineDetails(trip.data?.piqueNiqueDetails));
+    setCuisineModalStandalone(true);
+    setShowCuisineModal(true);
+  };
+
+  const openCuisineModalFromEdit = () => {
+    setCuisineModalStandalone(false);
+    setShowCuisineModal(true);
+  };
+
+  const activeCuisineDetails = cuisineModalStandalone
+    ? draftCuisineDetails
+    : editedData?.piqueNiqueDetails;
+
+  const patchCuisineDetails = (
+    updater: (prev: ReturnType<typeof emptyCuisineDetails>) => ReturnType<typeof emptyCuisineDetails>,
+  ) => {
+    if (cuisineModalStandalone) {
+      setDraftCuisineDetails((prev) => updater(prev || emptyCuisineDetails()));
+    } else {
+      setEditedData((prev: any) => ({
+        ...prev,
+        piqueNiqueDetails: updater({ ...(prev.piqueNiqueDetails || emptyCuisineDetails()) }),
+      }));
+    }
+  };
+
+  const tripAllowsCuisineSend = (t: TravelsTrip) =>
+    !["BROUILLON", "EN_ATTENTE_VALIDATION", "REJETE", "ANNULE", "SEANCE_ANNULEE"].includes(t.status);
+
+  const saveCuisineFromOwnerModal = async () => {
+    const details = draftCuisineDetails;
+    if (!details?.active) {
+      return alert("Cochez « Commander une restauration » ou fermez sans enregistrer.");
+    }
+    const hasDay = Object.values(details.daysSelection || {}).some(Boolean);
+    if (!hasDay) return alert("Sélectionnez au moins un jour de sortie.");
+
+    const wasActive = Boolean(trip.data?.piqueNiqueDetails?.active);
+    const updatedTrip: TravelsTrip = {
+      ...trip,
+      data: { ...trip.data, piqueNiqueDetails: details },
+      history: [
+        ...(trip.history || []),
+        {
+          date: new Date().toISOString(),
+          user: user?.fullName,
+          action: "CUISINE_MODIFIEE",
+          note: wasActive ? "Commande cuisine modifiée." : "Commande cuisine ajoutée au dossier.",
+        },
+      ],
+    };
+    const saved = await saveUpdates(updatedTrip);
+    if (!saved) return alert("Impossible d'enregistrer la commande cuisine.");
+
+    setShowCuisineModal(false);
+    setCuisineModalStandalone(false);
+    setDraftCuisineDetails(null);
+
+    if (tripAllowsCuisineSend(updatedTrip)) {
+      setCuisineFollowUp({
+        mode: updatedTrip.data.cuisineOrderSentAt ? "amendment" : "initial",
+        savedTrip: updatedTrip,
+      });
+    } else {
+      alert("Commande enregistrée — elle sera envoyée au chef lors de la validation du dossier.");
+    }
+  };
+
+  const runCuisineFollowUp = async () => {
+    if (!cuisineFollowUp) return;
+    const { mode, savedTrip } = cuisineFollowUp;
+    setCuisineFollowUp(null);
+    try {
+      if (mode === "initial") {
+        await sendInitialCuisine({ skipConfirm: true, tripRef: savedTrip });
+        alert("Commande cuisine enregistrée et envoyée au chef.");
+      } else {
+        await sendCuisineAmendment({ skipConfirm: true, tripRef: savedTrip });
+        alert("Commande cuisine enregistrée et renvoyée au chef (annule et remplace).");
+      }
+    } catch {
+      alert("Commande enregistrée, mais l'envoi au chef a échoué — réessayez depuis l'onglet Restauration.");
+    }
+  };
+
+  const saveBudgetChange = async () => {
+    const coutTotal = Number(draftCoutTotal);
+    if (!Number.isFinite(coutTotal) || coutTotal < 0) {
+      return alert("Indiquez un budget prévisionnel valide.");
+    }
+    const prev = Number(trip.data?.coutTotal) || 0;
+    if (coutTotal === prev) {
+      setShowBudgetModal(false);
+      return alert("Aucun changement de budget.");
+    }
+    const updatedTrip: TravelsTrip = {
+      ...trip,
+      data: { ...trip.data, coutTotal },
+      history: [
+        ...(trip.history || []),
+        {
+          date: new Date().toISOString(),
+          user: user?.fullName,
+          action: "BUDGET_MODIFIE",
+          note: `Budget prévisionnel : ${Math.round(prev)} € → ${Math.round(coutTotal)} €`,
+        },
+      ],
+    };
+    const saved = await saveUpdates(updatedTrip);
+    if (!saved) return alert("Impossible d'enregistrer le budget.");
+    setShowBudgetModal(false);
+    alert("Budget prévisionnel enregistré.");
   };
 
   const saveEffectifChange = async () => {
     const nbEleves = Number(draftNbEleves);
     const nbAcc = Number(draftNbAccompagnateurs);
+    const nomsAccompagnateurs = draftNomsAccompagnateurs.trim();
     if (!Number.isFinite(nbEleves) || nbEleves < 0 || !Number.isFinite(nbAcc) || nbAcc < 0) {
       return alert("Indiquez des effectifs valides (nombres positifs).");
     }
     const prevEleves = Number(trip.data?.nbEleves) || 0;
     const prevAcc = Number(trip.data?.nbAccompagnateurs) || 0;
-    if (nbEleves === prevEleves && nbAcc === prevAcc) {
+    const prevNoms = String(trip.data?.nomsAccompagnateurs || "").trim();
+    if (nbEleves === prevEleves && nbAcc === prevAcc && nomsAccompagnateurs === prevNoms) {
       setShowEffectifModal(false);
-      return alert("Aucun changement d'effectif.");
+      return alert("Aucun changement.");
     }
 
     const updatedTrip = {
       ...trip,
-      data: { ...trip.data, nbEleves, nbAccompagnateurs: nbAcc },
+      data: { ...trip.data, nbEleves, nbAccompagnateurs: nbAcc, nomsAccompagnateurs },
       history: [
         ...(trip.history || []),
         {
           date: new Date().toISOString(),
           user: user?.fullName,
           action: "EFFECTIF_MODIFIE",
-          note: `Effectif : ${prevEleves}+${prevAcc} → ${nbEleves}+${nbAcc} (élèves + accomp.)`,
+          note: `Effectif : ${prevEleves}+${prevAcc} → ${nbEleves}+${nbAcc} (élèves + accomp.)${nomsAccompagnateurs !== prevNoms ? " · noms accomp. mis à jour" : ""}`,
         },
       ],
     };
@@ -1434,7 +1616,20 @@ export default function TripDetails() {
             {isEditing ? (
               <TripInput value={editedData.nomsAccompagnateurs} onChange={(e) => setEditedData({ ...editedData, nomsAccompagnateurs: e.target.value })} />
             ) : (
-              <TripFieldValue value={trip.data.nomsAccompagnateurs} />
+              <>
+                <TripFieldValue value={trip.data.nomsAccompagnateurs || "—"} />
+                {canEditEffectif && (
+                  <TripFieldActions>
+                    <button
+                      type="button"
+                      onClick={openEffectifModal}
+                      className="text-xs font-bold text-indigo-600 hover:underline"
+                    >
+                      Modifier effectifs &amp; accompagnateurs
+                    </button>
+                  </TripFieldActions>
+                )}
+              </>
             )}
           </TripField>
           <TripField label="Effectifs">
@@ -1540,6 +1735,17 @@ export default function TripDetails() {
                     Validé compta : {trip.data.finalTotalCost} € ({trip.data.costPerStudent} €/élève)
                   </p>
                 )}
+                {canEditEffectif && (
+                  <TripFieldActions>
+                    <button
+                      type="button"
+                      onClick={openBudgetModal}
+                      className="text-xs font-bold text-indigo-600 hover:underline"
+                    >
+                      Modifier le budget prévisionnel
+                    </button>
+                  </TripFieldActions>
+                )}
               </div>
             )}
           </TripField>
@@ -1547,7 +1753,7 @@ export default function TripDetails() {
             {isEditing ? (
               <button
                 type="button"
-                onClick={() => setShowCuisineModal(true)}
+                onClick={openCuisineModalFromEdit}
                 className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all text-left ${
                   editedData?.piqueNiqueDetails?.active ? "border-emerald-400 bg-emerald-50" : "border-slate-200 bg-slate-50"
                 }`}
@@ -1579,6 +1785,19 @@ export default function TripDetails() {
                       Voir le détail restauration →
                     </button>
                   </>
+                )}
+                {canEditEffectif && (
+                  <TripFieldActions>
+                    <button
+                      type="button"
+                      onClick={openCuisineModalForOwner}
+                      className="text-xs font-bold text-indigo-600 hover:underline"
+                    >
+                      {trip.data.piqueNiqueDetails?.active
+                        ? "Modifier la commande cuisine"
+                        : "Configurer une commande cuisine"}
+                    </button>
+                  </TripFieldActions>
                 )}
               </div>
             )}
@@ -2005,11 +2224,11 @@ export default function TripDetails() {
       {showEffectifModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[75] p-4">
           <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
-            <h2 className="text-xl font-bold text-slate-900 mb-1">Modifier l&apos;effectif</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Modifier effectifs &amp; accompagnateurs</h2>
             <p className="text-sm text-slate-500 mb-6">
               Créateur ou direction — mise à jour sans rouvrir tout le dossier.
             </p>
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Élèves</label>
                 <TripInput
@@ -2020,7 +2239,7 @@ export default function TripDetails() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Accompagnateurs</label>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Nb accompagnateurs</label>
                 <TripInput
                   type="number"
                   min={0}
@@ -2028,6 +2247,14 @@ export default function TripDetails() {
                   onChange={(e) => setDraftNbAccompagnateurs(e.target.value)}
                 />
               </div>
+            </div>
+            <div className="mb-6">
+              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Noms des accompagnateurs</label>
+              <TripTextarea
+                value={draftNomsAccompagnateurs}
+                onChange={(e) => setDraftNomsAccompagnateurs(e.target.value)}
+                placeholder="Ex. Mme Dupont, M. Martin…"
+              />
             </div>
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-3 mb-6">
               Si un devis transport ou une commande cuisine a déjà été envoyé(e), vous pourrez déclencher les relances juste après l&apos;enregistrement.
@@ -2110,6 +2337,61 @@ export default function TripDetails() {
         </div>
       )}
 
+      {showBudgetModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[75] p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Modifier le budget prévisionnel</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              Montant total estimé au départ du projet (hors validation compta).
+            </p>
+            <div className="flex items-center gap-2 mb-6">
+              <TripInput
+                type="number"
+                min={0}
+                className="flex-1"
+                value={draftCoutTotal}
+                onChange={(e) => setDraftCoutTotal(e.target.value)}
+              />
+              <span className="text-sm font-bold text-slate-500">€</span>
+            </div>
+            <div className="flex gap-3">
+              <TripButton variant="secondary" className="flex-1" onClick={() => setShowBudgetModal(false)}>
+                Annuler
+              </TripButton>
+              <TripButton variant="primary" className="flex-1" onClick={saveBudgetChange}>
+                Enregistrer
+              </TripButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cuisineFollowUp && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-lg w-full shadow-2xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Commande cuisine enregistrée</h2>
+            <p className="text-sm text-slate-500 mb-5">
+              {cuisineFollowUp.mode === "initial"
+                ? "Souhaitez-vous envoyer la commande au chef maintenant ?"
+                : "Une commande avait déjà été envoyée — renvoyer au chef (annule et remplace) ?"}
+            </p>
+            <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg p-3 mb-6">
+              {cuisineFollowUp.mode === "initial"
+                ? "Un PDF sera joint au mail (chef + copies direction et organisateur)."
+                : "Le mail précisera qu'il s'agit de la dernière commande en date."}
+            </p>
+            <div className="flex gap-3">
+              <TripButton variant="secondary" className="flex-1" onClick={() => setCuisineFollowUp(null)}>
+                Plus tard
+              </TripButton>
+              <TripButton variant="primary" className="flex-1" onClick={runCuisineFollowUp}>
+                {cuisineFollowUp.mode === "initial" ? "Envoyer au chef" : "Renvoyer (avenant)"}
+              </TripButton>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDateModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[75] p-4">
           <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
@@ -2174,39 +2456,75 @@ export default function TripDetails() {
         </div>
       )}
 
-      {showCuisineModal && isEditing && (
+      {showCuisineModal && (isEditing || cuisineModalStandalone) && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[70] p-4">
           <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-5xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Bon de commande cuisine</h2>
-                <p className="text-slate-500 text-sm mt-0.5">Configuration de la commande restauration</p>
+                <p className="text-slate-500 text-sm mt-0.5">
+                  {cuisineModalStandalone
+                    ? "Ajouter ou modifier la commande — envoi au chef proposé après enregistrement."
+                    : "Configuration de la commande restauration"}
+                </p>
               </div>
-              <TripButton variant="ghost" size="sm" onClick={() => setShowCuisineModal(false)}>✕</TripButton>
+              <TripButton
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowCuisineModal(false);
+                  setCuisineModalStandalone(false);
+                }}
+              >
+                ✕
+              </TripButton>
             </div>
             <div className="space-y-5">
+              {cuisineModalStandalone && (
+                <label className="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!activeCuisineDetails?.active}
+                    onChange={(e) =>
+                      patchCuisineDetails((prev) => ({
+                        ...prev,
+                        active: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span className="text-sm font-bold text-slate-800">Commander une restauration (pique-nique / self)</span>
+                </label>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl">
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Heure récupération / livraison</label>
                   <input
                     type="time"
                     className="w-full p-2 border rounded-lg"
-                    value={editedData?.piqueNiqueDetails?.deliveryTime || ""}
-                    onChange={e => setEditedData((prev: any) => ({
-                      ...prev,
-                      piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: true, deliveryTime: e.target.value }
-                    }))}
+                    value={activeCuisineDetails?.deliveryTime || ""}
+                    disabled={cuisineModalStandalone && !activeCuisineDetails?.active}
+                    onChange={(e) =>
+                      patchCuisineDetails((prev) => ({
+                        ...prev,
+                        active: true,
+                        deliveryTime: e.target.value,
+                      }))
+                    }
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Lieu de récupération</label>
                   <select
                     className="w-full p-2 border rounded-lg"
-                    value={editedData?.piqueNiqueDetails?.deliveryPlace || "Self"}
-                    onChange={e => setEditedData((prev: any) => ({
-                      ...prev,
-                      piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: true, deliveryPlace: e.target.value }
-                    }))}
+                    value={activeCuisineDetails?.deliveryPlace || "Self"}
+                    disabled={cuisineModalStandalone && !activeCuisineDetails?.active}
+                    onChange={(e) =>
+                      patchCuisineDetails((prev) => ({
+                        ...prev,
+                        active: true,
+                        deliveryPlace: e.target.value,
+                      }))
+                    }
                   >
                     <option value="Self">Au self</option>
                     <option value="Bosco">Église Bosco</option>
@@ -2216,22 +2534,22 @@ export default function TripDetails() {
                   <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 text-center">Jours concernés</label>
                   <div className="flex gap-1.5 justify-center">
                     {CUISINE_DAYS.map(({ key: dayKey, label }) => {
-                      const isSelected = !!editedData?.piqueNiqueDetails?.daysSelection?.[dayKey];
+                      const isSelected = !!activeCuisineDetails?.daysSelection?.[dayKey];
                       return (
                         <button
                           key={dayKey}
                           type="button"
-                          onClick={() => setEditedData((prev: any) => ({
-                            ...prev,
-                            piqueNiqueDetails: {
-                              ...(prev.piqueNiqueDetails || emptyCuisineDetails()),
+                          disabled={cuisineModalStandalone && !activeCuisineDetails?.active}
+                          onClick={() =>
+                            patchCuisineDetails((prev) => ({
+                              ...prev,
                               active: true,
                               daysSelection: {
-                                ...(prev.piqueNiqueDetails?.daysSelection || emptyCuisineDetails().daysSelection),
-                                [dayKey]: !isSelected
-                              }
-                            }
-                          }))}
+                                ...(prev.daysSelection || emptyCuisineDetails().daysSelection),
+                                [dayKey]: !isSelected,
+                              },
+                            }))
+                          }
                           className={`w-9 h-9 rounded-lg text-[11px] font-black transition-all ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border-2 text-slate-400 hover:border-indigo-300'}`}
                         >
                           {label}
@@ -2247,7 +2565,7 @@ export default function TripDetails() {
                     <tr className="bg-indigo-600 text-white">
                       <th className="text-left p-2.5 font-semibold w-52">Désignation</th>
                       {CUISINE_DAYS.map(({ key: dayKey, label }) => (
-                        <th key={dayKey} className={`p-2.5 text-center font-semibold transition-opacity ${editedData?.piqueNiqueDetails?.daysSelection?.[dayKey] ? 'opacity-100' : 'opacity-30'}`}>{label}</th>
+                        <th key={dayKey} className={`p-2.5 text-center font-semibold transition-opacity ${activeCuisineDetails?.daysSelection?.[dayKey] ? "opacity-100" : "opacity-30"}`}>{label}</th>
                       ))}
                     </tr>
                   </thead>
@@ -2256,28 +2574,27 @@ export default function TripDetails() {
                       <tr key={rowKey} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                         <td className={`p-2 font-medium text-slate-700 whitespace-nowrap ${rowKey === 'picnicNoPork' || rowKey === 'picnicVeg' ? 'pl-5 text-slate-500 italic' : ''}`}>{label}</td>
                         {CUISINE_DAYS.map(({ key: dayKey }) => {
-                          const isActive = !!editedData?.piqueNiqueDetails?.daysSelection?.[dayKey];
-                          const val = editedData?.piqueNiqueDetails?.orders?.[dayKey]?.[rowKey] ?? "";
+                          const isActive = !!activeCuisineDetails?.daysSelection?.[dayKey];
+                          const val = activeCuisineDetails?.orders?.[dayKey]?.[rowKey] ?? "";
                           return (
                             <td key={dayKey} className="p-1">
                               <input
                                 type={type}
-                                disabled={!isActive}
+                                disabled={!isActive || (cuisineModalStandalone && !activeCuisineDetails?.active)}
                                 value={val}
-                                onChange={e => setEditedData((prev: any) => ({
-                                  ...prev,
-                                  piqueNiqueDetails: {
-                                    ...(prev.piqueNiqueDetails || emptyCuisineDetails()),
+                                onChange={(e) =>
+                                  patchCuisineDetails((prev) => ({
+                                    ...prev,
                                     active: true,
                                     orders: {
-                                      ...(prev.piqueNiqueDetails?.orders || emptyCuisineDetails().orders),
+                                      ...(prev.orders || emptyCuisineDetails().orders),
                                       [dayKey]: {
-                                        ...((prev.piqueNiqueDetails?.orders || emptyCuisineDetails().orders)[dayKey]),
-                                        [rowKey]: e.target.value
-                                      }
-                                    }
-                                  }
-                                }))}
+                                        ...((prev.orders || emptyCuisineDetails().orders)[dayKey]),
+                                        [rowKey]: e.target.value,
+                                      },
+                                    },
+                                  }))
+                                }
                                 className={`w-full p-1.5 border rounded text-center transition-all ${isActive ? 'bg-white hover:border-indigo-300 focus:border-indigo-500 outline-none' : 'bg-slate-100 text-slate-300 cursor-not-allowed border-transparent'}`}
                               />
                             </td>
@@ -2291,21 +2608,40 @@ export default function TripDetails() {
               <p className="text-[10px] text-slate-500 italic bg-amber-50 border border-amber-100 p-2.5 rounded-lg">⚠️ Rappel : fournir la liste des élèves/adultes 15 jours avant, et l’affiner 24h avant.</p>
             </div>
             <div className="flex gap-3 mt-8 pt-4 border-t border-slate-100">
+              {isEditing && !cuisineModalStandalone && (
+                <TripButton
+                  variant="danger"
+                  className="flex-1"
+                  onClick={() => {
+                    patchCuisineDetails((prev) => ({ ...prev, active: false }));
+                    setShowCuisineModal(false);
+                  }}
+                >
+                  Annuler la commande
+                </TripButton>
+              )}
               <TripButton
-                variant="danger"
+                variant="secondary"
                 className="flex-1"
                 onClick={() => {
-                  setEditedData((prev: any) => ({
-                    ...prev,
-                    piqueNiqueDetails: { ...(prev.piqueNiqueDetails || emptyCuisineDetails()), active: false },
-                  }));
                   setShowCuisineModal(false);
+                  setCuisineModalStandalone(false);
                 }}
               >
-                Annuler la commande
+                Fermer
               </TripButton>
-              <TripButton variant="primary" className="flex-[2]" onClick={() => setShowCuisineModal(false)}>
-                Enregistrer le bon
+              <TripButton
+                variant="primary"
+                className="flex-[2]"
+                onClick={() => {
+                  if (cuisineModalStandalone) {
+                    void saveCuisineFromOwnerModal();
+                  } else {
+                    setShowCuisineModal(false);
+                  }
+                }}
+              >
+                {cuisineModalStandalone ? "Enregistrer la commande" : "Enregistrer le bon"}
               </TripButton>
             </div>
           </div>
