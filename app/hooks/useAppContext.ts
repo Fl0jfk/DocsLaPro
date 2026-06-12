@@ -32,6 +32,5 @@ export function useAppContext() {
       cancelled = true;
     };
   }, []);
-
   return { data, loading, error };
 }
