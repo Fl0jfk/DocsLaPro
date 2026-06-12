@@ -31,9 +31,7 @@ const STATIC_DATA: Data = {
 
 const DataContext = createContext<Data | undefined>(undefined);
 
-export const DataProvider = ({ children }: PropsWithChildren<object>) => (
-  <DataContext.Provider value={STATIC_DATA}>{children}</DataContext.Provider>
-);
+export const DataProvider = ({ children }: PropsWithChildren<object>) => ( <DataContext.Provider value={STATIC_DATA}>{children}</DataContext.Provider>);
 
 export const useData = () => {
   const context = useContext(DataContext);

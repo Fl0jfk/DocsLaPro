@@ -1,7 +1,14 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import type { TenantConfig, TenantRegistryFile } from "@/app/lib/tenant-types";
+import type {
+  TenantConfig,
+  TenantIndexEntry,
+  TenantRegistryFile,
+  TenantSecrets,
+  TenantSecretsMap,
+} from "@/app/lib/tenant-types";
 
 const REGISTRY_KEY = process.env.TENANT_REGISTRY_KEY?.trim() || "tenants/index.json";
+const SECRETS_PREFIX = process.env.TENANT_SECRETS_PREFIX?.trim() || "tenants/secrets";
 const CACHE_MS = 60_000;
 
 /** Registry S3 ou JSON inline — sinon mono-tenant via variables d'environnement. */
@@ -30,16 +37,19 @@ export function normalizeHostname(host: string): string {
   return noPort.startsWith("www.") ? noPort.slice(4) : noPort;
 }
 
-function parseTenant(raw: unknown): TenantConfig | null {
+function secretsKeyForSlug(slug: string): string {
+  const safe = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return `${SECRETS_PREFIX}/${safe}.json`;
+}
+
+function parseTenantIndexEntry(raw: unknown): TenantIndexEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const slug = typeof o.slug === "string" ? o.slug.trim() : "";
   const dataBucket = typeof o.dataBucket === "string" ? o.dataBucket.trim() : "";
   const clerkPublishableKey =
     typeof o.clerkPublishableKey === "string" ? o.clerkPublishableKey.trim() : "";
-  const clerkSecretKey =
-    typeof o.clerkSecretKey === "string" ? o.clerkSecretKey.trim() : "";
-  if (!slug || !dataBucket || !clerkPublishableKey || !clerkSecretKey) return null;
+  if (!slug || !dataBucket || !clerkPublishableKey) return null;
 
   const kind = o.kind === "standalone" ? "standalone" : "groupe";
   const label = typeof o.label === "string" && o.label.trim() ? o.label.trim() : slug;
@@ -50,6 +60,10 @@ function parseTenant(raw: unknown): TenantConfig | null {
   const hostnames = Array.isArray(o.hostnames)
     ? o.hostnames.map((h) => normalizeHostname(String(h))).filter(Boolean)
     : [];
+  const clerkSecretKey =
+    typeof o.clerkSecretKey === "string" && o.clerkSecretKey.trim()
+      ? o.clerkSecretKey.trim()
+      : undefined;
 
   return {
     slug,
@@ -61,6 +75,138 @@ function parseTenant(raw: unknown): TenantConfig | null {
     clerkPublishableKey,
     clerkSecretKey,
   };
+}
+
+function parseTenantSecrets(raw: unknown): TenantSecrets | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const clerkSecretKey =
+    typeof o.clerkSecretKey === "string" ? o.clerkSecretKey.trim() : "";
+  if (!clerkSecretKey) return null;
+
+  const secrets: TenantSecrets = { clerkSecretKey };
+
+  const mistral = o.mistral as Record<string, unknown> | undefined;
+  if (mistral && typeof mistral.apiKey === "string" && mistral.apiKey.trim()) {
+    secrets.mistral = { apiKey: mistral.apiKey.trim() };
+  }
+
+  const smtp = o.smtp as Record<string, unknown> | undefined;
+  if (smtp && typeof smtp.user === "string" && typeof smtp.pass === "string") {
+    secrets.smtp = {
+      user: smtp.user.trim(),
+      pass: smtp.pass.trim(),
+      host: typeof smtp.host === "string" ? smtp.host.trim() : undefined,
+    };
+  }
+
+  const microsoft = o.microsoft as Record<string, unknown> | undefined;
+  if (
+    microsoft &&
+    typeof microsoft.tenantId === "string" &&
+    typeof microsoft.clientId === "string"
+  ) {
+    secrets.microsoft = {
+      tenantId: microsoft.tenantId.trim(),
+      clientId: microsoft.clientId.trim(),
+      clientSecret:
+        typeof microsoft.clientSecret === "string"
+          ? microsoft.clientSecret.trim()
+          : undefined,
+    };
+  }
+
+  const aws = o.aws as Record<string, unknown> | undefined;
+  if (
+    aws &&
+    typeof aws.accessKeyId === "string" &&
+    typeof aws.secretAccessKey === "string"
+  ) {
+    secrets.aws = {
+      accessKeyId: aws.accessKeyId.trim(),
+      secretAccessKey: aws.secretAccessKey.trim(),
+      region: typeof aws.region === "string" ? aws.region.trim() : undefined,
+    };
+  }
+
+  return secrets;
+}
+
+function loadInlineSecretsMap(): TenantSecretsMap | null {
+  const inline = process.env.TENANT_SECRETS_JSON?.trim();
+  if (!inline) return null;
+  try {
+    const parsed = JSON.parse(inline) as TenantSecretsMap;
+    if (!parsed || typeof parsed !== "object") return null;
+    const out: TenantSecretsMap = {};
+    for (const [slug, raw] of Object.entries(parsed)) {
+      const secrets = parseTenantSecrets(raw);
+      if (secrets) out[slug.trim().toLowerCase()] = secrets;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+async function loadSecretsFromS3(slug: string): Promise<TenantSecrets | null> {
+  const bucket = process.env.REGISTRY_BUCKET?.trim();
+  if (!bucket) return null;
+  try {
+    const res = await getRegistryS3Client().send(
+      new GetObjectCommand({ Bucket: bucket, Key: secretsKeyForSlug(slug) }),
+    );
+    const raw = await res.Body?.transformToString();
+    if (!raw) return null;
+    return parseTenantSecrets(JSON.parse(raw));
+  } catch (err) {
+    const code = (err as { name?: string }).name;
+    if (code !== "NoSuchKey" && code !== "NotFound") {
+      console.error(`[tenant-registry] secrets S3 (${slug}):`, err);
+    }
+    return null;
+  }
+}
+
+async function resolveSecretsForSlug(slug: string): Promise<TenantSecrets | null> {
+  const normalized = slug.trim().toLowerCase();
+  const inline = loadInlineSecretsMap();
+  if (inline?.[normalized]) return inline[normalized];
+  return loadSecretsFromS3(slug);
+}
+
+async function hydrateTenant(entry: TenantIndexEntry): Promise<TenantConfig | null> {
+  let clerkSecretKey = entry.clerkSecretKey?.trim() ?? "";
+  let extraSecrets: TenantSecrets | null = null;
+
+  if (!clerkSecretKey) {
+    extraSecrets = await resolveSecretsForSlug(entry.slug);
+    clerkSecretKey = extraSecrets?.clerkSecretKey ?? "";
+  } else if (isMultiTenantEnabled()) {
+    extraSecrets = await resolveSecretsForSlug(entry.slug);
+  }
+
+  if (!clerkSecretKey) {
+    console.error(
+      `[tenant-registry] tenant « ${entry.slug} » : clerkSecretKey manquant (fichier ${secretsKeyForSlug(entry.slug)} ou index legacy).`,
+    );
+    return null;
+  }
+
+  const { clerkSecretKey: _drop, ...indexRest } = entry;
+  const config: TenantConfig = {
+    ...indexRest,
+    clerkSecretKey,
+  };
+
+  if (extraSecrets) {
+    const { clerkSecretKey: _sk, ...rest } = extraSecrets;
+    if (Object.keys(rest).length > 0) {
+      config.secrets = rest;
+    }
+  }
+
+  return config;
 }
 
 export function defaultTenantFromEnv(): TenantConfig {
@@ -103,25 +249,34 @@ export function defaultTenantFromEnv(): TenantConfig {
   };
 }
 
-function parseRegistryJson(raw: string): TenantConfig[] {
-  const parsed = JSON.parse(raw) as TenantRegistryFile | TenantConfig[];
+function parseRegistryIndexJson(raw: string): TenantIndexEntry[] {
+  const parsed = JSON.parse(raw) as TenantRegistryFile | TenantIndexEntry[];
   const list = Array.isArray(parsed) ? parsed : parsed.tenants;
   if (!Array.isArray(list)) return [];
-  return list.map(parseTenant).filter((t): t is TenantConfig => Boolean(t));
+  return list.map(parseTenantIndexEntry).filter((t): t is TenantIndexEntry => Boolean(t));
 }
 
-function loadInlineRegistry(): TenantConfig[] | null {
+async function hydrateAll(entries: TenantIndexEntry[]): Promise<TenantConfig[]> {
+  const tenants: TenantConfig[] = [];
+  for (const entry of entries) {
+    const hydrated = await hydrateTenant(entry);
+    if (hydrated) tenants.push(hydrated);
+  }
+  return tenants;
+}
+
+function loadInlineRegistry(): TenantIndexEntry[] | null {
   const inline = process.env.TENANT_INDEX_JSON?.trim();
   if (!inline) return null;
   try {
-    const tenants = parseRegistryJson(inline);
-    return tenants.length > 0 ? tenants : null;
+    const entries = parseRegistryIndexJson(inline);
+    return entries.length > 0 ? entries : null;
   } catch {
     return null;
   }
 }
 
-async function loadRegistryFromS3(): Promise<TenantConfig[] | null> {
+async function loadRegistryIndexFromS3(): Promise<TenantIndexEntry[] | null> {
   const bucket = process.env.REGISTRY_BUCKET?.trim();
   if (!bucket) return null;
   try {
@@ -130,10 +285,10 @@ async function loadRegistryFromS3(): Promise<TenantConfig[] | null> {
     );
     const raw = await res.Body?.transformToString();
     if (!raw) return null;
-    const tenants = parseRegistryJson(raw);
-    return tenants.length > 0 ? tenants : null;
+    const entries = parseRegistryIndexJson(raw);
+    return entries.length > 0 ? entries : null;
   } catch (err) {
-    console.error("[tenant-registry] lecture S3:", err);
+    console.error("[tenant-registry] lecture index S3:", err);
     return null;
   }
 }
@@ -143,9 +298,13 @@ export async function loadAllTenants(): Promise<TenantConfig[]> {
     return registryCache.tenants;
   }
 
-  const fromS3 = await loadRegistryFromS3();
+  const fromS3 = await loadRegistryIndexFromS3();
   const fromInline = loadInlineRegistry();
-  const tenants = fromS3 ?? fromInline ?? [defaultTenantFromEnv()];
+  const entries = fromS3 ?? fromInline;
+
+  const tenants = entries
+    ? await hydrateAll(entries)
+    : [defaultTenantFromEnv()];
 
   registryCache = { at: Date.now(), tenants };
   return tenants;
@@ -205,4 +364,14 @@ export function resolveTenantByHostnameSync(hostname: string): TenantConfig | nu
 
 export async function warmTenantRegistry(): Promise<void> {
   await loadAllTenants();
+}
+
+/** Secrets optionnels (Mistral, SMTP…) — disponibles après hydratation. */
+export async function getTenantSecrets(slug: string): Promise<TenantSecrets | null> {
+  const tenant = await resolveTenantBySlug(slug);
+  if (!tenant) return null;
+  return {
+    clerkSecretKey: tenant.clerkSecretKey,
+    ...tenant.secrets,
+  };
 }
