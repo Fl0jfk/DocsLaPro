@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "tenants": [
+    {
+      "slug": "la-providence",
+      "kind": "groupe",
+      "label": "Groupe La Providence",
+      "hostnames": [
+        "docslapro.com",
+        "www.docslapro.com",
+        "localhost",
+        "127.0.0.1"
+      ],
+      "dataBucket": "docslapro",
+      "appUrl": "https://docslapro.com",
+      "clerkPublishableKey": "pk_test_REMPLACER",
+      "clerkSecretKey": "sk_test_REMPLACER"
+    },
+    {
+      "slug": "college-saint-joseph",
+      "kind": "standalone",
+      "label": "Collège Saint-Joseph",
+      "hostnames": [
+        "college-saint-joseph.docslapro.com"
+      ],
+      "dataBucket": "docslapro-college-saint-joseph",
+      "appUrl": "https://college-saint-joseph.docslapro.com",
+      "clerkPublishableKey": "pk_test_AUTRE_APP_CLERK",
+      "clerkSecretKey": "sk_test_AUTRE_APP_CLERK"
+    }
+  ]
+}

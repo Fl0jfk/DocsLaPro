@@ -711,7 +711,7 @@ export async function DELETE(req: Request) {
     }
 
     const docKeys = getAbsenceDocumentKeys(record);
-    const bucket = getBucketName();
+    const bucket = await getBucketName();
 
     const absenceFile = await getAbsenceRecord(id);
     let updated = await getAbsenceIndex();

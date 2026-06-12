@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getAuth, clerkClient } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs/server";
+import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import nodemailer from "nodemailer";
 
 const s3 = new S3Client({
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     const { userId } = getAuth(req);
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    const clerk = await clerkClient();
+    const clerk = await getClerkClientForTenant();
     const user = await clerk.users.getUser(userId);
     const lastNameAdmin = (user.lastName ?? "").toUpperCase();
     const firstNameAdmin = user.firstName ?? "";

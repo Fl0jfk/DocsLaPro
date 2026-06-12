@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
+import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import { INTRANET_ROLE_OPTIONS, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
 import { requireAdmin } from "@/app/lib/intranet-auth";
 import {
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Sélectionnez au moins un rôle." }, { status: 400 });
     }
 
-    const client = await clerkClient();
+    const client = await getClerkClientForTenant();
     const existing = await client.users.getUserList({ emailAddress: [email], limit: 1 });
     const clerkUser = existing.data?.[0];
 
@@ -107,7 +107,7 @@ export async function PATCH(req: Request) {
     }
 
     await syncClerkUserRoles(clerkUserId, roles);
-    const client = await clerkClient();
+    const client = await getClerkClientForTenant();
     const refreshed = await client.users.getUser(clerkUserId);
     return NextResponse.json({ success: true, user: memberRowFromClerkUser(refreshed) });
   } catch (e) {
@@ -125,7 +125,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "clerkUserId ou email requis" }, { status: 400 });
   }
   try {
-    const client = await clerkClient();
+    const client = await getClerkClientForTenant();
 
     if (clerkUserId) {
       await client.users.deleteUser(clerkUserId);

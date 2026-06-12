@@ -204,7 +204,7 @@ export async function purgeExpiredRequests(): Promise<{ removed: number }> {
     else keep.push(r);
   }
   if (remove.length === 0) return { removed: 0 };
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   for (const r of remove) {
     try {
       await s3Client.send(

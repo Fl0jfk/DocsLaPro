@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         secretAccessKey: process.env.SECRET_ACCESS_KEY!,
       },
     });
-    const bucket = getBucketName();
+    const bucket = await getBucketName();
     const command = new PutObjectCommand({
       Bucket: bucket,
       Key: fileKey,

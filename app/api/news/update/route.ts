@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
+import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { putJson } from "@/app/lib/s3-storage";
 import type { NewsItem } from "../get/route";
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
 
-  const client = await clerkClient();
+  const client = await getClerkClientForTenant();
   const user = await client.users.getUser(userId);
   const roles = (user.publicMetadata.role as string[]) || [];
   if (!isNewsAdmin(roles)) return new NextResponse("Action non autorisée", { status: 403 });

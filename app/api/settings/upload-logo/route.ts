@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const bucket = getBucketName();
+    const bucket = await getBucketName();
     const command = new PutObjectCommand({
       Bucket: bucket,
       Key: fileKey,

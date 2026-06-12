@@ -122,7 +122,7 @@ export async function getShareMeta(shareId: string): Promise<ShareMeta | null> {
 
 export async function listAccessibleShares(userId: string): Promise<ShareMeta[]> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const prefix = s3Key("documents/shares/");
   const out: ShareMeta[] = [];
   let token: string | undefined;
@@ -168,7 +168,7 @@ export async function assertShareWrite(
 
 export async function sumPrefixBytes(relativePrefix: string): Promise<number> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const prefix = s3Key(relativePrefix.replace(/^\/+/, ""));
   let total = 0;
   let token: string | undefined;
@@ -234,7 +234,7 @@ export async function getFileShareMeta(fileShareId: string): Promise<FileShareMe
 
 export async function listIncomingFileShares(userId: string): Promise<FileShareMeta[]> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const prefix = s3Key("documents/file-shares/");
   const out: FileShareMeta[] = [];
   let token: string | undefined;
@@ -264,7 +264,7 @@ export async function listIncomingFileShares(userId: string): Promise<FileShareM
 
 async function findFileShareBySource(ownerId: string, sourceRelPath: string): Promise<FileShareMeta | null> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const prefix = s3Key("documents/file-shares/");
   let token: string | undefined;
   const src = normalizeRelPath(sourceRelPath);
@@ -414,7 +414,7 @@ export async function browseDocuments(
   if (!resolved.ok) return { ok: false, error: resolved.error };
 
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const prefix = s3Key(resolved.prefix);
 
   const res = await client.send(
@@ -657,7 +657,7 @@ function isInsideFolder(folderRelPath: string, candidateParent: string): boolean
 
 async function storageObjectExists(relativeKey: string): Promise<boolean> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const key = s3Key(relativeKey);
   try {
     await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
@@ -669,7 +669,7 @@ async function storageObjectExists(relativeKey: string): Promise<boolean> {
 
 async function copyStorageObject(relativeSourceKey: string, relativeDestKey: string): Promise<void> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const sourceKey = s3Key(relativeSourceKey);
   const destKey = s3Key(relativeDestKey);
   await client.send(
@@ -683,7 +683,7 @@ async function copyStorageObject(relativeSourceKey: string, relativeDestKey: str
 
 async function deleteStorageObject(relativeKey: string): Promise<void> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   await client.send(
     new DeleteObjectCommand({
       Bucket: bucket,
@@ -694,7 +694,7 @@ async function deleteStorageObject(relativeKey: string): Promise<void> {
 
 async function listAllStorageKeysUnderPrefix(relativePrefix: string): Promise<string[]> {
   const client = getS3Client();
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const prefix = s3Key(relativePrefix.replace(/^\/+/, ""));
   const keys: string[] = [];
   let token: string | undefined;

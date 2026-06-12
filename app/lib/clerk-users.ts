@@ -1,4 +1,4 @@
-import { clerkClient } from "@clerk/nextjs/server";
+import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import type { User } from "@clerk/backend";
 import { hasGlobalAdminRole, intranetRolesFromMetadata, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
 
@@ -39,7 +39,7 @@ export function memberRowFromClerkUser(u: User): ClerkMemberRow {
 }
 
 export async function listClerkMembers(): Promise<ClerkMemberRow[]> {
-  const client = await clerkClient();
+  const client = await getClerkClientForTenant();
   const out: ClerkMemberRow[] = [];
   let offset = 0;
   const limit = 100;
@@ -75,7 +75,7 @@ export async function syncClerkUserRoles(
   clerkUserId: string,
   roles: string[],
 ): Promise<void> {
-  const client = await clerkClient();
+  const client = await getClerkClientForTenant();
   const user = await client.users.getUser(clerkUserId);
   await client.users.updateUser(clerkUserId, {
     publicMetadata: {

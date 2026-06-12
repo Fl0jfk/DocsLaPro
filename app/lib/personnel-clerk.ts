@@ -1,4 +1,4 @@
-import { clerkClient } from "@clerk/nextjs/server";
+import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import { hasGlobalAdminRole, INTRANET_ROLE_OPTIONS, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
 import { listClerkMembers, memberRowFromClerkUser, type ClerkMemberRow } from "@/app/lib/clerk-users";
 import {
@@ -90,7 +90,7 @@ export async function ensureClerkUserForPersonnel(input: {
 }): Promise<{ clerkUserId: string | null; mode: "existing" | "invitation"; pending: boolean }> {
   const email = input.email.trim().toLowerCase();
   const roles = clerkRolesForPersonnelCategory(input.category);
-  const client = await clerkClient();
+  const client = await getClerkClientForTenant();
 
   const existing = await client.users.getUserList({ emailAddress: [email], limit: 1 });
   const clerkUser = existing.data?.[0];
@@ -128,7 +128,7 @@ export async function findClerkMemberByEmail(email: string): Promise<ClerkMember
 }
 
 export async function getClerkMemberById(clerkUserId: string): Promise<ClerkMemberRow | null> {
-  const client = await clerkClient();
+  const client = await getClerkClientForTenant();
   try {
     const user = await client.users.getUser(clerkUserId);
     return memberRowFromClerkUser(user);

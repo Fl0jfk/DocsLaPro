@@ -133,7 +133,7 @@ export async function deleteLegacyConvocation(id: string) {
   const { getBucketName, getJson, putJson } = await import("@/app/lib/s3-storage");
   const { s3Key } = await import("@/app/lib/s3-path");
 
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   const client = new S3Client({
     region: process.env.REGION,
     credentials: {

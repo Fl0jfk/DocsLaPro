@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     });
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: getBucketName(),
+        Bucket: await getBucketName(),
         Key: fileKey,
         Body: Buffer.from(bytes),
         ContentType: file.type || "application/octet-stream",

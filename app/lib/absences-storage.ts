@@ -70,7 +70,7 @@ export async function purgeExpiredAbsences(index: AbsenceRecord[]) {
 
   if (remove.length === 0) return keep;
 
-  const bucket = getBucketName();
+  const bucket = await getBucketName();
   for (const rec of remove) {
     try {
       await s3Client.send(

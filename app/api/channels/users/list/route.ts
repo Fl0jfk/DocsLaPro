@@ -1,9 +1,9 @@
-import { clerkClient } from "@clerk/nextjs/server";
+import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const client = await clerkClient();
+    const client = await getClerkClientForTenant();
     const response = await client.users.getUserList({
       limit: 500,
     });

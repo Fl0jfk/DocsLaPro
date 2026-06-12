@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     });
 
     const command = new PutObjectCommand({
-      Bucket: getBucketName(),
+      Bucket: await getBucketName(),
       Key: fileKey,
       ContentType: String(fileType || "application/octet-stream"),
     });

@@ -29,6 +29,42 @@ export function intranetRolesFromMetadata(meta: unknown): string[] {
   return normalizeIntranetRoles(role);
 }
 
-export function hasGlobalAdminRole(roles: string[]): boolean {
-  return roles.includes("admin");
+/**
+ * Métadonnées publiques depuis le JWT de session Clerk.
+ * `publicMetadata` n'y est pas par défaut — configurer le session token Clerk
+ * ou laisser le middleware recharger via l'API (repli).
+ */
+export function publicMetadataFromSessionClaims(
+  claims: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | undefined {
+  if (!claims) return undefined;
+
+  const nested = (claims.publicMetadata ?? claims.public_metadata) as
+    | Record<string, unknown>
+    | undefined;
+  if (nested && typeof nested === "object") return nested;
+
+  const metadata = claims.metadata as Record<string, unknown> | undefined;
+  if (metadata && typeof metadata === "object") return metadata;
+
+  if ("role" in claims || "org_admin" in claims || "platform_admin" in claims) {
+    return {
+      role: claims.role,
+      org_admin: claims.org_admin,
+      platform_admin: claims.platform_admin,
+    };
+  }
+
+  return undefined;
 }
+
+/** Rôles intranet depuis les claims JWT (session token Clerk personnalisé). */
+export function intranetRolesFromSessionClaims(
+  claims: Record<string, unknown> | null | undefined,
+): string[] {
+  const fromMeta = intranetRolesFromMetadata(publicMetadataFromSessionClaims(claims));
+  if (fromMeta.length > 0) return fromMeta;
+  return normalizeIntranetRoles(claims?.role);
+}
+
+export { hasGlobalAdminRole } from "./intranet-role-utils";

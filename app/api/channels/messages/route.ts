@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getAuth, clerkClient } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs/server";
+import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import {
   getBucketName,
@@ -18,7 +19,7 @@ async function readMessagesFromS3( shouldSign: boolean = true) {
     const messages = Array.isArray(hit?.data) ? hit.data : [];
     if (!shouldSign) return messages;
 
-    const bucket = getBucketName();
+    const bucket = await getBucketName();
     const client = getS3Client();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const signedMessages = await Promise.all(
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
   const { userId: authUserId } = getAuth(req);
   if (!authUserId) return new Response("Non autorisé", { status: 401 });
   try {
-    const client = await clerkClient();
+    const client = await getClerkClientForTenant();
     const user = await client.users.getUser(userId);
     const body = await req.json();
     const messages = await readMessagesFromS3( false);

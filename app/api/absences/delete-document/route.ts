@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     const indexList = await getAbsenceIndex();
     await saveAbsenceIndex(indexList.map((r) => (r.id === id ? record : r)));
 
-    const bucket = getBucketName();
+    const bucket = await getBucketName();
     const stillUsed =
       isDocumentKeyReferenced(
         indexList.map((r) => (r.id === id ? record : r)),
