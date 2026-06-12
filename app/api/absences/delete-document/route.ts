@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { currentUser } from "@clerk/nextjs/server";
 import { getAbsenceDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/absences-documents";
 import { isDocumentKeyReferencedInLegacy } from "@/app/lib/absences-legacy-convocations";
 import { canManageAbsenceAttachment } from "@/app/lib/absences-types";
 import { getAbsenceIndex, getAbsenceRecord, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
 import { requireAuth } from "@/app/lib/intranet-auth";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 import { s3Key } from "@/app/lib/s3-path";
 import { resolveTravelsS3ObjectKey } from "@/app/lib/travels-s3";
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 export async function POST(req: Request) {
   const gate = await requireAuth();
@@ -102,6 +95,7 @@ export async function POST(req: Request) {
     await saveAbsenceIndex(indexList.map((r) => (r.id === id ? record : r)));
 
     const bucket = await getBucketName();
+    const s3Client = await getTenantDataS3Client();
     const stillUsed =
       isDocumentKeyReferenced(
         indexList.map((r) => (r.id === id ? record : r)),

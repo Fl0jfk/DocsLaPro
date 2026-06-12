@@ -1,5 +1,6 @@
-import { S3Client, GetObjectCommand, PutObjectCommand,} from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 
 export type KnowledgeDomain = {
   id: string;
@@ -31,16 +32,6 @@ export type KnowledgeDocument = {
   entries: KnowledgeEntry[];
 };
 
-function getS3Client() {
-  return new S3Client({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID || "",
-      secretAccessKey: process.env.SECRET_ACCESS_KEY || "",
-    },
-  });
-}
-
 async function getKnowledgeBucket() {
   const { getTenantBucketName } = await import("@/app/lib/tenant-config");
   return getTenantBucketName();
@@ -52,7 +43,7 @@ function knowledgeKey(file: string) {
 }
 
 async function readKnowledgeJsonFromS3<T>(file: string): Promise<T> {
-  const s3 = getS3Client();
+  const s3 = await getTenantDataS3Client();
   const bucket = await getKnowledgeBucket();
   const key = knowledgeKey(file);
   const signed = await getSignedUrl( s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 120 });
@@ -62,7 +53,7 @@ async function readKnowledgeJsonFromS3<T>(file: string): Promise<T> {
 }
 
 async function writeKnowledgeJsonToS3(file: string, data: unknown) {
-  const s3 = getS3Client();
+  const s3 = await getTenantDataS3Client();
   const bucket = await getKnowledgeBucket();
   const key = knowledgeKey(file);
   const signed = await getSignedUrl( s3,new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: "application/json; charset=utf-8",}),{ expiresIn: 120 });

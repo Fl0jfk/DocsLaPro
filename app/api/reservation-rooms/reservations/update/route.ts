@@ -1,13 +1,9 @@
 import { NextResponse, NextRequest } from "next/server";
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getAuth } from "@clerk/nextjs/server";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
-
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY! },
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +12,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { id, newHour, date, updateAllSeries, subject, className, comment } = body;
     const bucket = await getBucketName();
+    const s3 = await getTenantDataS3Client();
     const getCmd = new GetObjectCommand({ Bucket: bucket, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const resS3 = await fetch(getUrl);

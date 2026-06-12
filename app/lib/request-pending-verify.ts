@@ -1,12 +1,8 @@
 import { randomBytes } from "crypto";
-import { CopyObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand} from "@aws-sdk/client-s3";
 import { assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD, sanitizeRequestFileName } from "@/app/lib/requests";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getTenantBucketName } from "@/app/lib/tenant-config";
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY!},
-});
 
 export const PENDING_REQUEST_TTL_MS = 72 * 60 * 60 * 1000;
 
@@ -49,6 +45,7 @@ export async function savePendingRequestWithFiles(
   files: { buffer: Buffer; fileName: string; contentType: string }[],
 ): Promise<void> {
   if (files.length > MAX_REQUEST_ATTACHMENTS_PER_UPLOAD) { throw new Error(`Maximum ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} fichiers.`)}
+  const s3Client = await getTenantDataS3Client();
   const bucket = (await getTenantBucketName());
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + PENDING_REQUEST_TTL_MS).toISOString();
@@ -98,6 +95,7 @@ export async function savePendingRequestWithFiles(
 export async function loadPendingRequestMeta(token: string): Promise<PendingRequestMeta | null> {
   const trimmed = token.trim();
   if (!trimmed || trimmed.length > 200 || /[^a-zA-Z0-9_-]/.test(trimmed)) return null;
+  const s3Client = await getTenantDataS3Client();
   try {
     const res = await s3Client.send(
       new GetObjectCommand({
@@ -118,6 +116,7 @@ export async function loadPendingRequestMeta(token: string): Promise<PendingRequ
 }
 
 export async function deletePendingRequestPrefix(token: string): Promise<void> {
+  const s3Client = await getTenantDataS3Client();
   const bucket = (await getTenantBucketName());
   const prefix = pendingPrefix(token.trim());
   let continuationToken: string | undefined;
@@ -139,6 +138,7 @@ export async function deletePendingRequestPrefix(token: string): Promise<void> {
 }
 
 export async function copyPendingFileToRequest( sourceKey: string,requestId: string, attId: string, fileName: string, contentType: string, size: number, uploadedAt: string): Promise<{ id: string; key: string; fileName: string; contentType: string; size: number; uploadedAt: string }> {
+  const s3Client = await getTenantDataS3Client();
   const bucket = (await getTenantBucketName());
   const safe = sanitizeRequestFileName(fileName);
   const destKey = `requests/${requestId}/files/${attId}_${safe}`;

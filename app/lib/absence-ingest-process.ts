@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   DetectDocumentTextCommand,
   GetDocumentTextDetectionCommand,
@@ -19,6 +19,7 @@ import {
   type Etablissement,
 } from "@/app/lib/absences-types";
 import { getAbsenceIndex, purgeExpiredAbsences, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
 
 const RUN_LOCK_PREFIX = "absences/ingest-locks/";
@@ -40,14 +41,6 @@ type ParsedConvocation = {
   slots: ParsedSlot[];
 };
 
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
 const textract = new TextractClient({
   region: process.env.REGION,
   credentials: {
@@ -62,6 +55,7 @@ function runLockKey(jobId: string) {
 
 /** Un seul worker par jobId (S3 create-if-absent). */
 async function acquireRunLock(jobId: string): Promise<boolean> {
+  const s3Client = await getTenantDataS3Client();
   try {
     await s3Client.send(
       new PutObjectCommand({
@@ -82,6 +76,7 @@ async function acquireRunLock(jobId: string): Promise<boolean> {
 }
 
 async function releaseRunLock(jobId: string) {
+  const s3Client = await getTenantDataS3Client();
   try {
     await s3Client.send(
       new DeleteObjectCommand({ Bucket: (await getTenantBucketName()), Key: runLockKey(jobId) }),
@@ -210,6 +205,7 @@ async function ocrS3KeyAsync(key: string): Promise<string> {
 }
 
 async function downloadS3Pdf(key: string): Promise<Uint8Array> {
+  const s3Client = await getTenantDataS3Client();
   const res = await s3Client.send(
     new GetObjectCommand({ Bucket: (await getTenantBucketName()), Key: key }),
   );

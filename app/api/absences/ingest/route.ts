@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   canIngestFromUser,
   newJobId,
@@ -8,17 +8,10 @@ import {
   type IngestJob,
 } from "./ingest-job";
 import { mapIngestFailureMessage } from "@/app/lib/absence-ingest-process";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 
 export const maxDuration = 60;
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 function isPdfFile(file: File) {
   const name = String(file.name || "").toLowerCase();
@@ -60,6 +53,7 @@ export async function POST(req: Request) {
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const key = `absences/pdfs/${Date.now()}_${safeName}`;
     const buffer = Buffer.from(await file.arrayBuffer());
+    const s3Client = await getTenantDataS3Client();
     await s3Client.send(
       new PutObjectCommand({
         Bucket: await getBucketName(),

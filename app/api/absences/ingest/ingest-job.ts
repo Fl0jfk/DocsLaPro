@@ -1,5 +1,6 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { canAdminIngest } from "@/app/lib/absences-types";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 
 export type IngestJobStatus = "pending" | "processing" | "completed" | "failed";
@@ -33,14 +34,6 @@ export type IngestJob = {
 
 const JOB_PREFIX = "absences/ingest-jobs/";
 
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
 export function canIngestFromUser(roles: string[]) {
   return canAdminIngest(roles);
 }
@@ -50,6 +43,7 @@ function jobKey(jobId: string) {
 }
 
 export async function readIngestJob(jobId: string): Promise<IngestJob | null> {
+  const s3Client = await getTenantDataS3Client();
   try {
     const res = await s3Client.send(
       new GetObjectCommand({
@@ -66,6 +60,7 @@ export async function readIngestJob(jobId: string): Promise<IngestJob | null> {
 }
 
 export async function writeIngestJob(job: IngestJob) {
+  const s3Client = await getTenantDataS3Client();
   await s3Client.send(
     new PutObjectCommand({
       Bucket: await getBucketName(),

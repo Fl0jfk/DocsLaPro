@@ -1,19 +1,12 @@
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getJson, putJson, getBucketName } from "@/app/lib/s3-storage";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { s3Key } from "@/app/lib/s3-path";
 import {
   ABSENCES_INDEX_KEY,
   normalizeAbsenceRecord,
   type AbsenceRecord,
 } from "@/app/lib/absences-types";
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 function recordKey(id: string) {
   return `absences/${id}.json`;
@@ -71,6 +64,7 @@ export async function purgeExpiredAbsences(index: AbsenceRecord[]) {
   if (remove.length === 0) return keep;
 
   const bucket = await getBucketName();
+  const s3Client = await getTenantDataS3Client();
   for (const rec of remove) {
     try {
       await s3Client.send(

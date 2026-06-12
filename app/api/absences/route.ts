@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
   createTenantTransporter,
   getTenantSmtpConfig,
 } from "@/app/lib/tenant-mail";
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 import { s3Key } from "@/app/lib/s3-path";
 import { formatAbsencePeriod, normalizeAbsencePeriodInput } from "@/app/lib/absence-period";
@@ -45,14 +46,6 @@ import {
   isDocumentKeyReferencedInLegacy,
   mergeLegacyConvocationsForCalendar,
 } from "@/app/lib/absences-legacy-convocations";
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 function recordKey(id: string) {
   return `absences/${id}.json`;
@@ -725,6 +718,7 @@ export async function DELETE(req: Request) {
 
     const docKeys = getAbsenceDocumentKeys(record);
     const bucket = await getBucketName();
+    const s3Client = await getTenantDataS3Client();
 
     const absenceFile = await getAbsenceRecord(id);
     let updated = await getAbsenceIndex();

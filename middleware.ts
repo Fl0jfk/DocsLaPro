@@ -16,6 +16,11 @@ import {
   warmTenantRegistry,
 } from '@/app/lib/tenant-registry';
 import {
+  clerkKeysFromEnvOverride,
+  resolveClerkPublishableKey,
+  resolveClerkSecretKey,
+} from '@/app/lib/clerk-tenant-keys';
+import {
   canAccessIntranetPath,
   isOrgAdminFromSession,
 } from '@/app/lib/intranet-modules';
@@ -113,9 +118,9 @@ function withTenantHeaders(response: NextResponse, tenant: TenantConfig): NextRe
 }
 
 function clerkClientForMiddleware(tenant: TenantConfig) {
-  const secretKey = isMultiTenantEnabled()
-    ? tenant.clerkSecretKey
-    : process.env.CLERK_SECRET_KEY;
+  const envClerk = clerkKeysFromEnvOverride();
+  const secretKey = envClerk?.secretKey
+    ?? (isMultiTenantEnabled() ? tenant.clerkSecretKey : process.env.CLERK_SECRET_KEY);
   if (!secretKey?.trim()) {
     throw new Error("CLERK_SECRET_KEY manquante");
   }
@@ -128,7 +133,6 @@ type MiddlewareAuthState = {
   sessionClaims: unknown;
 };
 
-/** Rôles pour le middleware : JWT puis repli API Clerk (publicMetadata absent du JWT par défaut). */
 async function resolveIntranetRolesForMiddleware(
   authState: MiddlewareAuthState,
   tenant: TenantConfig,
@@ -161,13 +165,8 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
     }
     return new NextResponse(message, { status: 404 });
   }
-
-  if (isPublicRoute(request)) {
-    return withTenantHeaders(NextResponse.next(), tenant);
-  }
-
+  if (isPublicRoute(request)) { return withTenantHeaders(NextResponse.next(), tenant)}
   const authState = await auth.protect();
-
   const { roles, publicMetadata } = await resolveIntranetRolesForMiddleware(authState, tenant);
   const isOrgAdmin = isOrgAdminFromSession(authState.orgRole, publicMetadata);
   const pathname = request.nextUrl.pathname;
@@ -189,8 +188,8 @@ async function clerkKeysForTenant(request: NextRequest) {
   try {
     const tenant = await resolveTenantForMiddleware(request);
     return {
-      publishableKey: tenant.clerkPublishableKey,
-      secretKey: tenant.clerkSecretKey,
+      publishableKey: resolveClerkPublishableKey(tenant.clerkPublishableKey),
+      secretKey: resolveClerkSecretKey(tenant.clerkSecretKey),
     };
   } catch {
     const fallback = defaultTenantFromEnv();

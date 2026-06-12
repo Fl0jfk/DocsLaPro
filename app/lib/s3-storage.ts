@@ -9,20 +9,11 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Key } from "@/app/lib/s3-path";
 import { getTenant } from "@/app/lib/tenant-context";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 
-let _client: S3Client | null = null;
-
-export function getS3Client(): S3Client {
-  if (!_client) {
-    _client = new S3Client({
-      region: process.env.REGION,
-      credentials: {
-        accessKeyId: process.env.ACCESS_KEY_ID!,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-      },
-    });
-  }
-  return _client;
+/** Client S3 données du tenant courant (bucket métier). */
+export async function getS3Client(): Promise<S3Client> {
+  return getTenantDataS3Client();
 }
 
 export async function getBucketName(): Promise<string> {
@@ -38,7 +29,7 @@ export async function getBucketName(): Promise<string> {
 export async function getJson<T>(relativePath: string): Promise<{ data: T; key: string } | null> {
   const key = s3Key(relativePath);
   try {
-    const res = await getS3Client().send(new GetObjectCommand({ Bucket: await getBucketName(), Key: key }));
+    const res = await (await getS3Client()).send(new GetObjectCommand({ Bucket: await getBucketName(), Key: key }));
     const raw = await res.Body?.transformToString();
     if (!raw) return null;
     return { data: JSON.parse(raw) as T, key };
@@ -49,7 +40,7 @@ export async function getJson<T>(relativePath: string): Promise<{ data: T; key: 
 
 export async function putJson(relativePath: string, data: unknown): Promise<string> {
   const key = s3Key(relativePath);
-  await getS3Client().send(
+  await (await getS3Client()).send(
     new PutObjectCommand({
       Bucket: await getBucketName(),
       Key: key,
@@ -66,7 +57,7 @@ export async function putObject(
   contentType: string,
 ): Promise<string> {
   const key = s3Key(relativePath);
-  await getS3Client().send(
+  await (await getS3Client()).send(
     new PutObjectCommand({
       Bucket: await getBucketName(),
       Key: key,
@@ -80,7 +71,7 @@ export async function putObject(
 export async function getObjectBytes(relativePath: string): Promise<Buffer | null> {
   const key = s3Key(relativePath);
   try {
-    const res = await getS3Client().send(new GetObjectCommand({ Bucket: await getBucketName(), Key: key }));
+    const res = await (await getS3Client()).send(new GetObjectCommand({ Bucket: await getBucketName(), Key: key }));
     const bytes = await res.Body?.transformToByteArray();
     if (bytes?.length) return Buffer.from(bytes);
   } catch {
@@ -91,7 +82,7 @@ export async function getObjectBytes(relativePath: string): Promise<Buffer | nul
 
 export async function listPrefix(relativePrefix: string): Promise<string[]> {
   const prefix = s3Key(relativePrefix.replace(/^\/+/, ""));
-  const client = getS3Client();
+  const client = await getS3Client();
   const out: string[] = [];
   let token: string | undefined;
   do {
@@ -111,7 +102,7 @@ export async function listPrefix(relativePrefix: string): Promise<string[]> {
 }
 
 export async function deleteObject(key: string): Promise<void> {
-  await getS3Client().send(
+  await (await getS3Client()).send(
     new DeleteObjectCommand({
       Bucket: await getBucketName(),
       Key: s3Key(key),
@@ -120,7 +111,7 @@ export async function deleteObject(key: string): Promise<void> {
 }
 
 export async function getSignedReadUrl(relativeOrFullKey: string, expiresIn = 3600): Promise<string | null> {
-  const client = getS3Client();
+  const client = await getS3Client();
   const bucket = await getBucketName();
   const key = s3Key(relativeOrFullKey);
   try {

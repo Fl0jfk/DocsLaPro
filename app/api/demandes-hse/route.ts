@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   createTenantTransporter,
   getTenantSmtpConfig,
@@ -31,14 +30,6 @@ type HseRecord = {
   decidedAt?: string;
   directionNote?: string;
 };
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 const norm = (s: string) =>
   String(s || "")

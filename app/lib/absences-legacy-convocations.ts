@@ -129,18 +129,13 @@ export async function getAbsenceOrLegacyRecord(id: string): Promise<AbsenceRecor
 }
 
 export async function deleteLegacyConvocation(id: string) {
-  const { DeleteObjectCommand, S3Client } = await import("@aws-sdk/client-s3");
+  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
   const { getBucketName, getJson, putJson } = await import("@/app/lib/s3-storage");
+  const { getTenantDataS3Client } = await import("@/app/lib/s3-clients");
   const { s3Key } = await import("@/app/lib/s3-path");
 
   const bucket = await getBucketName();
-  const client = new S3Client({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
+  const client = await getTenantDataS3Client();
 
   await client.send(
     new DeleteObjectCommand({

@@ -24,3 +24,27 @@ export async function requireMistralApiKey(): Promise<string> {
   if (!key) throw new Error("Service IA non configuré (MISTRAL_API_KEY ou secrets tenant).");
   return key;
 }
+
+/** Région AWS pour le bucket métier du tenant. */
+export async function getTenantAwsRegion(): Promise<string> {
+  try {
+    const tenant = await getTenant();
+    const fromSecrets = tenant.secrets?.aws?.region?.trim();
+    if (fromSecrets) return fromSecrets;
+  } catch {
+    /* pas de contexte tenant */
+  }
+  return process.env.REGION?.trim() || "eu-west-3";
+}
+
+/** Bucket images (actualités…) — secrets tenant ou repli docslaproimage. */
+export async function getTenantImageBucket(): Promise<string> {
+  try {
+    const tenant = await getTenant();
+    const fromSecrets = tenant.secrets?.aws?.imageBucket?.trim();
+    if (fromSecrets) return fromSecrets;
+  } catch {
+    /* pas de contexte tenant */
+  }
+  return process.env.IMAGE_BUCKET?.trim() || "docslaproimage";
+}

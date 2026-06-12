@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { NextResponse, after } from "next/server";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { publicS3UrlForKey } from "@/app/lib/travels-s3";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getTenantBucketName } from "@/app/lib/tenant-config";
 import { providerNameFromEmail } from "@/app/lib/transport-providers";
 import { ocrS3Key, type TripCandidateForMatch } from "@/app/lib/travel-devis-ocr";
@@ -114,16 +115,6 @@ async function writeIngestMarker(client: S3Client, bucket: string, key: string, 
 function isAllowedIncomingKey(key: string): boolean {
   if (!key.startsWith(INCOMING_PREFIX) || key.includes("..")) return false;
   return key.length <= 2048;
-}
-
-function s3() {
-  return new S3Client({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
 }
 
 type IndexTrip = {
@@ -385,7 +376,7 @@ type IngestJobParams = {
 };
 
 async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
-  const client = s3();
+  const client = await getTenantDataS3Client();
   const {
     bucket,
     markerKey,
@@ -695,7 +686,7 @@ export async function POST(req: Request) {
   }
 
   const bucket = await getTenantBucketName();
-  const client = s3();
+  const client = await getTenantDataS3Client();
   const markerKey = ingestMarkerKey(gmailMessageId, s3Key);
   const existing = await readIngestMarker(client, bucket, markerKey);
   if (existing?.completed) {

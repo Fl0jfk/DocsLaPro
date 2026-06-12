@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PDFDocument } from "pdf-lib";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
-
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 export async function POST(req: Request) {
   try {
@@ -22,6 +15,7 @@ export async function POST(req: Request) {
     }
 
     const bucket = await getBucketName();
+    const s3 = await getTenantDataS3Client();
     const { key, pageStart, pageEnd, filename } = await req.json();
     if (!key) {
       return NextResponse.json({ error: "key requis" }, { status: 400 });

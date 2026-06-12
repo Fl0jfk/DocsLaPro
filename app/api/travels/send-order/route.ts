@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import fs from "fs/promises";
 import path from "path";
 import { extractDevisMetadataWithMistral, ocrS3Key } from "@/app/lib/travel-devis-ocr";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getTenantBucketName } from "@/app/lib/tenant-config";
 import {
   createTenantTransporter,
@@ -186,13 +187,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email du transporteur manquant" }, { status: 400 });
     }
     const bucket = await getTenantBucketName();
-    const s3Client = new S3Client({
-      region: process.env.REGION,
-      credentials: {
-        accessKeyId: process.env.ACCESS_KEY_ID!,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-      },
-    });
+    const s3Client = await getTenantDataS3Client();
     const command = new GetObjectCommand({
       Bucket: bucket,
       Key: fileKey,

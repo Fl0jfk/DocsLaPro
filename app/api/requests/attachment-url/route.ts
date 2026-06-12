@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { normalizeRequestEmail } from "@/app/lib/requests-board";
 import { findRequestAttachment, getRequestsIndex } from "@/app/lib/requests";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 import { getBucketName } from "@/app/lib/s3-storage";
-
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 export async function GET(req: NextRequest) {
   const gate = await requireAuth();
@@ -41,6 +34,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Clé invalide" }, { status: 400 });
     }
     const command = new GetObjectCommand({ Bucket: await getBucketName(), Key: att.key });
+    const s3 = await getTenantDataS3Client();
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     return NextResponse.json({ url, fileName: att.fileName, contentType: att.contentType });
   } catch (e) {

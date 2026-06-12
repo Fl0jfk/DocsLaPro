@@ -1,4 +1,5 @@
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getPlatformS3Client } from "@/app/lib/s3-clients";
 import type {
   TenantConfig,
   TenantIndexEntry,
@@ -19,16 +20,6 @@ export function isMultiTenantEnabled(): boolean {
 }
 
 let registryCache: { at: number; tenants: TenantConfig[] } | null = null;
-
-function getRegistryS3Client(): S3Client {
-  return new S3Client({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
-}
 
 export function normalizeHostname(host: string): string {
   const raw = (host || "").trim().toLowerCase();
@@ -117,16 +108,22 @@ function parseTenantSecrets(raw: unknown): TenantSecrets | null {
   }
 
   const aws = o.aws as Record<string, unknown> | undefined;
-  if (
-    aws &&
-    typeof aws.accessKeyId === "string" &&
-    typeof aws.secretAccessKey === "string"
-  ) {
-    secrets.aws = {
-      accessKeyId: aws.accessKeyId.trim(),
-      secretAccessKey: aws.secretAccessKey.trim(),
-      region: typeof aws.region === "string" ? aws.region.trim() : undefined,
-    };
+  if (aws) {
+    const roleArn = typeof aws.roleArn === "string" ? aws.roleArn.trim() : "";
+    const accessKeyId = typeof aws.accessKeyId === "string" ? aws.accessKeyId.trim() : "";
+    const secretAccessKey =
+      typeof aws.secretAccessKey === "string" ? aws.secretAccessKey.trim() : "";
+    const region = typeof aws.region === "string" ? aws.region.trim() : undefined;
+    const imageBucket =
+      typeof aws.imageBucket === "string" ? aws.imageBucket.trim() : undefined;
+    if (roleArn || (accessKeyId && secretAccessKey)) {
+      secrets.aws = {
+        ...(roleArn ? { roleArn } : {}),
+        ...(accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : {}),
+        region,
+        imageBucket,
+      };
+    }
   }
 
   return secrets;
@@ -153,7 +150,7 @@ async function loadSecretsFromS3(slug: string): Promise<TenantSecrets | null> {
   const bucket = process.env.REGISTRY_BUCKET?.trim();
   if (!bucket) return null;
   try {
-    const res = await getRegistryS3Client().send(
+    const res = await getPlatformS3Client().send(
       new GetObjectCommand({ Bucket: bucket, Key: secretsKeyForSlug(slug) }),
     );
     const raw = await res.Body?.transformToString();
@@ -280,7 +277,7 @@ async function loadRegistryIndexFromS3(): Promise<TenantIndexEntry[] | null> {
   const bucket = process.env.REGISTRY_BUCKET?.trim();
   if (!bucket) return null;
   try {
-    const res = await getRegistryS3Client().send(
+    const res = await getPlatformS3Client().send(
       new GetObjectCommand({ Bucket: bucket, Key: REGISTRY_KEY }),
     );
     const raw = await res.Body?.transformToString();

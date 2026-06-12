@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand} from "@aws-sdk/client-s3";
 import { SCHOOL } from "@/app/lib/school";
 import { getJson, putJson, putObject, getS3Client, getBucketName } from "@/app/lib/s3-storage";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
@@ -9,14 +9,6 @@ import {
 import { s3Key } from "@/app/lib/s3-path";
 import { LEGACY_ROUTE_TO_BRANCH, normalizeRequestBranchId, normalizeRequestEmail, isCorbeilleBranchId} from "@/app/lib/requests-board";
 import { getFirstBranchForStaffEmailFromDirectory, getStaffExecutorsForBranch, getStaffLeadersForBranch} from "@/app/lib/staff-directory";
-
-const s3Client = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 export type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
 export type RequestAttachment = {
@@ -208,6 +200,7 @@ export async function purgeExpiredRequests(): Promise<{ removed: number }> {
     else keep.push(r);
   }
   if (remove.length === 0) return { removed: 0 };
+  const s3Client = await getS3Client();
   const bucket = await getBucketName();
   for (const r of remove) {
     try {

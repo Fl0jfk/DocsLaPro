@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { frFR } from "@clerk/localizations";
+import { clerkKeysFromEnvOverride } from "@/app/lib/clerk-tenant-keys";
 import { getTenant } from "@/app/lib/tenant-context";
 import { isMultiTenantEnabled } from "@/app/lib/tenant-registry";
 
@@ -13,9 +14,10 @@ export default async function TenantClerkProvider({ children }: Props) {
     return <ClerkProvider localization={frFR}>{children}</ClerkProvider>;
   }
 
-  const tenant = await getTenant();
+  const envClerk = clerkKeysFromEnvOverride();
+  const publishableKey = envClerk?.publishableKey ?? (await getTenant()).clerkPublishableKey;
   return (
-    <ClerkProvider publishableKey={tenant.clerkPublishableKey} localization={frFR}>
+    <ClerkProvider publishableKey={publishableKey} localization={frFR}>
       {children}
     </ClerkProvider>
   );

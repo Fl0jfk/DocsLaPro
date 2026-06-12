@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Key } from "@/app/lib/s3-path";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 import { publicS3UrlForKey } from "@/app/lib/travels-s3";
 import { requireAuth } from "@/app/lib/intranet-auth";
@@ -12,13 +13,7 @@ export async function POST(req: Request) {
   try {
     const { fileName, fileType } = await req.json();
     const fileKey = s3Key( `attachments/${Date.now()}-${fileName}`);
-    const s3Client = new S3Client({
-      region: process.env.REGION,
-      credentials: {
-        accessKeyId: process.env.ACCESS_KEY_ID!,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-      },
-    });
+    const s3Client = await getTenantDataS3Client();
     const bucket = await getBucketName();
     const command = new PutObjectCommand({
       Bucket: bucket,

@@ -11,6 +11,7 @@ import {
   getSignedReadUrl,
   putJson,
 } from "@/app/lib/s3-storage";
+import { getTenantAwsRegion } from "@/app/lib/tenant-config";
 const FILE_KEY = "chat/messages.json";
 
 async function readMessagesFromS3( shouldSign: boolean = true) {
@@ -20,7 +21,7 @@ async function readMessagesFromS3( shouldSign: boolean = true) {
     if (!shouldSign) return messages;
 
     const bucket = await getBucketName();
-    const client = getS3Client();
+    const client = await getS3Client();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const signedMessages = await Promise.all(
       messages.map(async (m: any) => {
@@ -36,7 +37,7 @@ async function readMessagesFromS3( shouldSign: boolean = true) {
             fileName = parts[0];
             fileUrl = parts[1];
           }
-          const region = process.env.REGION || "eu-west-3";
+          const region = await getTenantAwsRegion();
           const marker = `${bucket}.s3.${region}.amazonaws.com/`;
           const idx = fileUrl.indexOf(marker);
           const fileKey = idx >= 0 ? fileUrl.slice(idx + marker.length) : "";

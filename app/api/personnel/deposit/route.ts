@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { requireAuth } from "@/app/lib/intranet-auth";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { extractTextFromUpload } from "@/app/lib/personnel-document-text";
 import {
   extractPersonnelFieldsFromText,
@@ -27,7 +28,7 @@ import {
 import { s3Key } from "@/app/lib/s3-path";
 import { getBucketName } from "@/app/lib/s3-storage";
 import { publicS3UrlForKey } from "@/app/lib/travels-s3";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { requireAuth } from "@/app/lib/intranet-auth";
 
 function rolesFromUser(user: Awaited<ReturnType<typeof currentUser>>) {
   const rolesRaw = user?.publicMetadata?.role;
@@ -111,13 +112,7 @@ export async function POST(req: Request) {
     const fileKey = s3Key(
       `personnel-ogec/${staffId}/documents/${Date.now()}-${safeFileName(file.name)}`,
     );
-    const s3Client = new S3Client({
-      region: process.env.REGION,
-      credentials: {
-        accessKeyId: process.env.ACCESS_KEY_ID!,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-      },
-    });
+    const s3Client = await getTenantDataS3Client();
     await s3Client.send(
       new PutObjectCommand({
         Bucket: await getBucketName(),

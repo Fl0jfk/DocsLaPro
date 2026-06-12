@@ -1,16 +1,7 @@
-import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getTenantBucketName } from "@/app/lib/tenant-config";
+import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
+import { getTenantAwsRegion, getTenantBucketName } from "@/app/lib/tenant-config";
 import { s3Key } from "@/app/lib/s3-path";
-
-function travelsS3Client() {
-  return new S3Client({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
-}
 
 export function encodeS3KeyForUrl(key: string): string {
   return key
@@ -21,8 +12,8 @@ export function encodeS3KeyForUrl(key: string): string {
 
 export async function publicS3UrlForKey(key: string): Promise<string> {
   const bucket = await getTenantBucketName();
-  const region = process.env.REGION;
-  if (!bucket || !region) throw new Error("Bucket tenant ou REGION manquant");
+  const region = await getTenantAwsRegion();
+  if (!bucket || !region) throw new Error("Bucket tenant ou région AWS manquant");
   return `https://${bucket}.s3.${region}.amazonaws.com/${encodeS3KeyForUrl(key)}`;
 }
 
@@ -32,7 +23,7 @@ export async function parseTravelsS3KeyFromUrl(fileUrl: string): Promise<string 
   if (!raw) return null;
 
   const bucket = await getTenantBucketName();
-  const region = process.env.REGION;
+  const region = await getTenantAwsRegion();
   if (!bucket) return null;
 
   const decodePath = (path: string) => {
@@ -114,7 +105,7 @@ export async function candidateTravelsS3Keys(
 }
 
 async function s3ObjectExists(bucket: string, key: string): Promise<boolean> {
-  const client = travelsS3Client();
+  const client = await getTenantDataS3Client();
   try {
     await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     return true;
@@ -152,7 +143,8 @@ export async function fetchTravelsPdfBytes(
   const bucket = await getTenantBucketName();
 
   if (key && bucket) {
-    const res = await travelsS3Client().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const client = await getTenantDataS3Client();
+    const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
     const bytes = await res.Body?.transformToByteArray();
     if (!bytes?.length) throw new Error("Fichier PDF vide ou introuvable sur S3.");
     return Buffer.from(bytes);

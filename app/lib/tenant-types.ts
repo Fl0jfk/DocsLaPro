@@ -23,7 +23,14 @@ export type TenantSecrets = {
   mistral?: { apiKey: string };
   smtp?: { user: string; pass: string; host?: string };
   microsoft?: { tenantId: string; clientId: string; clientSecret?: string };
-  aws?: { accessKeyId: string; secretAccessKey: string; region?: string };
+  /** Données S3 : roleArn (recommandé) ou clés dédiées ; sinon repli IAM plateforme Amplify. */
+  aws?: {
+    roleArn?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    region?: string;
+    imageBucket?: string;
+  };
 };
 
 /** Config complète après fusion index + secrets. */

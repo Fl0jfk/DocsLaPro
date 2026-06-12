@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { requireAuth } from "@/app/lib/intranet-auth";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
+import { getTenantAwsRegion, getTenantImageBucket } from "@/app/lib/tenant-config";
 import { s3Key } from "@/app/lib/s3-path";
-
-const IMAGE_BUCKET = "docslaproimage";
-
-const s3 = new S3Client({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 export async function POST(req: Request) {
   const gate = await requireAuth();
@@ -24,18 +16,21 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const rel = `news/${Date.now()}-${file.name}`;
-    const key = s3Key( rel);
+    const key = s3Key(rel);
+    const imageBucket = await getTenantImageBucket();
+    const s3 = await getTenantDataS3Client();
 
     await s3.send(
       new PutObjectCommand({
-        Bucket: IMAGE_BUCKET,
+        Bucket: imageBucket,
         Key: key,
         Body: buffer,
         ContentType: file.type,
       }),
     );
 
-    const fileUrl = `https://${IMAGE_BUCKET}.s3.${process.env.REGION}.amazonaws.com/${key}`;
+    const region = await getTenantAwsRegion();
+    const fileUrl = `https://${imageBucket}.s3.${region}.amazonaws.com/${key}`;
     return NextResponse.json({ fileUrl });
   } catch (err) {
     console.error("Erreur upload image news:", err);
