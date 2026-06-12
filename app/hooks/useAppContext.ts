@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Establishment, ProfRoomModuleConfig } from "@/app/lib/app-config-schemas";
+import type {
+  DomainPlanningModuleConfig,
+  Establishment,
+  ProfRoomModuleConfig,
+} from "@/app/lib/app-config-schemas";
 
 type AppContextPayload = {
   identity: { name: string; shortName?: string };
   establishments: Establishment[];
   profRoom?: ProfRoomModuleConfig;
+  domainPlanning?: DomainPlanningModuleConfig;
 };
 
 export function useAppContext() {

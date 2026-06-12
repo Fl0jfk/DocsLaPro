@@ -1,4 +1,5 @@
 import {
+  parseDomainPlanningModule,
   parseEstablishment,
   parseEstablishmentsFile,
   parseInternatModule,
@@ -8,6 +9,7 @@ import {
   parseSiteIdentity,
   parseTravelsModule,
   type AppConfigBundle,
+  type DomainPlanningModuleConfig,
   type Establishment,
   type InternatModuleConfig,
   type NotificationsConfig,
@@ -17,6 +19,7 @@ import {
   type TravelsModuleConfig,
 } from "@/app/lib/app-config-schemas";
 import {
+  defaultDomainPlanningModule,
   defaultEstablishments,
   defaultInternatModule,
   defaultNotifications,
@@ -25,6 +28,7 @@ import {
   defaultStaffDirectory,
   defaultTravelsModule,
 } from "@/app/lib/app-config-defaults";
+import { normalizeDomainPlanningModule } from "@/app/lib/domain-planning-defaults";
 import { withDefaultProfRoomSubjects } from "@/app/lib/prof-room-defaults";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 
@@ -38,13 +42,14 @@ export function invalidateAppConfigCache() {
 export async function loadAppConfig(): Promise<AppConfigBundle> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.bundle;
 
-  const [identityRaw, estRaw, notifRaw, staffRaw, travelsRaw, profRaw, internatRaw] = await Promise.all([
+  const [identityRaw, estRaw, notifRaw, staffRaw, travelsRaw, profRaw, domainRaw, internatRaw] = await Promise.all([
     getJson<unknown>("settings/site.json"),
     getJson<unknown>("settings/establishments.json"),
     getJson<unknown>("settings/notifications.json"),
     getJson<unknown>("settings/staff-directory.json"),
     getJson<unknown>("settings/modules/travels.json"),
     getJson<unknown>("settings/modules/prof-room.json"),
+    getJson<unknown>("settings/modules/domain-planning.json"),
     getJson<unknown>("settings/modules/internat.json"),
   ]);
 
@@ -55,6 +60,10 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
   const travels = travelsRaw?.data ? parseTravelsModule(travelsRaw.data) : defaultTravelsModule();
   const profRoomRaw = profRaw?.data ? parseProfRoomModule(profRaw.data) : defaultProfRoomModule();
   const profRoom = withDefaultProfRoomSubjects(profRoomRaw);
+  const domainPlanningRaw = domainRaw?.data
+    ? parseDomainPlanningModule(domainRaw.data)
+    : defaultDomainPlanningModule();
+  const domainPlanning = normalizeDomainPlanningModule(domainPlanningRaw);
   const internat = internatRaw?.data ? parseInternatModule(internatRaw.data) : defaultInternatModule();
 
   const bundle: AppConfigBundle = {
@@ -64,6 +73,7 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
     staffDirectory,
     travels,
     profRoom,
+    domainPlanning,
     internat,
   };
   cache = { at: Date.now(), bundle };
@@ -103,6 +113,12 @@ export async function saveTravelsModule(data: TravelsModuleConfig) {
 export async function saveProfRoomModule(data: ProfRoomModuleConfig) {
   const parsed = parseProfRoomModule(data);
   await putJson("settings/modules/prof-room.json", parsed);
+  invalidateAppConfigCache();
+}
+
+export async function saveDomainPlanningModule(data: DomainPlanningModuleConfig) {
+  const parsed = normalizeDomainPlanningModule(parseDomainPlanningModule(data));
+  await putJson("settings/modules/domain-planning.json", parsed);
   invalidateAppConfigCache();
 }
 

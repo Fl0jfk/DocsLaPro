@@ -85,6 +85,14 @@ export type ProfRoomModuleConfig = {
   adminClerkUserIds: string[];
 };
 
+export type DomainPlanningModuleConfig = {
+  classesByPole: Record<string, string[]>;
+  activityColors: Record<string, string>;
+  hoursStart: number;
+  hoursEnd: number;
+  bookingHorizonDays: number;
+};
+
 export type AppConfigBundle = {
   identity: SiteIdentity;
   establishments: Establishment[];
@@ -92,6 +100,7 @@ export type AppConfigBundle = {
   staffDirectory: StaffDirectoryRow[];
   travels: TravelsModuleConfig;
   profRoom: ProfRoomModuleConfig;
+  domainPlanning: DomainPlanningModuleConfig;
   internat: InternatModuleConfig;
 };
 
@@ -239,6 +248,29 @@ export function parseTravelsModule(raw: unknown): TravelsModuleConfig {
       if (!isEmail(email)) throw new Error("Transporteur : email invalide.");
       return { name: str(x.name) || "Transporteur", email };
     }),
+  };
+}
+
+export function parseDomainPlanningModule(raw: unknown): DomainPlanningModuleConfig {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const classesByPole: Record<string, string[]> = {};
+  if (o.classesByPole && typeof o.classesByPole === "object") {
+    for (const [k, v] of Object.entries(o.classesByPole as Record<string, unknown>)) {
+      classesByPole[k] = strArr(v);
+    }
+  }
+  const activityColors: Record<string, string> = {};
+  if (o.activityColors && typeof o.activityColors === "object") {
+    for (const [k, v] of Object.entries(o.activityColors as Record<string, unknown>)) {
+      activityColors[k] = str(v);
+    }
+  }
+  return {
+    classesByPole,
+    activityColors,
+    hoursStart: typeof o.hoursStart === "number" ? o.hoursStart : 8,
+    hoursEnd: typeof o.hoursEnd === "number" ? o.hoursEnd : 17,
+    bookingHorizonDays: typeof o.bookingHorizonDays === "number" ? o.bookingHorizonDays : 56,
   };
 }
 

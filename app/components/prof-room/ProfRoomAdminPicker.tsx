@@ -21,11 +21,13 @@ export default function ProfRoomAdminPicker({
   selectedIds,
   onChange,
   loading,
+  footerHint,
 }: {
   members: ClerkMemberOption[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   loading?: boolean;
+  footerHint?: string;
 }) {
   const [search, setSearch] = useState("");
 
@@ -89,8 +91,8 @@ export default function ProfRoomAdminPicker({
         )}
       </div>
       <p className="text-xs text-slate-500">
-        {selectedIds.length} administrateur(s) sélectionné(s). Le mode admin du planning utilise le nom de famille
-        Clerk de chaque personne.
+        {footerHint ??
+          `${selectedIds.length} administrateur(s) sélectionné(s). Le mode admin du planning utilise le nom de famille Clerk de chaque personne.`}
       </p>
     </div>
   );

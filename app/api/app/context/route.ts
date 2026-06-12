@@ -15,6 +15,7 @@ export async function GET() {
       },
       establishments: config.establishments,
       profRoom: config.profRoom,
+      domainPlanning: config.domainPlanning,
     });
   } catch (e) {
     console.error("[app/context]", e);

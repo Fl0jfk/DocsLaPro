@@ -14,6 +14,7 @@ export type DashboardTileVariant =
   | "default"
   | "travels"
   | "prof-room"
+  | "domain-planning"
   | "agent-ia"
   | "absences"
   | "personnel-ogec"
@@ -164,6 +165,27 @@ export const INTRANET_MODULES: IntranetModule[] = [
       link: "/prof-room",
       external: false,
       variant: "prof-room",
+    },
+  },
+  {
+    id: "domain-planning",
+    pathPrefixes: ["/domain-planning", "/api/domain-planning"],
+    allowedRoles: [
+      "professeur",
+      "administratif",
+      "direction_college",
+      "direction_ecole",
+      "direction_lycee",
+      "maintenance",
+      "education",
+    ],
+    dashboard: {
+      id: 25,
+      name: "Enseignements transversaux",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
+      link: "/domain-planning",
+      external: false,
+      variant: "domain-planning",
     },
   },
   {
