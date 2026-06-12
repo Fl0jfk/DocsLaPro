@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import nodemailer from "nodemailer";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getBucketName } from "@/app/lib/s3-storage";
@@ -77,14 +80,12 @@ async function resolveDecisionTarget(scope: AbsenceScope, etablissement: Etablis
   return { roleLabel: "Direction", name: bundle.identity.name, email: "" };
 }
 
-function getMailer() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+async function getMailer() {
+  const smtp = await getTenantSmtpConfig();
+  if (!smtp) return null;
+  const transporter = await createTenantTransporter();
+  if (!transporter) return null;
+  return { smtp, transporter };
 }
 
 async function resolveValidationRecipients(record: AbsenceRecord) {
@@ -261,9 +262,11 @@ export async function POST(req: Request) {
 
     try {
       const target = await resolveDecisionTarget(scope, scope === "ogec" ? null : etablissement);
-      const transporter = getMailer();
+      const mail = await getMailer();
+      if (mail) {
+      const { smtp, transporter } = mail;
       await transporter.sendMail({
-        from: `"Absences" <${process.env.SMTP_USER}>`,
+        from: `"Absences" <${smtp.user}>`,
         to: target.email,
         subject: `Nouvelle absence à traiter — ${scope === "ogec" ? "Personnel OGEC" : `Professeur ${etablissement || ""}`}`.trim(),
         text: [
@@ -286,6 +289,7 @@ export async function POST(req: Request) {
           .filter(Boolean)
           .join("\n"),
       });
+      }
     } catch (mailErr) {
       console.error("Absences creation mail error:", mailErr);
     }
@@ -413,13 +417,15 @@ export async function PATCH(req: Request) {
       const recipients = await resolveValidationRecipients(updated);
       if (recipients.length > 0) {
         try {
-          const transporter = getMailer();
+          const mail = await getMailer();
+          if (mail) {
+          const { smtp, transporter } = mail;
           const mailAttachments = await loadAbsenceValidationAttachments(updated);
           const justificatifLine = formatJustificatifMailLine(updated, mailAttachments);
           const scope = resolveAbsenceScope(updated);
           const treatmentLine = formatHoursTreatmentMailLine(updated.hoursTreatment!, scope);
           await transporter.sendMail({
-            from: `"Absences" <${process.env.SMTP_USER}>`,
+            from: `"Absences" <${smtp.user}>`,
             to: recipients.join(","),
             subject: `Absence validée — ${updated.createdBy.name}`,
             text: [
@@ -447,6 +453,7 @@ export async function PATCH(req: Request) {
               contentType: a.contentType,
             })),
           });
+          }
         } catch (mailErr) {
           console.error("Absences validation mail error:", mailErr);
         }
@@ -454,9 +461,11 @@ export async function PATCH(req: Request) {
 
       try {
         if (updated.createdBy.email) {
-          const transporter = getMailer();
+          const mail = await getMailer();
+          if (mail) {
+          const { smtp, transporter } = mail;
           await transporter.sendMail({
-            from: `"Absences" <${process.env.SMTP_USER}>`,
+            from: `"Absences" <${smtp.user}>`,
             to: updated.createdBy.email,
             subject: "Votre absence a été validée",
             text: [
@@ -475,6 +484,7 @@ export async function PATCH(req: Request) {
               .filter(Boolean)
               .join("\n"),
           });
+          }
         }
       } catch (mailErr) {
         console.error("Absences creator validation mail error:", mailErr);
@@ -515,10 +525,12 @@ export async function PATCH(req: Request) {
       };
       try {
         if (current.createdBy.email) {
-          const transporter = getMailer();
+          const mail = await getMailer();
+          if (mail) {
+          const { smtp, transporter } = mail;
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
           await transporter.sendMail({
-            from: `"Absences" <${process.env.SMTP_USER}>`,
+            from: `"Absences" <${smtp.user}>`,
             to: current.createdBy.email,
             subject: "Complément souhaité — justificatif d'absence",
             text: [
@@ -548,6 +560,7 @@ export async function PATCH(req: Request) {
               .filter(Boolean)
               .join("\n"),
           });
+          }
         }
       } catch (mailErr) {
         console.error("Absences relance mail error:", mailErr);

@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import nodemailer from "nodemailer";
 import { loadAppConfig } from "@/app/lib/app-config";
 import { defaultNotifications } from "@/app/lib/app-config-defaults";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { assertTravelsTripAccess } from "@/app/lib/travels-rbac-server";
 import { buildCuisineOrderPdfBase64 } from "@/app/lib/travels-cuisine-pdf";
 import { CUISINE_DAYS, cuisineDateRangeLabel, type CuisineTripPayload } from "@/app/lib/travels-cuisine-shared";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 type TripData = CuisineTripPayload["data"] & Record<string, unknown>;
 
@@ -82,10 +85,14 @@ export async function POST(req: Request) {
     const selectedDayNames = selectedDays.map((d) => d.label).join(", ");
     const ccRecipients = [...new Set([userEmail, organizerEmail, trip.ownerEmail].filter(Boolean))];
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
+    const smtp = await getTenantSmtpConfig();
+    if (!smtp) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
+    const transporter = await createTenantTransporter();
+    if (!transporter) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
 
     const subject =
       mode === "amendment"
@@ -126,7 +133,7 @@ export async function POST(req: Request) {
           ].join("\n");
 
     await transporter.sendMail({
-      from: `"Gestion Sorties La Providence" <${process.env.EMAIL_USER || process.env.SMTP_USER}>`,
+      from: `"Gestion Sorties La Providence" <${smtp.user}>`,
       to: chefEmail,
       cc: ccRecipients.length > 0 ? ccRecipients.join(", ") : undefined,
       subject,

@@ -19,6 +19,7 @@ import {
   type Etablissement,
 } from "@/app/lib/absences-types";
 import { getAbsenceIndex, purgeExpiredAbsences, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
+import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
 
 const RUN_LOCK_PREFIX = "absences/ingest-locks/";
 const SYNC_OCR_MAX_BYTES = 5 * 1024 * 1024;
@@ -64,7 +65,7 @@ async function acquireRunLock(jobId: string): Promise<boolean> {
   try {
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME!,
+        Bucket: (await getTenantBucketName()),
         Key: runLockKey(jobId),
         Body: JSON.stringify({ acquiredAt: new Date().toISOString() }),
         ContentType: "application/json",
@@ -83,7 +84,7 @@ async function acquireRunLock(jobId: string): Promise<boolean> {
 async function releaseRunLock(jobId: string) {
   try {
     await s3Client.send(
-      new DeleteObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: runLockKey(jobId) }),
+      new DeleteObjectCommand({ Bucket: (await getTenantBucketName()), Key: runLockKey(jobId) }),
     );
   } catch {
     /* ignore */
@@ -180,7 +181,7 @@ async function collectTextractBlocks(jobId: string) {
 async function ocrS3KeyAsync(key: string): Promise<string> {
   const start = await textract.send(
     new StartDocumentTextDetectionCommand({
-      DocumentLocation: { S3Object: { Bucket: process.env.BUCKET_NAME!, Name: key } },
+      DocumentLocation: { S3Object: { Bucket: (await getTenantBucketName()), Name: key } },
     }),
   );
   const jobId = start.JobId;
@@ -210,7 +211,7 @@ async function ocrS3KeyAsync(key: string): Promise<string> {
 
 async function downloadS3Pdf(key: string): Promise<Uint8Array> {
   const res = await s3Client.send(
-    new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: key }),
+    new GetObjectCommand({ Bucket: (await getTenantBucketName()), Key: key }),
   );
   const bytes = await res.Body?.transformToByteArray();
   if (!bytes?.length) throw new Error("Textract: PDF introuvable sur S3.");
@@ -432,6 +433,7 @@ ${ocrSlice}
 ---
 `;
 
+  const mistralKey = await requireMistralApiKey();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MISTRAL_TIMEOUT_MS);
   try {
@@ -439,7 +441,7 @@ ${ocrSlice}
       method: "POST",
       signal: controller.signal,
       headers: {
-        Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+        Authorization: `Bearer ${mistralKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

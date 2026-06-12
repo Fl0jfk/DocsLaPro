@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     return NextResponse.json({
       uploadUrl,
-      fileUrl: publicS3UrlForKey(fileKey),
+      fileUrl: await publicS3UrlForKey(fileKey),
     });
   } catch (error) {
     console.error(error);

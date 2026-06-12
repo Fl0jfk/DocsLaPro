@@ -1,5 +1,6 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getTenantBucketName } from "@/app/lib/tenant-config";
 
 export async function loadBusProgramAttachments(
   data: Record<string, unknown>,
@@ -19,7 +20,7 @@ export async function loadBusProgramAttachments(
         secretAccessKey: process.env.SECRET_ACCESS_KEY!,
       },
     });
-    const command = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: fileKey });
+    const command = new GetObjectCommand({ Bucket: await getTenantBucketName(), Key: fileKey });
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 120 });
     const fileRes = await fetch(presignedUrl);
     if (fileRes.ok) {

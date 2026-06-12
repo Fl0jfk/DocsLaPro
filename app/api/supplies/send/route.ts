@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 import { jsPDF } from "jspdf";
 import fs from "fs/promises";
 import path from "path";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 type LangueSeconde = "Espagnol" | "Allemand";
 type CollegeNiveau = "6e" | "5e" | "4e" | "3e";
@@ -73,13 +76,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Ajoutez au moins un enfant." }, { status: 400 });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    const smtp = await getTenantSmtpConfig();
+    if (!smtp) {
+      return NextResponse.json({ error: "SMTP non configuré." }, { status: 503 });
+    }
+    const transporter = await createTenantTransporter();
+    if (!transporter) {
+      return NextResponse.json({ error: "SMTP non configuré." }, { status: 503 });
+    }
 
     let logoDataUri: string | null = null;
     try {
@@ -184,7 +188,7 @@ export async function POST(req: Request) {
     const pdfBuffer = Buffer.from(pdfArrayBuffer);
 
     await transporter.sendMail({
-      from: `"Simulateur Fournitures" <${process.env.SMTP_USER}>`,
+      from: `"Simulateur Fournitures" <${smtp.user}>`,
       to: email,
       subject: "Votre liste de fournitures (PDF)",
       html: `<div style="font-family:Arial,sans-serif;color:#334155;line-height:1.5">

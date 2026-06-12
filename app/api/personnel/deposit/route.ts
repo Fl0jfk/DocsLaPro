@@ -126,7 +126,7 @@ export async function POST(req: Request) {
         ContentType: file.type || "application/octet-stream",
       }),
     );
-    const fileUrl = publicS3UrlForKey(fileKey);
+    const fileUrl = await publicS3UrlForKey(fileKey);
 
     const full = await getPersonnelRecord(staffId);
     if (!full) return NextResponse.json({ error: "Dossier introuvable." }, { status: 404 });

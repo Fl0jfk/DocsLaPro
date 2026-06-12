@@ -1,7 +1,11 @@
 import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
-import nodemailer from "nodemailer";
 import { SCHOOL } from "@/app/lib/school";
 import { getJson, putJson, putObject, getS3Client, getBucketName } from "@/app/lib/s3-storage";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 import { s3Key } from "@/app/lib/s3-path";
 import { LEGACY_ROUTE_TO_BRANCH, normalizeRequestBranchId, normalizeRequestEmail, isCorbeilleBranchId} from "@/app/lib/requests-board";
 import { getFirstBranchForStaffEmailFromDirectory, getStaffExecutorsForBranch, getStaffLeadersForBranch} from "@/app/lib/staff-directory";
@@ -447,7 +451,8 @@ type MistralRouteResult = {
 };
 
 async function routeWithMistral(subject: string, description: string): Promise<MistralRouteResult | null> {
-  if (!process.env.MISTRAL_API_KEY) return null;
+  const mistralKey = await getMistralApiKey();
+  if (!mistralKey) return null;
   const routeList = REQUEST_ROUTES.map((r) => `- ${r.id}: ${r.promptLine}`).join("\n");
   const prompt = `Tu es un classificateur pour un établissement scolaire. Choisis UNE SEULE routeId parmi la liste (identifiant exact).
 Routes possibles:
@@ -473,7 +478,7 @@ Demande: ${description}`;
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+      Authorization: `Bearer ${mistralKey}`,
     },
     body: JSON.stringify({
       model: "mistral-small-latest",
@@ -555,14 +560,12 @@ export function resolveRequestRouteById(routeId: string): ResolvedRequestRouting
   };
 }
 
-function getMailer() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+async function getMailer() {
+  const smtp = await getTenantSmtpConfig();
+  if (!smtp) return null;
+  const transporter = await createTenantTransporter();
+  if (!transporter) return null;
+  return { smtp, transporter };
 }
 
 export function getPublicAppBaseUrl(): string {
@@ -578,10 +581,11 @@ export async function notifyRequestPendingVerification(
   firstName: string,
   confirmUrl: string,
 ): Promise<void> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) { throw new Error("SMTP non configuré")}
-  const transporter = getMailer();
+  const mail = await getMailer();
+  if (!mail) throw new Error("SMTP non configuré");
+  const { smtp, transporter } = mail;
   await transporter.sendMail({
-    from: `"Demandes La Providence" <${process.env.SMTP_USER}>`,
+    from: `"Demandes La Providence" <${smtp.user}>`,
     to: email,
     subject: "Confirmez votre demande — un clic sur le lien",
     text: [
@@ -598,11 +602,12 @@ export async function notifyRequestPendingVerification(
 }
 
 export async function notifyRequestCreated(record: RequestRecord) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
-  const transporter = getMailer();
+  const mail = await getMailer();
+  if (!mail) return;
+  const { smtp, transporter } = mail;
   const { to, cc } = staffMailTargets(record);
   await transporter.sendMail({
-    from: `"Demandes" <${process.env.SMTP_USER}>`,
+    from: `"Demandes" <${smtp.user}>`,
     to,
     ...(cc ? { cc } : {}),
     subject: `Nouvelle demande (${record.category}) - ${record.requester.fullName}`,
@@ -626,7 +631,7 @@ export async function notifyRequestCreated(record: RequestRecord) {
     ].filter(Boolean).join("\n"),
   });
   await transporter.sendMail({
-    from: `"Demandes" <${process.env.SMTP_USER}>`,
+    from: `"Demandes" <${smtp.user}>`,
     to: record.requester.email,
     subject: `Votre demande a été enregistrée (${record.id})`,
     text: [
@@ -647,21 +652,22 @@ export async function notifyRequestCreated(record: RequestRecord) {
 const NOTIFY_STATUSES: RequestStatus[] = ["EN_ATTENTE", "TERMINEE"];
 
 export async function notifyRequestStatusMilestone( record: RequestRecord,previousStatus: RequestStatus, extraNote?: string) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+  const mail = await getMailer();
+  if (!mail) return;
   const now = record.status;
   if (now === previousStatus) return;
   if (!NOTIFY_STATUSES.includes(now)) return;
-  const transporter = getMailer();
+  const { smtp, transporter } = mail;
   const base = [ `Demande : ${record.id}`,`Évolution : ${previousStatus.replace("_", " ")} → ${now.replace("_", " ")}`,`Sujet : ${record.subject}`,extraNote ? `Précision : ${extraNote}` : ""].filter(Boolean).join("\n");
   await transporter.sendMail({
-    from: `"Demandes" <${process.env.SMTP_USER}>`,
+    from: `"Demandes" <${smtp.user}>`,
     to: record.requester.email,
     subject: `Votre demande — ${now === "TERMINEE" ? "clôture" : "en attente"} (${record.id})`,
     text: `Bonjour ${record.requester.fullName},\n\n${base}\n\nL’équipe vous informe à l’occasion de cette étape.`,
   });
   const { to: staffTo, cc: staffCc } = staffMailTargets(record);
   await transporter.sendMail({
-    from: `"Demandes" <${process.env.SMTP_USER}>`,
+    from: `"Demandes" <${smtp.user}>`,
     to: staffTo,
     ...(staffCc ? { cc: staffCc } : {}),
     subject: `[Demande ${record.id}] ${now.replace("_", " ")}`,
@@ -670,11 +676,12 @@ export async function notifyRequestStatusMilestone( record: RequestRecord,previo
 }
 
 export async function notifyRequesterOnly(record: RequestRecord, note: string) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+  const mail = await getMailer();
+  if (!mail) return;
   if (!note.trim()) return;
-  const transporter = getMailer();
+  const { smtp, transporter } = mail;
   await transporter.sendMail({
-    from: `"Demandes" <${process.env.SMTP_USER}>`,
+    from: `"Demandes" <${smtp.user}>`,
     to: record.requester.email,
     subject: `Message concernant votre demande (${record.id})`,
     text: [

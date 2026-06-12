@@ -1,17 +1,10 @@
-import nodemailer from "nodemailer";
 import { loadAppConfig } from "@/app/lib/app-config";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 function appUrl() { return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");}
-
-function getMailer() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
 
 export type TravelsTripForNotify = {
   ownerName?: string;
@@ -36,10 +29,13 @@ export async function notifyComptaTravelsPhase(params: {
   trip: TravelsTripForNotify;
   previousStatus?: string | null;
 }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const smtp = await getTenantSmtpConfig();
+  if (!smtp) {
     console.warn("[travels-notify] SMTP non configuré — pas d’e-mail compta.");
     return;
   }
+  const transporter = await createTenantTransporter();
+  if (!transporter) return;
 
   const d = params.trip.data || {};
   const title = String(d.title || "Sans titre");
@@ -67,8 +63,8 @@ export async function notifyComptaTravelsPhase(params: {
     return;
   }
 
-  await getMailer().sendMail({
-    from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
+  await transporter.sendMail({
+    from: `"Plateforme Voyages" <${smtp.user}>`,
     to: toList.join(", "),
     subject: `[Travels] Dossier en attente comptabilité — ${title}`,
     text: [

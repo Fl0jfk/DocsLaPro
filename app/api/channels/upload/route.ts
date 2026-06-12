@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { putObject } from "@/app/lib/s3-storage";
 import { s3Key } from "@/app/lib/s3-path";
+import { publicS3UrlForKey } from "@/app/lib/travels-s3";
 
 export const config = {
   api: {
@@ -25,8 +26,7 @@ export async function POST(req: NextRequest) {
     const rel = `uploads/${fileName}`;
     await putObject( rel, buffer, file.type);
     const fileKey = s3Key( rel);
-    const region = process.env.REGION || "eu-west-3";
-    const url = `https://${process.env.BUCKET_NAME}.s3.${region}.amazonaws.com/${fileKey}`;
+    const url = await publicS3UrlForKey(fileKey);
     return NextResponse.json({
       url,
       name: file.name,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getAuth } from '@clerk/nextjs/server';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { getBucketName } from "@/app/lib/s3-storage";
 
 const s3 = new S3Client({
   region: process.env.REGION,
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     }
     const key = `uploads-temp/${Date.now()}_${body.filename}`;
     const command = new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME!,
+      Bucket: await getBucketName(),
       Key: key,
       ContentType: body.contentType,
     });

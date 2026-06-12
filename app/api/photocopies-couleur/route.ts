@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import nodemailer from "nodemailer";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson, putJson } from "@/app/lib/s3-storage";
@@ -86,14 +89,12 @@ async function resolveDirectorMail( etab: PhotoCopieEtablissement) {
   return { name: bundle.identity.name, email: "", label: etab };
 }
 
-function getMailer() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+async function getMailer() {
+  const smtp = await getTenantSmtpConfig();
+  if (!smtp) return null;
+  const transporter = await createTenantTransporter();
+  if (!transporter) return null;
+  return { smtp, transporter };
 }
 
 function appUrl() {
@@ -206,11 +207,12 @@ export async function POST(req: Request) {
     await saveIndex( all);
 
     const dir = await resolveDirectorMail( etablissement);
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const mail = await getMailer();
+    if (mail) {
+      const { smtp, transporter } = mail;
       try {
-        const transporter = getMailer();
         await transporter.sendMail({
-          from: `"Demandes photocopies" <${process.env.SMTP_USER}>`,
+          from: `"Demandes photocopies" <${smtp.user}>`,
           to: dir.email,
           subject: `Photocopies couleur — nouvelle demande (${etablissement})`,
           text: [
@@ -295,12 +297,13 @@ export async function PATCH(req: Request) {
     const creatorEmail = updated.createdBy.email;
     const base = `${appUrl()}/photocopies-couleur`;
 
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      const transporter = getMailer();
+    const mail = await getMailer();
+    if (mail) {
+      const { smtp, transporter } = mail;
       try {
         if (creatorEmail) {
           await transporter.sendMail({
-            from: `"Demandes photocopies" <${process.env.SMTP_USER}>`,
+            from: `"Demandes photocopies" <${smtp.user}>`,
             to: creatorEmail,
             subject:
               updated.status === "ACCEPTEE"
@@ -350,7 +353,7 @@ export async function PATCH(req: Request) {
       if (updated.status === "ACCEPTEE") {
         try {
           await transporter.sendMail({
-            from: `"Demandes photocopies" <${process.env.SMTP_USER}>`,
+            from: `"Demandes photocopies" <${smtp.user}>`,
             to: opsMail,
             subject: `[À traiter] Photocopies couleur acceptées — ${updated.etablissement}`,
             text: [

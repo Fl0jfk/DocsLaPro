@@ -6,6 +6,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { normalizeRequestEmail } from "@/app/lib/requests-board";
 import { findRequestAttachment, getRequestsIndex } from "@/app/lib/requests";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
+import { getBucketName } from "@/app/lib/s3-storage";
 
 const s3 = new S3Client({
   region: process.env.REGION,
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     if (!relOk) {
       return NextResponse.json({ error: "Clé invalide" }, { status: 400 });
     }
-    const command = new GetObjectCommand({  Bucket: process.env.BUCKET_NAME!, Key: att.key});
+    const command = new GetObjectCommand({ Bucket: await getBucketName(), Key: att.key });
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     return NextResponse.json({ url, fileName: att.fileName, contentType: att.contentType });
   } catch (e) {

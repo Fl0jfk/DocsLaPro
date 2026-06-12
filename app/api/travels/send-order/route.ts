@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { jsPDF } from "jspdf";
@@ -7,6 +6,11 @@ import autoTable from "jspdf-autotable";
 import fs from "fs/promises";
 import path from "path";
 import { extractDevisMetadataWithMistral, ocrS3Key } from "@/app/lib/travel-devis-ocr";
+import { getTenantBucketName } from "@/app/lib/tenant-config";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 const SIGNED_DEVIS_COPY_TO = "comptabilite@laprovidence-nicolasbarre.fr";
 
@@ -165,7 +169,8 @@ export async function POST(req: Request) {
     let extractedPrice: string | null = null;
     let extractedContactEmail: string | null = null;
     try {
-      const ocrText = await ocrS3Key(process.env.BUCKET_NAME!, fileKey);
+      const bucket = await getTenantBucketName();
+      const ocrText = await ocrS3Key(bucket, fileKey);
       if (ocrText) {
         const meta = await extractDevisMetadataWithMistral(ocrText);
         extractedPrice = meta.price;
@@ -180,6 +185,7 @@ export async function POST(req: Request) {
     if (!toEmail) {
       return NextResponse.json({ error: "Email du transporteur manquant" }, { status: 400 });
     }
+    const bucket = await getTenantBucketName();
     const s3Client = new S3Client({
       region: process.env.REGION,
       credentials: {
@@ -188,7 +194,7 @@ export async function POST(req: Request) {
       },
     });
     const command = new GetObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
+      Bucket: bucket,
       Key: fileKey,
     });
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 120 });
@@ -196,13 +202,14 @@ export async function POST(req: Request) {
     if (!pdfResponse.ok) { throw new Error(`Impossible d'accéder au PDF sur S3 : ${pdfResponse.statusText}`);}
     const pdfArrayBuffer = await pdfResponse.arrayBuffer();
     const pdfBuffer = Buffer.from(pdfArrayBuffer);
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.SMTP_USER, 
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    const smtp = await getTenantSmtpConfig();
+    if (!smtp) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
+    const transporter = await createTenantTransporter();
+    if (!transporter) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
     const confirmationPdf = buildConfirmationPDF({
       providerName,
       tripTitle,
@@ -213,7 +220,7 @@ export async function POST(req: Request) {
       logoDataUri,
     });
     const mailOptions = {
-      from: `"Gestion Voyages" <${process.env.SMTP_USER}>`,
+      from: `"Gestion Voyages" <${smtp.user}>`,
       to: toEmail,
       subject: `Confirmation de commande : ${tripTitle}`,
       html: `
@@ -243,7 +250,7 @@ export async function POST(req: Request) {
 
     try {
       await transporter.sendMail({
-        from: `"Gestion Voyages" <${process.env.SMTP_USER}>`,
+        from: `"Gestion Voyages" <${smtp.user}>`,
         to: SIGNED_DEVIS_COPY_TO,
         subject: `[Copie] Devis signé — ${tripTitle}`,
         text: [

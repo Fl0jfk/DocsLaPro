@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { NextResponse, after } from "next/server";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { publicS3UrlForKey } from "@/app/lib/travels-s3";
+import { getTenantBucketName } from "@/app/lib/tenant-config";
 import { providerNameFromEmail } from "@/app/lib/transport-providers";
 import { ocrS3Key, type TripCandidateForMatch } from "@/app/lib/travel-devis-ocr";
 import {
@@ -503,7 +504,7 @@ async function runIngestBackgroundJob(p: IngestJobParams): Promise<void> {
     let messageId: string | null = null;
     let attachmentAdded = false;
     let duplicate = false;
-    const fileViewUrl = s3Key ? publicS3UrlForKey(s3Key) : undefined;
+    const fileViewUrl = s3Key ? await publicS3UrlForKey(s3Key) : undefined;
     const isDevis = analysis.messageType === "devis_pdf";
 
     if (isDevis && hasPdfAttachment && s3Key) {
@@ -693,7 +694,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Clé S3 non autorisée" }, { status: 400 });
   }
 
-  const bucket = process.env.BUCKET_NAME!;
+  const bucket = await getTenantBucketName();
   const client = s3();
   const markerKey = ingestMarkerKey(gmailMessageId, s3Key);
   const existing = await readIngestMarker(client, bucket, markerKey);

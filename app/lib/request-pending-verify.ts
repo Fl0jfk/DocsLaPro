@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { CopyObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import { assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD, sanitizeRequestFileName } from "@/app/lib/requests";
+import { getTenantBucketName } from "@/app/lib/tenant-config";
 
 const s3Client = new S3Client({
   region: process.env.REGION,
@@ -48,7 +49,7 @@ export async function savePendingRequestWithFiles(
   files: { buffer: Buffer; fileName: string; contentType: string }[],
 ): Promise<void> {
   if (files.length > MAX_REQUEST_ATTACHMENTS_PER_UPLOAD) { throw new Error(`Maximum ${MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} fichiers.`)}
-  const bucket = process.env.BUCKET_NAME!;
+  const bucket = (await getTenantBucketName());
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + PENDING_REQUEST_TTL_MS).toISOString();
   const attachmentKeys: string[] = [];
@@ -100,7 +101,7 @@ export async function loadPendingRequestMeta(token: string): Promise<PendingRequ
   try {
     const res = await s3Client.send(
       new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME!,
+        Bucket: (await getTenantBucketName()),
         Key: metaKey(trimmed),
       }),
     );
@@ -117,7 +118,7 @@ export async function loadPendingRequestMeta(token: string): Promise<PendingRequ
 }
 
 export async function deletePendingRequestPrefix(token: string): Promise<void> {
-  const bucket = process.env.BUCKET_NAME!;
+  const bucket = (await getTenantBucketName());
   const prefix = pendingPrefix(token.trim());
   let continuationToken: string | undefined;
   do {
@@ -138,7 +139,7 @@ export async function deletePendingRequestPrefix(token: string): Promise<void> {
 }
 
 export async function copyPendingFileToRequest( sourceKey: string,requestId: string, attId: string, fileName: string, contentType: string, size: number, uploadedAt: string): Promise<{ id: string; key: string; fileName: string; contentType: string; size: number; uploadedAt: string }> {
-  const bucket = process.env.BUCKET_NAME!;
+  const bucket = (await getTenantBucketName());
   const safe = sanitizeRequestFileName(fileName);
   const destKey = `requests/${requestId}/files/${attId}_${safe}`;
   const copySource = `${bucket}/${sourceKey.split("/").map(encodeURIComponent).join("/")}`;

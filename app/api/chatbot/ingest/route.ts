@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { appendEntryToKnowledgeFile, readKnowledgeIndex, selectDomainByMessage } from "@/app/lib/knowledge";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,8 @@ export async function POST(req: Request) {
     let content = text.slice(0, 1800);
     let updatesToApply: Array<{ domainId: string; title: string; content: string }> = [];
 
-    if (process.env.MISTRAL_API_KEY) {
+    const mistralKey = await getMistralApiKey();
+    if (mistralKey) {
       const domainsDescription = index.domains
         .map((d) => `- ${d.id}: ${d.label}`)
         .join("\n");
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`,
+          "Authorization": `Bearer ${mistralKey}`,
         },
         body: JSON.stringify({
           model: "mistral-small-latest",

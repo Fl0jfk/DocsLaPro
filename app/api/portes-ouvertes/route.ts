@@ -1,18 +1,22 @@
-import nodemailer from "nodemailer";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 export async function POST(req: Request) {
   try {
     const data = await req.json();
     const { last_name, first_name, email, telephone, enfantNom, enfantPrenom, etablissement, classe, horaire, preinscription,} = data;
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    const smtp = await getTenantSmtpConfig();
+    if (!smtp) {
+      return new Response("SMTP non configuré", { status: 503 });
+    }
+    const transporter = await createTenantTransporter();
+    if (!transporter) {
+      return new Response("SMTP non configuré", { status: 503 });
+    }
     await transporter.sendMail({
-      from: `"Portes ouvertes" <${process.env.SMTP_USER}>`,
+      from: `"Portes ouvertes" <${smtp.user}>`,
       to: "accueil.laprovidence.nb@gmail.com",
       replyTo: email,
       subject: "Nouvelle inscription – Portes ouvertes",

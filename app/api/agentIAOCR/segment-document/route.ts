@@ -5,6 +5,7 @@ import {
   heuristicClassSegments,
   type OcrDocumentSegment,
 } from "@/app/lib/ocr-segmentation";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
 
 export const maxDuration = 60;
 
@@ -77,7 +78,7 @@ async function callMistralSegmentation(
   digest: string,
   pageCount: number,
 ): Promise<{ mode: "single" | "multi"; segments: DocumentSegment[] } | null> {
-  const apiKey = process.env.MISTRAL_API_KEY;
+  const apiKey = await getMistralApiKey();
   if (!apiKey) return null;
 
   const pagesHint =

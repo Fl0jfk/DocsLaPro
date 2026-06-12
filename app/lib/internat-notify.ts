@@ -1,5 +1,8 @@
-import nodemailer from "nodemailer";
 import { loadAppConfig } from "@/app/lib/app-config";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 import {
   outingDateTimeLabel,
   participantsForEtab,
@@ -14,11 +17,12 @@ function appUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 }
 
-function getMailer() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
+async function getInternatMailer() {
+  const smtp = await getTenantSmtpConfig();
+  if (!smtp) return null;
+  const transporter = await createTenantTransporter();
+  if (!transporter) return null;
+  return { smtp, transporter };
 }
 
 function parseRollCallRecipients(raw: InternatRollCallRecipients | undefined) {
@@ -35,10 +39,12 @@ export async function notifyInternatRollCallValidated(params: {
   students: InternatStudent[];
   validatedBy: string;
 }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const mail = await getInternatMailer();
+  if (!mail) {
     console.warn("[internat-notify] SMTP non configuré.");
     return { sent: false, reason: "smtp" };
   }
+  const { smtp, transporter } = mail;
 
   const bundle = await loadAppConfig();
   const notif = bundle.notifications as typeof bundle.notifications & {
@@ -108,8 +114,8 @@ export async function notifyInternatRollCallValidated(params: {
     bundle.identity.shortName || bundle.identity.name,
   ].join("\n");
 
-  await getMailer().sendMail({
-    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${process.env.SMTP_USER}>`,
+  await transporter.sendMail({
+    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${smtp.user}>`,
     to: recipients.join(", "),
     subject: `Appel internat — ${params.rollCall.date}`,
     text,
@@ -125,10 +131,12 @@ export async function notifyInternatEmergency(params: {
   createdBy: string;
   studentNames?: string[];
 }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const mail = await getInternatMailer();
+  if (!mail) {
     console.warn("[internat-notify] SMTP non configuré.");
     return { sent: false, reason: "smtp" };
   }
+  const { smtp, transporter } = mail;
 
   const bundle = await loadAppConfig();
   const notif = bundle.notifications as typeof bundle.notifications & {
@@ -156,8 +164,8 @@ export async function notifyInternatEmergency(params: {
     .filter(Boolean)
     .join("\n");
 
-  await getMailer().sendMail({
-    from: `"ALERTE INTERNAT" <${process.env.SMTP_USER}>`,
+  await transporter.sendMail({
+    from: `"ALERTE INTERNAT" <${smtp.user}>`,
     to: recipients.join(", "),
     subject: `ALERTE INTERNAT — ${params.severity}`,
     text,
@@ -172,10 +180,12 @@ export async function notifyInternatRollCallIncomplete(params: {
   markedCount: number;
   totalCount: number;
 }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const mail = await getInternatMailer();
+  if (!mail) {
     console.warn("[internat-notify] SMTP non configuré.");
     return { sent: false, reason: "smtp" };
   }
+  const { smtp, transporter } = mail;
 
   const bundle = await loadAppConfig();
   const notif = bundle.notifications as typeof bundle.notifications & {
@@ -217,8 +227,8 @@ export async function notifyInternatRollCallIncomplete(params: {
     bundle.identity.shortName || bundle.identity.name,
   ].join("\n");
 
-  await getMailer().sendMail({
-    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${process.env.SMTP_USER}>`,
+  await transporter.sendMail({
+    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${smtp.user}>`,
     to: recipients.join(", "),
     subject: `[Internat] Appel du soir non finalisé — ${params.rollCall.date}`,
     text,
@@ -238,10 +248,12 @@ export async function notifyInternatOutingDirection(params: {
   outing: InternatOuting;
   decisionIndex: number;
 }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const mail = await getInternatMailer();
+  if (!mail) {
     console.warn("[internat-notify] SMTP non configuré.");
     return { sent: false, reason: "smtp" };
   }
+  const { smtp, transporter } = mail;
 
   const bundle = await loadAppConfig();
   const decision = params.outing.directionDecisions[params.decisionIndex];
@@ -275,8 +287,8 @@ export async function notifyInternatOutingDirection(params: {
     .filter(Boolean)
     .join("\n");
 
-  await getMailer().sendMail({
-    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${process.env.SMTP_USER}>`,
+  await transporter.sendMail({
+    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${smtp.user}>`,
     to: decision.directorEmail,
     subject: `[Internat] Validation sortie — ${params.outing.title}`,
     text,
@@ -286,10 +298,12 @@ export async function notifyInternatOutingDirection(params: {
 }
 
 export async function notifyInternatOutingParents(params: { outing: InternatOuting; participantIndex: number }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const mail = await getInternatMailer();
+  if (!mail) {
     console.warn("[internat-notify] SMTP non configuré.");
     return { sent: false, reason: "smtp" };
   }
+  const { smtp, transporter } = mail;
 
   const bundle = await loadAppConfig();
   const p = params.outing.participants[params.participantIndex];
@@ -321,8 +335,8 @@ export async function notifyInternatOutingParents(params: { outing: InternatOuti
     .filter(Boolean)
     .join("\n");
 
-  await getMailer().sendMail({
-    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${process.env.SMTP_USER}>`,
+  await transporter.sendMail({
+    from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${smtp.user}>`,
     to: emails.join(", "),
     subject: `[Internat] Autorisation de sortie — ${p.studentName}`,
     text,
@@ -345,10 +359,12 @@ export async function sendInternatWeeklyParentDigest(params: {
   linesByEmail: Map<string, ParentWeeklyDigestLine[]>;
   weekLabel: string;
 }) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const mail = await getInternatMailer();
+  if (!mail) {
     console.warn("[internat-notify] SMTP non configuré.");
     return { sent: false, reason: "smtp", count: 0 };
   }
+  const { smtp, transporter } = mail;
   if (params.linesByEmail.size === 0) {
     return { sent: true, count: 0, skipped: "empty" };
   }
@@ -379,8 +395,8 @@ export async function sendInternatWeeklyParentDigest(params: {
       .filter(Boolean)
       .join("\n");
 
-    await getMailer().sendMail({
-      from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${process.env.SMTP_USER}>`,
+    await transporter.sendMail({
+      from: `"Internat ${bundle.identity.shortName || "La Providence"}" <${smtp.user}>`,
       to: email,
       subject: `[Internat] Sorties prévues — semaine du ${params.weekLabel}`,
       text,

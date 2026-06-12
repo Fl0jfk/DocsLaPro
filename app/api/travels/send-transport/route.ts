@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import nodemailer from "nodemailer";
 import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { loadBusProgramAttachments } from "@/app/lib/travels-bus-program";
 import { buildTransportQuotePdf } from "@/app/lib/travels-transport-quote-pdf";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -37,13 +40,14 @@ export async function POST(req: Request) {
       ...busProgramExtra,
     ];
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    const smtp = await getTenantSmtpConfig();
+    if (!smtp) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
+    const transporter = await createTenantTransporter();
+    if (!transporter) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
 
     for (const transporteur of transporteurs) {
       try {
@@ -57,7 +61,7 @@ export async function POST(req: Request) {
           ...attachments.slice(1),
         ];
         await transporter.sendMail({
-          from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
+          from: `"Plateforme Voyages" <${smtp.user}>`,
           to: transporteur.email,
           subject: `🚗 DEMANDE DE DEVIS - ${data.destination.toUpperCase()} - ${userName}`,
           html: `

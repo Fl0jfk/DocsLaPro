@@ -1,4 +1,5 @@
 import type { TripCandidateForMatch } from "@/app/lib/travel-devis-ocr";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
 
 function normalizeContactEmail(v: string | null | undefined): string | null {
   if (!v || String(v).toLowerCase() === "null") return null;
@@ -96,7 +97,8 @@ export async function analyzeTravelEmailWithMistral(input: {
   hasPdfAttachment?: boolean;
   candidates: TripCandidateForMatch[];
 }): Promise<TravelEmailAnalysis> {
-  if (!process.env.MISTRAL_API_KEY) return { ...EMPTY_ANALYSIS, matchMotif: "missing_mistral_key" };
+  const mistralKey = await getMistralApiKey();
+  if (!mistralKey) return { ...EMPTY_ANALYSIS, matchMotif: "missing_mistral_key" };
 
   const { subject, snippet, bodyPlain, ocrText, fromEmail, hasPdfAttachment, candidates } = input;
   if (!candidates.length) {
@@ -112,7 +114,7 @@ export async function analyzeTravelEmailWithMistral(input: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+        Authorization: `Bearer ${mistralKey}`,
       },
       body: JSON.stringify({
         model: "mistral-small-latest",

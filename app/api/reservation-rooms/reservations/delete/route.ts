@@ -3,16 +3,15 @@ import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getAuth } from "@clerk/nextjs/server";
 import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
-import nodemailer from "nodemailer";
+import { getBucketName } from "@/app/lib/s3-storage";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 const s3 = new S3Client({
   region: process.env.REGION,
   credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY! },
-});
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
 
 export async function POST(req: NextRequest) {
@@ -24,7 +23,8 @@ export async function POST(req: NextRequest) {
     const lastNameAdmin = (user.lastName ?? "").toUpperCase();
     const firstNameAdmin = user.firstName ?? "";
     const { id, groupId, deleteAllSeries, reason, userEmail, startsAt } = await req.json();
-    const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
+    const bucket = await getBucketName();
+    const getCmd = new GetObjectCommand({ Bucket: bucket, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const resS3 = await fetch(getUrl);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,13 +58,16 @@ export async function POST(req: NextRequest) {
       }
     }
     const putCmd = new PutObjectCommand({ 
-        Bucket: process.env.BUCKET_NAME!, 
+        Bucket: bucket, 
         Key: "reservation-rooms/reservations.json", 
         ContentType: "application/json" 
     });
     const putUrl = await getSignedUrl(s3, putCmd, { expiresIn: 60 });
     await fetch(putUrl, { method: "PUT", body: JSON.stringify(existing, null, 2) });
     if (userEmail && targetReservations.length > 0) {
+      const smtp = await getTenantSmtpConfig();
+      const transporter = smtp ? await createTenantTransporter() : null;
+      if (transporter && smtp) {
       const dateFormatted = new Date(startsAt.split('T')[0] + "T12:00:00").toLocaleDateString("fr-FR", { 
         weekday: 'long', 
         day: 'numeric', 
@@ -75,7 +78,7 @@ export async function POST(req: NextRequest) {
         ? startsAt.split('T')[1].substring(0, 5).replace(':', 'h') 
         : "";
       await transporter.sendMail({
-        from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
+        from: `"Gestion Salles" <${smtp.user}>`,
         to: userEmail,
         subject: "⚠️ Annulation de réservation",
         html: `
@@ -103,6 +106,7 @@ export async function POST(req: NextRequest) {
           </div>
         `
       });
+      }
     }
     return NextResponse.json({ success: true });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

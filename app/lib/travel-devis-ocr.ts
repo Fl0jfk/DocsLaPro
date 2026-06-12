@@ -4,6 +4,7 @@ import {
   GetDocumentTextDetectionCommand,
   DetectDocumentTextCommand,
 } from "@aws-sdk/client-textract";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
 
 function textractClient() {
   return new TextractClient({
@@ -159,7 +160,8 @@ export type DevisOcrAndTripMatch = DevisOcrMetadata & {
 };
 
 export async function extractDevisMetadataWithMistral(ocrText: string): Promise<DevisOcrMetadata> {
-  if (!ocrText || !process.env.MISTRAL_API_KEY) {
+  const mistralKey = await getMistralApiKey();
+  if (!ocrText || !mistralKey) {
     return { price: null, company: null, contactEmail: null };
   }
   try {
@@ -167,7 +169,7 @@ export async function extractDevisMetadataWithMistral(ocrText: string): Promise<
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+        Authorization: `Bearer ${mistralKey}`,
       },
       body: JSON.stringify({
         model: "mistral-small-latest",
@@ -221,14 +223,15 @@ async function callMistralDevisTripMatch(
   snip: string,
   tripsJson: string
 ): Promise<{ ok: boolean; status: number; data: Record<string, unknown>; raw: string }> {
-  if (!process.env.MISTRAL_API_KEY) {
+  const mistralKey = await getMistralApiKey();
+  if (!mistralKey) {
     return { ok: false, status: 0, data: { _reason: "missing_mistral_key" }, raw: "" };
   }
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+      Authorization: `Bearer ${mistralKey}`,
     },
     body: JSON.stringify({
       model: "mistral-small-latest",
@@ -343,7 +346,7 @@ export async function extractDevisAndMatchTripWithMistral(
     suggestedTripId: null,
     matchReviewRequired: false,
   };
-  if (!process.env.MISTRAL_API_KEY) {
+  if (!(await getMistralApiKey())) {
     return empty;
   }
 

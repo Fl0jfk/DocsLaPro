@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from "@clerk/nextjs/server";
 import { isValidTravelsReopenFromValideStatus } from "@/app/lib/travels-direction-permissions";
-import nodemailer from "nodemailer";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 import IMAGE_CATALOG from "./image-catalog.json";
 import { notifyComptaTravelsPhase, type TravelsTripForNotify } from "@/app/lib/travels-notify";
 import { requireAuth } from "@/app/lib/intranet-auth";
@@ -27,12 +31,14 @@ export async function POST(req: Request) {
     const objectToSave = body.data; 
     if (!objectToSave.imageUrl) {
       try {
+        const mistralKey = await getMistralApiKey();
+        if (mistralKey) {
         const catalogSummary = IMAGE_CATALOG.map(i => `${i.id} (${i.label})`).join(", ");
         const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`
+            "Authorization": `Bearer ${mistralKey}`
           },
           body: JSON.stringify({
             model: "mistral-small-latest",
@@ -56,6 +62,7 @@ export async function POST(req: Request) {
         ) || IMAGE_CATALOG.find(img => img.id === "img_default") || IMAGE_CATALOG[0];
         objectToSave.imageUrl = matchedImage.url;
         objectToSave.imageConfigId = matchedImage.id;
+        }
       } catch (err) { console.error("Erreur IA:", err)}
     }
     const tripRel = `travels/${tripId}.json`;
@@ -143,17 +150,13 @@ export async function POST(req: Request) {
     if (isNewProject && !suppressNewTripEmail) {
       try {
         const director = await resolveDirectorForEstablishment( innerData.etablissement);
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
+        const smtp = await getTenantSmtpConfig();
+        const transporter = smtp ? await createTenantTransporter() : null;
+        if (transporter && smtp) {
         const creatorName = objectToSave.ownerName || "Enseignant";
         const dateInfo = innerData.startDate || innerData.endDate ? `du ${innerData.startDate || innerData.date || "—"} au ${innerData.endDate || innerData.date || "—"}` : (innerData.date || "—");
         await transporter.sendMail({
-          from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
+          from: `"Plateforme Voyages" <${smtp.user}>`,
           to: director.email,
           subject: `Nouvelle demande de sortie — ${innerData.etablissement || "Groupe Scolaire"} — ${title}`,
           text: [
@@ -174,6 +177,7 @@ export async function POST(req: Request) {
             `Plateforme Voyages`,
           ].join("\n"),
         });
+        }
       } catch (mailErr) { console.error("Erreur notification direction:", mailErr)}
     }
     return NextResponse.json({

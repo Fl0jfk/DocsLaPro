@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 import { auth } from "@clerk/nextjs/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";
 import { computeTripReminders } from "@/app/lib/travels-trip-helpers";
 import type { TravelsTrip } from "@/app/lib/travels-types";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 /** GET : rappels calculés pour tous les dossiers ou un tripId. */
 export async function GET(req: Request) {
@@ -63,13 +66,17 @@ export async function POST(req: Request) {
     const reminder = reminderId ? reminders.find((r) => r.id === reminderId) : reminders[0];
     if (!reminder) return NextResponse.json({ error: "Aucun rappel applicable" }, { status: 400 });
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
+    const smtp = await getTenantSmtpConfig();
+    if (!smtp) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
+    const transporter = await createTenantTransporter();
+    if (!transporter) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
 
     await transporter.sendMail({
-      from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
+      from: `"Plateforme Voyages" <${smtp.user}>`,
       to: trip.ownerEmail,
       subject: `Rappel sortie — ${trip.data.title || tripId}`,
       text: [

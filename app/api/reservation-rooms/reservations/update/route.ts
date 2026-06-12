@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getAuth } from "@clerk/nextjs/server";
+import { getBucketName } from "@/app/lib/s3-storage";
 
 const s3 = new S3Client({
   region: process.env.REGION,
@@ -14,7 +15,8 @@ export async function POST(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     const body = await req.json();
     const { id, newHour, date, updateAllSeries, subject, className, comment } = body;
-    const getCmd = new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: "reservation-rooms/reservations.json" });
+    const bucket = await getBucketName();
+    const getCmd = new GetObjectCommand({ Bucket: bucket, Key: "reservation-rooms/reservations.json" });
     const getUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 });
     const resS3 = await fetch(getUrl);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
         }
     });
     const putCmd = new PutObjectCommand({ 
-        Bucket: process.env.BUCKET_NAME!, 
+        Bucket: bucket, 
         Key: "reservation-rooms/reservations.json", 
         ContentType: "application/json" 
     });

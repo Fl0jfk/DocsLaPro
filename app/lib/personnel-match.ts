@@ -1,4 +1,5 @@
 import type { PersonnelRecord } from "@/app/lib/personnel-types";
+import { requireMistralApiKey } from "@/app/lib/tenant-config";
 
 export type PersonnelExtracted = {
   type_document?: string;
@@ -57,8 +58,7 @@ function parseMistralJson(content: string): Record<string, unknown> {
 }
 
 async function mistralJson(prompt: string): Promise<Record<string, unknown>> {
-  const key = process.env.MISTRAL_API_KEY;
-  if (!key) throw new Error("Service IA non configuré (MISTRAL_API_KEY).");
+  const key = await requireMistralApiKey();
 
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",

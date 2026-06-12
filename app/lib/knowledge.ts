@@ -41,10 +41,9 @@ function getS3Client() {
   });
 }
 
-function getKnowledgeBucket() {
-  const bucket = process.env.BUCKET_NAME;
-  if (!bucket) throw new Error("BUCKET_NAME manquant");
-  return bucket;
+async function getKnowledgeBucket() {
+  const { getTenantBucketName } = await import("@/app/lib/tenant-config");
+  return getTenantBucketName();
 }
 
 function knowledgeKey(file: string) {
@@ -54,7 +53,7 @@ function knowledgeKey(file: string) {
 
 async function readKnowledgeJsonFromS3<T>(file: string): Promise<T> {
   const s3 = getS3Client();
-  const bucket = getKnowledgeBucket();
+  const bucket = await getKnowledgeBucket();
   const key = knowledgeKey(file);
   const signed = await getSignedUrl( s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 120 });
   const res = await fetch(signed, { cache: "no-store" });
@@ -64,7 +63,7 @@ async function readKnowledgeJsonFromS3<T>(file: string): Promise<T> {
 
 async function writeKnowledgeJsonToS3(file: string, data: unknown) {
   const s3 = getS3Client();
-  const bucket = getKnowledgeBucket();
+  const bucket = await getKnowledgeBucket();
   const key = knowledgeKey(file);
   const signed = await getSignedUrl( s3,new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: "application/json; charset=utf-8",}),{ expiresIn: 120 });
   const payload = JSON.stringify(data, null, 2);

@@ -8,6 +8,7 @@ import {
   type IngestJob,
 } from "./ingest-job";
 import { mapIngestFailureMessage } from "@/app/lib/absence-ingest-process";
+import { getBucketName } from "@/app/lib/s3-storage";
 
 export const maxDuration = 60;
 
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME!,
+        Bucket: await getBucketName(),
         Key: key,
         Body: buffer,
         ContentType: "application/pdf",

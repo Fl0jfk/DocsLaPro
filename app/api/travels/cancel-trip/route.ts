@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 import { loadAppConfig } from "@/app/lib/app-config";
 import { defaultNotifications } from "@/app/lib/app-config-defaults";
 import { requireAuth } from "@/app/lib/intranet-auth";
@@ -8,6 +7,10 @@ import { buildTravelsMailPreview } from "@/app/lib/travels-mail-preview";
 import { assertTravelsTripAccess } from "@/app/lib/travels-rbac-server";
 import { tripDateRangeLabel } from "@/app/lib/travels-trip-helpers";
 import type { TravelsTrip } from "@/app/lib/travels-types";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 export async function POST(req: Request) {
   const gate = await requireAuth();
@@ -41,10 +44,14 @@ export async function POST(req: Request) {
 
     const now = new Date().toISOString();
     const actor = access.user.fullName || "Administration";
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
+    const smtp = await getTenantSmtpConfig();
+    if (!smtp) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
+    const transporter = await createTenantTransporter();
+    if (!transporter) {
+      return NextResponse.json({ error: "SMTP non configuré" }, { status: 503 });
+    }
 
     const emailsSent: string[] = [];
 
@@ -52,7 +59,7 @@ export async function POST(req: Request) {
       const preview = buildTravelsMailPreview(trip, "cancel_trip_transport", { userName: actor });
       for (const to of preview.to) {
         await transporter.sendMail({
-          from: `"Plateforme Voyages" <${process.env.SMTP_USER}>`,
+          from: `"Plateforme Voyages" <${smtp.user}>`,
           to,
           subject: preview.subject,
           text: reason ? `${preview.text}\n\nMotif : ${reason}` : preview.text,
@@ -67,7 +74,7 @@ export async function POST(req: Request) {
         chefEmail,
       });
       await transporter.sendMail({
-        from: `"Gestion Sorties La Providence" <${process.env.EMAIL_USER || process.env.SMTP_USER}>`,
+        from: `"Gestion Sorties La Providence" <${smtp.user}>`,
         to: chefEmail,
         cc: trip.ownerEmail || undefined,
         subject: preview.subject,

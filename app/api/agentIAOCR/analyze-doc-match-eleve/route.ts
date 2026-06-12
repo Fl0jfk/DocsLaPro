@@ -11,6 +11,7 @@ import {
   getOneDriveProfileForClerkLastName,
   oneDrivePathForEleve,
 } from "@/app/lib/onedrive-eleves";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
 
 const KEY = "eleves.json";
 
@@ -51,6 +52,10 @@ export async function POST(req: Request) {
     const odProfile = getOneDriveProfileForClerkLastName(lastName);
     const { text } = await req.json();
     if (!text) { return NextResponse.json({ error: 'text requis' }, { status: 400 })}
+    const mistralKey = await getMistralApiKey();
+    if (!mistralKey) {
+      return NextResponse.json({ error: "Service IA non configuré (MISTRAL_API_KEY)." }, { status: 503 });
+    }
     const extractionPrompt = `
       Analyse ce document scolaire et extrais UNIQUEMENT les informations suivantes si elles sont clairement présentes dans le texte :
       - Type de document (bulletin, relevé de notes, certificat de scolarité, diplôme, bac, etc.)
@@ -82,7 +87,7 @@ export async function POST(req: Request) {
     const extractionResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
+        'Authorization': `Bearer ${mistralKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -193,7 +198,7 @@ export async function POST(req: Request) {
           const selectionResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
             method: "POST",
             headers: {
-              'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
+              'Authorization': `Bearer ${mistralKey}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -254,7 +259,7 @@ export async function POST(req: Request) {
     const namingResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
+        'Authorization': `Bearer ${mistralKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

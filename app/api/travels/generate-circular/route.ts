@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import fs from 'fs/promises';
 import path from 'path';
 import { parseTravelsS3KeyFromUrl } from "@/app/lib/travels-s3";
+import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
 import {  TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand} from "@aws-sdk/client-textract";
 
 const textractClient = new TextractClient({
@@ -20,16 +21,17 @@ export async function POST(req: Request) {
     const professorName = tripData.ownerName || "l'enseignant";
     const costPerStudent = d.costPerStudent || (d.coutTotal && d.nbEleves ? (d.coutTotal / d.nbEleves).toFixed(2) : 'À préciser');
     let ocrCombinedText = "";
+    const bucket = await getTenantBucketName();
     const documents = tripData.data?.attachments; 
     if (documents && Array.isArray(documents)) {      
       for (const doc of documents) {
         try {
-          const docKey = doc.key || (doc.url ? parseTravelsS3KeyFromUrl(doc.url) : null);
+          const docKey = doc.key || (doc.url ? await parseTravelsS3KeyFromUrl(doc.url) : null);
           if (!docKey) {
             console.warn(`[OCR] Clé S3 introuvable pour ${doc.name || "document"}`);
             continue;
           }
-          const startCommand = new StartDocumentTextDetectionCommand({DocumentLocation: { S3Object: { Bucket: process.env.BUCKET_NAME, Name: docKey}}});
+          const startCommand = new StartDocumentTextDetectionCommand({DocumentLocation: { S3Object: { Bucket: bucket, Name: docKey}}});
           const startResponse = await textractClient.send(startCommand);
           const jobId = startResponse.JobId;
           let finished = false;
@@ -70,11 +72,12 @@ export async function POST(req: Request) {
       - Pique-nique : ${(d.piqueNiqueDetails?.active || d.piqueNique) ? "Oui" : "Non"}
       - Pique-nique (détails) : ${d.piqueNiqueDetails?.active ? `Livraison à ${d.piqueNiqueDetails.deliveryPlace} (${d.piqueNiqueDetails.deliveryTime || "heure à préciser"})` : "—"}
       CONTENU DES PIÈCES JOINTES (ANALYSE OCR) : ${ocrCombinedText || "Aucun document joint n'a pu être analysé."}`;
+    const mistralKey = await requireMistralApiKey();
     const mistralResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`
+        "Authorization": `Bearer ${mistralKey}`
       },
       body: JSON.stringify({
         model: "mistral-small-latest",

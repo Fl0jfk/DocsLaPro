@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       uploadUrl,
-      fileUrl: publicS3UrlForKey(fileKey),
+      fileUrl: await publicS3UrlForKey(fileKey),
     });
   } catch (error) {
     console.error("[settings/upload-logo]", error);

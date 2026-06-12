@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/nextjs/server";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PDFDocument } from "pdf-lib";
+import { getBucketName } from "@/app/lib/s3-storage";
 
 const s3 = new S3Client({
   region: process.env.REGION,
@@ -12,8 +13,6 @@ const s3 = new S3Client({
   },
 });
 
-const BUCKET = process.env.BUCKET_NAME!;
-
 export async function POST(req: Request) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,6 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
+    const bucket = await getBucketName();
     const { key, pageStart, pageEnd, filename } = await req.json();
     if (!key) {
       return NextResponse.json({ error: "key requis" }, { status: 400 });
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const end = Math.max(start, Number(pageEnd) || start);
 
     const obj = await s3.send(
-      new GetObjectCommand({ Bucket: BUCKET, Key: key })
+      new GetObjectCommand({ Bucket: bucket, Key: key })
     );
     const bytes = await obj.Body?.transformToByteArray();
     if (!bytes?.length) {
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
     await s3.send(
       new PutObjectCommand({
-        Bucket: BUCKET,
+        Bucket: bucket,
         Key: segmentKey,
         ContentType: "application/pdf",
         Body: Buffer.from(outBytes),
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
     const downloadUrl = await getSignedUrl(
       s3,
-      new GetObjectCommand({ Bucket: BUCKET, Key: segmentKey }),
+      new GetObjectCommand({ Bucket: bucket, Key: segmentKey }),
       { expiresIn: 3600 }
     );
 

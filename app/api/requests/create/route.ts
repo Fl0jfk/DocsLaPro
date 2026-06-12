@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { RequestRecord, getPublicAppBaseUrl, notifyRequestCreated, notifyRequestPendingVerification, resolveRequestRouting, saveRequestFile, saveRequestsIndex, getRequestsIndex, validateRequestInput, uploadBuffersAsRequestAttachments, assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";
 import { deletePendingRequestPrefix, generatePendingRequestToken, savePendingRequestWithFiles} from "@/app/lib/request-pending-verify";
+import { getTenantSmtpConfig } from "@/app/lib/tenant-mail";
 
 export const runtime = "nodejs";
 
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
       if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
     }
     if (!userId) {
-      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      if (!(await getTenantSmtpConfig())) {
         return NextResponse.json(
           {
             error:

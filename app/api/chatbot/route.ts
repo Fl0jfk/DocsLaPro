@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildContextFromEntries, readKnowledgeDocument, readKnowledgeIndex, selectDomainByMessage } from "@/app/lib/knowledge";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
 
 export const runtime = "nodejs";
 
@@ -17,14 +18,14 @@ function normalizeLinks(text: string) {
   return text.replace(/\bwww\.[^\s<>"')\]]+/gi, (raw) => `https://${raw}`);
 }
 
-async function fetchMistralWithRetry(body: unknown, attempts = 3) {
+async function fetchMistralWithRetry(body: unknown, apiKey: string, attempts = 3) {
   let lastResponse: Response | null = null;
   for (let i = 0; i < attempts; i += 1) {
     const res = await fetch(MISTRAL_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.MISTRAL_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify(body),
     });
@@ -37,8 +38,7 @@ async function fetchMistralWithRetry(body: unknown, attempts = 3) {
   }
   return lastResponse;
 }
-async function classifyDomainWithMistral(message: string, domains: Array<{ id: string; label: string }>) {
-  if (!process.env.MISTRAL_API_KEY) return null;
+async function classifyDomainWithMistral(message: string, domains: Array<{ id: string; label: string }>, apiKey: string) {
   const domainList = domains.map((d) => `- ${d.id}: ${d.label}`).join("\n");
   const prompt =
     `Tu dois classer une question utilisateur dans UN SEUL domaine.\n` +
@@ -50,7 +50,7 @@ async function classifyDomainWithMistral(message: string, domains: Array<{ id: s
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
-    });
+    }, apiKey);
   if (!res) return null;
   if (!res.ok) return null;
   const data = await res.json();
@@ -73,7 +73,10 @@ export async function POST(req: Request) {
     const index = await readKnowledgeIndex();
     let domain = selectDomainByMessage(index.domains, message);
     const selectedByKeywords = domain;
-    const mistralDomainId = await classifyDomainWithMistral( message, index.domains.map((d) => ({ id: d.id, label: d.label })));
+    const mistralKey = await getMistralApiKey();
+    const mistralDomainId = mistralKey
+      ? await classifyDomainWithMistral(message, index.domains.map((d) => ({ id: d.id, label: d.label })), mistralKey)
+      : null;
     if (mistralDomainId) {
       const found = index.domains.find((d) => d.id === mistralDomainId);
       if (found) domain = found;
@@ -107,7 +110,7 @@ export async function POST(req: Request) {
           `### Domaine: ${finalDomains[i].label}\n${buildContextFromEntries(finalDomains[i], doc, audience, 8, message, 90)}`
       )
       .join("\n\n");
-    if (!process.env.MISTRAL_API_KEY) {
+    if (!mistralKey) {
       return NextResponse.json({
         answer: "Le service IA n'est pas configuré (MISTRAL_API_KEY).",
         domain: domain.id,
@@ -139,7 +142,7 @@ export async function POST(req: Request) {
           { role: "system", content: "Assistant institutionnel, factuel, français." },
           { role: "user", content: prompt },
         ],
-      });
+      }, mistralKey);
     if (!llm) {
       return NextResponse.json({ answer: "Le service IA est temporairement indisponible. Réessaie dans quelques secondes." },{ status: 503 })}
     if (!llm.ok) {

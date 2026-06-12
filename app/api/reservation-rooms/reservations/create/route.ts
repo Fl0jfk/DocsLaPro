@@ -1,16 +1,14 @@
 import { NextResponse, NextRequest } from "next/server";
-import nodemailer from "nodemailer";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { isProfRoomModuleAdmin } from "@/app/lib/prof-room-auth";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { loadAppConfig } from "@/app/lib/app-config";
+import {
+  createTenantTransporter,
+  getTenantSmtpConfig,
+} from "@/app/lib/tenant-mail";
 
 const RESERVATIONS_KEY = "reservation-rooms/reservations.json";
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -75,6 +73,9 @@ export async function POST(req: NextRequest) {
     if (newReservationsAdded.length === 0) return NextResponse.json({ error: "Aucun créneau disponible." }, { status: 409 });
     await putJson(RESERVATIONS_KEY, existing);
     if (email) {
+      const smtp = await getTenantSmtpConfig();
+      const transporter = smtp ? await createTenantTransporter() : null;
+      if (transporter && smtp) {
       const datesList = newReservationsAdded.map(r => {
         const d = new Date(r.startsAt);
         const dateFr = d.toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
         return `<li>Le ${dateFr} à ${hourFr}</li>`;
       }).join("");
       await transporter.sendMail({
-        from: `"Gestion Salles" <${process.env.SMTP_USER}>`,
+        from: `"Gestion Salles" <${smtp.user}>`,
         to: email,
         subject: "✅ Confirmation de réservation - Système de Gestion",
         html: `
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
           </div>
         `
       });
+      }
     }
     return NextResponse.json({ success: true, count: newReservationsAdded.length }, { status: 201 });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

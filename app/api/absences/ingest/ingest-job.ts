@@ -1,5 +1,6 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { canAdminIngest } from "@/app/lib/absences-types";
+import { getBucketName } from "@/app/lib/s3-storage";
 
 export type IngestJobStatus = "pending" | "processing" | "completed" | "failed";
 export type IngestJobPhase = "ocr" | "ai" | "saving";
@@ -52,7 +53,7 @@ export async function readIngestJob(jobId: string): Promise<IngestJob | null> {
   try {
     const res = await s3Client.send(
       new GetObjectCommand({
-        Bucket: process.env.BUCKET_NAME!,
+        Bucket: await getBucketName(),
         Key: jobKey(jobId),
       }),
     );
@@ -67,7 +68,7 @@ export async function readIngestJob(jobId: string): Promise<IngestJob | null> {
 export async function writeIngestJob(job: IngestJob) {
   await s3Client.send(
     new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME!,
+      Bucket: await getBucketName(),
       Key: jobKey(job.jobId),
       Body: JSON.stringify({ ...job, updatedAt: new Date().toISOString() }),
       ContentType: "application/json",
