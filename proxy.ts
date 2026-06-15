@@ -31,10 +31,10 @@ import { contentSecurityPolicyHeaderValue } from '@/app/lib/content-security-pol
 
 const isPublicRoute = createRouteMatcher([
   '/',
-  '/rentree',
-  '/simulateurTarifs',
-  '/simulateurFournitures',
-  '/faire-une-demande',
+  '/rentree(.*)',
+  '/simulateurTarifs(.*)',
+  '/simulateurFournitures(.*)',
+  '/faire-une-demande(.*)',
   '/demande/merci',
   '/api/travels/ingest-from-email',
   '/api/requests/create',
