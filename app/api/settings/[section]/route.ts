@@ -12,8 +12,8 @@ import {
   parseNotifications,
   parseSiteIdentity,
 } from "@/app/lib/app-config-schemas";
-import { listClerkMembers } from "@/app/lib/clerk-users";
 import { requireAdmin } from "@/app/lib/intranet-auth";
+import { normalizeProfRoomAdminClerkIds } from "@/app/lib/prof-room-auth";
 
 const ALLOWED = new Set(["site", "establishments", "notifications", "prof-room"]);
 
@@ -38,18 +38,9 @@ export async function PUT(req: Request, ctx: { params: Promise<{ section: string
     } else if (section === "prof-room") {
       const current = await loadAppConfig();
       const adminClerkUserIds = Array.isArray(body?.adminClerkUserIds)
-        ? (body.adminClerkUserIds as unknown[]).map((id) => String(id).trim()).filter(Boolean)
+        ? normalizeProfRoomAdminClerkIds(body.adminClerkUserIds)
         : current.profRoom.adminClerkUserIds || [];
-      const members = await listClerkMembers();
-      const adminLastNames = [
-        ...new Set(
-          members
-            .filter((m) => m.clerkUserId && adminClerkUserIds.includes(m.clerkUserId))
-            .map((m) => (m.lastName || "").trim().toUpperCase())
-            .filter(Boolean),
-        ),
-      ];
-      await saveProfRoomModule({ ...current.profRoom, adminClerkUserIds, adminLastNames });
+      await saveProfRoomModule({ ...current.profRoom, adminClerkUserIds });
     }
 
     const config = await loadAppConfig();

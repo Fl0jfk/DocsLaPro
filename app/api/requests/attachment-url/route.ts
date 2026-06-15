@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     if (!record) return NextResponse.json({ error: "Demande introuvable" }, { status: 404 });
     const att = findRequestAttachment(record, attachmentId);
     if (!att) return NextResponse.json({ error: "Pièce jointe introuvable" }, { status: 404 });
-    const staff = canAccessRequestsStaffBoard(roles, userEmail);
+    const staff = await canAccessRequestsStaffBoard(roles, userEmail);
     const isRequester = record.requester.userId === userId || (userEmail && normalizeRequestEmail(record.requester.email) === normalizeRequestEmail(userEmail));
     if (!staff && !isRequester) { return NextResponse.json({ error: "Accès refusé" }, { status: 403 })}
     const relOk = att.key.includes(`requests/${requestId}/files/`);

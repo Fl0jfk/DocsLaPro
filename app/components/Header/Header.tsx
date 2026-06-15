@@ -6,12 +6,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Logo from "../../../public/Logo header.png";
-import { SCHOOL } from "../../lib/school";
-const NAV = [
-  { href: "/ecole",   label: "École",   activeColor: "text-yellow-500", hoverClass: "hover:text-yellow-500", dot: "bg-yellow-500" },
-  { href: "/college", label: "Collège", activeColor: "text-sky-500",   hoverClass: "hover:text-sky-500",   dot: "bg-sky-500"   },
-  { href: "/lycee",   label: "Lycée",   activeColor: "text-pink-500",   hoverClass: "hover:text-pink-500",   dot: "bg-pink-500"   },
-];
 
 function UserPopover({ onClose }: { onClose: () => void }) {
   const { user } = useUser();
@@ -59,13 +53,14 @@ function UserPopover({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
 type SitePublicIdentity = {
   name?: string;
   shortName?: string;
   headerLogoUrl?: string | null;
 };
 
-export default function SiteHeader({ adminMode = false }: { adminMode?: boolean }) {
+export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [siteIdentity, setSiteIdentity] = useState<SitePublicIdentity | null>(null);
@@ -73,6 +68,7 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
   const pathname = usePathname();
   const { isSignedIn } = useUser();
   const { signOut } = useClerk();
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -86,6 +82,7 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
     })();
     return () => { cancelled = true; };
   }, []);
+
   useEffect(() => { setMobileOpen(false); setPopoverOpen(false); }, [pathname]);
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -100,14 +97,16 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, []);
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+
+  const isDashboard = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
   const logoAlt = siteIdentity?.shortName || siteIdentity?.name || "La Providence Nicolas Barré";
   const customLogoUrl = siteIdentity?.headerLogoUrl?.trim() || "";
+
   return (
     <>
       <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 print:!hidden">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
-        <Link href="/" className="hover:opacity-75 transition flex-shrink-0 relative">
+          <Link href="/dashboard" className="hover:opacity-75 transition flex-shrink-0 relative">
             <div className="w-[110px] h-[110px]">
               {customLogoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -121,43 +120,19 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
               )}
             </div>
           </Link>
-          <nav className={`${adminMode ? "flex" : "hidden md:flex"} gap-8 text-sm font-medium text-slate-600`}>
-            {adminMode && !isActive("/dashboard") ? (
-              <div className="relative w-full">
-                  <Link
-                    href="/dashboard"
-                    className={`px-4 py-1.5 rounded-full border text-xs font-bold transition absolute top-[-15px] left-[-80px] ${
-                      isActive("/dashboard")
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:text-slate-900"
-                    }`}
-                  >
-                    Dashboard
-                </Link>
-              </div>
 
-              
-            ) : !adminMode ? (
-              NAV.map(({ href, label, activeColor, hoverClass }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`relative py-1 transition-colors ${hoverClass} ${isActive(href) ? `${activeColor} font-bold` : ""}`}
-                >
-                  {label}
-                  {isActive(href) && (
-                    <span className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-current" />
-                  )}
-                </Link>
-              ))
-            ) : null}
-          </nav>
-          <div className="hidden md:flex items-center gap-2">
-            {!adminMode && (
-              <a href={SCHOOL.preinscriptionUrl} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all">
-                Pré-inscription
-              </a>
+          <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
+            {!isDashboard && (
+              <Link
+                href="/dashboard"
+                className="px-4 py-1.5 rounded-full border text-xs font-bold transition bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:text-slate-900"
+              >
+                Dashboard
+              </Link>
             )}
+          </nav>
+
+          <div className="hidden md:flex items-center gap-2">
             {isSignedIn ? (
               <div ref={popoverRef} className="relative">
                 <button
@@ -183,6 +158,7 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
               </Link>
             )}
           </div>
+
           <button
             className="md:hidden relative z-50 flex flex-col justify-center items-center w-10 h-10 gap-[5px]"
             onClick={() => setMobileOpen((v) => !v)}
@@ -203,6 +179,7 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
           </button>
         </div>
       </header>
+
       <div
         className="fixed inset-0 z-40 md:hidden transition-all duration-500 print:!hidden"
         style={{
@@ -224,111 +201,20 @@ export default function SiteHeader({ adminMode = false }: { adminMode?: boolean 
       >
         <div className="max-w-[1200px] mx-auto px-6 pt-4 pb-8">
           <nav className="flex flex-col">
-            {(adminMode
-              ? [{ href: "/dashboard", label: "Dashboard", activeColor: "text-slate-800", hoverClass: "hover:text-slate-600", dot: "bg-slate-600" }, ...NAV]
-              : NAV
-            ).map(({ href, label, activeColor, hoverClass, dot }, i) => (
-              <Link
-                key={href}
-                href={href}
-                className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 ${hoverClass} ${isActive(href) ? activeColor : "text-slate-900"}`}
-                style={{
-                  transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
-                  opacity: mobileOpen ? 1 : 0,
-                  transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${i * 55}ms, opacity 0.35s ease ${i * 55}ms, color 0.2s`,
-                }}
-              >
-                <span className="flex items-center gap-3">
-                  {isActive(href) && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />}
-                  {label}
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                </svg>
-              </Link>
-            ))}
             <Link
-              href="/internat"
-              className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-slate-500 ${isActive("/internat") ? "text-slate-600" : "text-slate-400"}`}
-              style={{
-                transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
-                opacity: mobileOpen ? 1 : 0,
-                transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${NAV.length * 55}ms, opacity 0.35s ease ${NAV.length * 55}ms, color 0.2s`,
-              }}
+              href="/dashboard"
+              className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-slate-600 ${isDashboard ? "text-slate-800" : "text-slate-900"}`}
             >
               <span className="flex items-center gap-3">
-                {isActive("/internat") && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-slate-400" />}
-                L&apos;Internat
-              </span>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-            <Link
-              href="/notre-identite"
-              className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-slate-500 ${isActive("/notre-identite") ? "text-slate-600" : "text-slate-400"}`}
-              style={{
-                transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
-                opacity: mobileOpen ? 1 : 0,
-                transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 1) * 55}ms, opacity 0.35s ease ${(NAV.length + 1) * 55}ms, color 0.2s`,
-              }}
-            >
-              <span className="flex items-center gap-3">
-                {isActive("/notre-identite") && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-indigo-400" />}
-                Notre identité
-              </span>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-            <Link
-              href="/projet-educatif"
-              className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-indigo-500 ${isActive("/projet-educatif") ? "text-indigo-600" : "text-slate-400"}`}
-              style={{
-                transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
-                opacity: mobileOpen ? 1 : 0,
-                transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 2) * 55}ms, opacity 0.35s ease ${(NAV.length + 2) * 55}ms, color 0.2s`,
-              }}
-            >
-              <span className="flex items-center gap-3">
-                {isActive("/projet-educatif") && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-indigo-500" />}
-                Projet éducatif
-              </span>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-            <Link
-              href="/partenaires-sportifs"
-              className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-emerald-600 ${isActive("/partenaires-sportifs") ? "text-emerald-600" : "text-slate-400"}`}
-              style={{
-                transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
-                opacity: mobileOpen ? 1 : 0,
-                transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 3) * 55}ms, opacity 0.35s ease ${(NAV.length + 3) * 55}ms, color 0.2s`,
-              }}
-            >
-              <span className="flex items-center gap-3">
-                {isActive("/partenaires-sportifs") && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-emerald-500" />}
-                Partenaires sportifs
+                {isDashboard && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-slate-600" />}
+                Tableau de bord
               </span>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
             </Link>
           </nav>
-          <div
-            className="mt-5 flex flex-col gap-3"
-            style={{
-              transform: mobileOpen ? "translateX(0)" : "translateX(-16px)",
-              opacity: mobileOpen ? 1 : 0,
-              transition: `transform 0.45s cubic-bezier(0.32,0.72,0,1) ${(NAV.length + 4) * 55}ms, opacity 0.35s ease ${(NAV.length + 4) * 55}ms`,
-            }}
-          >
-            {!adminMode && (
-              <Link href="/portesouvertes" className="bg-blue-600 text-white font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-blue-700 transition">
-                Pré-inscription
-              </Link>
-            )}
+          <div className="mt-5 flex flex-col gap-3">
             {isSignedIn ? (
               <div className="flex gap-3">
                 <Link href="/dashboard" className="flex-1 bg-slate-100 text-slate-700 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-slate-200 transition">

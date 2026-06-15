@@ -3,10 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import MesDemandesSuivi from "@/app/(admin)/requests/MesDemandesSuivi";
+import CreateRequestModal from "@/app/components/requests/CreateRequestModal";
+import FaireUneDemandeForm from "@/app/components/requests/FaireUneDemandeForm";
+import CorbeilleInbox, { type PileKey } from "@/app/components/requests/CorbeilleInbox";
+import { useBoardPointerDnd } from "@/app/lib/requests-board-dnd";
+import { getViewerServiceLabel } from "@/app/lib/requests-view-utils";
 
 type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
 
 type BoardColumnKey = "CORBEILLE" | "NOUVELLES" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
+type VisualColumnKey = "A_TRAITER" | "EN_COURS" | "TERMINEE";
 
 type RequestRecord = {
   id: string;
@@ -35,6 +41,7 @@ type RequestRecord = {
     confidence?: number;
     reason?: string;
     suggestedRouteId?: string;
+    directionHint?: { suggestedQueueId: string; label: string; confidence?: number; reason?: string };
   };
   attachments?: Array<{ id: string; fileName: string; size: number }>;
   comments: Array<{
@@ -67,38 +74,64 @@ type SubmittedRequest = {
   };
 };
 
-const BOARD_COLUMNS: { key: BoardColumnKey; title: string; hint: string; acceptDrop: boolean }[] = [
-  {
-    key: "CORBEILLE",
-    title: "Corbeille",
-    hint: "Demandes sans personne assignée — visibles par toute l’équipe. Glissez vers « En cours » pour vous les attribuer.",
-    acceptDrop: true,
-  },
-  {
-    key: "NOUVELLES",
-    title: "À traiter (mon service)",
-    hint: "Votre service : personne n’a encore pris la main. (Pas de dépôt ici.)",
-    acceptDrop: false,
-  },
-  {
-    key: "EN_COURS",
-    title: "En cours",
-    hint: "Déposer ici → vous prenez la demande en charge.",
-    acceptDrop: true,
-  },
-  {
-    key: "EN_ATTENTE",
-    title: "En attente",
-    hint: "Glisser ici → statut en attente.",
-    acceptDrop: true,
-  },
-  {
-    key: "TERMINEE",
-    title: "Terminée",
-    hint: "Glisser ici → clôturer.",
-    acceptDrop: true,
-  },
-];
+const PILE_BOARD_KEYS: BoardColumnKey[] = ["CORBEILLE", "NOUVELLES"];
+
+function isPileColumn(col?: BoardColumnKey | null): boolean {
+  return Boolean(col && PILE_BOARD_KEYS.includes(col));
+}
+
+function buildVisualColumns(serviceLabel: string) {
+  return [
+    {
+      key: "A_TRAITER" as const,
+      title: "À traiter",
+      hint: `Non démarrées ou en attente (document, pièce manquante…) — ${serviceLabel}. Glissez depuis « En cours » pour marquer en attente.`,
+      acceptDrop: true,
+      boardKeys: ["EN_ATTENTE"] as BoardColumnKey[],
+      shell: "border-red-200/60 bg-gradient-to-b from-red-50 to-rose-50/50",
+      body: "",
+      titleClass: "text-red-900",
+      hintClass: "text-red-800/80",
+      dropRing: "ring-2 ring-red-300 border-red-300",
+      badgeClass: "bg-red-100 text-red-900 border-red-200",
+    },
+    {
+      key: "EN_COURS" as const,
+      title: "En cours",
+      hint: "Demandes que vous traitez activement. Déposer ici pour prendre en charge.",
+      acceptDrop: true,
+      boardKeys: ["EN_COURS"] as BoardColumnKey[],
+      shell: "border-orange-200/60 bg-gradient-to-b from-orange-50 to-amber-50/50",
+      body: "",
+      titleClass: "text-orange-900",
+      hintClass: "text-orange-800/80",
+      dropRing: "ring-2 ring-orange-300 border-orange-300",
+      badgeClass: "bg-orange-100 text-orange-900 border-orange-200",
+    },
+    {
+      key: "TERMINEE" as const,
+      title: "Terminée",
+      hint: "Glisser ici pour clôturer la demande.",
+      acceptDrop: true,
+      boardKeys: ["TERMINEE"] as BoardColumnKey[],
+      shell: "border-emerald-200/60 bg-gradient-to-b from-emerald-50 to-green-50/50",
+      body: "",
+      titleClass: "text-emerald-900",
+      hintClass: "text-emerald-800/80",
+      dropRing: "ring-2 ring-emerald-300 border-emerald-300",
+      badgeClass: "bg-emerald-100 text-emerald-900 border-emerald-200",
+    },
+  ];
+}
+
+const CARD_SURFACE: Record<VisualColumnKey, string> = {
+  A_TRAITER:
+    "border-red-300 bg-[#fdfcfb] hover:border-red-400 motion-safe:hover:translate-y-[-1px] motion-reduce:hover:translate-y-0",
+  EN_COURS:
+    "border-orange-300 bg-[#fdfcfb] hover:border-orange-400 motion-safe:hover:translate-y-[-1px] motion-reduce:hover:translate-y-0",
+  TERMINEE:
+    "border-emerald-300 bg-[#fdfcfb] hover:border-emerald-400 motion-safe:hover:translate-y-[-1px] motion-reduce:hover:translate-y-0",
+};
 
 function normEmail(e: string) { return e.trim().toLowerCase()}
 
@@ -156,25 +189,39 @@ export default function RequestsPage() {
   const [routeOptions, setRouteOptions] = useState<Array<{ id: string; label: string; category: string }>>([]);
   const [submittedItems, setSubmittedItems] = useState<SubmittedRequest[]>([]);
   const didScrollToMesDemandes = useRef(false);
-  const [dropTarget, setDropTarget] = useState<BoardColumnKey | null>(null);
+  const [dropTarget, setDropTarget] = useState<VisualColumnKey | null>(null);
   const [commentFilesInternalById, setCommentFilesInternalById] = useState<Record<string, File[]>>({});
   const [commentFilesRequesterById, setCommentFilesRequesterById] = useState<Record<string, File[]>>({});
   const [pinnedCardId, setPinnedCardId] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [activePile, setActivePile] = useState<PileKey | null>(null);
+  const [dropPileTarget, setDropPileTarget] = useState<PileKey | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const initialLoadDone = useRef(false);
   const draggedRequestIdRef = useRef<string | null>(null);
   const [hasStaffBoard, setHasStaffBoard] = useState(false);
   const [delegateEmailById, setDelegateEmailById] = useState<Record<string, string>>({});
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
-  const { isProfesseur } = useMemo(() => {
-    if (!user) { return { isProfesseur: false }}
+  const userRoles = useMemo(() => {
+    if (!user) return [] as string[];
     const roleRaw = user.publicMetadata?.role;
-    const rawRoles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
-    const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s-]+/g, "_");
-    const normalized = rawRoles.map(norm);
-    const isProfesseur = normalized.includes("professeur");
-    return { isProfesseur };
+    return Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
   }, [user]);
-  const load = useCallback(async () => {
-    setLoading(true);
+  const serviceLabel = useMemo(() => getViewerServiceLabel(userRoles), [userRoles]);
+  const visualColumns = useMemo(() => buildVisualColumns(serviceLabel), [serviceLabel]);
+  const kanbanItems = useMemo(
+    () => items.filter((r) => r.boardColumn && !isPileColumn(r.boardColumn)),
+    [items],
+  );
+  const { isSubmitOnlyUser } = useMemo(() => {
+    if (!user) return { isSubmitOnlyUser: false };
+    const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s-]+/g, "_");
+    const normalized = userRoles.map(norm);
+    const isProfesseur = normalized.includes("professeur");
+    const isInfirmerie = normalized.includes("infirmerie");
+    return { isSubmitOnlyUser: isProfesseur || isInfirmerie };
+  }, [user, userRoles]);
+  const refreshBoard = useCallback(async () => {
     try {
       const resSubmitted = await fetch("/api/requests/list?scope=submitted", { cache: "no-store" });
       const dataSubmitted = await resSubmitted.json();
@@ -188,10 +235,21 @@ export default function RequestsPage() {
         setHasStaffBoard(false);
         setItems([]);
       }
-    } finally {
-      setLoading(false);
+    } catch {
+      /* ignore */
     }
   }, []);
+
+  const load = useCallback(async () => {
+    const showFullPageLoader = !initialLoadDone.current;
+    if (showFullPageLoader) setLoading(true);
+    try {
+      await refreshBoard();
+      initialLoadDone.current = true;
+    } finally {
+      if (showFullPageLoader) setLoading(false);
+    }
+  }, [refreshBoard]);
   useEffect(() => {
     if (!isLoaded || !user) return;
     void load();
@@ -219,22 +277,35 @@ export default function RequestsPage() {
     };
     loadRoutes();
   }, [isLoaded, user, hasStaffBoard, loading]);
-  const BOARD_MOVE_MIN_VISIBLE_MS = 520;
+  const BOARD_MOVE_MIN_VISIBLE_MS = 280;
   const waitBoardMutationMinVisible = async (startedAt: number) => {
     const elapsed = Date.now() - startedAt;
     const rest = BOARD_MOVE_MIN_VISIBLE_MS - elapsed;
     if (rest > 0) await new Promise((r) => setTimeout(r, rest));
   };
+
+  const patchRequest = async (
+    id: string,
+    body: Record<string, unknown> | FormData,
+    isFormData = false,
+  ): Promise<boolean> => {
+    const res = await fetch("/api/requests/update", {
+      method: "PATCH",
+      ...(isFormData ? { body: body as FormData } : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    });
+    const data = (await res.json()) as { request?: RequestRecord; error?: string };
+    if (!res.ok) throw new Error(data.error || "Mise à jour impossible");
+    await refreshBoard();
+    return true;
+  };
+
   const moveStatus = async (id: string, status: RequestStatus) => {
     const t0 = Date.now();
     setSubmittingId(id);
     try {
-      await fetch("/api/requests/update", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status }),
-      });
-      await load();
+      await patchRequest(id, { id, status });
+    } catch {
+      /* refreshBoard déjà tenté dans patchRequest */
     } finally {
       await waitBoardMutationMinVisible(t0);
       setSubmittingId(null);
@@ -244,12 +315,9 @@ export default function RequestsPage() {
     if (!assignRouteId) return;
     setSubmittingId(id);
     try {
-      await fetch("/api/requests/update", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, assignRouteId }),
-      });
-      await load();
+      await patchRequest(id, { id, assignRouteId });
+    } catch {
+      /* noop */
     } finally {
       setSubmittingId(null);
     }
@@ -258,12 +326,9 @@ export default function RequestsPage() {
     const t0 = Date.now();
     setSubmittingId(id);
     try {
-      await fetch("/api/requests/update", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action, ...(toCorbeille ? { toCorbeille: true } : {}) }),
-      });
-      await load();
+      await patchRequest(id, { id, action, ...(toCorbeille ? { toCorbeille: true } : {}) });
+    } catch {
+      /* noop */
     } finally {
       await waitBoardMutationMinVisible(t0);
       setSubmittingId(null);
@@ -275,13 +340,10 @@ export default function RequestsPage() {
     const t0 = Date.now();
     setSubmittingId(id);
     try {
-      await fetch("/api/requests/update", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action: "delegate_claim", targetEmail }),
-      });
+      await patchRequest(id, { id, action: "delegate_claim", targetEmail });
       setDelegateEmailById((prev) => ({ ...prev, [id]: "" }));
-      await load();
+    } catch {
+      /* noop */
     } finally {
       await waitBoardMutationMinVisible(t0);
       setSubmittingId(null);
@@ -291,44 +353,117 @@ export default function RequestsPage() {
     const t0 = Date.now();
     setSubmittingId(id);
     try {
-      await fetch("/api/requests/update", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action: "claim_self", ...(status ? { status } : {}) }),
-      });
-      await load();
+      await patchRequest(id, { id, action: "claim_self", ...(status ? { status } : {}) });
+    } catch {
+      /* noop */
     } finally {
       await waitBoardMutationMinVisible(t0);
       setSubmittingId(null);
     }
   };
-  const onBoardColumnDrop = (targetCol: BoardColumnKey, e: React.DragEvent) => {
-    e.preventDefault();
-    setDropTarget(null);
-    const id = e.dataTransfer.getData("text/plain");
-    if (!id) return;
-    const item = items.find((i) => i.id === id);
-    if (!item) return;
-    if (targetCol === "CORBEILLE") {
-      if (!item.boardCanReassign) return;
-      void claimAction(id, "release_claim", true);
-      return;
+  const transmitToDirection = async (id: string, assignRouteId: string) => {
+    const t0 = Date.now();
+    setSubmittingId(id);
+    try {
+      await patchRequest(id, { id, action: "transmit_to_direction", assignRouteId });
+    } catch {
+      /* noop */
+    } finally {
+      await waitBoardMutationMinVisible(t0);
+      setSubmittingId(null);
     }
-    if (targetCol === "NOUVELLES") return;
+  };
+
+  const onDropOnPile = (pile: PileKey, requestId: string) => {
+    setDropPileTarget(null);
+    setIsDragging(false);
+    const item = items.find((i) => i.id === requestId);
+    if (!item) return;
     void (async () => {
+      if (pile === "etablissement") {
+        if (item.boardColumn === "CORBEILLE") return;
+        if (item.boardCanReassign) {
+          await claimAction(requestId, "release_claim", true);
+          return;
+        }
+        if (item.assignedTo.claimedBy?.email) {
+          await claimAction(requestId, "release_claim");
+        }
+        return;
+      }
+      if (item.boardColumn === "CORBEILLE") {
+        await claimAction(requestId, "claim");
+        return;
+      }
+      if (item.assignedTo.claimedBy?.email) {
+        await claimAction(requestId, "release_claim");
+        if (item.status === "EN_ATTENTE" || item.status === "EN_COURS") {
+          await moveStatus(requestId, "NOUVELLE");
+        }
+      }
+    })();
+  };
+
+  const runColumnDrop = (targetCol: VisualColumnKey, requestId: string) => {
+    const item = items.find((i) => i.id === requestId);
+    if (!item) return;
+    void (async () => {
+      if (targetCol === "A_TRAITER") {
+        if (item.boardColumn === "EN_COURS" || item.status === "EN_COURS") {
+          await moveStatus(requestId, "EN_ATTENTE");
+          return;
+        }
+        if (isPileColumn(item.boardColumn)) {
+          if (item.boardColumn === "CORBEILLE") {
+            await claimAction(requestId, "claim");
+            await moveStatus(requestId, "EN_ATTENTE");
+          } else {
+            await claimSelf(requestId, "EN_ATTENTE");
+          }
+          return;
+        }
+        return;
+      }
       if (targetCol === "EN_COURS") {
+        if (isPileColumn(item.boardColumn)) {
+          await claimSelf(requestId, "EN_COURS");
+          return;
+        }
+        if (item.boardColumn === "EN_ATTENTE" || item.status === "EN_ATTENTE") {
+          await moveStatus(requestId, "EN_COURS");
+          return;
+        }
         if (item.status === "EN_COURS" || item.status === "NOUVELLE") {
           const claimedByMe =
             Boolean(userEmail && item.assignedTo.claimedBy?.email && normEmail(item.assignedTo.claimedBy.email) === normEmail(userEmail));
           if (claimedByMe) return;
         }
-        await claimSelf(id, "EN_COURS");
+        await claimSelf(requestId, "EN_COURS");
         return;
       }
-      if (targetCol === "EN_ATTENTE") await moveStatus(id, "EN_ATTENTE");
-      if (targetCol === "TERMINEE") await moveStatus(id, "TERMINEE");
+      if (targetCol === "TERMINEE") await moveStatus(requestId, "TERMINEE");
     })();
   };
+
+  const { makeCardProps } = useBoardPointerDnd({
+    draggedRequestIdRef,
+    onDropColumn: (column, id) => {
+      setDropTarget(null);
+      setDropPileTarget(null);
+      setIsDragging(false);
+      runColumnDrop(column as VisualColumnKey, id);
+    },
+    onDropPile: (pile, id) => {
+      setDropTarget(null);
+      setDropPileTarget(null);
+      setIsDragging(false);
+      onDropOnPile(pile as PileKey, id);
+    },
+    onDragStateChange: setIsDragging,
+    onHoverColumn: (column) => setDropTarget(column as VisualColumnKey | null),
+    onHoverPile: (pile) => setDropPileTarget(pile as PileKey | null),
+  });
+
   const sendComment = async (id: string, toRequester: boolean) => {
     const comment = toRequester ? (requesterNoteById[id] || "").trim() : (internalNoteById[id] || "").trim();
     const files = toRequester ? (commentFilesRequesterById[id] ?? []) : (commentFilesInternalById[id] ?? []);
@@ -341,13 +476,9 @@ export default function RequestsPage() {
         fd.append("comment", comment);
         fd.append("toRequester", String(toRequester));
         files.forEach((f) => fd.append("files", f));
-        await fetch("/api/requests/update", { method: "PATCH", body: fd });
+        await patchRequest(id, fd, true);
       } else {
-        await fetch("/api/requests/update", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, comment, toRequester }),
-        });
+        await patchRequest(id, { id, comment, toRequester });
       }
       if (toRequester) {
         setRequesterNoteById((prev) => ({ ...prev, [id]: "" }));
@@ -356,7 +487,9 @@ export default function RequestsPage() {
         setInternalNoteById((prev) => ({ ...prev, [id]: "" }));
         setCommentFilesInternalById((prev) => ({ ...prev, [id]: [] }));
       }
-      await load();
+      await refreshBoard();
+    } catch {
+      await refreshBoard();
     } finally {
       setSubmittingId(null);
     }
@@ -371,7 +504,7 @@ export default function RequestsPage() {
       </main>
     );
   }
-  if (!isProfesseur && !hasStaffBoard) {
+  if (!isSubmitOnlyUser && !hasStaffBoard) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10 mt-[9vh] text-sm text-slate-700">
         Accès refusé. Le suivi des demandes est réservé aux enseignants (leurs dépôts) et au personnel figurant dans la table
@@ -379,59 +512,94 @@ export default function RequestsPage() {
       </main>
     );
   }
-  if (!hasStaffBoard && isProfesseur) {
+  if (!hasStaffBoard && isSubmitOnlyUser) {
     return (
-      <main className="max-w-3xl mx-auto px-4 py-8 mt-[9vh] pb-24">
-        <h1 className="text-2xl font-black text-slate-900">Suivi de vos demandes</h1>
+      <main className="max-w-3xl mx-auto px-4 py-8 mt-[3vh] pb-24">
+        <h1 className="text-4xl font-black text-slate-900">Demandes</h1>
         <p className="text-sm text-slate-600 mt-1">
-          En tant qu’enseignant, vous voyez uniquement les demandes que vous avez déposées. Le tableau de traitement des demandes
-          (équipe OGEC) n’est pas accessible depuis votre compte. Pour créer une demande, utilisez la bulle d’assistant puis{" "}
-          <strong>Créer une demande</strong>.
+          Déposez une demande et suivez son avancement depuis cette page.
         </p>
         <div className="mt-8">
-          <MesDemandesSuivi items={submittedItems} loading={loading} intro="État d’avancement et service en charge (sans codes techniques)."/>
+          <h2 className="text-lg font-black text-slate-900 mb-3">Faire une demande</h2>
+          <FaireUneDemandeForm variant="inline" onSuccess={() => void load()} mesDemandesHref="/requests#mes-demandes" />
+        </div>
+        <div className="mt-10">
+          <MesDemandesSuivi
+            items={submittedItems}
+            loading={loading}
+            title="Mes demandes"
+            intro="État d’avancement et service en charge (libellé lisible, pas de code technique)."
+          />
         </div>
       </main>
     );
   }
+
   return (
-    <main className="max-w-[1500px] mx-auto px-4 py-4">
-      <h1 className="text-4xl font-black text-slate-900">Récapitulatif des demandes</h1>
-      {loading ? <p className="mt-6 text-sm text-slate-500">Chargement des demandes...</p> : null}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-        {BOARD_COLUMNS.map((col) => (
+    <main className="max-w-[1500px] mx-auto px-4 py-4 relative">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900">Demandes</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Tableau de traitement — {serviceLabel}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setCreateModalOpen(true)}
+          className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-200/40 hover:bg-blue-700 transition"
+        >
+          <span className="text-lg leading-none">+</span>
+          Faire une demande
+        </button>
+      </div>
+      <CreateRequestModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreated={() => {
+          setCreateModalOpen(false);
+          void refreshBoard();
+        }}
+      />
+      <CorbeilleInbox
+        items={items}
+        serviceLabel={serviceLabel}
+        activePile={activePile}
+        onActivePileChange={setActivePile}
+        pinnedCardId={pinnedCardId}
+        submittingId={submittingId}
+        dropPileTarget={dropPileTarget}
+        isDragging={isDragging}
+        makeCardProps={makeCardProps}
+        onCardClick={(id) => {
+          setPinnedCardId((cur) => (cur === id ? null : id));
+        }}
+      />
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 relative z-0">
+        {visualColumns.map((col) => {
+          const colCards = kanbanItems.filter((r) => r.boardColumn && col.boardKeys.includes(r.boardColumn));
+          return (
           <section
             key={col.key}
-            className={`bg-white border rounded-2xl p-2.5 min-h-[220px] transition-shadow ${
-              dropTarget === col.key ? "border-sky-500 ring-2 ring-sky-300 shadow-md" : "border-slate-200"
+            data-drop-column={col.key}
+            className={`rounded-2xl border p-3 min-h-[260px] transition-all duration-200 ${col.shell} ${
+              dropTarget === col.key ? col.dropRing : ""
             }`}
-            onDragLeave={(e) => {
-              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-              setDropTarget(null);
-            }}
           >
-            <h2 className="text-xs font-black text-slate-900 mb-1 tracking-tight">{col.title}</h2>
-            <p className="text-[9px] text-slate-400 mb-2 leading-tight">{col.hint}</p>
-            <div
-              className="space-y-2 min-h-[120px]"
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (col.acceptDrop) {
-                  e.dataTransfer.dropEffect = "move";
-                  setDropTarget(col.key);
-                } else {
-                  e.dataTransfer.dropEffect = "none";
-                }
-              }}
-              onDrop={(e) => {
-                if (col.acceptDrop) void onBoardColumnDrop(col.key, e);
-                else {
-                  e.preventDefault();
-                  setDropTarget(null);
-                }
-              }}
-            >
-              {items.filter((r) => r.boardColumn === col.key).map((r) => {
+            <div className="min-h-[220px]">
+            <h2 className={`text-sm font-black mb-1 tracking-tight flex items-center gap-2 ${col.titleClass}`}>
+              <span className={`inline-block w-2.5 h-2.5 rounded-full border ${col.badgeClass}`} aria-hidden />
+              {col.title}
+              <span className="text-[10px] font-bold opacity-60">({colCards.length})</span>
+            </h2>
+            <p className={`text-[10px] mb-3 leading-snug ${col.hintClass}`}>{col.hint}</p>
+            <div className="space-y-2 min-h-[160px]">
+              {colCards.length === 0 ? (
+                <p className="text-[10px] text-slate-400/90 italic text-center py-8 px-2 border border-dashed border-slate-200/80 rounded-xl bg-white/40 pointer-events-none">
+                  Glissez une demande ici
+                </p>
+              ) : null}
+              {colCards.map((r) => {
                 const pool = r.assignedTo.poolEmails && r.assignedTo.poolEmails.length > 0 ? r.assignedTo.poolEmails : [r.assignedTo.email];
                 const isCorbeilleCard = r.assignedTo.routeId === "corbeille" || r.assignedTo.unit === "corbeille" || r.assignedTo.unit === "tri.inconnu";
                 const sharedPool = isCorbeilleCard || (r.assignedTo.poolEmails?.length ?? 0) > 1;
@@ -442,41 +610,19 @@ export default function RequestsPage() {
                 const showPoolClaim = sharedPool && inPool && !claimed;
                 const showSelfClaim = !claimedByMe && (!claimed || Boolean(claimedByOther)) && !(sharedPool && inPool && !claimed);
                 const isPinned = pinnedCardId === r.id;
+                const isWaiting = r.status === "EN_ATTENTE" || r.boardColumn === "EN_ATTENTE";
+                const isUnstarted = r.boardColumn === "NOUVELLES" || (r.status === "NOUVELLE" && !r.assignedTo.claimedBy?.email);
                 return (
                 <article
                   key={r.id}
-                  draggable={!submittingId}
-                  onDragStart={(e) => {
-                    draggedRequestIdRef.current = r.id;
-                    e.dataTransfer.setData("text/plain", r.id);
-                    e.dataTransfer.effectAllowed = "move";
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                    setDropTarget(col.key);
-                  }}
-                  onDrop={(e) => {
-                    e.stopPropagation();
-                    void onBoardColumnDrop(col.key, e);
-                  }}
-                  onDragEnd={() => {
-                    setDropTarget(null);
-                    window.setTimeout(() => {
-                      draggedRequestIdRef.current = null;
-                    }, 80);
-                  }}
-                  onClickCapture={(e) => {
-                    if (submittingId === r.id) return;
-                    if (draggedRequestIdRef.current === r.id) return;
-                    const t = e.target;
-                    if (!(t instanceof Element)) return;
-                    if (t.closest("button, a, input, select, textarea, option")) return;
-                    setPinnedCardId((id) => (id === r.id ? null : r.id));
-                  }}
-                  title="Glisser pour déplacer · Clic n’importe où sur la fiche pour épingler ou réduire le détail"
-                  className={`group relative rounded-xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/95 p-2 shadow-sm cursor-grab active:cursor-grabbing transition-shadow duration-300 ease-out hover:z-20 hover:shadow-md hover:border-slate-300/90 motion-safe:hover:translate-y-[-1px] motion-reduce:hover:translate-y-0 ${
-                    isPinned ? "z-20 shadow-md ring-1 ring-slate-300/80" : ""
+                  id={`request-card-${r.id}`}
+                  {...makeCardProps(r.id, {
+                    disabled: submittingId === r.id,
+                    onActivate: () => setPinnedCardId((id) => (id === r.id ? null : r.id)),
+                  })}
+                  title="Glisser la fiche vers une colonne ou une corbeille · Clic pour ouvrir ou fermer le détail"
+                  className={`group relative rounded-xl border p-2 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow duration-300 ease-out hover:shadow-md ${CARD_SURFACE[col.key]} ${
+                    isPinned ? "z-10 shadow-md ring-1 ring-slate-300/80" : "z-0"
                   }`}
                 >
                   {submittingId === r.id ? (
@@ -492,7 +638,7 @@ export default function RequestsPage() {
                       <span className="text-[9px] font-semibold text-slate-600">Enregistrement…</span>
                     </div>
                   ) : null}
-                  <div className="flex gap-1 items-start rounded-lg -mx-0.5 px-0.5 pt-0.5 pb-1 hover:bg-slate-50/70 transition-colors">
+                  <div className="flex gap-1 items-start rounded-lg -mx-0.5 px-0.5 pt-0.5 pb-1">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 truncate max-w-[min(100%,7rem)]">
@@ -504,6 +650,20 @@ export default function RequestsPage() {
                             title={`${r.attachments.length} pièce(s) jointe(s)`}
                           >
                             {r.attachments.length} PJ
+                          </span>
+                        ) : null}
+                        {r.routing?.directionHint ? (
+                          <span className="text-[8px] font-bold uppercase tracking-wide text-amber-800 bg-amber-50 border border-amber-100 px-1 py-px rounded" title={r.routing.directionHint.label}>
+                            Direction ?
+                          </span>
+                        ) : null}
+                        {isWaiting ? (
+                          <span className="text-[8px] font-bold uppercase tracking-wide text-orange-900 bg-orange-100 border border-orange-300 px-1 py-px rounded" title="En attente de document ou d'information">
+                            En attente
+                          </span>
+                        ) : isUnstarted ? (
+                          <span className="text-[8px] font-bold uppercase tracking-wide text-red-800 bg-red-100 border border-red-200 px-1 py-px rounded">
+                            Non démarrée
                           </span>
                         ) : null}
                         <span
@@ -558,7 +718,7 @@ export default function RequestsPage() {
                     className={`grid transition-[grid-template-rows,opacity] ease-out motion-reduce:transition-opacity motion-reduce:duration-200 ${
                       isPinned
                         ? "grid-rows-[1fr] opacity-100 duration-[950ms] delay-[120ms] motion-reduce:delay-0 motion-reduce:duration-200"
-                        : "grid-rows-[0fr] opacity-0 duration-[650ms] delay-0 md:group-hover:grid-rows-[1fr] md:group-hover:opacity-100 md:group-hover:duration-[900ms] md:group-hover:delay-[180ms] motion-reduce:md:group-hover:grid-rows-[0fr] motion-reduce:md:group-hover:opacity-0 motion-reduce:md:group-hover:duration-200 motion-reduce:md:group-hover:delay-0"
+                        : "grid-rows-[0fr] opacity-0 duration-[650ms] delay-0"
                     }`}
                   >
                     <div className="min-h-0 overflow-hidden">
@@ -578,9 +738,19 @@ export default function RequestsPage() {
                         Réf. {r.assignedTo.routeId.replace(/\./g, " · ")}
                       </p>
                     ) : null}
-                    {isCorbeilleCard ? (
+                    {r.routing?.directionHint ? (
                       <p className="text-[9px] text-amber-900 bg-amber-50/90 rounded px-1.5 py-1">
-                        Corbeille établissement — toute l’équipe peut prendre la demande.
+                        Probablement pour la direction ({r.routing.directionHint.label}). L&apos;administratif valide avant transmission.
+                      </p>
+                    ) : null}
+                    {isWaiting ? (
+                      <p className="text-[9px] text-orange-900 bg-orange-100/90 border border-orange-200 rounded-lg px-2 py-1.5 leading-snug">
+                        <span className="font-black uppercase tracking-wide">En attente</span> — document, justificatif ou information manquant(e). Repassez en « En cours » quand vous pouvez continuer.
+                      </p>
+                    ) : null}
+                    {isCorbeilleCard ? (
+                      <p className="text-[9px] text-rose-900 bg-rose-50/90 rounded px-1.5 py-1">
+                        Corbeille établissement — visible par tout le personnel.
                       </p>
                     ) : sharedPool ? (
                       <p className="text-[9px] text-indigo-800 bg-indigo-50/80 rounded px-1.5 py-1">
@@ -613,6 +783,16 @@ export default function RequestsPage() {
                           className="text-[9px] px-2 py-1 rounded-md bg-emerald-600 text-white disabled:opacity-50 font-bold"
                         >
                           M’attribuer
+                        </button>
+                      ) : null}
+                      {r.routing?.directionHint ? (
+                        <button
+                          type="button"
+                          disabled={submittingId === r.id}
+                          onClick={() => void transmitToDirection(r.id, r.routing!.directionHint!.suggestedQueueId)}
+                          className="text-[9px] px-2 py-1 rounded-md bg-amber-600 text-white disabled:opacity-50 font-bold"
+                        >
+                          Transmettre direction
                         </button>
                       ) : null}
                       {claimedByMe ? (
@@ -708,10 +888,10 @@ export default function RequestsPage() {
                         </select>
                       </>
                     ) : null}
-                    <div className="mt-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2">
+                    <div className="mt-2 space-y-2 rounded-xl border border-stone-200/80 bg-gradient-to-b from-stone-50 to-amber-50/30 p-2.5 shadow-sm shadow-stone-100/40">
                       <div>
-                        <p className="text-[9px] font-black text-slate-800 uppercase tracking-wide">1 — Note équipe</p>
-                        <p className="text-[8px] text-slate-500 mt-0.5">
+                        <p className="text-[9px] font-black text-stone-700 uppercase tracking-wide">1 — Note équipe</p>
+                        <p className="text-[8px] text-stone-500 mt-0.5">
                           Réservé au personnel : reste sur la fiche, <span className="font-semibold">aucun e-mail</span> au demandeur.
                         </p>
                       </div>
@@ -720,15 +900,15 @@ export default function RequestsPage() {
                         onChange={(e) => setInternalNoteById((prev) => ({ ...prev, [r.id]: e.target.value }))}
                         rows={2}
                         placeholder="Votre note interne…"
-                        className="w-full rounded-md border border-slate-200 p-1.5 text-[10px] bg-white"
+                        className="w-full rounded-md border border-stone-200 p-1.5 text-[10px] bg-white/90"
                       />
-                      <label className="block text-[8px] font-bold text-slate-500">Fichiers (optionnel, interne)</label>
+                      <label className="block text-[8px] font-bold text-stone-500">Fichiers (optionnel, interne)</label>
                       <input
                         type="file"
                         multiple
                         accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,application/pdf"
                         disabled={submittingId === r.id}
-                        className="w-full text-[9px] text-slate-600 file:mr-1 file:rounded file:border-0 file:bg-slate-200 file:px-1.5 file:py-0.5"
+                        className="w-full text-[9px] text-stone-600 file:mr-1 file:rounded file:border-0 file:bg-stone-200 file:px-1.5 file:py-0.5"
                         onChange={(e) => {
                           const list = e.target.files ? Array.from(e.target.files) : [];
                           setCommentFilesInternalById((prev) => ({
@@ -743,7 +923,7 @@ export default function RequestsPage() {
                           {(commentFilesInternalById[r.id] ?? []).map((f, i) => (
                             <li
                               key={`${r.id}-int-${f.name}-${i}`}
-                              className="flex justify-between gap-2 text-[8px] text-slate-600 bg-white rounded px-1.5 py-0.5 border border-slate-100"
+                              className="flex justify-between gap-2 text-[8px] text-stone-600 bg-white rounded px-1.5 py-0.5 border border-stone-100"
                             >
                               <span className="truncate">{f.name}</span>
                               <button
@@ -766,7 +946,7 @@ export default function RequestsPage() {
                         type="button"
                         onClick={() => void sendComment(r.id, false)}
                         disabled={submittingId === r.id}
-                        className="w-full text-[9px] px-2 py-1.5 rounded-md bg-slate-700 text-white disabled:opacity-50 font-bold"
+                        className="w-full text-[9px] px-2 py-1.5 rounded-md bg-stone-700 hover:bg-stone-800 text-white disabled:opacity-50 font-bold transition-colors"
                       >
                         Enregistrer la note équipe
                       </button>
@@ -854,14 +1034,17 @@ export default function RequestsPage() {
               );
               })}
             </div>
+            </div>
           </section>
-        ))}
+          );
+        })}
       </div>
       <div className="mt-14">
         <MesDemandesSuivi
           items={submittedItems}
           loading={loading}
-          intro="Demandes que vous avez déposées (chatbot ou autre) : statut et service qui les traite, sans codes techniques."
+          title="Mes demandes"
+          intro="Demandes que vous avez déposées : statut et service qui les traite."
         />
       </div>
     </main>

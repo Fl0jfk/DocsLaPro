@@ -4,6 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useAppContext } from "@/app/hooks/useAppContext";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
+import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
+import { hasGlobalAdminRole } from "@/app/lib/intranet-role-utils";
 import ProfRoomSettingsTab from "@/app/components/prof-room/ProfRoomSettingsTab";
 import { DEFAULT_PROF_ROOM_SUBJECT_COLORS } from "@/app/lib/prof-room-defaults";
 import { getSubjectColorPresentation } from "@/app/lib/prof-room-subject-colors";
@@ -51,14 +53,15 @@ function ProfRoomPageContent() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingRes, setEditingRes] = useState<any>(null);
   const lastName = (user?.lastName || "").toUpperCase();
-  const adminLastNames = appCtx?.profRoom?.adminLastNames?.length
-    ? appCtx.profRoom.adminLastNames
-    : ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE", "LAQUIEVRE"];
-  const adminClerkUserIds = appCtx?.profRoom?.adminClerkUserIds || [];
-  const isAdmin =
+  const intranetRoles = intranetRolesFromMetadata(user?.publicMetadata);
+  const isGlobalAdmin =
     isOrgAdmin ||
-    (user?.id ? adminClerkUserIds.includes(user.id) : false) ||
-    adminLastNames.includes(lastName);
+    hasGlobalAdminRole(intranetRoles) ||
+    appCtx?.session?.isGlobalAdmin === true;
+  const adminClerkUserIds = appCtx?.profRoom?.adminClerkUserIds || [];
+  const isModuleListedAdmin = user?.id ? adminClerkUserIds.includes(user.id) : false;
+  const canAccessSettings = isGlobalAdmin || isModuleListedAdmin;
+  const isAdmin = canAccessSettings;
   const todayStr = new Date().toISOString().split("T")[0];
   const maxDateLimit = new Date();
   maxDateLimit.setDate(maxDateLimit.getDate() + (appCtx?.profRoom?.bookingHorizonDays ?? 56));
@@ -255,7 +258,7 @@ function ProfRoomPageContent() {
         >
           Réservation
         </button>
-        {isAdmin && (
+        {canAccessSettings && (
           <button
             type="button"
             onClick={() => setActiveTab("settings")}
@@ -265,7 +268,7 @@ function ProfRoomPageContent() {
           </button>
         )}
       </div>
-      {activeTab === "settings" && isAdmin ? (
+      {activeTab === "settings" && canAccessSettings ? (
         <ProfRoomSettingsTab />
       ) : (
       <>

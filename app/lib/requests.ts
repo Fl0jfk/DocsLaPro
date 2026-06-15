@@ -1,6 +1,6 @@
 import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand} from "@aws-sdk/client-s3";
 import { SCHOOL } from "@/app/lib/school";
-import { getJson, putJson, putObject, getS3Client, getBucketName } from "@/app/lib/s3-storage";
+import { getJson, putJson, putObject, getS3Client, getBucketName, getObjectBytes } from "@/app/lib/s3-storage";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
 import {
   createTenantTransporter,
@@ -9,6 +9,7 @@ import {
 import { s3Key } from "@/app/lib/s3-path";
 import { LEGACY_ROUTE_TO_BRANCH, normalizeRequestBranchId, normalizeRequestEmail, isCorbeilleBranchId} from "@/app/lib/requests-board";
 import { getFirstBranchForStaffEmailFromDirectory, getStaffExecutorsForBranch, getStaffLeadersForBranch} from "@/app/lib/staff-directory";
+import { resolveRoutingFromCatalog } from "@/app/lib/requests-routing-config";
 
 export type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
 export type RequestAttachment = {
@@ -136,6 +137,14 @@ export type RequestRecord = {
     confidence: number;
     reason: string;
     suggestedRouteId?: string;
+    assignmentId?: string;
+    taskId?: string;
+    directionHint?: {
+      suggestedQueueId: string;
+      label: string;
+      confidence: number;
+      reason: string;
+    };
   };
   attachments?: RequestAttachment[];
   comments: RequestComment[];
@@ -239,20 +248,32 @@ export async function purgeExpiredRequests(): Promise<{ removed: number }> {
 
 function compact(value: string) { return value.trim().replace(/\s+/g, " ")}
 
+export function deriveRequestSubject(description: string): string {
+  const line = compact(description).split(/\n/)[0] || compact(description);
+  if (line.length <= 80) return line;
+  return `${line.slice(0, 77)}…`;
+}
+
 export function validateRequestInput(input: Partial<RequestCreateInput>) {
   const firstName = compact(String(input.firstName || ""));
   const lastName = compact(String(input.lastName || ""));
   const email = compact(String(input.email || "")).toLowerCase();
-  const phone = compact(String(input.phone || ""));
-  const subject = compact(String(input.subject || ""));
+  let phone = compact(String(input.phone || ""));
+  let subject = compact(String(input.subject || ""));
   const description = compact(String(input.description || ""));
-  if (!firstName || !lastName || !email || !phone || !subject || !description) { return { ok: false as const, error: "Tous les champs sont obligatoires." }}
+  const userId = input.userId ?? null;
+  if (!firstName || !lastName || !email || !description) {
+    return { ok: false as const, error: "Prénom, nom, e-mail et description sont obligatoires." };
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { return { ok: false as const, error: "Email invalide." }}
-  if (phone.length < 8) { return { ok: false as const, error: "Téléphone invalide." }}
+  if (!userId && phone.length < 8) { return { ok: false as const, error: "Téléphone invalide." }}
+  if (userId && !phone) phone = "Non renseigné";
+  if (!subject) subject = deriveRequestSubject(description);
+  if (!subject) { return { ok: false as const, error: "Merci de détailler votre demande." }}
   if (description.length < 15) { return { ok: false as const, error: "Merci de détailler un peu plus votre demande." }}
   return {
     ok: true as const,
-    value: { firstName, lastName, email, phone, subject, description, userId: input.userId ?? null },
+    value: { firstName, lastName, email, phone, subject, description, userId },
   };
 }
 
@@ -310,7 +331,55 @@ function buildRouteFromBranch(id: BranchId): RequestRouteDef {
   };
 }
 
-const ROUTE_BRANCH_IDS: BranchId[] = [ "corbeille","maintenance","admin_ecole","admin_college","admin_lycee","cpe_lycee","cpe_3e4e","cpe_5e6e","vie_scolaire_infirmerie","accueil","comptabilite"];
+const ROUTE_BRANCH_IDS: BranchId[] = [
+  "corbeille", "maintenance", "admin_ecole", "admin_college", "admin_lycee",
+  "cpe_lycee", "cpe_3e4e", "cpe_5e6e", "vie_scolaire_infirmerie", "accueil", "comptabilite",
+  "direction_ecole", "direction_college", "direction_lycee",
+];
+
+/** Jamais assignées automatiquement — réservées au transfert manuel admin. */
+export const MANUAL_ONLY_DIRECTION_IDS = new Set(["direction_ecole", "direction_college", "direction_lycee"]);
+
+const DIRECTION_TO_ADMIN_QUEUE: Record<string, BranchId> = {
+  direction_ecole: "admin_ecole",
+  direction_college: "admin_college",
+  direction_lycee: "admin_lycee",
+};
+
+function applyDirectionGate(routing: ResolvedRequestRouting): ResolvedRequestRouting {
+  const assignedRoute = routing.assignedTo.routeId ?? routing.assignedTo.unit;
+  const hintId = MANUAL_ONLY_DIRECTION_IDS.has(assignedRoute)
+    ? assignedRoute
+    : routing.suggestedRouteId && MANUAL_ONLY_DIRECTION_IDS.has(routing.suggestedRouteId)
+      ? routing.suggestedRouteId
+      : null;
+  if (!hintId) return routing;
+
+  const directionDef = ROUTE_BY_ID.get(hintId);
+  const directionHint = {
+    suggestedQueueId: hintId,
+    label: directionDef?.roleLabel ?? hintId,
+    confidence: routing.confidence,
+    reason: routing.reason,
+  };
+
+  if (!MANUAL_ONLY_DIRECTION_IDS.has(assignedRoute)) {
+    return { ...routing, directionHint };
+  }
+
+  const adminId = DIRECTION_TO_ADMIN_QUEUE[hintId];
+  const adminDef = adminId ? ROUTE_BY_ID.get(adminId) : null;
+  if (!adminDef) return { ...routing, directionHint };
+  return {
+    category: adminDef.category,
+    assignedTo: materializeAssigned(adminDef),
+    source: routing.source,
+    confidence: routing.confidence,
+    reason: `${routing.reason} — déposée en administratif ; indicateur direction.`,
+    directionHint,
+    suggestedRouteId: routing.suggestedRouteId,
+  };
+}
 const REQUEST_ROUTES: RequestRouteDef[] = ROUTE_BRANCH_IDS.map((id) => buildRouteFromBranch(id));
 const ROUTE_BY_ID = new Map(REQUEST_ROUTES.map((r) => [r.id, r]));
 
@@ -351,6 +420,14 @@ function materializeAssigned(def: RequestRouteDef): RequestRecord["assignedTo"] 
 
 export function listRequestRoutesForPicker(): Array<{ id: string; label: string; category: string }> {
   return REQUEST_ROUTES.filter((r) => r.id !== "corbeille").map((r) => ({
+    id: r.id,
+    label: r.roleLabel,
+    category: r.category,
+  }));
+}
+
+export function listRequestRoutesForTransmit(): Array<{ id: string; label: string; category: string }> {
+  return REQUEST_ROUTES.filter((r) => r.id !== "corbeille" && MANUAL_ONLY_DIRECTION_IDS.has(r.id)).map((r) => ({
     id: r.id,
     label: r.roleLabel,
     category: r.category,
@@ -462,6 +539,7 @@ Règles (identifiants exacts):
 - absence, justificatif, appel, infirmerie => vie_scolaire_infirmerie
 - discipline CPE collège 5e/6e => cpe_5e6e ; 3e/4e => cpe_3e4e ; lycée => cpe_lycee
 - secrétariat / bulletins école => admin_ecole ; collège => admin_college ; lycée => admin_lycee
+- recours direction, plainte grave, décision directionnelle => direction_ecole / direction_college / direction_lycee (selon le pôle) — ces routes ne reçoivent jamais la demande directement, elles servent d'indicateur
 - accueil, photocopieur panne côté accueil => accueil
 - inscription / réinscription globale => admin_ecole ou admin_lycee selon le texte ; doute => corbeille
 - si doute ou texte trop vague => corbeille avec confidence <= 0.4
@@ -522,21 +600,20 @@ export type ResolvedRequestRouting = {
   confidence: number;
   reason: string;
   suggestedRouteId?: string;
+  directionHint?: RequestRecord["routing"]["directionHint"];
+  routingMeta?: { assignmentId: string; taskId: string };
 };
 
 export async function resolveRequestRouting(subject: string, description: string): Promise<ResolvedRequestRouting> {
-  const ai = await routeWithMistral(subject, description);
-  if (ai) {
+  const base = await resolveRoutingFromCatalog(subject, description);
+  const gated = applyDirectionGate(base);
+  if (base.routingMeta) {
     return {
-      category: ai.category,
-      assignedTo: ai.assignedTo,
-      source: "ai",
-      confidence: ai.confidence,
-      reason: ai.reason,
-      suggestedRouteId: ai.suggestedRouteId,
+      ...gated,
+      routingMeta: base.routingMeta,
     };
   }
-  return computeFallbackRouting(subject, description);
+  return gated;
 }
 
 export function resolveRequestRouteById(routeId: string): ResolvedRequestRouting | null {
@@ -642,21 +719,55 @@ export async function notifyRequestCreated(record: RequestRecord) {
   });
 }
 
-const NOTIFY_STATUSES: RequestStatus[] = ["EN_ATTENTE", "TERMINEE"];
+const NOTIFY_STATUSES: RequestStatus[] = ["EN_COURS", "EN_ATTENTE", "TERMINEE"];
 
-export async function notifyRequestStatusMilestone( record: RequestRecord,previousStatus: RequestStatus, extraNote?: string) {
+export async function notifyRequestStatusMilestone(
+  record: RequestRecord,
+  previousStatus: RequestStatus,
+  extraNote?: string,
+  closureAttachments?: RequestAttachment[],
+) {
   const mail = await getMailer();
   if (!mail) return;
   const now = record.status;
   if (now === previousStatus) return;
   if (!NOTIFY_STATUSES.includes(now)) return;
   const { smtp, transporter } = mail;
+  const statusLabel =
+    now === "EN_COURS" ? "prise en charge" : now === "TERMINEE" ? "clôture" : "en attente";
   const base = [ `Demande : ${record.id}`,`Évolution : ${previousStatus.replace("_", " ")} → ${now.replace("_", " ")}`,`Sujet : ${record.subject}`,extraNote ? `Précision : ${extraNote}` : ""].filter(Boolean).join("\n");
+  const claimer = record.assignedTo.claimedBy?.name || record.assignedTo.claimedBy?.email;
+
+  const mailAttachments: { filename: string; content: Buffer; contentType: string }[] = [];
+  if (now === "TERMINEE" && closureAttachments?.length) {
+    for (const att of closureAttachments) {
+      const buf = await getObjectBytes(att.key);
+      if (!buf?.length) continue;
+      mailAttachments.push({
+        filename: att.fileName,
+        content: buf,
+        contentType: att.contentType || "application/octet-stream",
+      });
+    }
+  }
+
   await transporter.sendMail({
     from: `"Demandes" <${smtp.user}>`,
     to: record.requester.email,
-    subject: `Votre demande — ${now === "TERMINEE" ? "clôture" : "en attente"} (${record.id})`,
-    text: `Bonjour ${record.requester.fullName},\n\n${base}\n\nL’équipe vous informe à l’occasion de cette étape.`,
+    subject: `Votre demande — ${statusLabel} (${record.id})`,
+    text: [
+      `Bonjour ${record.requester.fullName},`,
+      "",
+      now === "EN_COURS" && claimer
+        ? `Votre demande est prise en charge par ${claimer}.`
+        : `L'équipe vous informe à l'occasion de cette étape.`,
+      "",
+      base,
+      mailAttachments.length > 0
+        ? `\nPièces jointes : ${mailAttachments.map((a) => a.filename).join(", ")}`
+        : "",
+    ].join("\n"),
+    ...(mailAttachments.length > 0 ? { attachments: mailAttachments } : {}),
   });
   const { to: staffTo, cc: staffCc } = staffMailTargets(record);
   await transporter.sendMail({
@@ -665,6 +776,7 @@ export async function notifyRequestStatusMilestone( record: RequestRecord,previo
     ...(staffCc ? { cc: staffCc } : {}),
     subject: `[Demande ${record.id}] ${now.replace("_", " ")}`,
     text: base,
+    ...(mailAttachments.length > 0 ? { attachments: mailAttachments } : {}),
   });
 }
 

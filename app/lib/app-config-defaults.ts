@@ -145,7 +145,6 @@ export function defaultProfRoomModule(): ProfRoomModuleConfig {
     hoursStart: 8,
     hoursEnd: 17,
     bookingHorizonDays: 56,
-    adminLastNames: ["HACQUEVILLE-MATHI", "FORTINEAU", "DONA", "DUMOUCHEL", "PLANTEC", "GUEDIN", "LAINE", "LAQUIEVRE"],
     adminClerkUserIds: [],
   };
 }

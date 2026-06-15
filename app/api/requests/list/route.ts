@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { computeStaffBoardColumn, isCorbeilleBranchId, isVisibleOnStaffBoard, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
-import { getAllBranchStaffEmails, getDelegateTargetEmailsForRequest, getRequestsIndex, isLeaderForRequestBranch, purgeExpiredRequests,} from "@/app/lib/requests";
+import { getDelegateTargetEmailsForRequest, getRequestsIndex, isLeaderForRequestBranch, purgeExpiredRequests,} from "@/app/lib/requests";
+import { getAllBranchStaffEmailsFromRouting } from "@/app/lib/requests-routing-config";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 
-function hasStaffBoardAccess(roles: string[], email: string) { return canAccessRequestsStaffBoard(roles, email)}
+async function hasStaffBoardAccess(roles: string[], email: string) {
+  return canAccessRequestsStaffBoard(roles, email);
+}
 
 export async function GET(req: NextRequest) {
   const gate = await requireAuth();
@@ -16,7 +19,7 @@ export async function GET(req: NextRequest) {
   const roles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
   const scopeParam = req.nextUrl.searchParams.get("scope");
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
-  const scope = scopeParam ?? (hasStaffBoardAccess(roles, userEmail) ? "board" : "submitted");
+  const scope = scopeParam ?? ((await hasStaffBoardAccess(roles, userEmail)) ? "board" : "submitted");
   try {
     try {
       await purgeExpiredRequests();
@@ -34,9 +37,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(mine.sort(sortDesc));
     }
     if (scope === "board" || scope === "all" || scope === "my_queue") {
-      if (!hasStaffBoardAccess(roles, userEmail)) return new NextResponse("Accès refusé", { status: 403 });
+      if (!(await hasStaffBoardAccess(roles, userEmail))) return new NextResponse("Accès refusé", { status: 403 });
       if (!userEmail) return NextResponse.json({ error: "Email requis pour le tableau des demandes" }, { status: 400 });
-      const allStaff = getAllBranchStaffEmails();
+      const allStaff = await getAllBranchStaffEmailsFromRouting();
       const visible = index.filter((r) => isVisibleOnStaffBoard( r.assignedTo, userEmail, allStaff, isLeaderForRequestBranch(r.assignedTo.routeId, r.assignedTo.unit, userEmail)));
       const enriched = visible
         .sort(sortDesc)

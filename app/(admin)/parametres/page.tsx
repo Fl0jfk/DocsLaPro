@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import RequireOrgAdmin from "@/app/components/RequireOrgAdmin";
 import ProfRoomAdminPicker, { type ClerkMemberOption } from "@/app/components/prof-room/ProfRoomAdminPicker";
+import RequestsRoutingEditor from "@/app/components/settings/RequestsRoutingEditor";
+import type { RequestsRoutingConfig } from "@/app/lib/app-config-schemas";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 
-type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room";
+type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing";
 
 type MefSecteursConfig = { lycee: string[]; college: string[]; ecole: string[] };
 
@@ -44,9 +46,9 @@ export default function ParametresPage() {
   const [mefMessage, setMefMessage] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [profRoomAdminIds, setProfRoomAdminIds] = useState<string[]>([]);
-  const [profRoomLegacyLastNames, setProfRoomLegacyLastNames] = useState<string[]>([]);
   const [clerkMembers, setClerkMembers] = useState<ClerkMemberOption[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [requestsRouting, setRequestsRouting] = useState<RequestsRoutingConfig | null>(null);
 
   useEffect(() => {
     if (!isOrgAdmin) {
@@ -73,9 +75,6 @@ export default function ParametresPage() {
         const profRoomCfg = j.config?.profRoom || {};
         const savedIds = Array.isArray(profRoomCfg.adminClerkUserIds) ? profRoomCfg.adminClerkUserIds : [];
         setProfRoomAdminIds(savedIds);
-        setProfRoomLegacyLastNames(
-          Array.isArray(profRoomCfg.adminLastNames) ? profRoomCfg.adminLastNames.map((n: string) => n.toUpperCase()) : [],
-        );
         const mRes = await fetch("/api/mef-secteurs");
         const mj = await mRes.json();
         if (mRes.ok && mj.config) {
@@ -83,6 +82,11 @@ export default function ParametresPage() {
           setMefLycee(listToLines(c.lycee));
           setMefCollege(listToLines(c.college));
           setMefEcole(listToLines(c.ecole));
+        }
+        const rrRes = await fetch("/api/settings/requests-routing");
+        const rrJson = await rrRes.json();
+        if (rrRes.ok && rrJson.config) {
+          setRequestsRouting(rrJson.config as RequestsRoutingConfig);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
@@ -93,7 +97,7 @@ export default function ParametresPage() {
   }, [isOrgAdmin]);
 
   useEffect(() => {
-    if (!isOrgAdmin || tab !== "prof-room") return;
+    if (!isOrgAdmin || (tab !== "prof-room" && tab !== "requests-routing")) return;
     let cancelled = false;
     (async () => {
       setMembersLoading(true);
@@ -104,16 +108,6 @@ export default function ParametresPage() {
         if (cancelled) return;
         const users = (j.users || []) as ClerkMemberOption[];
         setClerkMembers(users);
-        setProfRoomAdminIds((prev) => {
-          if (prev.length > 0) return prev;
-          if (profRoomLegacyLastNames.length === 0) return prev;
-          const matched = users
-            .filter(
-              (m) => m.clerkUserId && m.lastName && profRoomLegacyLastNames.includes(m.lastName.toUpperCase()),
-            )
-            .map((m) => m.clerkUserId);
-          return matched.length > 0 ? matched : prev;
-        });
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Erreur chargement membres");
       } finally {
@@ -123,7 +117,7 @@ export default function ParametresPage() {
     return () => {
       cancelled = true;
     };
-  }, [isOrgAdmin, tab, profRoomLegacyLastNames]);
+  }, [isOrgAdmin, tab]);
 
   const uploadHeaderLogo = async (file: File) => {
     setUploadingLogo(true);
@@ -205,6 +199,7 @@ export default function ParametresPage() {
             ["notifications", "Notifications"],
             ["mef", "Formations MEF"],
             ["prof-room", "Réservation salles"],
+            ["requests-routing", "Routage demandes"],
           ] as const
         ).map(([k, label]) => (
           <button
@@ -607,9 +602,50 @@ export default function ParametresPage() {
             }
             className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
           >
-            Enregistrer les administrateurs
+            Enregistrer les administrateurs salles
           </button>
         </div>
+      )}
+
+      {tab === "requests-routing" && requestsRouting && (
+        <div className="space-y-4">
+          <RequestsRoutingEditor
+            config={requestsRouting}
+            onChange={setRequestsRouting}
+            members={clerkMembers}
+            membersLoading={membersLoading}
+          />
+          <button
+            type="button"
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              setError(null);
+              try {
+                const res = await fetch("/api/settings/requests-routing", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(requestsRouting),
+                });
+                const j = await res.json();
+                if (!res.ok) throw new Error(j.error || "Échec enregistrement");
+                setRequestsRouting(j.config as RequestsRoutingConfig);
+                alert("Routage des demandes enregistré.");
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Erreur");
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
+          >
+            Enregistrer le routage des demandes
+          </button>
+        </div>
+      )}
+
+      {tab === "requests-routing" && !requestsRouting && (
+        <p className="text-slate-500 text-sm">Chargement du catalogue de routage…</p>
       )}
     </div>
     </RequireOrgAdmin>

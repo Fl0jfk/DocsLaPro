@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "clerk:env": "clerk env pull",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -27,7 +28,7 @@
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
-    "next": "^15.5.1",
+    "next": "^16.2.9",
     "nodemailer": "latest",
     "pdf-lib": "^1.17.1",
     "qrcode": "latest",

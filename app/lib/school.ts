@@ -185,5 +185,23 @@ export const SCHOOL = {
       promptLine: "Factures, paiements, tarifs, remboursements, règlement financier.",
       keywords: ["facture", "paiement", "reglement", "compta", "tarif", "remboursement", "budget", "frais"] as const,
     },
+    direction_ecole: {
+      roleLabel: "Direction — école",
+      category: "Direction",
+      promptLine: "Recours direction école, décisions directionnelles, plaintes graves côté école.",
+      keywords: ["direction ecole", "directrice ecole", "recours direction", "plainte direction"] as const,
+    },
+    direction_college: {
+      roleLabel: "Direction — collège",
+      category: "Direction",
+      promptLine: "Recours direction collège, décisions directionnelles, plaintes graves côté collège.",
+      keywords: ["direction college", "directrice college", "recours direction", "plainte direction"] as const,
+    },
+    direction_lycee: {
+      roleLabel: "Direction — lycée",
+      category: "Direction",
+      promptLine: "Recours direction lycée, décisions directionnelles, plaintes graves côté lycée.",
+      keywords: ["direction lycee", "directrice lycee", "recours direction", "plainte direction"] as const,
+    },
   },
 } as const;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { REQUEST_STATUSES, RequestAttachment, RequestComment, RequestRecord, RequestStatus, assertEligibleRequestAttachment, finalizeRequestPurgeMetadata, getDefaultRequestBranchForStaffEmail, getRequestPoolEmails, getRequestsIndex, isLeaderForRequestBranch, isUserInRequestPool, notifyRequesterOnly, notifyRequestStatusMilestone, resolveRequestRouteById, saveRequestFile, saveRequestsIndex, uploadBuffersAsRequestAttachments, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";
+import { REQUEST_STATUSES, RequestAttachment, RequestComment, RequestRecord, RequestStatus, assertEligibleRequestAttachment, finalizeRequestPurgeMetadata, getDefaultRequestBranchForStaffEmail, getRequestPoolEmails, getRequestsIndex, isLeaderForRequestBranch, isUserInRequestPool, notifyRequesterOnly, notifyRequestStatusMilestone, resolveRequestRouteById, saveRequestFile, saveRequestsIndex, uploadBuffersAsRequestAttachments, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD, MANUAL_ONLY_DIRECTION_IDS} from "@/app/lib/requests";
 import { isCorbeilleBranchId, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 import { isStaffInBranchPool } from "@/app/lib/staff-directory";
@@ -206,7 +206,7 @@ export async function PATCH(req: Request) {
     }
     if (action === "claim_self") {
       if (!actorEmail) return NextResponse.json({ error: "Email requis pour prendre en charge" }, { status: 400 });
-      if (!canAccessRequestsStaffBoard(actorRoles, actorEmail)) { return NextResponse.json({ error: "Réservé au personnel habilité aux demandes" }, { status: 403 })}
+      if (!(await canAccessRequestsStaffBoard(actorRoles, actorEmail))) { return NextResponse.json({ error: "Réservé au personnel habilité aux demandes" }, { status: 403 })}
       const existingClaim = current.assignedTo.claimedBy?.email;
       if (!existingClaim && !isUserInRequestPool(current, actorEmail)) { return NextResponse.json({ error: "Vous ne pouvez pas prendre cette demande." }, { status: 403 })}
       const statusOpt = String(body?.status || "").trim() as RequestStatus;
@@ -256,10 +256,46 @@ export async function PATCH(req: Request) {
       await saveRequestsIndex( index);
       return NextResponse.json({ success: true, request: finalizedSelf });
     }
+    if (action === "transmit_to_direction") {
+      if (!(await canAccessRequestsStaffBoard(actorRoles, actorEmail))) {
+        return NextResponse.json({ error: "Réservé au personnel habilité." }, { status: 403 });
+      }
+      const directionId = assignRouteIdRaw || current.routing?.directionHint?.suggestedQueueId || "";
+      if (!MANUAL_ONLY_DIRECTION_IDS.has(directionId)) {
+        return NextResponse.json({ error: "Corbeille direction invalide." }, { status: 400 });
+      }
+      const resolved = resolveRequestRouteById(directionId);
+      if (!resolved) return NextResponse.json({ error: "Configuration direction manquante." }, { status: 500 });
+      const updatedDir: RequestRecord = {
+        ...current,
+        updatedAt: now,
+        category: resolved.category,
+        assignedTo: { ...resolved.assignedTo, claimedBy: current.assignedTo.claimedBy ?? null },
+        routing: {
+          ...current.routing,
+          directionHint: undefined,
+          reason: `${current.routing.reason} — transmise à ${resolved.assignedTo.roleLabel} par ${actorName}.`,
+        },
+        history: [
+          ...current.history,
+          {
+            at: now,
+            by: actorName,
+            action: "TRANSMIS_DIRECTION",
+            note: `Transmise à ${resolved.assignedTo.roleLabel} (${directionId}).`,
+          },
+        ],
+      };
+      const finalizedDir = finalizeRequestPurgeMetadata(current, updatedDir, now);
+      index[pos] = finalizedDir;
+      await saveRequestFile(finalizedDir);
+      await saveRequestsIndex(index);
+      return NextResponse.json({ success: true, request: finalizedDir });
+    }
     const priorStatusForNotify = current.status;
     let updated: RequestRecord = { ...current, updatedAt: now};
     if (status && REQUEST_STATUSES.includes(status)) {
-      if (!canAccessRequestsStaffBoard(actorRoles, actorEmail)) {  return NextResponse.json({ error: "Non autorisé" }, { status: 403 });}
+      if (!(await canAccessRequestsStaffBoard(actorRoles, actorEmail))) {  return NextResponse.json({ error: "Non autorisé" }, { status: 403 });}
       const claimedBy = current.assignedTo.claimedBy?.email;
       const claimedMe = Boolean(claimedBy) && normalizeRequestEmail(claimedBy!) === normalizeRequestEmail(actorEmail);
       const inPool = isUserInRequestPool(current, actorEmail);
@@ -320,8 +356,9 @@ export async function PATCH(req: Request) {
       };
     }
     let noteForEmail: string | undefined;
+    let closureAttachments: RequestAttachment[] | undefined;
     if (comment.trim() || multipartFiles.length > 0) {
-      if (multipartFiles.length > 0 && !canAccessRequestsStaffBoard(actorRoles, actorEmail)) {
+      if (multipartFiles.length > 0 && !(await canAccessRequestsStaffBoard(actorRoles, actorEmail))) {
         return NextResponse.json({ error: "Seul le personnel habilité peut joindre des fichiers aux réponses." }, { status: 403 });
       }
       let commentText = comment.trim();
@@ -365,6 +402,9 @@ export async function PATCH(req: Request) {
           ],
         };
         noteForEmail = [ commentText, commentAttachments.length > 0 ? `Fichiers : ${commentAttachments.map((a) => a.fileName).join(", ")}` : ""].filter(Boolean).join("\n");
+        if (updated.status === "TERMINEE" && commentAttachments.length > 0) {
+          closureAttachments = commentAttachments;
+        }
       }
     }
     const finalized = finalizeRequestPurgeMetadata(current, updated, now);
@@ -372,10 +412,10 @@ export async function PATCH(req: Request) {
     await saveRequestFile(finalized);
     await saveRequestsIndex( index);
     try {
-      const reachedMilestone = finalized.status !== priorStatusForNotify && (finalized.status === "EN_ATTENTE" || finalized.status === "TERMINEE");
+      const reachedMilestone = finalized.status !== priorStatusForNotify && (finalized.status === "EN_COURS" || finalized.status === "EN_ATTENTE" || finalized.status === "TERMINEE");
       if (reachedMilestone) {
         const publicNote = toRequester ? noteForEmail : undefined;
-        await notifyRequestStatusMilestone(finalized, priorStatusForNotify, publicNote);
+        await notifyRequestStatusMilestone(finalized, priorStatusForNotify, publicNote, closureAttachments);
       } else if (toRequester && noteForEmail?.trim()) {
         await notifyRequesterOnly(finalized, noteForEmail);
       }

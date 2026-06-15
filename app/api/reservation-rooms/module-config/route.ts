@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { loadAppConfig, saveProfRoomModule } from "@/app/lib/app-config";
 import { parseProfRoomModule, type ProfRoomModuleConfig } from "@/app/lib/app-config-schemas";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { requireProfRoomModuleAdmin } from "@/app/lib/prof-room-auth";
+import { isProfRoomModuleAdmin, normalizeProfRoomAdminClerkIds, requireProfRoomModuleAdmin } from "@/app/lib/prof-room-auth";
 import { withDefaultProfRoomSubjects } from "@/app/lib/prof-room-defaults";
 
 export async function GET() {
@@ -11,8 +11,12 @@ export async function GET() {
   try {
     const config = await loadAppConfig();
     const merged = withDefaultProfRoomSubjects(config.profRoom);
-    const { adminLastNames: _admins, ...moduleConfig } = merged;
-    return NextResponse.json({ config: moduleConfig });
+    const { adminClerkUserIds, ...moduleConfig } = merged;
+    const isAdmin = await isProfRoomModuleAdmin();
+    return NextResponse.json({
+      config: moduleConfig,
+      ...(isAdmin ? { adminClerkUserIds: adminClerkUserIds || [] } : {}),
+    });
   } catch (err: unknown) {
     console.error("GET /module-config:", err);
     return NextResponse.json({ error: "Impossible de charger la configuration." }, { status: 500 });
@@ -25,6 +29,12 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     const current = await loadAppConfig();
+    let adminClerkUserIds = current.profRoom.adminClerkUserIds || [];
+
+    if (Array.isArray(body?.adminClerkUserIds)) {
+      adminClerkUserIds = normalizeProfRoomAdminClerkIds(body.adminClerkUserIds);
+    }
+
     const merged: ProfRoomModuleConfig = {
       ...current.profRoom,
       subjectColors:
@@ -41,12 +51,15 @@ export async function PUT(req: Request) {
           : current.profRoom.bookingHorizonDays,
       hoursStart: current.profRoom.hoursStart,
       hoursEnd: current.profRoom.hoursEnd,
-      adminLastNames: current.profRoom.adminLastNames,
-      adminClerkUserIds: current.profRoom.adminClerkUserIds,
+      adminClerkUserIds,
     };
     await saveProfRoomModule(merged);
-    const { adminLastNames: _admins, ...moduleConfig } = merged;
-    return NextResponse.json({ success: true, config: moduleConfig });
+    const { adminClerkUserIds: savedAdminIds, ...moduleConfig } = merged;
+    return NextResponse.json({
+      success: true,
+      config: moduleConfig,
+      adminClerkUserIds: savedAdminIds,
+    });
   } catch (err: unknown) {
     console.error("PUT /module-config:", err);
     const msg = err instanceof Error ? err.message : "Impossible d'enregistrer la configuration.";

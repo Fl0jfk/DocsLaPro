@@ -80,8 +80,7 @@ export type ProfRoomModuleConfig = {
   hoursStart: number;
   hoursEnd: number;
   bookingHorizonDays: number;
-  adminLastNames: string[];
-  /** Utilisateurs Clerk autorisés (source de vérité pour l’UI paramètres). */
+  /** Utilisateurs Clerk autorisés comme administrateurs du module. */
   adminClerkUserIds: string[];
 };
 
@@ -93,6 +92,45 @@ export type DomainPlanningModuleConfig = {
   bookingHorizonDays: number;
 };
 
+export type RoutingService = {
+  id: string;
+  label: string;
+  category: string;
+  manualOnly?: boolean;
+};
+
+export type RoutingTask = {
+  id: string;
+  label: string;
+  hint: string;
+  keywords: string[];
+  active: boolean;
+};
+
+export type RoutingAssignment = {
+  id: string;
+  taskId: string;
+  email: string;
+  personName: string;
+  serviceId: string;
+  active: boolean;
+};
+
+export type RoutingDirectionQueue = {
+  id: string;
+  label: string;
+  email: string;
+  active: boolean;
+};
+
+export type RequestsRoutingConfig = {
+  version: 1;
+  services: RoutingService[];
+  tasks: RoutingTask[];
+  assignments: RoutingAssignment[];
+  directionQueues: RoutingDirectionQueue[];
+};
+
 export type AppConfigBundle = {
   identity: SiteIdentity;
   establishments: Establishment[];
@@ -102,6 +140,7 @@ export type AppConfigBundle = {
   profRoom: ProfRoomModuleConfig;
   domainPlanning: DomainPlanningModuleConfig;
   internat: InternatModuleConfig;
+  requestsRouting?: RequestsRoutingConfig;
 };
 
 function isEmail(s: string): boolean {
@@ -294,7 +333,77 @@ export function parseProfRoomModule(raw: unknown): ProfRoomModuleConfig {
     hoursStart: typeof o.hoursStart === "number" ? o.hoursStart : 8,
     hoursEnd: typeof o.hoursEnd === "number" ? o.hoursEnd : 17,
     bookingHorizonDays: typeof o.bookingHorizonDays === "number" ? o.bookingHorizonDays : 56,
-    adminLastNames: strArr(o.adminLastNames),
     adminClerkUserIds: strArr(o.adminClerkUserIds),
+  };
+}
+
+export function parseRequestsRouting(raw: unknown): RequestsRoutingConfig {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const services = Array.isArray(o.services) ? o.services : [];
+  const tasks = Array.isArray(o.tasks) ? o.tasks : [];
+  const assignments = Array.isArray(o.assignments) ? o.assignments : [];
+  const directionQueues = Array.isArray(o.directionQueues) ? o.directionQueues : [];
+
+  const parsedServices: RoutingService[] = services.map((s) => {
+    const x = s && typeof s === "object" ? (s as Record<string, unknown>) : {};
+    const id = str(x.id).trim();
+    if (!id) throw new Error("Service : id requis.");
+    return {
+      id,
+      label: str(x.label) || id,
+      category: str(x.category) || "Général",
+      manualOnly: x.manualOnly === true,
+    };
+  });
+
+  const parsedTasks: RoutingTask[] = tasks.map((t) => {
+    const x = t && typeof t === "object" ? (t as Record<string, unknown>) : {};
+    const id = str(x.id).trim();
+    if (!id) throw new Error("Tâche : id requis.");
+    return {
+      id,
+      label: str(x.label) || id,
+      hint: str(x.hint),
+      keywords: strArr(x.keywords),
+      active: x.active !== false,
+    };
+  });
+
+  const parsedAssignments: RoutingAssignment[] = assignments.map((a) => {
+    const x = a && typeof a === "object" ? (a as Record<string, unknown>) : {};
+    const id = str(x.id).trim();
+    const email = str(x.email).trim();
+    if (!id) throw new Error("Affectation : id requis.");
+    if (!email || !isEmail(email)) throw new Error("Affectation : email invalide.");
+    return {
+      id,
+      taskId: str(x.taskId).trim(),
+      email,
+      personName: str(x.personName) || email.split("@")[0] || email,
+      serviceId: str(x.serviceId).trim() || "administratif",
+      active: x.active !== false,
+    };
+  });
+
+  const parsedDirection: RoutingDirectionQueue[] = directionQueues.map((d) => {
+    const x = d && typeof d === "object" ? (d as Record<string, unknown>) : {};
+    const id = str(x.id).trim();
+    const email = str(x.email).trim();
+    if (!id) throw new Error("File direction : id requis.");
+    if (!email || !isEmail(email)) throw new Error("File direction : email invalide.");
+    return {
+      id,
+      label: str(x.label) || id,
+      email,
+      active: x.active !== false,
+    };
+  });
+
+  return {
+    version: 1,
+    services: parsedServices,
+    tasks: parsedTasks,
+    assignments: parsedAssignments,
+    directionQueues: parsedDirection,
   };
 }

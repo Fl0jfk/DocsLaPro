@@ -57,6 +57,8 @@ export const INTRANET_ALWAYS_ALLOWED_PREFIXES = [
   "/api/app/context",
   "/api/tenant/public",
   "/calendrierAbsProfs",
+  "/faire-une-demande",
+  "/demande/merci",
 ];
 
 export const INTRANET_MODULES: IntranetModule[] = [
@@ -83,7 +85,8 @@ export const INTRANET_MODULES: IntranetModule[] = [
     },
   },
   {
-    id: "maintenance-dedikam",
+    id: "faire-demande",
+    pathPrefixes: ["/faire-une-demande", "/demande/merci"],
     allowedRoles: [
       "direction_college",
       "administratif",
@@ -95,13 +98,6 @@ export const INTRANET_MODULES: IntranetModule[] = [
       "infirmerie",
       "education",
     ],
-    dashboard: {
-      id: 3,
-      name: "Maintenance",
-      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/maintenance.avif",
-      link: "https://providence.dedikam.com/index.php?a=add",
-      external: true,
-    },
   },
   {
     id: "travels",
@@ -258,42 +254,26 @@ export const INTRANET_MODULES: IntranetModule[] = [
   },
   {
     id: "requests-staff",
-    pathPrefixes: ["/requests", "/api/requests"],
+    pathPrefixes: ["/requests", "/mes-demandes", "/api/requests"],
     excludePrefixes: ["/api/requests/create", "/api/requests/confirm"],
     allowedRoles: [
       "direction_college",
       "administratif",
+      "professeur",
       "direction_ecole",
       "direction_lycee",
       "maintenance",
       "comptabilite",
+      "infirmerie",
       "education",
     ],
     dashboard: {
-      id: 15,
-      name: "Demandes (équipe)",
+      id: 3,
+      name: "Demandes",
       img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
       link: "/requests",
       external: false,
     },
-  },
-  {
-    id: "mes-demandes",
-    pathPrefixes: ["/mes-demandes"],
-    allowedRoles: ["professeur", "infirmerie"],
-    dashboard: {
-      id: 16,
-      name: "Suivi de mes demandes",
-      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
-      link: "/mes-demandes",
-      external: false,
-    },
-  },
-  {
-    id: "requests-self-api",
-    pathPrefixes: ["/api/requests"],
-    excludePrefixes: ["/api/requests/create", "/api/requests/confirm"],
-    allowedRoles: ["professeur", "infirmerie"],
   },
   {
     id: "chatbot-knowledge",
@@ -367,7 +347,6 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "rh",
     pathPrefixes: ["/rh", "/personnel", "/api/personnel"],
-    excludePrefixes: ["/api/personnel/signatures/public"],
     allowedRoles: [
       "administratif",
       "comptabilite",
@@ -392,7 +371,6 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "internat",
     pathPrefixes: ["/gestion-internat", "/api/internat"],
-    excludePrefixes: ["/api/internat/outings/public"],
     allowedRoles: ["admin", "education", "administratif", "direction_college", "direction_lycee"],
     dashboard: {
       id: 24,
@@ -404,9 +382,24 @@ export const INTRANET_MODULES: IntranetModule[] = [
     },
   },
   {
-    id: "news-admin",
-    pathPrefixes: ["/add-news-site", "/api/news/update", "/api/news/upload-image"],
-    allowedRoles: ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+    id: "covoiturage",
+    pathPrefixes: ["/covoiturage", "/api/covoiturage"],
+    allowedRoles: [
+      "administratif",
+      "admin",
+      "direction_ecole",
+      "direction_college",
+      "direction_lycee",
+      "education",
+    ],
+    dashboard: {
+      id: 25,
+      name: "Covoiturage",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/travels.jpg",
+      link: "/covoiturage",
+      external: false,
+      variant: "default",
+    },
   },
 ];
 

@@ -1,6 +1,21 @@
 import { normalizeRequestEmail } from "@/app/lib/requests-board";
+import { SCHOOL } from "@/app/lib/school";
 
-export type StaffRequestBranchId = | "corbeille" | "maintenance"| "admin_ecole" | "admin_college" | "admin_lycee" | "cpe_lycee" | "cpe_3e4e" | "cpe_5e6e" | "vie_scolaire_infirmerie" | "accueil" | "comptabilite";
+export type StaffRequestBranchId =
+  | "corbeille"
+  | "maintenance"
+  | "admin_ecole"
+  | "admin_college"
+  | "admin_lycee"
+  | "cpe_lycee"
+  | "cpe_3e4e"
+  | "cpe_5e6e"
+  | "vie_scolaire_infirmerie"
+  | "accueil"
+  | "comptabilite"
+  | "direction_ecole"
+  | "direction_college"
+  | "direction_lycee";
 
 export type StaffDirectoryRow = {
   email: string;
@@ -26,6 +41,9 @@ export const STAFF_DIRECTORY: StaffDirectoryRow[] = [
   { email: "florian.hacqueville-mathi@ac-normandie.fr", branchId: "comptabilite", role: "leader" },
   { email: "sarah@laprovidence-nicolasbarre.fr", branchId: "comptabilite", role: "executor" },
   { email: "m.leblond@laprovidence-nicolasbarre.fr", branchId: "comptabilite", role: "executor" },
+  { email: SCHOOL.ecole.email, branchId: "direction_ecole", role: "leader" },
+  { email: SCHOOL.college.email, branchId: "direction_college", role: "leader" },
+  { email: SCHOOL.lycee.email, branchId: "direction_lycee", role: "leader" },
 ];
 
 export function isStaffRowActive(row: StaffDirectoryRow, now = new Date()): boolean {

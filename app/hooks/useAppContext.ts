@@ -12,6 +12,10 @@ type AppContextPayload = {
   establishments: Establishment[];
   profRoom?: ProfRoomModuleConfig;
   domainPlanning?: DomainPlanningModuleConfig;
+  session?: {
+    intranetRoles: string[];
+    isGlobalAdmin: boolean;
+  };
 };
 
 export function useAppContext() {

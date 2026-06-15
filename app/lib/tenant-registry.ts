@@ -77,6 +77,13 @@ function parseTenantSecrets(raw: unknown): TenantSecrets | null {
 
   const secrets: TenantSecrets = { clerkSecretKey };
 
+  const clerkDevPublishableKey =
+    typeof o.clerkDevPublishableKey === "string" ? o.clerkDevPublishableKey.trim() : "";
+  const clerkDevSecretKey =
+    typeof o.clerkDevSecretKey === "string" ? o.clerkDevSecretKey.trim() : "";
+  if (clerkDevPublishableKey) secrets.clerkDevPublishableKey = clerkDevPublishableKey;
+  if (clerkDevSecretKey) secrets.clerkDevSecretKey = clerkDevSecretKey;
+
   const mistral = o.mistral as Record<string, unknown> | undefined;
   if (mistral && typeof mistral.apiKey === "string" && mistral.apiKey.trim()) {
     secrets.mistral = { apiKey: mistral.apiKey.trim() };

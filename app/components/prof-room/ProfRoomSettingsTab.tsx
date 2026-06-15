@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_PROF_ROOM_SUBJECT_COLORS } from "@/app/lib/prof-room-defaults";
 import { PROF_ROOM_COLOR_PRESETS } from "@/app/lib/prof-room-subject-colors";
+import ProfRoomAdminPicker, { type ClerkMemberOption } from "@/app/components/prof-room/ProfRoomAdminPicker";
 import SubjectColorEditor from "./SubjectColorEditor";
 
 type Room = { id: string; name: string; building?: string };
@@ -49,16 +50,29 @@ export default function ProfRoomSettingsTab() {
   const [newSubjectColor, setNewSubjectColor] = useState(PROF_ROOM_COLOR_PRESETS[0].value);
   const [newPoleName, setNewPoleName] = useState("");
   const [newClassByPole, setNewClassByPole] = useState<Record<string, string>>({});
+  const [adminClerkUserIds, setAdminClerkUserIds] = useState<string[]>([]);
+  const [clerkMembers, setClerkMembers] = useState<ClerkMemberOption[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  const selectedAdmins = useMemo(
+    () =>
+      adminClerkUserIds
+        .map((id) => clerkMembers.find((m) => m.clerkUserId === id))
+        .filter((m): m is ClerkMemberOption => Boolean(m)),
+    [adminClerkUserIds, clerkMembers],
+  );
 
   useEffect(() => {
     (async () => {
       try {
-        const [roomsRes, configRes] = await Promise.all([
+        const [roomsRes, configRes, usersRes] = await Promise.all([
           fetch("/api/reservation-rooms/rooms"),
           fetch("/api/reservation-rooms/module-config"),
+          fetch("/api/reservation-rooms/clerk-users"),
         ]);
         const roomsJson = await roomsRes.json();
         const configJson = await configRes.json();
+        const usersJson = await usersRes.json();
         if (!roomsRes.ok) throw new Error(roomsJson.error || "Salles introuvables");
         if (!configRes.ok) throw new Error(configJson.error || "Configuration introuvable");
         setRooms(roomsJson.rooms || []);
@@ -67,10 +81,19 @@ export default function ProfRoomSettingsTab() {
           ...loaded,
           subjectColors: { ...DEFAULT_PROF_ROOM_SUBJECT_COLORS, ...loaded.subjectColors },
         });
+        setAdminClerkUserIds(
+          Array.isArray(configJson.adminClerkUserIds) ? configJson.adminClerkUserIds : [],
+        );
+        if (usersRes.ok) {
+          setClerkMembers((usersJson.users || []) as ClerkMemberOption[]);
+        } else {
+          setError(usersJson.error || "Impossible de charger les utilisateurs Clerk.");
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur de chargement");
       } finally {
         setLoading(false);
+        setMembersLoading(false);
       }
     })();
   }, []);
@@ -104,6 +127,31 @@ export default function ProfRoomSettingsTab() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveAdmins = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/reservation-rooms/module-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminClerkUserIds }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Échec enregistrement administrateurs");
+      if (Array.isArray(j.adminClerkUserIds)) setAdminClerkUserIds(j.adminClerkUserIds);
+      alert("Administrateurs enregistrés.");
+      window.location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeAdmin = (id: string) => {
+    setAdminClerkUserIds((prev) => prev.filter((x) => x !== id));
   };
 
   const saveModuleConfig = async () => {
@@ -191,6 +239,58 @@ export default function ProfRoomSettingsTab() {
   return (
     <div className="space-y-8 px-4">
       {error && <p className="text-red-600 text-sm font-bold bg-red-50 p-3 rounded-xl">{error}</p>}
+
+      <section className="bg-white rounded-3xl border p-6 space-y-4">
+        <h2 className="text-lg font-black text-slate-900">Administrateurs du module</h2>
+        <p className="text-sm text-slate-500">
+          Ajoutez ou retirez des personnes depuis Clerk. Elles auront le mode administrateur dans la réservation
+          de salles et pourront modifier ce paramétrage.
+        </p>
+
+        {selectedAdmins.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {selectedAdmins.map((m) => (
+              <span
+                key={m.clerkUserId}
+                className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-900 px-3 py-1.5 rounded-full text-xs font-bold"
+              >
+                <span className="truncate max-w-[12rem]">
+                  {m.displayName || m.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeAdmin(m.clerkUserId)}
+                  className="text-indigo-500 hover:text-rose-600"
+                  title="Retirer cet administrateur"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Aucun administrateur Clerk sélectionné. Les administrateurs org Clerk conservent l&apos;accès.
+          </p>
+        )}
+
+        <ProfRoomAdminPicker
+          members={clerkMembers}
+          selectedIds={adminClerkUserIds}
+          onChange={setAdminClerkUserIds}
+          loading={membersLoading}
+          footerHint="Cochez ou décochez pour ajouter ou retirer un administrateur. Enregistrez pour appliquer."
+        />
+
+        <button
+          type="button"
+          disabled={saving || membersLoading}
+          onClick={saveAdmins}
+          className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
+        >
+          Enregistrer les administrateurs
+        </button>
+      </section>
 
       <section className="bg-white rounded-3xl border p-6 space-y-4">
         <h2 className="text-lg font-black text-slate-900">Salles</h2>

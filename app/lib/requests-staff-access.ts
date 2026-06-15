@@ -1,4 +1,5 @@
 import { isListedAsRequestsStaff } from "@/app/lib/staff-directory";
+import { getRequestsRoutingConfig, isListedInRouting } from "@/app/lib/requests-routing-config";
 
 export const CLERK_STAFF_ROLES_FOR_REQUESTS = ["administratif","direction_ecole","direction_college","direction_lycee", "maintenance","comptabilite","education","infirmerie",] as const;
 
@@ -11,6 +12,14 @@ export function hasClerkStaffRoleForRequests(roles: string[]): boolean {
   return CLERK_STAFF_ROLES_FOR_REQUESTS.some((role) => normalized.includes(role));
 }
 
-export function canAccessRequestsStaffBoard(roles: string[], userEmail: string): boolean {
-  return hasClerkStaffRoleForRequests(roles) || isListedAsRequestsStaff(userEmail);
+export async function canAccessRequestsStaffBoard(roles: string[], userEmail: string): Promise<boolean> {
+  if (hasClerkStaffRoleForRequests(roles)) return true;
+  if (!userEmail) return false;
+  try {
+    const config = await getRequestsRoutingConfig();
+    if (isListedInRouting(config, userEmail)) return true;
+  } catch {
+    /* fallback annuaire local */
+  }
+  return isListedAsRequestsStaff(userEmail);
 }

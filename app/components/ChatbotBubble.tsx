@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -18,36 +19,6 @@ type RequestDraft = {
   subject: string;
   description: string;
 };
-
-const DRAFT_PATH_PREFIXES = [
-  "/affiche",
-  "/annexeautorisationsoinsnuit",
-  "/autorisationpsychologue",
-  "/autorisationsortie",
-  "/cardjapon",
-  "/cardjapon2",
-  "/cartereseau",
-  "/conventionscolarisation",
-  "/conventionstagelycee",
-  "/depliantrecto",
-  "/depliantrectohealth",
-  "/depliantverso",
-  "/depliantversohealth",
-  "/devistransport",
-  "/ficheinscription",
-  "/fichesanitaire",
-  "/formulaire",
-  "/grilletarifaire",
-  "/navetterotomagus",
-  "/partnertennis",
-  "/partnerkaratedoa3",
-  "/partneravirona3",
-  "/portesouvertes",
-  "/preparationrentreeprofs",
-  "/qrpo",
-  "/recapitulatifscolarite",
-  "/reglementfinancier",
-];
 
 function renderMessageContent(content: string) {
   const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
@@ -126,6 +97,7 @@ function renderMessageContent(content: string) {
 export default function ChatbotBubble() {
   const pathname = usePathname();
   const { isSignedIn, user } = useUser();
+  const demandeFormHref = isSignedIn ? "/requests" : "/faire-une-demande";
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
@@ -150,8 +122,7 @@ export default function ChatbotBubble() {
   const scrollYRef = useRef(0);
   const hidden = useMemo(() => {
     const normalized = (pathname ?? "").toLowerCase();
-    if (normalized.startsWith("/sign-in") || normalized.startsWith("/sso-callback")) return true;
-    return DRAFT_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+    return normalized.startsWith("/sign-in") || normalized.startsWith("/sso-callback");
   }, [pathname]);
   useEffect(() => {
     setMounted(true);
@@ -341,68 +312,18 @@ export default function ChatbotBubble() {
             </div>
             <div ref={messagesRef} className="relative flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-white/26 via-white/14 to-slate-100/18">
               <div className="rounded-xl border border-sky-200/60 bg-white/60 p-2.5">
-                <p className="text-[11px] font-semibold text-slate-800">Faire une demande (tâche)</p>
-                <ol className="text-[10px] text-slate-600 mt-1.5 space-y-0.5 list-decimal list-inside">
-                  <li>Touchez « Créer une demande » ci-dessous.</li>
-                  <li>Remplissez identité, sujet et description.</li>
-                  <li>Joignez des fichiers si besoin (plusieurs : images, PDF, Word, Excel).</li>
-                  <li>Envoyez — vous recevrez un email de suivi.</li>
-                </ol>
-                <button
-                  type="button"
-                  onClick={() => setShowRequestForm((v) => !v)}
-                  className="mt-2 text-xs rounded-lg bg-sky-700 text-white px-2.5 py-1.5 font-semibold hover:bg-sky-800"
+                <p className="text-[11px] font-semibold text-slate-800">Faire une demande</p>
+                <p className="text-[10px] text-slate-600 mt-1.5 leading-relaxed">
+                  Décrivez votre besoin sur une page dédiée (photos, documents). Connecté = envoi immédiat ; visiteur = confirmation par e-mail.
+                </p>
+                <Link
+                  href={demandeFormHref}
+                  className="mt-2 inline-block text-xs rounded-lg bg-sky-700 text-white px-2.5 py-1.5 font-semibold hover:bg-sky-800"
+                  onClick={() => setOpen(false)}
                 >
-                  {showRequestForm ? "Masquer le formulaire" : "Créer une demande"}
-                </button>
+                  {isSignedIn ? "Ouvrir Demandes" : "Ouvrir le formulaire"}
+                </Link>
               </div>
-              {showRequestForm ? (
-                <div className="rounded-xl border border-slate-200 bg-white/75 p-3 space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={requestDraft.firstName} onChange={(e) => setRequestDraft((p) => ({ ...p, firstName: e.target.value }))} placeholder="Prénom" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
-                    <input value={requestDraft.lastName} onChange={(e) => setRequestDraft((p) => ({ ...p, lastName: e.target.value }))} placeholder="Nom" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={requestDraft.email} onChange={(e) => setRequestDraft((p) => ({ ...p, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
-                    <input value={requestDraft.phone} onChange={(e) => setRequestDraft((p) => ({ ...p, phone: e.target.value }))} placeholder="Téléphone" className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
-                  </div>
-                  <input value={requestDraft.subject} onChange={(e) => setRequestDraft((p) => ({ ...p, subject: e.target.value }))} placeholder="Sujet" className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
-                  <textarea value={requestDraft.description} onChange={(e) => setRequestDraft((p) => ({ ...p, description: e.target.value }))} placeholder="Décrivez précisément votre demande..." rows={3} className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs resize-none" />
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Pièces jointes (facultatif, plusieurs possibles)</label>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,application/pdf"
-                      className="w-full text-[10px] text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1"
-                      onChange={(e) => {
-                        const list = e.target.files ? Array.from(e.target.files) : [];
-                        setRequestFiles((prev) => [...prev, ...list].slice(0, 12));
-                        e.target.value = "";
-                      }}
-                    />
-                    {requestFiles.length > 0 ? (
-                      <ul className="mt-1.5 space-y-1">
-                        {requestFiles.map((f, i) => (
-                          <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-[10px] text-slate-700 bg-slate-100/80 rounded px-2 py-1">
-                            <span className="truncate">{f.name}</span>
-                            <button
-                              type="button"
-                              className="shrink-0 text-red-700 font-bold"
-                              onClick={() => setRequestFiles((prev) => prev.filter((_, j) => j !== i))}
-                            >
-                              ×
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                  <button type="button" onClick={submitRequest} disabled={requestSending} className="rounded-lg bg-slate-900 text-white px-3 py-2 text-xs font-bold disabled:opacity-50">
-                    {requestSending ? "Envoi..." : "Envoyer la demande"}
-                  </button>
-                </div>
-              ) : null}
               {messages.map((m, i) => (
                 <div
                   key={i}

@@ -20,6 +20,9 @@ export type TenantIndexEntry = {
 /** tenants/secrets/{slug}.json — sensible, un fichier par client. */
 export type TenantSecrets = {
   clerkSecretKey: string;
+  /** Optionnel : instance Clerk Development pour localhost. */
+  clerkDevPublishableKey?: string;
+  clerkDevSecretKey?: string;
   mistral?: { apiKey: string };
   smtp?: { user: string; pass: string; host?: string };
   microsoft?: { tenantId: string; clientId: string; clientSecret?: string };
