@@ -265,6 +265,25 @@ export default function RequestsPage() {
   }, [isLoaded, loading]);
 
   useEffect(() => {
+    if (!isLoaded || loading || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("nouvelle") !== "1") return;
+
+    if (hasStaffBoard) {
+      setCreateModalOpen(true);
+    } else if (isSubmitOnlyUser) {
+      requestAnimationFrame(() => {
+        document.getElementById("faire-demande")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    params.delete("nouvelle");
+    const qs = params.toString();
+    const hash = window.location.hash;
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${hash}`);
+  }, [isLoaded, loading, hasStaffBoard, isSubmitOnlyUser]);
+
+  useEffect(() => {
     if (!isLoaded || !user || !hasStaffBoard || loading) return;
     const loadRoutes = async () => {
       try {
@@ -519,7 +538,7 @@ export default function RequestsPage() {
         <p className="text-sm text-slate-600 mt-1">
           Déposez une demande et suivez son avancement depuis cette page.
         </p>
-        <div className="mt-8">
+        <div id="faire-demande" className="mt-8 scroll-mt-24">
           <h2 className="text-lg font-black text-slate-900 mb-3">Faire une demande</h2>
           <FaireUneDemandeForm variant="inline" onSuccess={() => void load()} mesDemandesHref="/requests#mes-demandes" />
         </div>

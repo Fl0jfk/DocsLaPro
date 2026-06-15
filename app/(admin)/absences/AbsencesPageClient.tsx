@@ -163,6 +163,14 @@ export default function AbsencesPageClient() {
   useEffect(() => {
     if (isLoaded && user) fetchItems();
   }, [isLoaded, user]);
+
+  useEffect(() => {
+    if (!isLoaded || activeTab !== "se-declarer" || typeof window === "undefined") return;
+    if (window.location.hash !== "#nouvelle-absence") return;
+    requestAnimationFrame(() => {
+      document.getElementById("nouvelle-absence")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [isLoaded, activeTab]);
   const submitAbsence = async () => {
     setError(null);
     if (!reason.trim()) {
@@ -463,7 +471,7 @@ export default function AbsencesPageClient() {
 
       {activeTab === "se-declarer" ? (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit">
+        <div id="nouvelle-absence" className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit scroll-mt-24">
           <h2 className="text-xl font-black text-slate-900 mb-4">Nouvelle absence</h2>
           <div className="space-y-4">
             {canChooseScope ? (

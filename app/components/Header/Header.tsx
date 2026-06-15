@@ -7,6 +7,13 @@ import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Logo from "../../../public/Logo header.png";
 
+const MOBILE_MODULE_LINKS = [
+  { href: "/documents", label: "Mes documents", icon: "📁" },
+  { href: "/requests?nouvelle=1", label: "Faire une demande", icon: "📋" },
+  { href: "/prof-room?new=1", label: "Faire une réservation de salle", icon: "🏫" },
+  { href: "/absences?tab=se-declarer#nouvelle-absence", label: "Déclarer une absence", icon: "📅" },
+] as const;
+
 function UserPopover({ onClose }: { onClose: () => void }) {
   const { user } = useUser();
   const { signOut, openUserProfile } = useClerk();
@@ -67,7 +74,7 @@ export default function Header() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { isSignedIn } = useUser();
-  const { signOut } = useClerk();
+  const { signOut, openUserProfile } = useClerk();
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +106,7 @@ export default function Header() {
   }, []);
 
   const isDashboard = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const homeHref = isSignedIn ? "/dashboard" : "/";
   const logoAlt = siteIdentity?.shortName || siteIdentity?.name || "La Providence Nicolas Barré";
   const customLogoUrl = siteIdentity?.headerLogoUrl?.trim() || "";
 
@@ -106,7 +114,7 @@ export default function Header() {
     <>
       <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 print:!hidden">
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <Link href="/dashboard" className="hover:opacity-75 transition flex-shrink-0 relative">
+          <Link href={homeHref} className="hover:opacity-75 transition flex-shrink-0 relative">
             <div className="w-[110px] h-[110px]">
               {customLogoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -122,12 +130,20 @@ export default function Header() {
           </Link>
 
           <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
-            {!isDashboard && (
+            {isSignedIn && !isDashboard && (
               <Link
                 href="/dashboard"
                 className="px-4 py-1.5 rounded-full border text-xs font-bold transition bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:text-slate-900"
               >
                 Dashboard
+              </Link>
+            )}
+            {!isSignedIn && (
+              <Link
+                href="/"
+                className="px-4 py-1.5 rounded-full border text-xs font-bold transition bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:text-slate-900"
+              >
+                Accueil
               </Link>
             )}
           </nav>
@@ -201,32 +217,77 @@ export default function Header() {
       >
         <div className="max-w-[1200px] mx-auto px-6 pt-4 pb-8">
           <nav className="flex flex-col">
-            <Link
-              href="/dashboard"
-              className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.6rem] font-black tracking-tight transition-all duration-300 hover:text-slate-600 ${isDashboard ? "text-slate-800" : "text-slate-900"}`}
-            >
-              <span className="flex items-center gap-3">
-                {isDashboard && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-slate-600" />}
-                Tableau de bord
-              </span>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
+            {isSignedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.35rem] font-black tracking-tight transition-all duration-300 hover:text-slate-600 ${isDashboard ? "text-slate-800" : "text-slate-900"}`}
+                >
+                  <span className="flex items-center gap-3">
+                    {isDashboard && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-slate-600" />}
+                    Tableau de bord
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                  </svg>
+                </Link>
+                {MOBILE_MODULE_LINKS.map((item) => {
+                  const linkPath = item.href.split("?")[0].split("#")[0];
+                  const active = pathname === linkPath || pathname.startsWith(`${linkPath}/`);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`group flex items-center justify-between py-3.5 border-b border-slate-100 text-[1.1rem] font-bold tracking-tight transition-all duration-300 hover:text-slate-600 ${active ? "text-slate-800" : "text-slate-900"}`}
+                    >
+                      <span className="flex items-center gap-3">
+                        {active && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-slate-600" />}
+                        <span>{item.icon}</span>
+                        {item.label}
+                      </span>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </>
+            ) : (
+              <Link
+                href="/"
+                className={`group flex items-center justify-between py-4 border-b border-slate-100 text-[1.35rem] font-black tracking-tight transition-all duration-300 hover:text-slate-600 ${pathname === "/" ? "text-slate-800" : "text-slate-900"}`}
+              >
+                <span className="flex items-center gap-3">
+                  {pathname === "/" && <span className="w-2 h-2 rounded-full flex-shrink-0 bg-slate-600" />}
+                  Accueil
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 opacity-30 group-hover:opacity-60 transition">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            )}
           </nav>
           <div className="mt-5 flex flex-col gap-3">
             {isSignedIn ? (
-              <div className="flex gap-3">
-                <Link href="/dashboard" className="flex-1 bg-slate-100 text-slate-700 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-slate-200 transition">
-                  Mon espace
-                </Link>
+              <>
                 <button
+                  type="button"
+                  onClick={() => {
+                    openUserProfile();
+                    setMobileOpen(false);
+                  }}
+                  className="w-full bg-slate-100 text-slate-700 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-slate-200 transition"
+                >
+                  Modifier mon profil
+                </button>
+                <button
+                  type="button"
                   onClick={() => signOut({ redirectUrl: "/" })}
-                  className="flex-1 bg-red-50 text-red-500 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-red-100 transition"
+                  className="w-full bg-red-50 text-red-500 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-red-100 transition"
                 >
                   Se déconnecter
                 </button>
-              </div>
+              </>
             ) : (
               <Link href="/sign-in" className="bg-slate-100 text-slate-700 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-slate-200 transition">
                 Se connecter
