@@ -5,6 +5,10 @@ import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import TravelsDirectionDashboardPanel from "@/app/components/travels/TravelsDirectionDashboard";
+import {
+  TravelsRemindersModal,
+  type TravelsReminderRow,
+} from "@/app/components/travels/TravelsRemindersModal";
 import type { TravelsDirectionDashboard } from "@/app/lib/travels-direction-dashboard";
 import { isTripTravelDatePast } from "@/app/lib/travels-trip-helpers";
 import type { TravelsTrip } from "@/app/lib/travels-types";
@@ -19,6 +23,8 @@ function TripDashboardContent() {
   const [filterEtab, setFilterEtab] = useState("");
   const [directionDashboard, setDirectionDashboard] = useState<TravelsDirectionDashboard | null>(null);
   const [reminderCount, setReminderCount] = useState(0);
+  const [reminders, setReminders] = useState<TravelsReminderRow[]>([]);
+  const [showRemindersModal, setShowRemindersModal] = useState(false);
 
   const loadTrips = useCallback(async () => {
     try {
@@ -39,7 +45,9 @@ function TripDashboardContent() {
       const res = await fetch("/api/travels/reminders");
       if (res.ok) {
         const data = await res.json();
-        setReminderCount(Number(data.count) || 0);
+        const list = Array.isArray(data.reminders) ? data.reminders : [];
+        setReminders(list);
+        setReminderCount(Number(data.count) || list.length);
       }
     } catch {
       setReminderCount(0);
@@ -114,9 +122,14 @@ function TripDashboardContent() {
           <p className="text-slate-500 font-medium">
             Gestion des sorties — transport, cuisine, documents et suivi.
             {reminderCount > 0 && (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">
-                {reminderCount} rappel{reminderCount > 1 ? "s" : ""}
-              </span>
+              <button
+                type="button"
+                onClick={() => setShowRemindersModal(true)}
+                className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold hover:bg-amber-200 transition-colors cursor-pointer"
+                title="Voir les rappels actifs"
+              >
+                {reminderCount} rappel{reminderCount > 1 ? "s" : ""} — cliquer pour détail
+              </button>
             )}
           </p>
         </div>
@@ -292,6 +305,11 @@ function TripDashboardContent() {
           </div>
         </div>
       )}
+      <TravelsRemindersModal
+        open={showRemindersModal}
+        reminders={reminders}
+        onClose={() => setShowRemindersModal(false)}
+      />
     </div>
   );
 }

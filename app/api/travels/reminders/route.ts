@@ -27,11 +27,23 @@ export async function GET(req: Request) {
     return NextResponse.json({ reminders: computeTripReminders(trip) });
   }
 
-  const reminders: ReturnType<typeof computeTripReminders> = [];
+  const reminders: Array<ReturnType<typeof computeTripReminders>[number] & {
+    tripTitle?: string;
+    tripDestination?: string;
+  }> = [];
   for (const summary of index.slice(0, 200)) {
     if (!summary?.id) continue;
     const hit = await getJson<TravelsTrip>(`travels/${summary.id}.json`);
-    if (hit?.data) reminders.push(...computeTripReminders(hit.data));
+    if (hit?.data) {
+      const trip = hit.data;
+      reminders.push(
+        ...computeTripReminders(trip).map((r) => ({
+          ...r,
+          tripTitle: trip.data?.title,
+          tripDestination: trip.data?.destination,
+        })),
+      );
+    }
   }
 
   return NextResponse.json({ reminders, count: reminders.length });

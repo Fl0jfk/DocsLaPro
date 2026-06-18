@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
 import BentoDashboard from "@/app/components/Dashboard/bento/BentoDashboard";
+import BentoAdminFooter from "@/app/components/Dashboard/bento/BentoAdminFooter";
 import DashboardWeather from "@/app/components/Dashboard/DashboardWeather";
 import {
   ExternalQuickLinksBar,
@@ -17,6 +18,7 @@ import { hasGlobalAdminRole, intranetRolesFromMetadata } from "@/app/lib/intrane
 import DashboardThemeRoot from "@/app/components/Dashboard/DashboardThemeRoot";
 import { dash } from "@/app/lib/dashboard-brand";
 import { ACADEMIC_DEADLINES_DASHBOARD_CATEGORY } from "@/app/lib/dashboard-academic-deadlines-types";
+import { isBentoFooterAdminModule } from "@/app/lib/dashboard-bento-constraints";
 import { WEEK_SHEET_DASHBOARD_CATEGORY } from "@/app/lib/dashboard-week-sheet-types";
 
 export default function Home() {
@@ -42,7 +44,7 @@ export default function Home() {
   }, [isLoaded, user, data, isOrgAdmin]);
 
   const dashboardCategories = useMemo(() => {
-    const base = uniqueCategories;
+    const base = uniqueCategories.filter((c) => !isBentoFooterAdminModule(c.moduleId));
     const extraIds = new Set([
       WEEK_SHEET_DASHBOARD_CATEGORY.moduleId,
       ACADEMIC_DEADLINES_DASHBOARD_CATEGORY.moduleId,
@@ -118,6 +120,8 @@ export default function Home() {
             </div>
           )
         )}
+
+        <BentoAdminFooter />
 
         {!user && (
           <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-[2px]">

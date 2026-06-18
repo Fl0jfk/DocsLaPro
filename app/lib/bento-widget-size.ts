@@ -1,10 +1,22 @@
 export type BentoWidgetSize = "sm" | "md" | "lg";
 
-export function getBentoWidgetSize(span: { colSpan: number; rowSpan: number }): BentoWidgetSize {
-  const area = span.colSpan * span.rowSpan;
-  if (span.colSpan >= 12) return "lg";
-  if (span.colSpan <= 3 || area <= 6) return "sm";
-  if (span.colSpan >= 6 && span.rowSpan >= 3) return "lg";
-  if (area >= 15) return "lg";
-  return "md";
+export type DashboardViewport = "mobile" | "tablet" | "desktop";
+
+export function getDashboardViewport(width: number): DashboardViewport {
+  if (width >= 1024) return "desktop";
+  if (width >= 768) return "tablet";
+  return "mobile";
+}
+
+export function getDashboardGridCols(viewport: DashboardViewport): number {
+  if (viewport === "desktop") return 3;
+  if (viewport === "tablet") return 2;
+  return 1;
+}
+
+/** Taille d’affichage des widgets selon le viewport (plus de redimensionnement manuel). */
+export function getBentoWidgetSize(viewport: DashboardViewport): BentoWidgetSize {
+  if (viewport === "desktop") return "lg";
+  if (viewport === "tablet") return "md";
+  return "sm";
 }

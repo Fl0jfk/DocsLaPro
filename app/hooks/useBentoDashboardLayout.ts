@@ -2,205 +2,139 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Categories } from "@/app/contexts/data";
-import { clampModuleSpan, isWeekSheetModule } from "@/app/lib/dashboard-bento-constraints";
-import { resolveGridPlacement } from "@/app/lib/dashboard-bento-grid";
+import { isBentoPinnedFooterModule } from "@/app/lib/dashboard-bento-constraints";
 import {
-  applyLayoutNormalizers,
+  filterHiddenFromColumns,
+  flattenBentoColumns,
+  placeModuleInColumns,
+  shortestColumnIndex,
+} from "@/app/lib/dashboard-bento-columns";
+import {
   buildDefaultLayout,
   clearSavedBentoLayout,
-  getLayoutPosition,
-  getLayoutSpan,
-  loadSavedBentoLayout,
-  mergeSavedLayout,
+  loadAndMergeBentoLayout,
   saveSavedBentoLayout,
   type SavedBentoLayout,
 } from "@/app/lib/dashboard-bento-persist";
 
+function isGridModule(moduleId: string): boolean {
+  return !isBentoPinnedFooterModule(moduleId);
+}
+
 export function useBentoDashboardLayout(categories: Categories[], userId: string | undefined) {
-  const moduleIds = useMemo(() => categories.map((c) => c.moduleId), [categories]);
-  const moduleKey = moduleIds.join("|");
+  const gridModuleIds = useMemo(
+    () => categories.map((c) => c.moduleId).filter(isGridModule),
+    [categories],
+  );
+  const moduleKey = gridModuleIds.join("|");
 
   const [editMode, setEditMode] = useState(false);
-  const [layout, setLayout] = useState<SavedBentoLayout>(() => buildDefaultLayout(moduleIds));
-  const [dragPreview, setDragPreview] = useState<{
-    moduleId: string;
-    col: number;
-    row: number;
-  } | null>(null);
+  const [layout, setLayout] = useState<SavedBentoLayout>(() => buildDefaultLayout(gridModuleIds));
+  const [pickedModuleId, setPickedModuleId] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = loadSavedBentoLayout(userId);
-    const merged = mergeSavedLayout(moduleIds, saved);
+    const merged = loadAndMergeBentoLayout(userId, gridModuleIds);
     setLayout(merged);
-    if (saved) saveSavedBentoLayout(userId, merged);
-  }, [userId, moduleKey, moduleIds]);
+    saveSavedBentoLayout(userId, merged);
+  }, [userId, moduleKey, gridModuleIds]);
 
   const persist = useCallback(
     (next: SavedBentoLayout) => {
-      const sanitized = applyLayoutNormalizers(moduleIds, next);
-      setLayout(sanitized);
-      saveSavedBentoLayout(userId, sanitized);
+      setLayout(next);
+      saveSavedBentoLayout(userId, next);
     },
-    [userId, moduleIds],
+    [userId],
   );
 
   const hiddenSet = useMemo(() => new Set(layout.hidden), [layout.hidden]);
 
-  const visibleCategories = useMemo(() => {
-    const byId = new Map(categories.map((c) => [c.moduleId, c]));
-    return layout.order
-      .filter((id) => byId.has(id) && !hiddenSet.has(id))
-      .map((id) => byId.get(id)!)
-      .sort((a, b) => {
-        const pa = layout.positions[a.moduleId] ?? { col: 1, row: 1 };
-        const pb = layout.positions[b.moduleId] ?? { col: 1, row: 1 };
-        return pa.row - pb.row || pa.col - pb.col;
-      });
-  }, [categories, layout.order, layout.positions, hiddenSet]);
+  const visibleColumns = useMemo(
+    () => filterHiddenFromColumns(layout.columns, hiddenSet),
+    [layout.columns, hiddenSet],
+  );
+
+  const visibleModuleCount = useMemo(
+    () => flattenBentoColumns(visibleColumns).length,
+    [visibleColumns],
+  );
+
+  const weekSheetCategory = useMemo(
+    () => categories.find((c) => isBentoPinnedFooterModule(c.moduleId)) ?? null,
+    [categories],
+  );
 
   const hiddenCategories = useMemo(() => {
     const byId = new Map(categories.map((c) => [c.moduleId, c]));
-    return layout.hidden.filter((id) => byId.has(id)).map((id) => byId.get(id)!);
+    return layout.hidden
+      .filter((id) => isGridModule(id) && byId.has(id))
+      .map((id) => byId.get(id)!);
   }, [categories, layout.hidden]);
 
-  const getSpan = useCallback((moduleId: string) => getLayoutSpan(layout, moduleId), [layout]);
-  const getPosition = useCallback(
-    (moduleId: string) => getLayoutPosition(layout, moduleId),
-    [layout],
-  );
+  const pickModule = useCallback((moduleId: string) => {
+    setPickedModuleId((current) => (current === moduleId ? null : moduleId));
+  }, []);
 
-  const placeModuleAt = useCallback(
-    (moduleId: string, col: number, row: number) => {
-      const preferredCol = isWeekSheetModule(moduleId) ? 1 : col;
-      const resolved = resolveGridPlacement(layout.positions, layout.spans, moduleId, preferredCol, row);
-      const nextSpans = {
-        ...layout.spans,
-        [moduleId]: isWeekSheetModule(moduleId)
-          ? clampModuleSpan(moduleId, resolved.colSpan, resolved.rowSpan)
-          : { colSpan: resolved.colSpan, rowSpan: resolved.rowSpan },
-      };
+  const placePickedModuleInColumn = useCallback(
+    (targetCol: number, targetRow: number) => {
+      if (!pickedModuleId) return;
+
       persist({
         ...layout,
-        positions: {
-          ...layout.positions,
-          [moduleId]: {
-            col: isWeekSheetModule(moduleId) ? 1 : resolved.col,
-            row: resolved.row,
-          },
-        },
-        spans: nextSpans,
+        columns: placeModuleInColumns(layout.columns, pickedModuleId, targetCol, targetRow),
       });
+      setPickedModuleId(null);
     },
-    [layout, persist],
-  );
-
-  const setModuleSpan = useCallback(
-    (moduleId: string, colSpan: number, rowSpan: number) => {
-      const clamped = clampModuleSpan(moduleId, colSpan, rowSpan);
-      const pos = getLayoutPosition(layout, moduleId);
-      const resolved = resolveGridPlacement(
-        layout.positions,
-        { ...layout.spans, [moduleId]: clamped },
-        moduleId,
-        pos.col,
-        pos.row,
-      );
-      const nextSpans: SavedBentoLayout["spans"] = {
-        ...layout.spans,
-        [moduleId]: { colSpan: resolved.colSpan, rowSpan: resolved.rowSpan },
-      };
-      if (moduleId === "prof-room" && moduleIds.includes("domain-planning")) {
-        nextSpans["domain-planning"] = clampModuleSpan(
-          "domain-planning",
-          resolved.colSpan,
-          resolved.rowSpan,
-        );
-      }
-      persist({
-        ...layout,
-        positions: {
-          ...layout.positions,
-          [moduleId]: { col: resolved.col, row: resolved.row },
-        },
-        spans: nextSpans,
-      });
-    },
-    [layout, moduleIds, persist],
+    [layout, persist, pickedModuleId],
   );
 
   const hideModule = useCallback(
     (moduleId: string) => {
-      if (layout.hidden.includes(moduleId)) return;
-      const nextPositions = { ...layout.positions };
-      delete nextPositions[moduleId];
-      persist({ ...layout, hidden: [...layout.hidden, moduleId], positions: nextPositions });
+      if (!isGridModule(moduleId) || layout.hidden.includes(moduleId)) return;
+      if (pickedModuleId === moduleId) setPickedModuleId(null);
+      persist({ ...layout, hidden: [...layout.hidden, moduleId] });
     },
-    [layout, persist],
+    [layout, persist, pickedModuleId],
   );
 
   const showModule = useCallback(
     (moduleId: string) => {
       const hidden = layout.hidden.filter((id) => id !== moduleId);
-      const hiddenSetNext = new Set(hidden);
-      const visibleOrder = layout.order.filter((id) => !hiddenSetNext.has(id));
-      const resolved = resolveGridPlacement(
-        layout.positions,
-        layout.spans,
-        moduleId,
-        layout.positions[moduleId]?.col ?? 1,
-        layout.positions[moduleId]?.row ?? 1,
-      );
-      persist({
-        ...layout,
-        hidden,
-        positions: {
-          ...layout.positions,
-          [moduleId]: { col: resolved.col, row: resolved.row },
-        },
-        spans: {
-          ...layout.spans,
-          [moduleId]: { colSpan: resolved.colSpan, rowSpan: resolved.rowSpan },
-        },
-        order: visibleOrder.includes(moduleId)
-          ? layout.order
-          : [...layout.order, moduleId],
-      });
+      const inColumns = layout.columns.some((col) => col.includes(moduleId));
+      const columns = inColumns
+        ? layout.columns
+        : layout.columns.map((col, index, all) =>
+            index === shortestColumnIndex(all) ? [...col, moduleId] : col,
+          );
+
+      persist({ ...layout, hidden, columns });
     },
     [layout, persist],
   );
 
   const resetLayout = useCallback(() => {
-    const defaults = buildDefaultLayout(moduleIds);
+    const defaults = buildDefaultLayout(gridModuleIds);
     clearSavedBentoLayout(userId);
     setLayout(defaults);
-  }, [moduleIds, userId]);
+    setPickedModuleId(null);
+    saveSavedBentoLayout(userId, defaults);
+  }, [gridModuleIds, userId]);
 
   const finishEdit = useCallback(() => {
     saveSavedBentoLayout(userId, layout);
     setEditMode(false);
-    setDragPreview(null);
+    setPickedModuleId(null);
   }, [layout, userId]);
 
-  const previewPlacement = useCallback((moduleId: string, col: number, row: number) => {
-    setDragPreview({ moduleId, col, row });
-  }, []);
-
-  const clearPreview = useCallback(() => {
-    setDragPreview(null);
-  }, []);
-
   return {
-    visibleCategories,
+    visibleColumns,
+    visibleModuleCount,
+    weekSheetCategory,
     hiddenCategories,
-    getSpan,
-    getPosition,
     editMode,
     setEditMode,
-    dragPreview,
-    previewPlacement,
-    clearPreview,
-    placeModuleAt,
-    setModuleSpan,
+    pickedModuleId,
+    pickModule,
+    placePickedModuleInColumn,
     hideModule,
     showModule,
     resetLayout,

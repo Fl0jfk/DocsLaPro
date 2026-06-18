@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import type { TripReminder } from "@/app/lib/travels-trip-helpers";
 import { TripAlert, TripButton } from "@/app/components/travels/TripDetailUI";
 
-export function TripRemindersBanner({ tripId }: { tripId: string }) {
+export function TripRemindersBanner({
+  tripId,
+  highlightReminderId,
+}: {
+  tripId: string;
+  highlightReminderId?: string | null;
+}) {
   const [reminders, setReminders] = useState<TripReminder[]>([]);
   const [sending, setSending] = useState<string | null>(null);
 
@@ -39,6 +45,7 @@ export function TripRemindersBanner({ tripId }: { tripId: string }) {
   };
 
   return (
+    <div id="trip-reminders" className={highlightReminderId ? "ring-2 ring-amber-400 rounded-2xl" : ""}>
     <TripAlert
       tone={tone}
       icon="⏰"
@@ -56,9 +63,17 @@ export function TripRemindersBanner({ tripId }: { tripId: string }) {
     >
       <ul className="text-xs space-y-1 mt-1">
         {reminders.slice(0, 3).map((r) => (
-          <li key={r.id}>• {r.label}</li>
+          <li
+            key={r.id}
+            className={
+              highlightReminderId === r.id ? "font-bold text-amber-900 bg-amber-100/80 -mx-1 px-1 rounded" : ""
+            }
+          >
+            • {r.label}
+          </li>
         ))}
       </ul>
     </TripAlert>
+    </div>
   );
 }

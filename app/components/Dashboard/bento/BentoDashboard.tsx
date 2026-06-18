@@ -1,19 +1,16 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Categories } from "@/app/contexts/data";
-import BentoEditOverlay from "@/app/components/Dashboard/bento/BentoEditOverlay";
+import BentoColumnGrid from "@/app/components/Dashboard/bento/BentoColumnGrid";
+import BentoEditColumnGrid from "@/app/components/Dashboard/bento/BentoEditColumnGrid";
 import { useBentoDashboardLayout } from "@/app/hooks/useBentoDashboardLayout";
-import { colSpanClass, rowSpanClass } from "@/app/lib/dashboard-bento-layout";
+import { columnsForViewport } from "@/app/lib/dashboard-bento-columns";
 import {
-  clampColStart,
-  gridPlacementStylePlain,
-  maxOccupiedRow,
-  pointerToGridCell,
-} from "@/app/lib/dashboard-bento-grid";
-import { getBentoWidgetSize } from "@/app/lib/bento-widget-size";
-import { DASHBOARD_WEEK_SHEET_MODULE_ID } from "@/app/lib/dashboard-week-sheet-types";
+  getBentoWidgetSize,
+  getDashboardViewport,
+  type DashboardViewport,
+} from "@/app/lib/bento-widget-size";
 import { renderBentoWidget } from "./BentoWidgets";
 import { dash } from "@/app/lib/dashboard-brand";
 
@@ -25,39 +22,17 @@ type Props = {
   quickLinksEditor?: ReactNode;
 };
 
-const GRID_GAP_PX = 16;
-const ROW_UNIT_REM = 7;
-const GRID_PADDING_EDIT = 12;
-/** La feuille de semaine ne réserve qu'une ligne de grille ; la hauteur suit le contenu. */
-const WEEK_SHEET_GRID_ROW_SPAN = 1;
+function useDashboardViewport(): DashboardViewport {
+  const [viewport, setViewport] = useState<DashboardViewport>("desktop");
 
-const itemMotion = {
-  hidden: { opacity: 0, scale: 0.97, y: 10 },
-  show: (i: number) => ({
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { delay: i * 0.04, duration: 0.38, ease: [0.22, 1, 0.36, 1] as const },
-  }),
-};
+  useEffect(() => {
+    const apply = () => setViewport(getDashboardViewport(window.innerWidth));
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, []);
 
-function measureGridUnits(el: HTMLElement | null) {
-  if (!el || typeof window === "undefined") {
-    return { colUnit: 96, rowUnit: 128 };
-  }
-  const style = window.getComputedStyle(el);
-  const gap = Number.parseFloat(style.columnGap || style.gap || "16") || GRID_GAP_PX;
-  const colUnit = (el.clientWidth - gap * 11) / 12;
-  const rowUnit =
-    ROW_UNIT_REM * Number.parseFloat(style.fontSize || "16") + gap;
-  return { colUnit: Math.max(colUnit, 48), rowUnit: Math.max(rowUnit, 80) };
-}
-
-function gridSpanForLayout(moduleId: string, span: { colSpan: number; rowSpan: number }) {
-  if (moduleId === DASHBOARD_WEEK_SHEET_MODULE_ID) {
-    return { ...span, rowSpan: WEEK_SHEET_GRID_ROW_SPAN };
-  }
-  return span;
+  return viewport;
 }
 
 export default function BentoDashboard({
@@ -67,22 +42,24 @@ export default function BentoDashboard({
   onFinishEdit,
   quickLinksEditor,
 }: Props) {
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [gridUnits, setGridUnits] = useState({ colUnit: 96, rowUnit: 128 });
-  const [isWide, setIsWide] = useState(true);
+  const viewport = useDashboardViewport();
+  const widgetSize = getBentoWidgetSize(viewport);
+
+  const categoriesById = useMemo(
+    () => new Map(categories.map((c) => [c.moduleId, c])),
+    [categories],
+  );
 
   const {
-    visibleCategories,
+    visibleColumns,
+    visibleModuleCount,
+    weekSheetCategory,
     hiddenCategories,
-    getSpan,
-    getPosition,
     editMode,
     setEditMode,
-    dragPreview,
-    previewPlacement,
-    clearPreview,
-    placeModuleAt,
-    setModuleSpan,
+    pickedModuleId,
+    pickModule,
+    placePickedModuleInColumn,
     hideModule,
     showModule,
     resetLayout,
@@ -99,191 +76,51 @@ export default function BentoDashboard({
     finishEdit();
   }, [finishEdit, onFinishEdit]);
 
-  const refreshGridUnits = useCallback(() => {
-    setGridUnits(measureGridUnits(gridRef.current));
-  }, []);
+  const gridColumns = useMemo(() => {
+    const cols = editMode
+      ? visibleColumns
+      : columnsForViewport(visibleColumns, viewport);
 
-  useEffect(() => {
-    refreshGridUnits();
-    const el = gridRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(refreshGridUnits);
-    ro.observe(el);
-    window.addEventListener("resize", refreshGridUnits);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", refreshGridUnits);
-    };
-  }, [editMode, refreshGridUnits, visibleCategories.length]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const apply = () => setIsWide(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  const cellFromClient = useCallback(
-    (clientX: number, clientY: number) => {
-      const grid = gridRef.current;
-      if (!grid) return { col: 1, row: 1 };
-      const rect = grid.getBoundingClientRect();
-      const padding = editMode ? GRID_PADDING_EDIT : 0;
-      return pointerToGridCell(
-        rect,
-        clientX,
-        clientY,
-        gridUnits.colUnit,
-        gridUnits.rowUnit,
-        GRID_GAP_PX,
-        padding,
-      );
-    },
-    [editMode, gridUnits.colUnit, gridUnits.rowUnit],
-  );
-
-  const startGridDrag = useCallback(
-    (moduleId: string, e: React.PointerEvent<HTMLButtonElement>) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const handle = e.currentTarget;
-      handle.setPointerCapture(e.pointerId);
-
-      const span = getSpan(moduleId);
-
-      const onMove = (ev: PointerEvent) => {
-        const cell = cellFromClient(ev.clientX, ev.clientY);
-        previewPlacement(moduleId, clampColStart(cell.col, span.colSpan), cell.row);
-      };
-
-      const onUp = (ev: PointerEvent) => {
-        handle.releasePointerCapture(e.pointerId);
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        const cell = cellFromClient(ev.clientX, ev.clientY);
-        placeModuleAt(moduleId, clampColStart(cell.col, span.colSpan), cell.row);
-        clearPreview();
-      };
-
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-      const cell = cellFromClient(e.clientX, e.clientY);
-      previewPlacement(moduleId, clampColStart(cell.col, span.colSpan), cell.row);
-    },
-    [cellFromClient, clearPreview, getSpan, placeModuleAt, previewPlacement],
-  );
-
-  const visibleIds = visibleCategories.map((c) => c.moduleId);
-  const gridRows = maxOccupiedRow(
-    Object.fromEntries(
-      visibleCategories.map((c) => {
-        const id = c.moduleId;
-        const preview =
-          dragPreview?.moduleId === id ? dragPreview : getPosition(id);
-        return [id, preview];
-      }),
-    ),
-    Object.fromEntries(
-      visibleCategories.map((c) => [c.moduleId, gridSpanForLayout(c.moduleId, getSpan(c.moduleId))]),
-    ),
-    visibleIds,
-  );
+    return cols.map((col) =>
+      col
+        .map((moduleId) => categoriesById.get(moduleId))
+        .filter(Boolean)
+        .map((category) => ({
+          id: category!.moduleId,
+          node: renderBentoWidget(category!, widgetSize),
+        })),
+    );
+  }, [categoriesById, editMode, visibleColumns, viewport, widgetSize]);
 
   return (
     <div className="space-y-4">
-      <div
-        ref={gridRef}
-        className={`grid grid-cols-1 gap-4 lg:grid-cols-12 lg:auto-rows-[minmax(7rem,auto)] ${
-          editMode ? `rounded-2xl border-2 border-dashed p-3 ${dash.editZone}` : ""
-        }`}
-        style={
-          isWide
-            ? { gridTemplateRows: `repeat(${gridRows}, minmax(7rem, auto))` }
-            : undefined
-        }
-      >
-        {visibleCategories.map((category, index) => {
-          const span = getSpan(category.moduleId);
-          const size = getBentoWidgetSize(span);
-          const savedPos = getPosition(category.moduleId);
-          const pos =
-            dragPreview?.moduleId === category.moduleId ? dragPreview : savedPos;
-          const isDragging = dragPreview?.moduleId === category.moduleId;
-          const isWeekSheet = category.moduleId === DASHBOARD_WEEK_SHEET_MODULE_ID;
-
-          const placementStyle = isWide
-            ? gridPlacementStylePlain(pos, span, {
-                rowSpan: isWeekSheet ? WEEK_SHEET_GRID_ROW_SPAN : undefined,
-                alignStart: isWeekSheet,
-              })
-            : undefined;
-
-          const flowClass = isWide
-            ? isWeekSheet
-              ? "min-h-0 h-auto overflow-visible"
-              : "min-h-[8.5rem]"
-            : `col-span-1 min-h-[8.5rem] ${colSpanClass(span.colSpan)} ${rowSpanClass(span.rowSpan)}`;
-
-          const shellClass = `${flowClass} ${
-            editMode ? `relative rounded-2xl ring-2 ring-offset-1 ${dash.ringBright35}` : ""
-          } ${isDragging ? `z-20 ring-offset-2 ${dash.ringBright}` : ""}`;
-
-          const content = (
-            <div className={`relative ${isWeekSheet ? "h-auto" : "h-full min-h-[8.5rem]"}`}>
-              <div
-                className={
-                  editMode
-                    ? `pointer-events-none opacity-70 ${isWeekSheet ? "" : "h-full"}`
-                    : isWeekSheet
-                      ? ""
-                      : "h-full"
-                }
-              >
-                {renderBentoWidget(category, size)}
-              </div>
-              {editMode ? (
-                <BentoEditOverlay
-                  moduleId={category.moduleId}
-                  moduleName={category.name}
-                  colSpan={span.colSpan}
-                  rowSpan={span.rowSpan}
-                  colUnitPx={gridUnits.colUnit}
-                  rowUnitPx={gridUnits.rowUnit}
-                  onMovePointerDown={startGridDrag}
-                  onResize={setModuleSpan}
-                  onHide={hideModule}
-                />
-              ) : null}
-            </div>
-          );
-
-          if (editMode) {
-            return (
-              <div key={category.moduleId} className={shellClass} style={placementStyle}>
-                {content}
-              </div>
-            );
-          }
-
-          return (
-            <motion.div
-              key={category.moduleId}
-              custom={index}
-              variants={itemMotion}
-              initial="hidden"
-              animate="show"
-              className={shellClass}
-              style={placementStyle}
-            >
-              {content}
-            </motion.div>
-          );
-        })}
+      <div className={editMode ? `rounded-2xl border-2 border-dashed p-3 ${dash.editZone}` : ""}>
+        {editMode ? (
+          <BentoEditColumnGrid
+            visibleColumns={visibleColumns}
+            categoriesById={categoriesById}
+            pickedModuleId={pickedModuleId}
+            onPick={pickModule}
+            onPlaceInColumn={placePickedModuleInColumn}
+            onHide={hideModule}
+          />
+        ) : (
+          <BentoColumnGrid columns={gridColumns} />
+        )}
       </div>
 
-      {!editMode && visibleCategories.length === 0 ? (
+      {weekSheetCategory ? (
+        <div className={`min-w-0 ${editMode ? "opacity-70" : ""}`}>
+          {editMode ? (
+            <p className="mb-2 text-center text-[10px] font-semibold text-stone-400">
+              Feuille de semaine — toujours affichée ici, hors grille
+            </p>
+          ) : null}
+          {renderBentoWidget(weekSheetCategory, widgetSize)}
+        </div>
+      ) : null}
+
+      {!editMode && visibleModuleCount === 0 ? (
         <p className={`rounded-xl border border-dashed px-4 py-8 text-center text-sm text-stone-500 ${dash.editZone}`}>
           Tous les modules sont masqués.{" "}
           <button
@@ -301,7 +138,7 @@ export default function BentoDashboard({
         <div className={`space-y-3 rounded-xl border bg-white/80 px-4 py-3 ${dash.borderSoft}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-stone-500">
-              Glissez sur la grille (12 colonnes) · redimensionner · masquer · accès rapides
+              Chaque colonne se gère séparément · feuille de semaine fixée en bas
             </p>
             <div className="flex flex-wrap gap-2">
               <button

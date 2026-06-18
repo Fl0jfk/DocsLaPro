@@ -10,6 +10,15 @@ import { AcademicDeadlinesBentoWidget } from "@/app/components/Dashboard/bento/A
 import { WeekSheetBentoWidget } from "@/app/components/Dashboard/bento/WeekSheetBentoWidget";
 import type { BentoWidgetSize } from "@/app/lib/bento-widget-size";
 import BentoWeekGrid from "@/app/components/Dashboard/bento/BentoWeekGrid";
+import {
+  BentoScheduleEntry,
+  buildAbsenceTeacherColorMap,
+  formatDashboardSlotTime,
+  subjectSchedulePresentation,
+  teacherSchedulePresentation,
+} from "@/app/components/Dashboard/bento/BentoScheduleEntry";
+import { DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS } from "@/app/lib/domain-planning-defaults";
+import { DEFAULT_PROF_ROOM_SUBJECT_COLORS } from "@/app/lib/prof-room-defaults";
 import BentoDropZone from "@/app/components/Dashboard/bento/BentoDropZone";
 import { absencesInWeek, absencesToday, type AbsenceTodayRow, type AbsenceWeekRow } from "@/app/lib/dashboard-absences";
 import { getRecentDocs, pushRecentDoc } from "@/app/lib/dashboard-recent-docs";
@@ -361,6 +370,11 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
   const rows = isLg ? weekRows : todayRows;
   const schoolDays = useMemo(() => schoolWeekDaysParis(), []);
 
+  const teacherColorMap = useMemo(() => {
+    const names = [...weekRows, ...todayRows].map((r) => r.teacherName);
+    return buildAbsenceTeacherColorMap(names);
+  }, [weekRows, todayRows]);
+
   const absenceWeekGrid = useMemo(() => {
     return schoolDays.map((day) => ({
       key: day.key,
@@ -369,18 +383,19 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
         .filter((r) => r.dayKey === day.key)
         .map((r) => {
           const label = formatNomPrenom(r.teacherName);
+          const meta = [r.examType, r.timeLabel].filter(Boolean).join(" · ");
           return (
-            <span
+            <BentoScheduleEntry
               key={r.id}
-              className="block whitespace-normal break-words text-center text-[11px] font-bold leading-snug text-[#14231A] sm:truncate sm:text-left sm:text-[9px] sm:font-normal sm:leading-tight"
+              primary={label}
+              secondary={meta || undefined}
               title={`${label}${r.examType ? ` — ${r.examType}` : ""}${r.timeLabel ? ` (${r.timeLabel})` : ""}`}
-            >
-              {label}
-            </span>
+              presentation={teacherSchedulePresentation(r.teacherName, teacherColorMap)}
+            />
           );
         }),
     }));
-  }, [schoolDays, weekRows]);
+  }, [schoolDays, weekRows, teacherColorMap]);
 
   return (
     <BentoWidget
@@ -398,17 +413,18 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
       {!showCalendar ? (
         <EmptyLine>Déclarer et suivre vos absences.</EmptyLine>
       ) : isLg ? (
-        <div className="flex h-full min-h-[9rem] flex-col">
-          <BentoWeekGrid days={absenceWeekGrid} fill />
-        </div>
+        <BentoWeekGrid days={absenceWeekGrid} expand />
       ) : todayRows.length === 0 ? (
         <EmptyLine>Personne d&apos;absent aujourd&apos;hui.</EmptyLine>
       ) : (
-        <ul className="space-y-1">
-          {todayRows.slice(0, 4).map((r) => (
-            <li key={r.id} className={`${DASHBOARD_TILE_HIGHLIGHT} text-xs`}>
-              · {formatNomPrenom(r.teacherName)}
-              {r.examType ? ` — ${r.examType}` : ""} ({r.timeLabel})
+        <ul className="list-none space-y-1.5">
+          {todayRows.map((r) => (
+            <li key={r.id}>
+              <BentoScheduleEntry
+                primary={formatNomPrenom(r.teacherName)}
+                secondary={[r.examType, r.timeLabel].filter(Boolean).join(" · ") || undefined}
+                presentation={teacherSchedulePresentation(r.teacherName, teacherColorMap)}
+              />
             </li>
           ))}
         </ul>
@@ -432,15 +448,17 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
     }[]
   >([]);
   const [roomId, setRoomId] = useState("");
+  const [subjectColors, setSubjectColors] = useState<Record<string, string>>(DEFAULT_PROF_ROOM_SUBJECT_COLORS);
   const isLg = size === "lg";
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [roomsRes, resRes] = await Promise.all([
+        const [roomsRes, resRes, configRes] = await Promise.all([
           fetch("/api/reservation-rooms/rooms", { cache: "no-store" }),
           fetch("/api/reservation-rooms/reservations", { cache: "no-store" }),
+          fetch("/api/reservation-rooms/module-config", { cache: "no-store" }),
         ]);
         if (cancelled) return;
         if (roomsRes.ok) {
@@ -450,6 +468,12 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
         }
         if (resRes.ok) {
           setReservations(((await resRes.json()).reservations || []) as typeof reservations);
+        }
+        if (configRes.ok) {
+          const cfg = (await configRes.json()).config as { subjectColors?: Record<string, string> };
+          if (cfg?.subjectColors) {
+            setSubjectColors({ ...DEFAULT_PROF_ROOM_SUBJECT_COLORS, ...cfg.subjectColors });
+          }
         }
       } catch {
         /* ignore */
@@ -481,24 +505,26 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
       items: filtered
         .filter((r) => r.startsAt.startsWith(day.key))
         .map((r) => {
-          const time = r.startsAt.split("T")[1].slice(0, 5).replace(":", "h");
+          const time = formatDashboardSlotTime(r.startsAt);
           const prof =
             r.lastName || r.firstName
               ? formatNomPrenom(`${r.firstName ?? ""} ${r.lastName ?? ""}`.trim())
               : "";
-          const line = `${r.subject} ${r.className}`.trim();
           return (
-            <span
+            <BentoScheduleEntry
               key={r.id}
-              className="block truncate text-[9px] leading-tight text-[#14231A]"
-              title={prof ? `${time} — ${line}\nPar : ${prof}` : `${time} — ${line}`}
-            >
-              {time} {line}
-            </span>
+              time={time}
+              primary={r.subject}
+              secondary={r.className}
+              title={prof ? `${time} — ${r.subject} · ${r.className}\nPar : ${prof}` : `${time} — ${r.subject} · ${r.className}`}
+              presentation={subjectSchedulePresentation(
+                subjectColors[r.subject] || "bg-slate-600 text-white",
+              )}
+            />
           );
         }),
     }));
-  }, [schoolDays, filtered]);
+  }, [schoolDays, filtered, subjectColors]);
 
   const todayKey = calendarDateKeyParis();
   const todayRows = filtered.filter((r) => r.startsAt.startsWith(todayKey));
@@ -512,7 +538,7 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
         </QuickBtn>
       }
     >
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-col">
       <select value={roomId} onChange={(e) => setRoomId(e.target.value)} className={`${DASHBOARD_SELECT} mb-2 shrink-0`}>
         {rooms.map((r) => (
           <option key={r.id} value={r.id}>
@@ -521,16 +547,21 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
         ))}
       </select>
       {isLg ? (
-        <div className="flex min-h-[9rem] flex-1 flex-col">
-          <BentoWeekGrid days={roomWeekGrid} fill />
-        </div>
+        <BentoWeekGrid days={roomWeekGrid} expand />
       ) : todayRows.length === 0 ? (
         <EmptyLine>Aucune réservation aujourd&apos;hui.</EmptyLine>
       ) : (
-        <ul className="space-y-1">
-          {todayRows.slice(0, 4).map((r) => (
-            <li key={r.id} className={`${DASHBOARD_TILE_HIGHLIGHT} text-xs line-clamp-1`}>
-              {r.startsAt.split("T")[1].slice(0, 5).replace(":", "h")} — {r.subject}
+        <ul className="list-none space-y-1.5">
+          {todayRows.map((r) => (
+            <li key={r.id}>
+              <BentoScheduleEntry
+                time={formatDashboardSlotTime(r.startsAt)}
+                primary={r.subject}
+                secondary={r.className}
+                presentation={subjectSchedulePresentation(
+                  subjectColors[r.subject] || "bg-slate-600 text-white",
+                )}
+              />
             </li>
           ))}
         </ul>
@@ -541,7 +572,7 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
 }
 
 export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
-  const [domains, setDomains] = useState<{ id: string; name: string }[]>([]);
+  const [domains, setDomains] = useState<{ id: string; name: string; color?: string }[]>([]);
   const [bookings, setBookings] = useState<
     {
       id: string;
@@ -552,6 +583,9 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
       status?: string;
     }[]
   >([]);
+  const [activityColors, setActivityColors] = useState<Record<string, string>>(
+    DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS,
+  );
   const [domainId, setDomainId] = useState("");
   const isLg = size === "lg";
 
@@ -559,17 +593,24 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
     let cancelled = false;
     (async () => {
       try {
-        const [dRes, bRes] = await Promise.all([
+        const [dRes, bRes, cfgRes] = await Promise.all([
           fetch("/api/domain-planning/domains", { cache: "no-store" }),
           fetch("/api/domain-planning/bookings", { cache: "no-store" }),
+          fetch("/api/domain-planning/module-config", { cache: "no-store" }),
         ]);
         if (cancelled) return;
         if (dRes.ok) {
-          const list = ((await dRes.json()).domains || []) as { id: string; name: string }[];
+          const list = ((await dRes.json()).domains || []) as { id: string; name: string; color?: string }[];
           setDomains(list);
           if (list[0]) setDomainId(list[0].id);
         }
         if (bRes.ok) setBookings(((await bRes.json()).bookings || []) as typeof bookings);
+        if (cfgRes.ok) {
+          const cfg = (await cfgRes.json()).config as { activityColors?: Record<string, string> };
+          if (cfg?.activityColors) {
+            setActivityColors({ ...DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS, ...cfg.activityColors });
+          }
+        }
       } catch {
         /* ignore */
       }
@@ -580,6 +621,14 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
   }, []);
 
   const schoolDays = useMemo(() => schoolWeekDaysParis(), []);
+  const selectedDomainColor =
+    domains.find((d) => d.id === domainId)?.color || "bg-violet-600 text-white";
+
+  const bookingColor = useCallback(
+    (activityLabel?: string) =>
+      activityColors[activityLabel || ""] || selectedDomainColor || "bg-violet-600 text-white",
+    [activityColors, selectedDomainColor],
+  );
 
   const filtered = useMemo(() => {
     const keys = isLg
@@ -602,20 +651,21 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
       items: filtered
         .filter((b) => b.startsAt.startsWith(day.key))
         .map((b) => {
-          const time = b.startsAt.split("T")[1].slice(0, 5).replace(":", "h");
-          const line = `${b.activityLabel || ""} ${b.className}`.trim();
+          const time = formatDashboardSlotTime(b.startsAt);
+          const activity = (b.activityLabel || "Activité").trim();
           return (
-            <span
+            <BentoScheduleEntry
               key={b.id}
-              className="block truncate text-[9px] leading-tight text-[#14231A]"
-              title={`${time} — ${line}`}
-            >
-              {time} {line}
-            </span>
+              time={time}
+              primary={activity}
+              secondary={b.className}
+              title={`${time} — ${activity} · ${b.className}`}
+              presentation={subjectSchedulePresentation(bookingColor(b.activityLabel))}
+            />
           );
         }),
     }));
-  }, [schoolDays, filtered]);
+  }, [schoolDays, filtered, bookingColor]);
 
   const todayKey = calendarDateKeyParis();
   const todayRows = filtered.filter((b) => b.startsAt.startsWith(todayKey));
@@ -629,7 +679,7 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
         </QuickBtn>
       }
     >
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-col">
         <select
           value={domainId}
           onChange={(e) => setDomainId(e.target.value)}
@@ -642,16 +692,19 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
           ))}
         </select>
         {isLg ? (
-          <div className="flex min-h-[9rem] flex-1 flex-col">
-            <BentoWeekGrid days={domainWeekGrid} fill />
-          </div>
+          <BentoWeekGrid days={domainWeekGrid} />
         ) : todayRows.length === 0 ? (
           <EmptyLine>Aucun créneau aujourd&apos;hui.</EmptyLine>
         ) : (
-          <ul className="space-y-1">
+          <ul className="list-none space-y-1.5">
             {todayRows.slice(0, 4).map((b) => (
-              <li key={b.id} className={`${DASHBOARD_TILE_HIGHLIGHT} text-xs line-clamp-1`}>
-                {b.startsAt.split("T")[1].slice(0, 5).replace(":", "h")} — {b.activityLabel || b.className}
+              <li key={b.id}>
+                <BentoScheduleEntry
+                  time={formatDashboardSlotTime(b.startsAt)}
+                  primary={b.activityLabel || "Activité"}
+                  secondary={b.className}
+                  presentation={subjectSchedulePresentation(bookingColor(b.activityLabel))}
+                />
               </li>
             ))}
           </ul>
@@ -865,7 +918,7 @@ export function AgentIaBentoWidget({ category }: WidgetProps) {
 
   return (
     <BentoWidget {...widgetHeader(category)}>
-      <div className="grid h-full gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <BentoDropZone compact label="PDF unité" onFiles={(f) => go("standard", f)} />
         <BentoDropZone compact label="Bloc à découper" onFiles={(f) => go("class", f)} />
       </div>

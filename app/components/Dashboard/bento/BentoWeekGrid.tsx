@@ -26,9 +26,12 @@ function useMobileViewport() {
 export default function BentoWeekGrid({
   days,
   fill,
+  expand,
 }: {
   days: WeekDayColumn[];
   fill?: boolean;
+  /** Tous les créneaux visibles, hauteur libre (pas de scroll ni max-height). */
+  expand?: boolean;
 }) {
   const isMobile = useMobileViewport();
   const todayKey = calendarDateKeyParis();
@@ -68,8 +71,12 @@ export default function BentoWeekGrid({
             {day.short}
           </p>
           <div
-            className={`mt-1 space-y-1 overflow-y-auto sm:mt-0.5 sm:space-y-px ${
-              fill ? "min-h-0 flex-1" : "min-h-[2.5rem] max-h-28"
+            className={`mt-1 space-y-1 sm:mt-1 sm:space-y-1 ${
+              fill
+                ? "min-h-0 flex-1 overflow-y-auto"
+                : expand
+                  ? ""
+                  : "min-h-[2.5rem] max-h-28 overflow-y-auto"
             }`}
           >
             {day.items.length === 0 ? (

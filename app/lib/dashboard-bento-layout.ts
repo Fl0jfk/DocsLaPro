@@ -1,66 +1,79 @@
 /**
- * Grille bento du dashboard (12 colonnes desktop).
- * Layout personnalisable : localStorage par utilisateur (voir dashboard-bento-persist.ts).
+ * Ordre par défaut des modules (référence pour la disposition initiale en 3 colonnes).
+ * La feuille de semaine est hors grille (pied de page fixe).
  */
 import { DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID } from "@/app/lib/dashboard-academic-deadlines-types";
-import { DASHBOARD_WEEK_SHEET_MODULE_ID } from "@/app/lib/dashboard-week-sheet-types";
+import {
+  DESKTOP_BENTO_COLUMN_COUNT,
+  linearOrderToColumns,
+} from "@/app/lib/dashboard-bento-columns";
 
-export type BentoSpan = { colSpan: number; rowSpan: number; sort: number };
+const DEFAULT_SORT = 50;
 
-const DEFAULT: BentoSpan = { colSpan: 4, rowSpan: 2, sort: 50 };
+export const BENTO_DEFAULT_ORDER: string[] = [
+  "documents",
+  "travels",
+  "absences",
+  "agent-ia-ocr",
+  "prof-room",
+  DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID,
+  "rh",
+  "channels",
+  "internat",
+  "requests-staff",
+  "organigramme",
+  "qrcreator",
+  "domain-planning",
+  "covoiturage",
+  "demandes-hse",
+];
 
-export const BENTO_LAYOUT: Record<string, BentoSpan> = {
-  documents: { colSpan: 6, rowSpan: 3, sort: 1 },
-  travels: { colSpan: 6, rowSpan: 3, sort: 2 },
-  "agent-ia-ocr": { colSpan: 6, rowSpan: 2, sort: 3 },
-  "prof-room": { colSpan: 6, rowSpan: 3, sort: 4 },
-  "requests-staff": { colSpan: 6, rowSpan: 3, sort: 5 },
-  absences: { colSpan: 6, rowSpan: 3, sort: 6 },
-  "domain-planning": { colSpan: 6, rowSpan: 3, sort: 7 },
-  internat: { colSpan: 4, rowSpan: 3, sort: 8 },
-  rh: { colSpan: 4, rowSpan: 3, sort: 9 },
-  channels: { colSpan: 3, rowSpan: 2, sort: 40 },
-  organigramme: { colSpan: 3, rowSpan: 2, sort: 41 },
-  qrcreator: { colSpan: 3, rowSpan: 2, sort: 90 },
-  "chatbot-knowledge": { colSpan: 4, rowSpan: 2, sort: 42 },
-  "photocopies-couleur": { colSpan: 4, rowSpan: 2, sort: 43 },
-  "demandes-hse": { colSpan: 4, rowSpan: 2, sort: 44 },
-  covoiturage: { colSpan: 4, rowSpan: 2, sort: 45 },
-  "admin-settings": { colSpan: 3, rowSpan: 2, sort: 80 },
-  "admin-members": { colSpan: 3, rowSpan: 2, sort: 81 },
-  [DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID]: { colSpan: 4, rowSpan: 2, sort: 2 },
-  [DASHBOARD_WEEK_SHEET_MODULE_ID]: { colSpan: 12, rowSpan: 1, sort: 99 },
+export const BENTO_MODULE_SORT: Record<string, number> = {
+  documents: 1,
+  travels: 2,
+  absences: 3,
+  "agent-ia-ocr": 4,
+  "prof-room": 5,
+  [DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID]: 6,
+  rh: 7,
+  channels: 8,
+  internat: 9,
+  "requests-staff": 10,
+  organigramme: 11,
+  qrcreator: 12,
+  "domain-planning": 13,
+  covoiturage: 14,
+  "photocopies-couleur": 15,
+  "chatbot-knowledge": 16,
+  "demandes-hse": 17,
 };
 
-export function getBentoSpan(moduleId: string): BentoSpan {
-  return BENTO_LAYOUT[moduleId] ?? DEFAULT;
+export function getBentoModuleSort(moduleId: string): number {
+  return BENTO_MODULE_SORT[moduleId] ?? DEFAULT_SORT;
 }
 
-export function colSpanClass(n: number): string {
-  const map: Record<number, string> = {
-    3: "lg:col-span-3",
-    4: "lg:col-span-4",
-    6: "lg:col-span-6",
-    8: "lg:col-span-8",
-    12: "lg:col-span-12",
-  };
-  return map[n] ?? "lg:col-span-4";
+export function sortModuleIds(moduleIds: string[]): string[] {
+  return [...moduleIds].sort((a, b) => {
+    const sa = getBentoModuleSort(a);
+    const sb = getBentoModuleSort(b);
+    return sa - sb || a.localeCompare(b);
+  });
 }
 
-export function rowSpanClass(n: number): string {
-  const map: Record<number, string> = {
-    2: "lg:row-span-2",
-    3: "lg:row-span-3",
-    4: "lg:row-span-4",
-    5: "lg:row-span-5",
-    6: "lg:row-span-6",
-    7: "lg:row-span-7",
-    8: "lg:row-span-8",
-    9: "lg:row-span-9",
-    10: "lg:row-span-10",
-  };
-  return map[n] ?? "lg:row-span-2";
+export function defaultBentoModuleOrder(moduleIds: string[]): string[] {
+  const set = new Set(moduleIds);
+  const tailId = "demandes-hse";
+  const main = BENTO_DEFAULT_ORDER.filter((id) => set.has(id) && id !== tailId);
+  const used = new Set(main);
+  const rest = sortModuleIds(moduleIds.filter((id) => !used.has(id) && id !== tailId));
+  for (const id of rest) used.add(id);
+  const tail = set.has(tailId) ? [tailId] : [];
+  return [...main, ...rest, ...tail];
 }
 
-export const BENTO_COL_OPTIONS = [3, 4, 6, 12] as const;
-export const BENTO_ROW_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+export function defaultBentoModuleColumns(moduleIds: string[]): string[][] {
+  return linearOrderToColumns(
+    defaultBentoModuleOrder(moduleIds),
+    DESKTOP_BENTO_COLUMN_COUNT,
+  );
+}

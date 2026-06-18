@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTravelsPermissions } from "@/app/hooks/useTravelsPermissions";
 import {
   CUISINE_DAYS_UI,
@@ -51,6 +51,9 @@ import {
 export default function TripDetails() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const remindersFocus = searchParams.get("focus") === "reminders";
+  const highlightReminderId = searchParams.get("reminder");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isLoaded: isUserLoaded } = useUser();
   const [trip, setTrip] = useState<TravelsTrip | null>(null);
@@ -120,6 +123,14 @@ export default function TripDetails() {
   }, [trip, hubTab]);
 
   useEffect(() => {
+    if (!trip || !remindersFocus) return;
+    const t = window.setTimeout(() => {
+      document.getElementById("trip-reminders")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [trip, remindersFocus]);
+
+  useEffect(() => {
     const fetchTrip = async () => {
       try {
         const res = await fetch(`/api/travels/get?id=${id}`);
@@ -135,7 +146,7 @@ export default function TripDetails() {
         console.error("Erreur lors de la récupération du dossier:", err);
       }
     };
-    if (id) fetchTrip();
+    if (id) void fetchTrip();
   }, [id]);
   const openSecureFile = async (fileUrl: string, s3Key?: string | null) => {
     const newWindow = window.open("", "_blank");
@@ -277,23 +288,11 @@ export default function TripDetails() {
   };
   const handleFinalValidation = async () => {
     if (!canSign) return alert("Vous n'êtes pas autorisé(e) à valider ce dossier.");
-    setLoadingAction("circular");
+    setLoadingAction("final-validation");
     try {
-      let finalAttachments = [...(trip.data.attachments || [])];
-      let circularAdded = false;
       let tripBase = trip;
       let cuisineSent = false;
-
-      try {
-        const circular = await generateCircularAttachment();
-        finalAttachments = mergeCircularIntoAttachments(finalAttachments, circular);
-        circularAdded = true;
-      } catch (circErr) {
-        const proceed = confirm(
-          `${circErr instanceof Error ? circErr.message : "La circulaire n'a pas pu être générée."}\n\nValider le dossier quand même sans circulaire ?`,
-        );
-        if (!proceed) return;
-      }
+      const finalAttachments = [...(trip.data.attachments || [])];
 
       if (trip.data.piqueNiqueDetails?.active) {
         const cuisineRes = await fetch('/api/travels/send-cuisine', {
@@ -322,7 +321,6 @@ export default function TripDetails() {
 
       const historyNote = [
         "Dossier validé.",
-        circularAdded ? "Circulaire générée." : "Circulaire non générée.",
         tripBase.data.piqueNiqueDetails?.active
           ? cuisineSent
             ? "Commande cuisine envoyée."
@@ -335,8 +333,9 @@ export default function TripDetails() {
       await handleAction("VALIDE", historyNote, { attachments: finalAttachments }, tripBase);
 
       const alertParts = ["Dossier validé !"];
-      if (circularAdded) alertParts.push("La circulaire a été ajoutée aux documents.");
-      else alertParts.push("Aucune circulaire n'a été générée — vous pouvez en déposer une manuellement.");
+      alertParts.push(
+        "La circulaire n'est plus générée automatiquement — utilisez « Régénérer circulaire » dans Documents si besoin.",
+      );
       if (tripBase.data.piqueNiqueDetails?.active && cuisineSent) {
         alertParts.push("Le bon de commande cuisine a été envoyé (chef + copies direction et organisateur).");
       }
@@ -1306,7 +1305,10 @@ export default function TripDetails() {
       <div className="mt-4 mb-2">
         <TripHubNav active={hubTab} onChange={setHubTab} badges={hubBadges} tabs={visibleHubTabs} />
       </div>
-      <TripRemindersBanner tripId={trip.id} />
+      <TripRemindersBanner
+        tripId={trip.id}
+        highlightReminderId={highlightReminderId}
+      />
 
       {trip.type === "COMPLEX" && !withBusLogistics && hubTab === "overview" && (
         <TripAlert tone="info" icon="ℹ️" title="Sans transport bus">

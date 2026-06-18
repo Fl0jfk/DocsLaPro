@@ -1,123 +1,150 @@
-import { getBentoSpan, type BentoSpan } from "@/app/lib/dashboard-bento-layout";
-import { clampModuleSpan } from "@/app/lib/dashboard-bento-constraints";
-import { packModules, type GridPosition } from "@/app/lib/dashboard-bento-grid";
-import { DASHBOARD_WEEK_SHEET_MODULE_ID } from "@/app/lib/dashboard-week-sheet-types";
+import {
+  filterBentoGridModuleIds,
+  isBentoFooterAdminModule,
+  isBentoPinnedFooterModule,
+} from "@/app/lib/dashboard-bento-constraints";
+import {
+  DESKTOP_BENTO_COLUMN_COUNT,
+  emptyBentoColumns,
+  linearOrderToColumns,
+  mergeNewModulesIntoColumns,
+} from "@/app/lib/dashboard-bento-columns";
+import { defaultBentoModuleColumns } from "@/app/lib/dashboard-bento-layout";
 
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 8;
 
 export type SavedBentoLayout = {
-  order: string[];
-  spans: Record<string, { colSpan: number; rowSpan: number }>;
-  positions: Record<string, GridPosition>;
+  columns: string[][];
   hidden: string[];
 };
 
-function normalizeWeekSheetSpan(
-  moduleIds: string[],
-  spans: SavedBentoLayout["spans"],
-): void {
-  if (!moduleIds.includes(DASHBOARD_WEEK_SHEET_MODULE_ID)) return;
-  spans[DASHBOARD_WEEK_SHEET_MODULE_ID] = clampModuleSpan(
-    DASHBOARD_WEEK_SHEET_MODULE_ID,
-    spans[DASHBOARD_WEEK_SHEET_MODULE_ID]?.colSpan ?? 12,
-    spans[DASHBOARD_WEEK_SHEET_MODULE_ID]?.rowSpan ?? 1,
-  );
-}
-
-/** Réaligne tailles liées (sans imposer la position de la feuille de semaine). */
-export function applyLayoutNormalizers(moduleIds: string[], layout: SavedBentoLayout): SavedBentoLayout {
-  const spans = { ...layout.spans };
-  if (moduleIds.includes("domain-planning") && moduleIds.includes("prof-room")) {
-    const roomSpan = spans["prof-room"];
-    if (roomSpan) {
-      spans["domain-planning"] = clampModuleSpan(
-        "domain-planning",
-        roomSpan.colSpan,
-        roomSpan.rowSpan,
-      );
-    }
-  }
-  normalizeWeekSheetSpan(moduleIds, spans);
-  return { ...layout, spans };
-}
+type LegacySavedLayout = {
+  columns?: string[][];
+  order?: string[];
+  hidden?: string[];
+  spans?: unknown;
+  positions?: unknown;
+};
 
 export function bentoLayoutStorageKey(userId: string | null | undefined): string {
   const who = userId?.trim() || "anon";
   return `scola-bento-layout:v${STORAGE_VERSION}:${who}`;
 }
 
-export function buildDefaultLayout(moduleIds: string[]): SavedBentoLayout {
-  const sorted = [...moduleIds].sort((a, b) => {
-    const sa = getBentoSpan(a).sort;
-    const sb = getBentoSpan(b).sort;
-    return sa - sb || a.localeCompare(b);
-  });
-  const spans: SavedBentoLayout["spans"] = {};
-  for (const id of moduleIds) {
-    const d = getBentoSpan(id);
-    spans[id] = clampModuleSpan(id, d.colSpan, d.rowSpan);
+function stripNonGridModules(ids: string[]): string[] {
+  return ids.filter(
+    (id) => !isBentoFooterAdminModule(id) && !isBentoPinnedFooterModule(id),
+  );
+}
+
+function normalizeColumns(raw: string[][] | undefined): string[][] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+
+  const columns = emptyBentoColumns(DESKTOP_BENTO_COLUMN_COUNT);
+  for (let col = 0; col < DESKTOP_BENTO_COLUMN_COUNT; col++) {
+    if (Array.isArray(raw[col])) {
+      columns[col] = stripNonGridModules(raw[col]);
+    }
   }
-  const positions = packModules(sorted, spans, new Set());
-  return applyLayoutNormalizers(moduleIds, { order: sorted, spans, positions, hidden: [] });
+
+  return columns;
+}
+
+function columnsFromLegacyOrder(order: string[]): string[][] {
+  return linearOrderToColumns(stripNonGridModules(order), DESKTOP_BENTO_COLUMN_COUNT);
+}
+
+function normalizeSavedLayout(raw: LegacySavedLayout, moduleIds: string[]): SavedBentoLayout | null {
+  const gridIds = filterBentoGridModuleIds(moduleIds);
+  const hidden = Array.isArray(raw.hidden)
+    ? stripNonGridModules(raw.hidden).filter((id) => gridIds.includes(id))
+    : [];
+
+  const fromColumns = normalizeColumns(raw.columns);
+  if (fromColumns) {
+    return finalizeLayout(fromColumns, hidden, gridIds);
+  }
+
+  if (Array.isArray(raw.order)) {
+    return finalizeLayout(columnsFromLegacyOrder(raw.order), hidden, gridIds);
+  }
+
+  return null;
+}
+
+function finalizeLayout(
+  columns: string[][],
+  hidden: string[],
+  gridIds: string[],
+): SavedBentoLayout {
+  const hiddenSet = new Set(hidden);
+  const merged = mergeNewModulesIntoColumns(columns, gridIds, hiddenSet);
+
+  return {
+    columns: merged,
+    hidden: hidden.filter((id) => !isBentoFooterAdminModule(id)),
+  };
+}
+
+export function buildDefaultLayout(moduleIds: string[]): SavedBentoLayout {
+  const gridIds = filterBentoGridModuleIds(moduleIds);
+  return finalizeLayout(defaultBentoModuleColumns(gridIds), [], gridIds);
 }
 
 export function mergeSavedLayout(moduleIds: string[], saved: SavedBentoLayout | null): SavedBentoLayout {
-  const defaults = buildDefaultLayout(moduleIds);
+  const gridIds = filterBentoGridModuleIds(moduleIds);
+  const defaults = buildDefaultLayout(gridIds);
   if (!saved) return defaults;
 
-  const order = [
-    ...saved.order.filter((id) => moduleIds.includes(id)),
-    ...moduleIds.filter((id) => !saved.order.includes(id)),
-  ];
-
-  const spans: SavedBentoLayout["spans"] = { ...defaults.spans };
-  for (const id of moduleIds) {
-    const hit = saved.spans[id];
-    if (hit) spans[id] = clampModuleSpan(id, hit.colSpan, hit.rowSpan);
-  }
-
-  const hidden = Array.isArray(saved.hidden)
-    ? saved.hidden.filter((id) => moduleIds.includes(id))
-    : [];
-
-  const hiddenSet = new Set(hidden);
-  const visibleOrder = order.filter((id) => !hiddenSet.has(id));
-
-  let positions: Record<string, GridPosition> = {};
-  if (saved.positions && typeof saved.positions === "object") {
-    for (const id of visibleOrder) {
-      const hit = saved.positions[id];
-      if (hit && hit.col >= 1 && hit.row >= 1) {
-        positions[id] = { col: hit.col, row: hit.row };
-      }
-    }
-  }
-
-  if (visibleOrder.some((id) => !positions[id])) {
-    const packed = packModules(visibleOrder, spans, hiddenSet);
-    for (const id of visibleOrder) {
-      if (!positions[id]) positions[id] = packed[id];
-    }
-  }
-
-  return applyLayoutNormalizers(moduleIds, { order, spans, positions, hidden });
+  return finalizeLayout(saved.columns, saved.hidden, gridIds);
 }
 
-export function loadSavedBentoLayout(userId: string | null | undefined): SavedBentoLayout | null {
-  if (typeof window === "undefined") return null;
+export function loadAndMergeBentoLayout(
+  userId: string | null | undefined,
+  moduleIds: string[],
+): SavedBentoLayout {
+  if (typeof window === "undefined") return buildDefaultLayout(moduleIds);
+
   try {
-    const raw = localStorage.getItem(bentoLayoutStorageKey(userId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as SavedBentoLayout;
-    if (!Array.isArray(parsed.order) || typeof parsed.spans !== "object") return null;
-    return {
-      ...parsed,
-      hidden: Array.isArray(parsed.hidden) ? parsed.hidden : [],
-      positions: parsed.positions && typeof parsed.positions === "object" ? parsed.positions : {},
-    };
+    const who = userId?.trim() || "anon";
+    const currentKey = bentoLayoutStorageKey(userId);
+    const rawV8 = localStorage.getItem(currentKey);
+    if (rawV8) {
+      const parsed = JSON.parse(rawV8) as LegacySavedLayout;
+      const normalized = normalizeSavedLayout(parsed, moduleIds);
+      if (normalized) return mergeSavedLayout(moduleIds, normalized);
+    }
+
+    for (const version of [7, 6, 5] as const) {
+      const legacyKey = `scola-bento-layout:v${version}:${who}`;
+      const legacyRaw = localStorage.getItem(legacyKey);
+      if (!legacyRaw) continue;
+      const legacy = JSON.parse(legacyRaw) as LegacySavedLayout;
+      const normalized = normalizeSavedLayout(legacy, moduleIds);
+      if (normalized) {
+        const merged = mergeSavedLayout(moduleIds, normalized);
+        saveSavedBentoLayout(userId, merged);
+        return merged;
+      }
+    }
+
+    for (let v = 4; v >= 1; v--) {
+      const legacyKey = `scola-bento-layout:v${v}:${who}`;
+      const legacyRaw = localStorage.getItem(legacyKey);
+      if (!legacyRaw) continue;
+      const legacy = JSON.parse(legacyRaw) as LegacySavedLayout;
+      const normalized = normalizeSavedLayout(legacy, moduleIds);
+      if (normalized) {
+        const merged = mergeSavedLayout(moduleIds, normalized);
+        saveSavedBentoLayout(userId, merged);
+        return merged;
+      }
+    }
   } catch {
-    return null;
+    /* ignore */
   }
+
+  return buildDefaultLayout(moduleIds);
 }
 
 export function saveSavedBentoLayout(userId: string | null | undefined, layout: SavedBentoLayout): void {
@@ -133,19 +160,11 @@ export function clearSavedBentoLayout(userId: string | null | undefined): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(bentoLayoutStorageKey(userId));
+    const who = userId?.trim() || "anon";
+    for (let v = 7; v >= 1; v--) {
+      localStorage.removeItem(`scola-bento-layout:v${v}:${who}`);
+    }
   } catch {
     /* ignore */
   }
-}
-
-export function getLayoutSpan(layout: SavedBentoLayout, moduleId: string): Pick<BentoSpan, "colSpan" | "rowSpan"> {
-  const base = layout.spans[moduleId] ?? {
-    colSpan: getBentoSpan(moduleId).colSpan,
-    rowSpan: getBentoSpan(moduleId).rowSpan,
-  };
-  return clampModuleSpan(moduleId, base.colSpan, base.rowSpan);
-}
-
-export function getLayoutPosition(layout: SavedBentoLayout, moduleId: string): GridPosition {
-  return layout.positions[moduleId] ?? { col: 1, row: 1 };
 }
