@@ -4,12 +4,12 @@ import {
   buildAcademicDeadlinesPayload,
 } from "@/app/lib/academic-deadlines";
 import { loadAllAcademicDeadlines } from "@/app/lib/dashboard-academic-deadlines-storage";
-import { requireAuth } from "@/app/lib/intranet-auth";
+import { requireAcademicDeadlinesViewer } from "@/app/lib/intranet-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const gate = await requireAuth();
+  const gate = await requireAcademicDeadlinesViewer();
   if (!gate.ok) return gate.response;
 
   try {

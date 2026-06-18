@@ -20,9 +20,13 @@ export function isWeekSheetModule(moduleId: string): boolean {
 }
 
 export function filterBentoGridModuleIds(moduleIds: string[]): string[] {
-  return moduleIds.filter(
-    (id) => !isBentoFooterAdminModule(id) && !isBentoPinnedFooterModule(id),
-  );
+  const seen = new Set<string>();
+  return moduleIds.filter((id) => {
+    if (isBentoFooterAdminModule(id) || isBentoPinnedFooterModule(id)) return false;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 /** Modules volontairement compacts (pas besoin de grand espace vertical). */

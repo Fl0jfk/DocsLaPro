@@ -9,6 +9,10 @@
  */
 
 import { hasGlobalAdminRole, hasRole } from "./intranet-role-utils";
+import { INTRANET_DIRECTION_SLUGS, intranetRolesExceptParent } from "./intranet-roles";
+
+const DIRECTIONS = [...INTRANET_DIRECTION_SLUGS];
+const ROLES_EXCEPT_PARENT = intranetRolesExceptParent();
 
 export type DashboardTileVariant =
   | "default"
@@ -70,15 +74,12 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "documents",
     pathPrefixes: ["/documents", "/api/documents"],
     allowedRoles: [
-      "direction_college",
+      ...DIRECTIONS,
       "administratif",
-      "professeur",
-      "direction_ecole",
-      "direction_lycee",
-      "maintenance",
       "comptabilite",
-      "infirmerie",
       "education",
+      "professeur",
+      "maintenance",
     ],
     dashboard: {
       id: 1,
@@ -92,15 +93,12 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "faire-demande",
     pathPrefixes: ["/faire-une-demande", "/demande/merci"],
     allowedRoles: [
-      "direction_college",
+      ...DIRECTIONS,
       "administratif",
-      "professeur",
-      "direction_ecole",
-      "direction_lycee",
-      "maintenance",
       "comptabilite",
-      "infirmerie",
       "education",
+      "professeur",
+      "maintenance",
     ],
   },
   {
@@ -108,12 +106,11 @@ export const INTRANET_MODULES: IntranetModule[] = [
     pathPrefixes: ["/travels", "/api/travels"],
     excludePrefixes: ["/api/travels/ingest-from-email"],
     allowedRoles: [
+      ...DIRECTIONS,
       "administratif",
       "comptabilite",
-      "direction_ecole",
-      "direction_lycee",
+      "education",
       "professeur",
-      "direction_college",
     ],
     dashboard: {
       id: 4,
@@ -127,17 +124,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "qrcreator",
     pathPrefixes: ["/qrcreator"],
-    allowedRoles: [
-      "direction_college",
-      "administratif",
-      "professeur",
-      "direction_ecole",
-      "direction_lycee",
-      "maintenance",
-      "comptabilite",
-      "infirmerie",
-      "education",
-    ],
+    allowedRoles: [...ROLES_EXCEPT_PARENT],
     dashboard: {
       id: 5,
       name: "Création de QR Code",
@@ -150,13 +137,11 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "prof-room",
     pathPrefixes: ["/prof-room", "/api/reservation-rooms"],
     allowedRoles: [
-      "professeur",
+      ...DIRECTIONS,
       "administratif",
-      "direction_college",
-      "direction_ecole",
-      "direction_lycee",
-      "maintenance",
       "education",
+      "professeur",
+      "maintenance",
     ],
     dashboard: {
       id: 8,
@@ -171,13 +156,11 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "domain-planning",
     pathPrefixes: ["/domain-planning", "/api/domain-planning"],
     allowedRoles: [
-      "professeur",
+      ...DIRECTIONS,
       "administratif",
-      "direction_college",
-      "direction_ecole",
-      "direction_lycee",
-      "maintenance",
       "education",
+      "professeur",
+      "maintenance",
     ],
     dashboard: {
       id: 25,
@@ -191,7 +174,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "agent-ia-ocr",
     pathPrefixes: ["/agentIAOCR", "/api/agentIAOCR", "/api/eleves", "/api/mef-secteurs"],
-    allowedRoles: ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+    allowedRoles: ["administratif"],
     dashboard: {
       id: 10,
       name: "Ajout de documents IA",
@@ -204,17 +187,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "channels",
     pathPrefixes: ["/channels", "/api/channels"],
-    allowedRoles: [
-      "direction_college",
-      "administratif",
-      "professeur",
-      "direction_ecole",
-      "direction_lycee",
-      "maintenance",
-      "comptabilite",
-      "infirmerie",
-      "education",
-    ],
+    allowedRoles: [...ROLES_EXCEPT_PARENT],
     dashboard: {
       id: 11,
       name: "Salons",
@@ -227,13 +200,12 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "absences",
     pathPrefixes: ["/absences", "/api/absences"],
     allowedRoles: [
-      "professeur",
+      ...DIRECTIONS,
       "administratif",
-      "direction_ecole",
-      "direction_college",
-      "direction_lycee",
-      "comptabilite",
       "education",
+      "comptabilite",
+      "professeur",
+      "maintenance",
     ],
     dashboard: {
       id: 13,
@@ -247,7 +219,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "organigramme",
     pathPrefixes: ["/organigramme"],
-    allowedRoles: ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+    allowedRoles: ["administratif"],
     dashboard: {
       id: 14,
       name: "Organigramme interne",
@@ -261,15 +233,12 @@ export const INTRANET_MODULES: IntranetModule[] = [
     pathPrefixes: ["/requests", "/mes-demandes", "/api/requests"],
     excludePrefixes: ["/api/requests/create", "/api/requests/confirm"],
     allowedRoles: [
-      "direction_college",
+      ...DIRECTIONS,
       "administratif",
-      "professeur",
-      "direction_ecole",
-      "direction_lycee",
-      "maintenance",
       "comptabilite",
-      "infirmerie",
       "education",
+      "professeur",
+      "maintenance",
     ],
     dashboard: {
       id: 3,
@@ -282,7 +251,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "chatbot-knowledge",
     pathPrefixes: ["/chatbot-knowledge", "/api/chatbot/ingest"],
-    allowedRoles: ["administratif", "direction_ecole", "direction_college", "direction_lycee"],
+    allowedRoles: ["administratif"],
     dashboard: {
       id: 17,
       name: "Brain AI (training engine)",
@@ -294,14 +263,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "photocopies-couleur",
     pathPrefixes: ["/photocopies-couleur", "/api/photocopies-couleur"],
-    allowedRoles: [
-      "professeur",
-      "administratif",
-      "education",
-      "direction_ecole",
-      "direction_college",
-      "direction_lycee",
-    ],
+    allowedRoles: [...DIRECTIONS, "administratif", "professeur"],
     dashboard: {
       id: 19,
       name: "Photocopies couleur",
@@ -314,7 +276,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "demandes-hse",
     pathPrefixes: ["/demandes-hse", "/api/demandes-hse"],
-    allowedRoles: ["professeur", "direction_ecole", "direction_college", "direction_lycee"],
+    allowedRoles: [...DIRECTIONS, "administratif", "professeur"],
     dashboard: {
       id: 20,
       name: "Demandes HSE",
@@ -353,16 +315,11 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "rh",
     pathPrefixes: ["/rh", "/personnel", "/api/personnel"],
     allowedRoles: [
+      ...DIRECTIONS,
       "administratif",
       "comptabilite",
-      "maintenance",
       "education",
-      "direction_ecole",
-      "direction_college",
-      "direction_lycee",
-      "professeur",
-      "infirmerie",
-      "admin",
+      "maintenance",
     ],
     dashboard: {
       id: 23,
@@ -376,7 +333,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "internat",
     pathPrefixes: ["/gestion-internat", "/api/internat"],
-    allowedRoles: ["admin", "education", "administratif", "direction_college", "direction_lycee"],
+    allowedRoles: [...DIRECTIONS, "administratif", "education"],
     dashboard: {
       id: 24,
       name: "Internat",
@@ -389,14 +346,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "covoiturage",
     pathPrefixes: ["/covoiturage", "/api/covoiturage"],
-    allowedRoles: [
-      "administratif",
-      "admin",
-      "direction_ecole",
-      "direction_college",
-      "direction_lycee",
-      "education",
-    ],
+    allowedRoles: ["parent"],
     dashboard: {
       id: 26,
       name: "Covoiturage",
@@ -404,6 +354,32 @@ export const INTRANET_MODULES: IntranetModule[] = [
       link: "/covoiturage",
       external: false,
       variant: "default",
+    },
+  },
+  {
+    id: "dashboard-academic-deadlines",
+    pathPrefixes: ["/api/academic-deadlines", "/api/dashboard/academic-deadlines"],
+    allowedRoles: [...DIRECTIONS, "administratif"],
+    dashboard: {
+      id: 9002,
+      name: "Échéances académiques",
+      img: "",
+      link: "#",
+      description: "Mutations, examens, Parcoursup, affectations — Académie de Normandie",
+      variant: "academic-deadlines",
+    },
+  },
+  {
+    id: "dashboard-week-sheet",
+    pathPrefixes: ["/api/dashboard/week-sheet"],
+    allowedRoles: [...ROLES_EXCEPT_PARENT],
+    dashboard: {
+      id: 9001,
+      name: "Feuille de semaine",
+      img: "",
+      link: "#",
+      description: "Planning de la semaine",
+      variant: "week-sheet",
     },
   },
 ];

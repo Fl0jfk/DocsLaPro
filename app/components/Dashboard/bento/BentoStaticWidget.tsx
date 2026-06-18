@@ -26,10 +26,10 @@ export default function BentoStaticWidget({
 }: Props) {
   return (
     <article
-      className={`flex min-h-[8.5rem] flex-col rounded-2xl border bg-white/92 shadow-sm backdrop-blur-sm ${dash.tileBorder} ${articleClassName ?? "h-full overflow-hidden"}`}
+      className={`flex min-h-[8.5rem] flex-col overflow-hidden rounded-2xl border bg-white/92 shadow-sm backdrop-blur-sm ${dash.tileBorder} ${articleClassName ?? "h-full"}`}
     >
       <header
-        className={`flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2.5 sm:px-4 ${dash.border} ${dash.gradientHeader}`}
+        className={`flex shrink-0 items-center justify-between gap-2 rounded-t-2xl border-b px-3 py-2.5 sm:px-4 ${dash.border} ${dash.gradientHeader}`}
       >
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">

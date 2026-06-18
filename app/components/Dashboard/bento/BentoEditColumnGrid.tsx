@@ -156,7 +156,7 @@ export default function BentoEditColumnGrid({
               const isPicked = pickedModuleId === moduleId;
 
               return (
-                <div key={moduleId} className="space-y-2">
+                <div key={`${colIndex}-${rowIndex}-${moduleId}`} className="space-y-2">
                   <EditModuleCard
                     category={category}
                     isPicked={isPicked}

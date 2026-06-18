@@ -22,8 +22,8 @@ export default function BentoColumnGrid({
     >
       {columns.map((colItems, colIndex) => (
         <div key={colIndex} className="flex min-w-0 flex-col gap-4">
-          {colItems.map((item) => (
-            <div key={item.id} className="min-w-0">
+          {colItems.map((item, rowIndex) => (
+            <div key={`${colIndex}-${rowIndex}-${item.id}`} className="min-w-0">
               {item.node}
             </div>
           ))}

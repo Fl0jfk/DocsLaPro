@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { isOrgAdminFromPublicMetadata, resolveSession } from "@/app/lib/intranet-session";
 import { currentUser } from "@clerk/nextjs/server";
-import { canEditAcademicDeadlinesFromRoles } from "@/app/lib/academic-deadlines-access";
+import {
+  canEditAcademicDeadlinesFromRoles,
+  canViewAcademicDeadlinesFromRoles,
+} from "@/app/lib/academic-deadlines-access";
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 
 export type AuthContext = {
@@ -61,8 +64,32 @@ export async function requireAcademicDeadlinesEditor(): Promise<
     ok: false,
     response: NextResponse.json(
       {
-        error: "Réservé à la direction, l'administratif ou la comptabilité.",
+        error: "Réservé aux administrateurs de l'organisation.",
         code: "ACADEMIC_DEADLINES_EDITOR_REQUIRED",
+      },
+      { status: 403 },
+    ),
+  };
+}
+
+export async function requireAcademicDeadlinesViewer(): Promise<
+  { ok: true; ctx: AuthContext } | { ok: false; response: NextResponse }
+> {
+  const gate = await requireAuth();
+  if (!gate.ok) return gate;
+
+  const user = await currentUser();
+  const roles = intranetRolesFromMetadata(user?.publicMetadata);
+  if (canViewAcademicDeadlinesFromRoles(roles)) {
+    return gate;
+  }
+
+  return {
+    ok: false,
+    response: NextResponse.json(
+      {
+        error: "Réservé à l'administratif et à la direction.",
+        code: "ACADEMIC_DEADLINES_VIEWER_REQUIRED",
       },
       { status: 403 },
     ),

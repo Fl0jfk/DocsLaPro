@@ -10,7 +10,19 @@ export const INTRANET_ROLE_OPTIONS: { slug: string; label: string }[] = [
   { slug: "maintenance", label: "Maintenance" },
   { slug: "infirmerie", label: "Infirmerie" },
   { slug: "education", label: "Éducation / vie scolaire" },
+  { slug: "parent", label: "Parent" },
 ];
+
+export const INTRANET_DIRECTION_SLUGS = [
+  "direction_ecole",
+  "direction_college",
+  "direction_lycee",
+] as const;
+
+/** Tous les rôles intranet sauf les parents (QR, salons, feuille de semaine…). */
+export function intranetRolesExceptParent(): string[] {
+  return INTRANET_ROLE_OPTIONS.map((r) => r.slug).filter((s) => s !== "parent");
+}
 
 const ALLOWED = new Set(INTRANET_ROLE_OPTIONS.map((r) => r.slug));
 

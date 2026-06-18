@@ -134,8 +134,8 @@ export function WeekSheetBentoWidget({ category, size }: Props) {
         iconSrc={category.img}
         subtitle={data?.weekLabel}
         headerExtra={headerExtra}
-        articleClassName="h-auto overflow-visible"
-        bodyClassName="overflow-visible p-2 sm:p-3"
+        articleClassName="h-auto"
+        bodyClassName="overflow-x-auto p-2 sm:p-3"
       >
         {loading ? (
           <p className="py-6 text-center text-xs text-stone-400">Chargement…</p>

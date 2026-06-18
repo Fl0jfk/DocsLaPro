@@ -23,6 +23,38 @@ export function flattenBentoColumns(columns: string[][]): string[] {
   return columns.flat();
 }
 
+/** Un moduleId ne peut apparaître qu'une fois dans toute la grille (première occurrence conservée). */
+export function dedupeBentoColumns(columns: string[][]): string[][] {
+  const seen = new Set<string>();
+  return columns.map((col) => {
+    const next: string[] = [];
+    for (const moduleId of col) {
+      if (seen.has(moduleId)) continue;
+      seen.add(moduleId);
+      next.push(moduleId);
+    }
+    return next;
+  });
+}
+
+export function dedupeHiddenModuleIds(hidden: string[]): string[] {
+  return [...new Set(hidden)];
+}
+
+/** Colonnes sans doublons ; modules masqués retirés des colonnes ; hidden sans doublons. */
+export function sanitizeBentoLayout(
+  columns: string[][],
+  hidden: string[],
+): { columns: string[][]; hidden: string[] } {
+  const hiddenDeduped = dedupeHiddenModuleIds(hidden);
+  const hiddenSet = new Set(hiddenDeduped);
+  const columnsWithoutHidden = columns.map((col) => col.filter((id) => !hiddenSet.has(id)));
+  return {
+    columns: dedupeBentoColumns(columnsWithoutHidden),
+    hidden: hiddenDeduped,
+  };
+}
+
 export function filterHiddenFromColumns(
   columns: string[][],
   hidden: ReadonlySet<string>,
@@ -89,7 +121,9 @@ export function mergeNewModulesIntoColumns(
   hidden: ReadonlySet<string>,
 ): string[][] {
   const allowed = new Set(moduleIds);
-  const next = columns.map((col) => col.filter((id) => allowed.has(id)));
+  const next = dedupeBentoColumns(
+    columns.map((col) => col.filter((id) => allowed.has(id))),
+  );
   const placed = new Set(next.flat());
 
   for (const moduleId of moduleIds) {

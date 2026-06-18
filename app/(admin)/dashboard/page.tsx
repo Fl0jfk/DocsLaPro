@@ -17,9 +17,7 @@ import { hasRole } from "@/app/lib/absences-types";
 import { hasGlobalAdminRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import DashboardThemeRoot from "@/app/components/Dashboard/DashboardThemeRoot";
 import { dash } from "@/app/lib/dashboard-brand";
-import { ACADEMIC_DEADLINES_DASHBOARD_CATEGORY } from "@/app/lib/dashboard-academic-deadlines-types";
 import { isBentoFooterAdminModule } from "@/app/lib/dashboard-bento-constraints";
-import { WEEK_SHEET_DASHBOARD_CATEGORY } from "@/app/lib/dashboard-week-sheet-types";
 
 export default function Home() {
   const { isLoaded, user } = useUser();
@@ -40,17 +38,11 @@ export default function Home() {
       if (hasGlobalAdminRole(roles)) return true;
       return (category.allowedRoles ?? []).some((r) => hasRole(roles, r));
     });
-    return Array.from(new Map(filtered.map((cat) => [cat.id ?? cat.name, cat])).values());
+    return Array.from(new Map(filtered.map((cat) => [cat.moduleId, cat])).values());
   }, [isLoaded, user, data, isOrgAdmin]);
 
   const dashboardCategories = useMemo(() => {
-    const base = uniqueCategories.filter((c) => !isBentoFooterAdminModule(c.moduleId));
-    const extraIds = new Set([
-      WEEK_SHEET_DASHBOARD_CATEGORY.moduleId,
-      ACADEMIC_DEADLINES_DASHBOARD_CATEGORY.moduleId,
-    ]);
-    const withoutExtras = base.filter((c) => !extraIds.has(c.moduleId));
-    return [...withoutExtras, ACADEMIC_DEADLINES_DASHBOARD_CATEGORY, WEEK_SHEET_DASHBOARD_CATEGORY];
+    return uniqueCategories.filter((c) => !isBentoFooterAdminModule(c.moduleId));
   }, [uniqueCategories]);
 
   const catalogQuickLinks = useMemo(() => {

@@ -9,6 +9,20 @@ export type WeekDayColumn = {
   items: ReactNode[];
 };
 
+export function bentoWeekDayColumnClass(isToday: boolean, extra = ""): string {
+  return `flex min-w-0 flex-col rounded-md ${
+    isToday
+      ? "border-2 border-[var(--dash-primary)] bg-[color:var(--dash-soft-muted)]/55 shadow-sm"
+      : "border border-[color:var(--dash-border)]/90 bg-[color:var(--dash-soft-muted)]/25"
+  } ${extra}`.trim();
+}
+
+export function bentoWeekDayLabelClass(isToday: boolean): string {
+  return `shrink-0 truncate text-center text-[10px] font-black uppercase tracking-tight sm:text-[9px] ${
+    isToday ? "text-[var(--dash-primary)]" : "text-[var(--dash-mid)]"
+  }`;
+}
+
 function useMobileViewport() {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -57,17 +71,9 @@ export default function BentoWeekGrid({
         return (
         <div
           key={day.key}
-          className={`flex min-w-0 flex-col rounded-md p-1.5 sm:p-1 ${
-            isToday
-              ? "border-2 border-[var(--dash-primary)] bg-[color:var(--dash-soft-muted)]/55 shadow-sm"
-              : "border border-[color:var(--dash-border)]/90 bg-[color:var(--dash-soft-muted)]/25"
-          } ${fill ? "min-h-0 h-full" : ""}`}
+          className={`${bentoWeekDayColumnClass(isToday, `p-1.5 sm:p-1 ${fill ? "min-h-0 h-full" : ""}`)}`}
         >
-          <p
-            className={`shrink-0 truncate text-center text-[10px] font-black uppercase tracking-tight sm:text-[9px] ${
-              isToday ? "text-[var(--dash-primary)]" : "text-[var(--dash-mid)]"
-            }`}
-          >
+          <p className={bentoWeekDayLabelClass(isToday)}>
             {day.short}
           </p>
           <div

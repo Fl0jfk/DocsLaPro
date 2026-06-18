@@ -7,6 +7,8 @@ import {
   filterHiddenFromColumns,
   flattenBentoColumns,
   placeModuleInColumns,
+  removeModuleFromColumns,
+  sanitizeBentoLayout,
   shortestColumnIndex,
 } from "@/app/lib/dashboard-bento-columns";
 import {
@@ -40,8 +42,9 @@ export function useBentoDashboardLayout(categories: Categories[], userId: string
 
   const persist = useCallback(
     (next: SavedBentoLayout) => {
-      setLayout(next);
-      saveSavedBentoLayout(userId, next);
+      const sanitized = sanitizeBentoLayout(next.columns, next.hidden);
+      setLayout(sanitized);
+      saveSavedBentoLayout(userId, sanitized);
     },
     [userId],
   );
@@ -89,24 +92,29 @@ export function useBentoDashboardLayout(categories: Categories[], userId: string
 
   const hideModule = useCallback(
     (moduleId: string) => {
-      if (!isGridModule(moduleId) || layout.hidden.includes(moduleId)) return;
+      if (!isGridModule(moduleId)) return;
       if (pickedModuleId === moduleId) setPickedModuleId(null);
-      persist({ ...layout, hidden: [...layout.hidden, moduleId] });
+
+      const hidden = layout.hidden.includes(moduleId)
+        ? layout.hidden
+        : [...layout.hidden, moduleId];
+      const columns = removeModuleFromColumns(layout.columns, moduleId);
+
+      persist({ columns, hidden });
     },
     [layout, persist, pickedModuleId],
   );
 
   const showModule = useCallback(
     (moduleId: string) => {
-      const hidden = layout.hidden.filter((id) => id !== moduleId);
-      const inColumns = layout.columns.some((col) => col.includes(moduleId));
-      const columns = inColumns
-        ? layout.columns
-        : layout.columns.map((col, index, all) =>
-            index === shortestColumnIndex(all) ? [...col, moduleId] : col,
-          );
+      if (!isGridModule(moduleId)) return;
 
-      persist({ ...layout, hidden, columns });
+      const hidden = layout.hidden.filter((id) => id !== moduleId);
+      const columns = removeModuleFromColumns(layout.columns, moduleId).map((col) => [...col]);
+      const targetCol = shortestColumnIndex(columns);
+      columns[targetCol] = [...(columns[targetCol] ?? []), moduleId];
+
+      persist({ columns, hidden });
     },
     [layout, persist],
   );

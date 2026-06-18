@@ -8,6 +8,7 @@ import {
   emptyBentoColumns,
   linearOrderToColumns,
   mergeNewModulesIntoColumns,
+  sanitizeBentoLayout,
 } from "@/app/lib/dashboard-bento-columns";
 import { defaultBentoModuleColumns } from "@/app/lib/dashboard-bento-layout";
 
@@ -79,11 +80,12 @@ function finalizeLayout(
 ): SavedBentoLayout {
   const hiddenSet = new Set(hidden);
   const merged = mergeNewModulesIntoColumns(columns, gridIds, hiddenSet);
+  const sanitized = sanitizeBentoLayout(
+    merged,
+    hidden.filter((id) => !isBentoFooterAdminModule(id)),
+  );
 
-  return {
-    columns: merged,
-    hidden: hidden.filter((id) => !isBentoFooterAdminModule(id)),
-  };
+  return sanitized;
 }
 
 export function buildDefaultLayout(moduleIds: string[]): SavedBentoLayout {
