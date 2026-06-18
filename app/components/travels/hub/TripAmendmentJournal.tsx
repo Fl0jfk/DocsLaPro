@@ -1,6 +1,7 @@
 "use client";
 
 import type { TravelsTrip } from "@/app/lib/travels-types";
+import { resolveCuisineOrderSentAt } from "@/app/lib/travels-trip-helpers";
 import { TRAVELS_STATUS_LABELS } from "@/app/lib/travels-types";
 import { TripSection } from "@/app/components/travels/TripDetailUI";
 
@@ -44,10 +45,11 @@ function buildJournalEntries(trip: TravelsTrip): JournalEntry[] {
     });
   }
 
-  if (trip.data.cuisineOrderSentAt && !(trip.data.cuisineAmendments?.length)) {
+  const cuisineSentAt = resolveCuisineOrderSentAt(trip);
+  if (cuisineSentAt && !(trip.data.cuisineAmendments?.length)) {
     entries.push({
-      id: `ci_${trip.data.cuisineOrderSentAt}`,
-      at: trip.data.cuisineOrderSentAt,
+      id: `ci_${cuisineSentAt}`,
+      at: cuisineSentAt,
       category: "cuisine",
       title: "Commande cuisine initiale envoyée au chef",
     });

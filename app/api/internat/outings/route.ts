@@ -5,11 +5,11 @@ import {
   buildDirectionDecisions,
   buildOutingParticipants,
   computeOutingStatus,
+  isDateInRange,
+  nextWeekDateRange,
 } from "@/app/lib/internat-outing";
-import {
-  notifyInternatOutingDirection,
-  notifyInternatOutingParents,
-} from "@/app/lib/internat-notify";
+import { applyOutingDecision, notifyParentsIfReady } from "@/app/lib/internat-outing-decision";
+import { notifyInternatOutingDirection } from "@/app/lib/internat-notify";
 import {
   getInternatOuting,
   getInternatStudents,
@@ -18,30 +18,44 @@ import {
 } from "@/app/lib/internat-storage";
 import { newId, type InternatOuting } from "@/app/lib/internat-types";
 
-async function notifyParentsIfReady(outing: InternatOuting): Promise<InternatOuting> {
-  const status = computeOutingStatus(outing);
-  if (status !== "pending_parents") return { ...outing, status };
-
-  let updated = { ...outing, status };
-  for (let i = 0; i < updated.participants.length; i++) {
-    const p = updated.participants[i]!;
-    if (p.parentEmailsSentAt) continue;
-    const result = await notifyInternatOutingParents({ outing: updated, participantIndex: i });
-    if (result.sent) {
-      updated = {
-        ...updated,
-        participants: updated.participants.map((x, idx) =>
-          idx === i ? { ...x, parentEmailsSentAt: new Date().toISOString() } : x,
-        ),
-      };
-    }
-  }
-  return updated;
-}
-
-export async function GET() {
+export async function GET(req: Request) {
   const access = await requireInternatAccess();
   if (!access.ok) return access.response;
+
+  const { searchParams } = new URL(req.url);
+  const view = searchParams.get("view");
+
+  if (view === "authorized") {
+    const scope = searchParams.get("scope") === "week" ? "week" : "today";
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const week = nextWeekDateRange(today);
+    const outings = await listInternatOutings();
+    const authorized = outings
+      .filter((o) => o.status === "authorized")
+      .filter((o) =>
+        scope === "today"
+          ? o.outingDate === todayStr
+          : isDateInRange(o.outingDate, week.start, week.end),
+      )
+      .flatMap((o) =>
+        o.participants
+          .filter((p) => p.parentStatus === "authorized")
+          .map((p) => ({
+            studentId: p.studentId,
+            studentName: p.studentName,
+            classe: p.classe,
+            etablissement: p.etablissement,
+            outingId: o.id,
+            outingTitle: o.title,
+            outingDate: o.outingDate,
+            departureTime: o.departureTime,
+            returnTime: o.returnTime,
+          })),
+      );
+    return NextResponse.json({ authorized, scope, ...(scope === "week" ? { week } : { date: todayStr }) });
+  }
+
   const outings = await listInternatOutings();
   return NextResponse.json({ outings });
 }
@@ -155,6 +169,48 @@ export async function PATCH(req: Request) {
     updated = { ...updated, status: computeOutingStatus(updated), updatedAt: new Date().toISOString() };
     await saveInternatOuting(updated);
     return NextResponse.json({ outing: updated });
+  }
+
+  const decision = body.decision === "refuse" ? "refuse" : body.decision === "approve" ? "approve" : null;
+
+  if (action === "direction_decision") {
+    if (!decision) return NextResponse.json({ error: "Décision requise." }, { status: 400 });
+    const etablissement = body.etablissement === "Collège" ? "Collège" : body.etablissement === "Lycée" ? "Lycée" : null;
+    if (!etablissement) return NextResponse.json({ error: "Établissement requis." }, { status: 400 });
+    try {
+      const { outing: updated } = await applyOutingDecision({
+        kind: "direction",
+        etablissement,
+        decision,
+        decidedBy: access.userName,
+        note: String(body.note || "").trim() || undefined,
+        outing,
+      });
+      await saveInternatOuting(updated);
+      return NextResponse.json({ outing: updated });
+    } catch (e: unknown) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Erreur" }, { status: 400 });
+    }
+  }
+
+  if (action === "parent_decision") {
+    if (!decision) return NextResponse.json({ error: "Décision requise." }, { status: 400 });
+    const studentId = String(body.studentId || "");
+    if (!studentId) return NextResponse.json({ error: "Interne requis." }, { status: 400 });
+    try {
+      const { outing: updated } = await applyOutingDecision({
+        kind: "parent",
+        studentId,
+        decision,
+        decidedBy: access.userName,
+        note: String(body.note || "").trim() || undefined,
+        outing,
+      });
+      await saveInternatOuting(updated);
+      return NextResponse.json({ outing: updated });
+    } catch (e: unknown) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Erreur" }, { status: 400 });
+    }
   }
 
   return NextResponse.json({ error: "Action inconnue." }, { status: 400 });

@@ -74,6 +74,18 @@ export async function POST(req: Request) {
         existingOnS3.receivedDevis
       );
     }
+    const existingInner = (existingOnS3?.data || {}) as Record<string, unknown>;
+    const saveInner = (objectToSave.data || {}) as Record<string, unknown>;
+    if (existingInner.cuisineOrderSentAt && !saveInner.cuisineOrderSentAt) {
+      saveInner.cuisineOrderSentAt = existingInner.cuisineOrderSentAt;
+      if (existingInner.cuisineOrderSnapshot && !saveInner.cuisineOrderSnapshot) {
+        saveInner.cuisineOrderSnapshot = existingInner.cuisineOrderSnapshot;
+      }
+      if (existingInner.cuisineAmendments && !saveInner.cuisineAmendments) {
+        saveInner.cuisineAmendments = existingInner.cuisineAmendments;
+      }
+      objectToSave.data = saveInner;
+    }
     const previousStatus = existingOnS3 && typeof existingOnS3.status === "string" ? existingOnS3.status : null;
     const newStatus = typeof objectToSave.status === "string" ? objectToSave.status : "";
     if (previousStatus === "VALIDE" && newStatus !== "VALIDE" && newStatus !== previousStatus) {

@@ -20,6 +20,11 @@ export const INTERNAT_S3 = {
   alertsPrefix: "internat/alerts/",
   outingsIndex: "internat/outings-index.json",
   outingsPrefix: "internat/outings/",
+  studyGroups: "internat/study-groups.json",
+  supervisorShifts: "internat/supervisor-shifts.json",
+  incidents: "internat/incidents.json",
+  messages: "internat/messages.json",
+  journal: "internat/journal.json",
   moduleConfig: "settings/modules/internat.json",
 } as const;
 
@@ -46,6 +51,21 @@ export type InternatParentContact = {
   telephone?: string;
 };
 
+export type InternatStudentMedical = {
+  allergies?: string;
+  pai?: string;
+  treatments?: string;
+  notes?: string;
+};
+
+export type InternatStudentSpecialAuth = {
+  id: string;
+  label: string;
+  validFrom?: string;
+  validUntil?: string;
+  notes?: string;
+};
+
 export type InternatStudent = {
   id: string;
   eleveRef: InternatEleveRef;
@@ -55,6 +75,10 @@ export type InternatStudent = {
   roomId?: string | null;
   parent1?: InternatParentContact;
   parent2?: InternatParentContact;
+  medical?: InternatStudentMedical;
+  specialAuthorizations?: InternatStudentSpecialAuth[];
+  underWatch?: boolean;
+  underWatchNote?: string;
   actif: boolean;
   createdAt: string;
   updatedAt: string;
@@ -133,8 +157,11 @@ export type InternatRollSection = {
   marks: Record<string, InternatRollMark>;
 };
 
+export type InternatRollCallPeriod = "soir" | "matin";
+
 export type InternatRollCall = {
   date: string;
+  period?: InternatRollCallPeriod;
   status: InternatRollCallStatus;
   boys: InternatRollSection;
   girls: InternatRollSection;
@@ -166,6 +193,64 @@ export type InternatAlert = {
   createdBy: { userId: string; name: string; email?: string };
   sentAt?: string;
   recipients?: string[];
+};
+
+export type InternatStudyGroup = {
+  id: string;
+  label: string;
+  room?: string;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  studentIds: string[];
+  supervisorName?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InternatSupervisorShift = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  supervisorName: string;
+  wing?: InternatWing;
+  notes?: string;
+  createdAt: string;
+};
+
+export type InternatIncidentKind = "incident" | "remarque" | "sanction" | "valorisation";
+
+export type InternatIncident = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  kind: InternatIncidentKind;
+  title: string;
+  description?: string;
+  occurredAt: string;
+  createdAt: string;
+  createdBy: { userId: string; name: string };
+};
+
+export type InternatMessage = {
+  id: string;
+  threadId: string;
+  subject: string;
+  body: string;
+  audience: "equipe" | "direction" | "cpe" | "surveillants";
+  createdAt: string;
+  createdBy: { userId: string; name: string };
+  readBy?: string[];
+};
+
+export type InternatJournalEntry = {
+  id: string;
+  date: string;
+  category: string;
+  content: string;
+  createdAt: string;
+  createdBy: { userId: string; name: string };
 };
 
 export type InternatModuleConfig = {
@@ -204,10 +289,11 @@ export function emptyRollSection(): InternatRollSection {
   return { completed: false, marks: {} };
 }
 
-export function emptyRollCall(date: string): InternatRollCall {
+export function emptyRollCall(date: string, period: InternatRollCallPeriod = "soir"): InternatRollCall {
   const now = new Date().toISOString();
   return {
     date,
+    period,
     status: "ouverte",
     boys: emptyRollSection(),
     girls: emptyRollSection(),

@@ -10,6 +10,11 @@ import InternatHubNav, { type InternatTab } from "@/app/components/internat/Inte
 import InternatOutingsPanel from "@/app/components/internat/InternatOutingsPanel";
 import InternatRollCallPanel from "@/app/components/internat/InternatRollCallPanel";
 import InternatRoomsPanel from "@/app/components/internat/InternatRoomsPanel";
+import InternatRollCallHistoryPanel from "@/app/components/internat/InternatRollCallHistoryPanel";
+import InternatStudyPanel from "@/app/components/internat/InternatStudyPanel";
+import InternatSupervisorsPanel from "@/app/components/internat/InternatSupervisorsPanel";
+import InternatEducationalPanel from "@/app/components/internat/InternatEducationalPanel";
+import InternatCommunicationPanel from "@/app/components/internat/InternatCommunicationPanel";
 import InternatStudentsPanel from "@/app/components/internat/InternatStudentsPanel";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import {
@@ -20,7 +25,20 @@ import {
 import type { InternatDashboardStats } from "@/app/lib/internat-stats";
 import type { InternatRoom, InternatStudent } from "@/app/lib/internat-types";
 
-const TAB_IDS: InternatTab[] = ["dashboard", "chambres", "internes", "sorties", "appel", "activites", "alertes"];
+const TAB_IDS: InternatTab[] = [
+  "dashboard",
+  "chambres",
+  "internes",
+  "sorties",
+  "appel",
+  "historique",
+  "etudes",
+  "surveillants",
+  "suivi",
+  "communication",
+  "activites",
+  "alertes",
+];
 
 function parseTab(raw: string | null): InternatTab {
   if (raw && TAB_IDS.includes(raw as InternatTab)) return raw as InternatTab;
@@ -104,6 +122,15 @@ export default function GestionInternatClient() {
           )}
           {activeTab === "sorties" && <InternatOutingsPanel students={students} canManage={canManage} />}
           {activeTab === "appel" && <InternatRollCallPanel onRefresh={refresh} />}
+          {activeTab === "historique" && <InternatRollCallHistoryPanel />}
+          {activeTab === "etudes" && (
+            <InternatStudyPanel students={students} canManage={canManage} />
+          )}
+          {activeTab === "surveillants" && <InternatSupervisorsPanel canManage={canManage} />}
+          {activeTab === "suivi" && (
+            <InternatEducationalPanel students={students} canManage={canManage} />
+          )}
+          {activeTab === "communication" && <InternatCommunicationPanel canManage={canManage} />}
           {activeTab === "activites" && <InternatActivitiesPanel />}
           {activeTab === "alertes" && <InternatAlertsPanel />}
         </>

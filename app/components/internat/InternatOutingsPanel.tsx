@@ -21,6 +21,16 @@ export default function InternatOutingsPanel({
   canManage: boolean;
 }) {
   const [outings, setOutings] = useState<InternatOuting[]>([]);
+  const [authorizedToday, setAuthorizedToday] = useState<
+    Array<{
+      studentName: string;
+      classe: string;
+      outingTitle: string;
+      outingDate: string;
+      departureTime?: string;
+    }>
+  >([]);
+  const [authorizedWeek, setAuthorizedWeek] = useState<typeof authorizedToday>([]);
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -37,9 +47,17 @@ export default function InternatOutingsPanel({
   const activeStudents = students.filter((s) => s.actif);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/internat/outings", { cache: "no-store" });
-    const data = await res.json();
-    if (res.ok) setOutings(data.outings || []);
+    const [outingsRes, todayRes, weekRes] = await Promise.all([
+      fetch("/api/internat/outings", { cache: "no-store" }),
+      fetch("/api/internat/outings?view=authorized&scope=today", { cache: "no-store" }),
+      fetch("/api/internat/outings?view=authorized&scope=week", { cache: "no-store" }),
+    ]);
+    const data = await outingsRes.json();
+    const todayData = await todayRes.json();
+    const weekData = await weekRes.json();
+    if (outingsRes.ok) setOutings(data.outings || []);
+    if (todayRes.ok) setAuthorizedToday(todayData.authorized || []);
+    if (weekRes.ok) setAuthorizedWeek(weekData.authorized || []);
   }, []);
 
   useEffect(() => {
@@ -74,6 +92,48 @@ export default function InternatOutingsPanel({
         departureTime: "",
         returnTime: "",
       });
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const directionDecision = async (
+    outingId: string,
+    etablissement: "Collège" | "Lycée",
+    decision: "approve" | "refuse",
+  ) => {
+    if (decision === "refuse" && !confirm(`Refuser la validation ${etablissement} ?`)) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/internat/outings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: outingId, action: "direction_decision", etablissement, decision }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Action impossible");
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendParents = async (id: string) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/internat/outings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "resend_parents" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Envoi impossible");
+      alert("E-mails parents relancés si applicable.");
       await load();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Erreur");
@@ -145,6 +205,42 @@ export default function InternatOutingsPanel({
             <span className="text-xs text-indigo-800/70">Envoi auto le dimanche si activé (cron).</span>
           </div>
         )}
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <section className="bg-white border border-emerald-100 rounded-2xl p-4">
+          <h3 className="font-black text-emerald-900 text-sm mb-2">Autorisés aujourd&apos;hui</h3>
+          {authorizedToday.length === 0 ? (
+            <p className="text-xs text-slate-500">Aucun interne autorisé pour aujourd&apos;hui.</p>
+          ) : (
+            <ul className="text-sm space-y-1">
+              {authorizedToday.map((a, i) => (
+                <li key={`${a.studentName}-${i}`}>
+                  <span className="font-semibold">{a.studentName}</span>
+                  <span className="text-slate-500 text-xs"> — {a.outingTitle}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="bg-white border border-sky-100 rounded-2xl p-4">
+          <h3 className="font-black text-sky-900 text-sm mb-2">Autorisés cette semaine</h3>
+          {authorizedWeek.length === 0 ? (
+            <p className="text-xs text-slate-500">Aucune autorisation sur la semaine en cours.</p>
+          ) : (
+            <ul className="text-sm space-y-1 max-h-40 overflow-y-auto">
+              {authorizedWeek.map((a, i) => (
+                <li key={`${a.studentName}-${a.outingDate}-${i}`}>
+                  <span className="font-semibold">{a.studentName}</span>
+                  <span className="text-slate-500 text-xs">
+                    {" "}
+                    — {a.outingDate} · {a.outingTitle}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
 
       {canManage && (
@@ -296,22 +392,52 @@ export default function InternatOutingsPanel({
                 </td>
                 <td className="p-3 text-xs text-slate-500">
                   {o.directionDecisions.map((d) => (
-                    <div key={d.etablissement}>
+                    <div key={d.etablissement} className="mb-1">
                       {d.etablissement} :{" "}
                       {d.status === "approved" ? "validé" : d.status === "refused" ? "refusé" : "en attente"}
+                      {canManage && d.status === "pending" && o.status !== "cancelled" && (
+                        <span className="ml-1 inline-flex gap-1">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            className="text-emerald-700 font-bold"
+                            onClick={() => directionDecision(o.id, d.etablissement, "approve")}
+                          >
+                            OK
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            className="text-red-600 font-bold"
+                            onClick={() => directionDecision(o.id, d.etablissement, "refuse")}
+                          >
+                            Refus
+                          </button>
+                        </span>
+                      )}
                     </div>
                   ))}
                 </td>
                 {canManage && (
-                  <td className="p-3">
+                  <td className="p-3 space-y-1">
                     {!["cancelled", "authorized"].includes(o.status) && (
                       <button
                         type="button"
-                        className="text-xs text-red-600 font-bold"
+                        className="block text-xs text-red-600 font-bold"
                         disabled={busy}
                         onClick={() => cancelOuting(o.id)}
                       >
                         Annuler
+                      </button>
+                    )}
+                    {o.status === "pending_parents" && (
+                      <button
+                        type="button"
+                        className="block text-xs text-indigo-600 font-bold"
+                        disabled={busy}
+                        onClick={() => resendParents(o.id)}
+                      >
+                        Relancer parents
                       </button>
                     )}
                   </td>

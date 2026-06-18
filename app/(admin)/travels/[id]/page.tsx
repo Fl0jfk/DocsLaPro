@@ -14,6 +14,8 @@ import {
   busLogisticsActive,
   complexNeedsBus,
   cuisineEffectifChanged,
+  cuisineOrderWasSent,
+  resolveCuisineOrderSentAt,
   datesChangedSinceSnapshot,
   effectifChangedSinceSnapshot,
   isValidEmailLoose,
@@ -279,6 +281,7 @@ export default function TripDetails() {
     try {
       let finalAttachments = [...(trip.data.attachments || [])];
       let circularAdded = false;
+      let tripBase = trip;
       let cuisineSent = false;
 
       try {
@@ -307,7 +310,10 @@ export default function TripDetails() {
         if (cuisineRes.ok) {
           cuisineSent = true;
           const cuisinePayload = await cuisineRes.json().catch(() => ({}));
-          if (cuisinePayload.trip) setTrip(cuisinePayload.trip);
+          if (cuisinePayload.trip) {
+            tripBase = cuisinePayload.trip;
+            setTrip(cuisinePayload.trip);
+          }
         } else {
           const errPayload = await cuisineRes.json().catch(() => ({}));
           alert(`Attention : le mail cuisine n'a pas pu être envoyé (${errPayload?.error || "erreur inconnue"}).`);
@@ -317,7 +323,7 @@ export default function TripDetails() {
       const historyNote = [
         "Dossier validé.",
         circularAdded ? "Circulaire générée." : "Circulaire non générée.",
-        trip.data.piqueNiqueDetails?.active
+        tripBase.data.piqueNiqueDetails?.active
           ? cuisineSent
             ? "Commande cuisine envoyée."
             : "Commande cuisine non envoyée."
@@ -326,12 +332,12 @@ export default function TripDetails() {
         .filter(Boolean)
         .join(" ");
 
-      await handleAction("VALIDE", historyNote, { attachments: finalAttachments });
+      await handleAction("VALIDE", historyNote, { attachments: finalAttachments }, tripBase);
 
       const alertParts = ["Dossier validé !"];
       if (circularAdded) alertParts.push("La circulaire a été ajoutée aux documents.");
       else alertParts.push("Aucune circulaire n'a été générée — vous pouvez en déposer une manuellement.");
-      if (trip.data.piqueNiqueDetails?.active && cuisineSent) {
+      if (tripBase.data.piqueNiqueDetails?.active && cuisineSent) {
         alertParts.push("Le bon de commande cuisine a été envoyé (chef + copies direction et organisateur).");
       }
       alert(alertParts.join("\n\n"));
@@ -399,25 +405,32 @@ export default function TripDetails() {
     await saveUpdates(updatedTrip);
     setDraftMessage("");
   };
-  const handleAction = async (newStatus: string, note: string = "", extraData: any = null) => {
+  const handleAction = async (
+    newStatus: string,
+    note: string = "",
+    extraData: any = null,
+    baseTrip: TravelsTrip | null = null,
+  ) => {
+    if (!trip) return;
     if (!loadingAction) setLoadingAction("action");
-    const baseData = isEditing ? { ...trip.data, ...editedData } : trip.data;
+    const source = baseTrip || trip;
+    const baseData = isEditing ? { ...source.data, ...editedData } : source.data;
     const finalData = { ...(extraData ? { ...baseData, ...extraData } : baseData) };
     if (newStatus === "BESOIN_MODIFICATION" && note.trim()) {
       finalData.modificationRequestNote = note.trim();
     }
-    if (trip.status === "BESOIN_MODIFICATION" && newStatus !== "BESOIN_MODIFICATION") {
+    if (source.status === "BESOIN_MODIFICATION" && newStatus !== "BESOIN_MODIFICATION") {
       delete finalData.modificationRequestNote;
       delete finalData.previousStatus;
     }
     const updatedTrip = {
-      ...trip,
+      ...source,
       status: newStatus,
       data: finalData,
       history: [
-        ...(trip.history || []),
-        { date: new Date().toISOString(), user: user?.fullName, action: newStatus, note: note }
-      ]
+        ...(source.history || []),
+        { date: new Date().toISOString(), user: user?.fullName, action: newStatus, note: note },
+      ],
     };
     const saved = await saveUpdates(updatedTrip);
     setIsEditing(false);
@@ -1116,7 +1129,8 @@ export default function TripDetails() {
     withBusLogistics &&
     (isOwner || canSign) &&
     Boolean(transportSnapshot || trip.data?.selectedBusQuote || trip.data?.signedQuoteUrl);
-  const cuisineOrderSent = Boolean(trip.data?.cuisineOrderSentAt);
+  const cuisineOrderSent = cuisineOrderWasSent(trip);
+  const cuisineOrderSentAt = resolveCuisineOrderSentAt(trip);
   const cuisineChanged = cuisineEffectifChanged(trip.data);
   const canEditDates = canEditEffectif;
   const hasCuisineOrder = Boolean(trip.data.piqueNiqueDetails?.active);
@@ -1889,8 +1903,10 @@ export default function TripDetails() {
                     <p className="text-[10px] font-bold uppercase text-slate-500">Envoi au chef</p>
                     <p className="font-bold text-slate-900 mt-1">
                       {cuisineOrderSent
-                        ? `Envoyé le ${new Date(trip.data.cuisineOrderSentAt!).toLocaleDateString("fr-FR")}`
-                        : "Pas encore envoyé (validation finale)"}
+                        ? `Envoyé le ${new Date(cuisineOrderSentAt!).toLocaleDateString("fr-FR")}`
+                        : trip.status === "VALIDE"
+                          ? "Statut validé — envoi cuisine non tracé dans le dossier"
+                          : "Pas encore envoyé (validation finale)"}
                     </p>
                     {(trip.data.cuisineAmendments?.length || 0) > 0 && (
                       <p className="text-[10px] text-amber-700 mt-1">{trip.data.cuisineAmendments!.length} rectification(s)</p>

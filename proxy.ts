@@ -47,6 +47,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/mentions-legales',
   '/tarifs',
+  '/internat/autorisation(.*)',
+  '/api/internat/outings/decision(.*)',
 ]);
 
 async function resolveTenantForProxy(request: NextRequest): Promise<TenantConfig> {

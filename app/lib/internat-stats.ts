@@ -1,4 +1,5 @@
 import type {
+  InternatIncident,
   InternatRollCall,
   InternatRollMark,
   InternatRoom,
@@ -24,6 +25,14 @@ export type InternatDashboardStats = {
   presenceRate7d: number | null;
   lastValidatedRollCall?: { date: string; validatedBy?: string; validatedAt?: string };
   weeklySummary?: string;
+  incidents30d: {
+    incident: number;
+    remarque: number;
+    sanction: number;
+    valorisation: number;
+    total: number;
+  };
+  studentsUnderWatch: Array<{ id: string; name: string; classe: string; note?: string }>;
 };
 
 function pad2(n: number) {
@@ -141,9 +150,10 @@ export function buildDashboardStats(params: {
   rooms: InternatRoom[];
   tonightRollCall: InternatRollCall;
   recentRollCalls: InternatRollCall[];
+  incidents?: InternatIncident[];
   weeklySummaryEnabled?: boolean;
 }): InternatDashboardStats {
-  const { students, rooms, tonightRollCall, recentRollCalls } = params;
+  const { students, rooms, tonightRollCall, recentRollCalls, incidents = [] } = params;
   const active = students.filter((s) => s.actif);
   const overCapacity = rooms
     .map((room) => {
@@ -166,6 +176,27 @@ export function buildDashboardStats(params: {
 
   const lastValidated = recentRollCalls.find((r) => r.status === "validee");
 
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = `${cutoff.getFullYear()}-${pad2(cutoff.getMonth() + 1)}-${pad2(cutoff.getDate())}`;
+  const recentIncidents = incidents.filter((i) => i.occurredAt >= cutoffStr);
+  const incidents30d = {
+    incident: recentIncidents.filter((i) => i.kind === "incident").length,
+    remarque: recentIncidents.filter((i) => i.kind === "remarque").length,
+    sanction: recentIncidents.filter((i) => i.kind === "sanction").length,
+    valorisation: recentIncidents.filter((i) => i.kind === "valorisation").length,
+    total: recentIncidents.length,
+  };
+
+  const studentsUnderWatch = students
+    .filter((s) => s.actif && s.underWatch)
+    .map((s) => ({
+      id: s.id,
+      name: studentDisplayName(s),
+      classe: s.classe,
+      note: s.underWatchNote,
+    }));
+
   const stats: InternatDashboardStats = {
     activeStudents: active.length,
     roomCount: rooms.length,
@@ -185,6 +216,8 @@ export function buildDashboardStats(params: {
       girlsComplete,
     },
     presenceRate7d: computePresenceRate7d(recentRollCalls, students),
+    incidents30d,
+    studentsUnderWatch,
     lastValidatedRollCall: lastValidated
       ? {
           date: lastValidated.date,

@@ -77,6 +77,33 @@ export function cuisineEffectifChanged(data: TravelsTripData): boolean {
   });
 }
 
+/** Date d'envoi cuisine — champ S3 ou repli journal (dossiers validés avant correctif). */
+export function resolveCuisineOrderSentAt(trip: {
+  data?: TravelsTripData;
+  history?: TravelsHistoryEntry[];
+  status?: string;
+}): string | undefined {
+  if (trip.data?.cuisineOrderSentAt) return trip.data.cuisineOrderSentAt;
+  const history = Array.isArray(trip.history) ? trip.history : [];
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i];
+    const action = String(h?.action || "").toLowerCase();
+    const note = String(h?.note || "").toLowerCase();
+    if (action.includes("cuisine envoyée") || note.includes("commande cuisine envoyée")) {
+      return h?.date;
+    }
+  }
+  return undefined;
+}
+
+export function cuisineOrderWasSent(trip: {
+  data?: TravelsTripData;
+  history?: TravelsHistoryEntry[];
+  status?: string;
+}): boolean {
+  return Boolean(resolveCuisineOrderSentAt(trip));
+}
+
 export function busLogisticsActive(trip: TravelsTrip): boolean {
   return (
     complexNeedsBus(trip) &&

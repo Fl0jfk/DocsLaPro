@@ -1,13 +1,30 @@
 "use client";
 
-export type InternatTab = "dashboard" | "chambres" | "internes" | "sorties" | "appel" | "activites" | "alertes";
+export type InternatTab =
+  | "dashboard"
+  | "chambres"
+  | "internes"
+  | "sorties"
+  | "appel"
+  | "historique"
+  | "etudes"
+  | "surveillants"
+  | "suivi"
+  | "communication"
+  | "activites"
+  | "alertes";
 
 const TABS: { id: InternatTab; label: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
   { id: "chambres", label: "Chambres" },
   { id: "internes", label: "Internes" },
   { id: "sorties", label: "Sorties" },
-  { id: "appel", label: "Appel du soir" },
+  { id: "appel", label: "Appel" },
+  { id: "historique", label: "Historique" },
+  { id: "etudes", label: "Études" },
+  { id: "surveillants", label: "Surveillants" },
+  { id: "suivi", label: "Suivi éducatif" },
+  { id: "communication", label: "Communication" },
   { id: "activites", label: "Événements" },
   { id: "alertes", label: "Alertes" },
 ];

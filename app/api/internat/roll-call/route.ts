@@ -7,7 +7,11 @@ import {
 } from "@/app/lib/internat-storage";
 import { notifyInternatRollCallValidated } from "@/app/lib/internat-notify";
 import { rollCallCanValidate, sectionIsComplete, todayDateParis } from "@/app/lib/internat-stats";
-import type { InternatRollCall, InternatRollMark, InternatRollSection } from "@/app/lib/internat-types";
+import type { InternatRollCall, InternatRollCallPeriod, InternatRollMark, InternatRollSection } from "@/app/lib/internat-types";
+
+function parsePeriod(raw: string | null): InternatRollCallPeriod {
+  return raw === "matin" ? "matin" : "soir";
+}
 
 function mergeMarks(
   current: Record<string, InternatRollMark>,
@@ -49,7 +53,8 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const date = String(searchParams.get("date") || todayDateParis());
-  const [rollCall, students] = await Promise.all([getInternatRollCall(date), getInternatStudents()]);
+  const period = parsePeriod(searchParams.get("period"));
+  const [rollCall, students] = await Promise.all([getInternatRollCall(date, period), getInternatStudents()]);
 
   return NextResponse.json({
     rollCall,
@@ -66,8 +71,9 @@ export async function PATCH(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const date = String(body.date || todayDateParis());
+  const period = parsePeriod(body.period ? String(body.period) : null);
   const students = await getInternatStudents();
-  let rollCall = await getInternatRollCall(date);
+  let rollCall = await getInternatRollCall(date, period);
 
   if (rollCall.status === "validee") {
     return NextResponse.json({ error: "Cet appel est déjà validé." }, { status: 400 });
@@ -127,8 +133,9 @@ export async function POST(req: Request) {
   }
 
   const date = String(body.date || todayDateParis());
+  const period = parsePeriod(body.period ? String(body.period) : null);
   const students = await getInternatStudents();
-  const rollCall = await getInternatRollCall(date);
+  const rollCall = await getInternatRollCall(date, period);
 
   if (!rollCallCanValidate(rollCall, students)) {
     return NextResponse.json(

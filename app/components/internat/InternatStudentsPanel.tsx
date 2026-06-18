@@ -1,10 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { EleveConfig } from "@/app/lib/eleves-config";
-import { etablissementFromSecteur } from "@/app/lib/internat-types";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { InternatRoom, InternatStudent } from "@/app/lib/internat-types";
 import { studentDisplayName } from "@/app/lib/internat-types";
+
+type RosterPreviewRow = {
+  nom: string;
+  prenom: string;
+  classe?: string;
+  mef?: string;
+  preview?: { etablissement: string; classe: string; mefResolved: boolean };
+};
+
+type RosterMeta = {
+  updatedAt?: string;
+  updatedBy?: string;
+  lastAppliedAt?: string;
+  lastApplySummary?: { added: number; updated: number; skipped: number };
+};
 
 export default function InternatStudentsPanel({
   students,
@@ -17,12 +30,25 @@ export default function InternatStudentsPanel({
   canManage: boolean;
   onRefresh: () => Promise<void>;
 }) {
-  const [showImport, setShowImport] = useState(false);
-  const [eleves, setEleves] = useState<EleveConfig[]>([]);
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [showRoster, setShowRoster] = useState(false);
+  const [rosterEntries, setRosterEntries] = useState<RosterPreviewRow[]>([]);
+  const [rosterMeta, setRosterMeta] = useState<RosterMeta | null>(null);
+  const [rosterMessage, setRosterMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingParentsId, setEditingParentsId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailDraft, setDetailDraft] = useState({
+    allergies: "",
+    pai: "",
+    treatments: "",
+    medicalNotes: "",
+    underWatch: false,
+    underWatchNote: "",
+    authLabel: "",
+    authValidUntil: "",
+  });
   const [parentDraft, setParentDraft] = useState({
     p1nom: "",
     p1email: "",
@@ -41,51 +67,69 @@ export default function InternatStudentsPanel({
     roomId: "",
   });
 
-  const interneKeys = useMemo(
-    () =>
-      new Set(
-        students.map((s) => s.eleveRef.folderName || s.eleveRef.ine || "").filter(Boolean),
-      ),
-    [students],
-  );
-
-  const loadEleves = async () => {
-    setBusy(true);
-    setError(null);
+  const loadRoster = useCallback(async () => {
     try {
-      const res = await fetch("/api/eleves");
+      const res = await fetch("/api/internat/students/roster", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Chargement impossible");
-      const list = (data.eleves || []) as EleveConfig[];
-      const filtered = list.filter((e) => {
-        const s = String(e.secteur || e.mef || "").toLowerCase();
-        return s.includes("college") || s.includes("coll") || s.includes("lycee") || s.includes("lyc");
+      if (data.count > 0) {
+        setRosterEntries(data.entries || []);
+        setRosterMeta(data.meta || null);
+        setShowRoster(true);
+      } else {
+        setRosterEntries([]);
+        setRosterMeta(null);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (canManage) void loadRoster();
+  }, [canManage, loadRoster]);
+
+  const uploadRosterFile = async (file: File) => {
+    setBusy(true);
+    setRosterMessage(null);
+    setError(null);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await fetch("/api/internat/students/roster", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
       });
-      setEleves(filtered);
-      setShowImport(true);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Enregistrement impossible");
+      setRosterMessage(data.message || "Liste enregistrée.");
+      await loadRoster();
+      setShowRoster(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
       setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const importSelected = async () => {
-    const picks = eleves.filter((e) => selected[e.folderName]);
-    if (!picks.length) return alert("Sélectionnez au moins un élève.");
+  const applyRoster = async () => {
+    if (!rosterEntries.length) return alert("Chargez d'abord une liste internat.");
+    if (!confirm(`Importer / synchroniser ${rosterEntries.length} interne(s) depuis la liste ?`)) return;
     setBusy(true);
+    setRosterMessage(null);
     try {
-      const res = await fetch("/api/internat/students", {
+      const res = await fetch("/api/internat/students/roster", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "import", eleves: picks }),
+        body: JSON.stringify({ action: "apply" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Import impossible");
-      setShowImport(false);
-      setSelected({});
+      setRosterMessage(data.message);
+      await loadRoster();
       await onRefresh();
-      alert(`${data.added?.length || 0} interne(s) importé(s).`);
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -113,6 +157,49 @@ export default function InternatStudentsPanel({
     } finally {
       setBusy(false);
     }
+  };
+
+  const openDetail = (s: InternatStudent) => {
+    setDetailId(s.id);
+    setDetailDraft({
+      allergies: s.medical?.allergies || "",
+      pai: s.medical?.pai || "",
+      treatments: s.medical?.treatments || "",
+      medicalNotes: s.medical?.notes || "",
+      underWatch: !!s.underWatch,
+      underWatchNote: s.underWatchNote || "",
+      authLabel: "",
+      authValidUntil: "",
+    });
+  };
+
+  const saveDetail = async () => {
+    if (!detailId) return;
+    const student = students.find((s) => s.id === detailId);
+    const newAuth =
+      detailDraft.authLabel.trim() && student
+        ? [
+            ...(student.specialAuthorizations || []),
+            {
+              id: `auth_${Date.now()}`,
+              label: detailDraft.authLabel.trim(),
+              validUntil: detailDraft.authValidUntil || undefined,
+            },
+          ]
+        : student?.specialAuthorizations;
+    await updateStudent(detailId, {
+      medical: {
+        allergies: detailDraft.allergies,
+        pai: detailDraft.pai,
+        treatments: detailDraft.treatments,
+        notes: detailDraft.medicalNotes,
+      },
+      specialAuthorizations: newAuth,
+      underWatch: detailDraft.underWatch,
+      underWatchNote: detailDraft.underWatchNote,
+      note: "Fiche enrichie",
+    });
+    setDetailId(null);
   };
 
   const openParentEdit = (s: InternatStudent) => {
@@ -165,54 +252,116 @@ export default function InternatStudentsPanel({
   return (
     <div className="space-y-6">
       {canManage && (
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={loadEleves}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
-          >
-            Importer depuis eleves.json
-          </button>
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5 space-y-4 text-sm text-indigo-950">
+          <div>
+            <p className="font-bold mb-1">Liste des internes (fichier dédié)</p>
+            <p>
+              Chargez un JSON séparé de <code className="text-xs bg-white px-1 rounded">eleves.json</code> : uniquement
+              les élèves internes. Le collège / lycée est déduit du MEF (table Paramètres → MEF) ou du champ{" "}
+              <code className="text-xs bg-white px-1 rounded">etablissement</code>.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 items-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void uploadRosterFile(f);
+              }}
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
+            >
+              Charger la liste JSON
+            </button>
+            {rosterEntries.length > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={applyRoster}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
+              >
+                Importer les {rosterEntries.length} internes
+              </button>
+            )}
+            {rosterEntries.length > 0 && (
+              <button
+                type="button"
+                className="text-indigo-700 font-bold text-sm"
+                onClick={() => setShowRoster((v) => !v)}
+              >
+                {showRoster ? "Masquer l'aperçu" : "Voir l'aperçu"}
+              </button>
+            )}
+          </div>
+          {rosterMeta?.updatedAt && (
+            <p className="text-xs text-indigo-800/80">
+              Liste enregistrée le {new Date(rosterMeta.updatedAt).toLocaleString("fr-FR")}
+              {rosterMeta.updatedBy ? ` par ${rosterMeta.updatedBy}` : ""}
+              {rosterMeta.lastAppliedAt
+                ? ` — dernier import : ${new Date(rosterMeta.lastAppliedAt).toLocaleString("fr-FR")}`
+                : ""}
+            </p>
+          )}
+          {rosterMessage && <p className="text-xs font-semibold text-emerald-800">{rosterMessage}</p>}
+          <details className="text-xs">
+            <summary className="cursor-pointer font-bold">Format JSON attendu</summary>
+            <pre className="mt-2 p-3 bg-white rounded-lg overflow-x-auto text-[11px]">{`[
+  {
+    "nom": "Dupont",
+    "prenom": "Marie",
+    "ine": "123456789AB",
+    "classe": "3eA",
+    "mef": "32033421320",
+    "sexe": "F",
+    "parent1": { "email": "parent@exemple.fr" }
+  }
+]`}</pre>
+          </details>
         </div>
       )}
 
-      {showImport && (
+      {showRoster && rosterEntries.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5 max-h-[24rem] overflow-y-auto">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-black">Élèves collège / lycée</h3>
-            <button type="button" className="text-sm font-bold text-slate-500" onClick={() => setShowImport(false)}>
+            <h3 className="font-black">Aperçu liste internat ({rosterEntries.length})</h3>
+            <button type="button" className="text-sm font-bold text-slate-500" onClick={() => setShowRoster(false)}>
               Fermer
             </button>
           </div>
-          <ul className="space-y-2 text-sm">
-            {eleves.map((e) => {
-              const taken = interneKeys.has(e.folderName) || (e.ine && interneKeys.has(e.ine));
-              return (
-                <li key={e.folderName} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    disabled={taken}
-                    checked={!!selected[e.folderName]}
-                    onChange={(ev) =>
-                      setSelected((prev) => ({ ...prev, [e.folderName]: ev.target.checked }))
-                    }
-                  />
-                  <span className={taken ? "text-slate-400 line-through" : ""}>
-                    {e.prenom} {e.nom} — {e.folderName} ({etablissementFromSecteur(e.secteur)})
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={importSelected}
-            className="mt-4 bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
-          >
-            Importer la sélection
-          </button>
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-slate-500">
+              <tr>
+                <th className="pb-2">Élève</th>
+                <th className="pb-2">Classe</th>
+                <th className="pb-2">MEF</th>
+                <th className="pb-2">Établ.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rosterEntries.map((e) => (
+                <tr key={`${e.nom}-${e.prenom}`} className="border-t border-slate-100">
+                  <td className="py-2 font-medium">
+                    {e.prenom} {e.nom}
+                  </td>
+                  <td className="py-2">{e.preview?.classe || e.classe || "—"}</td>
+                  <td className="py-2 text-xs text-slate-500">
+                    {e.mef || "—"}
+                    {e.preview?.mefResolved === false && e.mef && (
+                      <span className="text-amber-700 block">MEF non reconnu</span>
+                    )}
+                  </td>
+                  <td className="py-2">{e.preview?.etablissement || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -256,6 +405,7 @@ export default function InternatStudentsPanel({
               <th className="p-3 font-bold">Sexe</th>
               <th className="p-3 font-bold">Chambre</th>
               <th className="p-3 font-bold">Parents</th>
+              <th className="p-3 font-bold">Fiche</th>
               {canManage && <th className="p-3 font-bold">Actions</th>}
             </tr>
           </thead>
@@ -300,6 +450,17 @@ export default function InternatStudentsPanel({
                     </button>
                   )}
                 </td>
+                <td className="p-3 text-xs">
+                  {s.underWatch && (
+                    <span className="text-amber-800 font-bold block">Sous surveillance</span>
+                  )}
+                  {(s.medical?.allergies || s.medical?.pai) && (
+                    <span className="text-slate-500">Médical renseigné</span>
+                  )}
+                  <button type="button" className="block mt-1 text-indigo-600 font-bold" onClick={() => openDetail(s)}>
+                    Voir / modifier
+                  </button>
+                </td>
                 {canManage && (
                   <td className="p-3">
                     <button
@@ -316,6 +477,57 @@ export default function InternatStudentsPanel({
           </tbody>
         </table>
       </div>
+
+      {detailId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-5 space-y-4 my-8">
+            <h3 className="font-black text-slate-900">Fiche interne</h3>
+            <div className="space-y-3 text-sm">
+              <p className="text-xs font-bold uppercase text-slate-500">Médical</p>
+              <input className="w-full border rounded-xl px-3 py-2" placeholder="Allergies" value={detailDraft.allergies} onChange={(e) => setDetailDraft({ ...detailDraft, allergies: e.target.value })} />
+              <input className="w-full border rounded-xl px-3 py-2" placeholder="PAI" value={detailDraft.pai} onChange={(e) => setDetailDraft({ ...detailDraft, pai: e.target.value })} />
+              <input className="w-full border rounded-xl px-3 py-2" placeholder="Traitements" value={detailDraft.treatments} onChange={(e) => setDetailDraft({ ...detailDraft, treatments: e.target.value })} />
+              <textarea className="w-full border rounded-xl px-3 py-2 min-h-[60px]" placeholder="Notes médicales" value={detailDraft.medicalNotes} onChange={(e) => setDetailDraft({ ...detailDraft, medicalNotes: e.target.value })} />
+              <label className="flex items-center gap-2 font-semibold">
+                <input type="checkbox" checked={detailDraft.underWatch} onChange={(e) => setDetailDraft({ ...detailDraft, underWatch: e.target.checked })} />
+                Élève sous surveillance
+              </label>
+              {detailDraft.underWatch && (
+                <input className="w-full border rounded-xl px-3 py-2" placeholder="Motif surveillance" value={detailDraft.underWatchNote} onChange={(e) => setDetailDraft({ ...detailDraft, underWatchNote: e.target.value })} />
+              )}
+              {canManage && (
+                <>
+                  <p className="text-xs font-bold uppercase text-slate-500 pt-2">Autorisation spéciale</p>
+                  <input className="w-full border rounded-xl px-3 py-2" placeholder="Libellé (ex. sortie régulière vendredi)" value={detailDraft.authLabel} onChange={(e) => setDetailDraft({ ...detailDraft, authLabel: e.target.value })} />
+                  <input type="date" className="w-full border rounded-xl px-3 py-2" value={detailDraft.authValidUntil} onChange={(e) => setDetailDraft({ ...detailDraft, authValidUntil: e.target.value })} />
+                  {students.find((s) => s.id === detailId)?.specialAuthorizations?.length ? (
+                    <ul className="text-xs text-slate-500 space-y-1">
+                      {students
+                        .find((s) => s.id === detailId)!
+                        .specialAuthorizations!.map((a) => (
+                          <li key={a.id}>
+                            {a.label}
+                            {a.validUntil ? ` (jusqu'au ${a.validUntil})` : ""}
+                          </li>
+                        ))}
+                    </ul>
+                  ) : null}
+                </>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button type="button" className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600" onClick={() => setDetailId(null)}>
+                Fermer
+              </button>
+              {canManage && (
+                <button type="button" disabled={busy} className="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white" onClick={saveDetail}>
+                  Enregistrer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingParentsId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

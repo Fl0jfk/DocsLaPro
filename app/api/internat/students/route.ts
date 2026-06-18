@@ -133,6 +133,23 @@ export async function PATCH(req: Request) {
     roomId,
     parent1: body.parent1 !== undefined ? normalizeParentContact(body.parent1) : prev.parent1,
     parent2: body.parent2 !== undefined ? normalizeParentContact(body.parent2) : prev.parent2,
+    medical:
+      body.medical !== undefined
+        ? {
+            allergies: String(body.medical?.allergies || "").trim() || undefined,
+            pai: String(body.medical?.pai || "").trim() || undefined,
+            treatments: String(body.medical?.treatments || "").trim() || undefined,
+            notes: String(body.medical?.notes || "").trim() || undefined,
+          }
+        : prev.medical,
+    specialAuthorizations: Array.isArray(body.specialAuthorizations)
+      ? body.specialAuthorizations
+      : prev.specialAuthorizations,
+    underWatch: body.underWatch !== undefined ? Boolean(body.underWatch) : prev.underWatch,
+    underWatchNote:
+      body.underWatchNote !== undefined
+        ? String(body.underWatchNote || "").trim() || undefined
+        : prev.underWatchNote,
     actif: body.actif !== undefined ? Boolean(body.actif) : prev.actif,
     updatedAt: now,
     history: [

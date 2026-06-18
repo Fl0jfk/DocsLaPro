@@ -3,6 +3,7 @@ import { requireInternatAccess } from "@/app/api/internat/_auth";
 import { loadAppConfig } from "@/app/lib/app-config";
 import { buildDashboardStats, todayDateParis } from "@/app/lib/internat-stats";
 import {
+  getInternatIncidents,
   getInternatRollCall,
   getInternatRooms,
   getInternatStudents,
@@ -14,12 +15,13 @@ export async function GET() {
   if (!access.ok) return access.response;
 
   const date = todayDateParis();
-  const [students, rooms, tonightRollCall, recentRollCalls, config] = await Promise.all([
+  const [students, rooms, tonightRollCall, recentRollCalls, config, incidents] = await Promise.all([
     getInternatStudents(),
     getInternatRooms(),
     getInternatRollCall(date),
     listValidatedRollCalls(30),
     loadAppConfig(),
+    getInternatIncidents(),
   ]);
 
   const stats = buildDashboardStats({
@@ -27,6 +29,7 @@ export async function GET() {
     rooms,
     tonightRollCall,
     recentRollCalls,
+    incidents,
     weeklySummaryEnabled: config.internat.weeklySummaryEnabled,
   });
 

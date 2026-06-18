@@ -16,6 +16,7 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export default function InternatRollCallPanel({ onRefresh }: { onRefresh: () => Promise<void> }) {
   const [date, setDate] = useState(todayDateParis());
+  const [period, setPeriod] = useState<"matin" | "soir">("soir");
   const [rollCall, setRollCall] = useState<InternatRollCall | null>(null);
   const [students, setStudents] = useState<InternatStudent[]>([]);
   const [canValidate, setCanValidate] = useState(false);
@@ -29,7 +30,7 @@ export default function InternatRollCallPanel({ onRefresh }: { onRefresh: () => 
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/internat/roll-call?date=${encodeURIComponent(date)}`, { cache: "no-store" });
+    const res = await fetch(`/api/internat/roll-call?date=${encodeURIComponent(date)}&period=${period}`, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Chargement impossible");
     setRollCall(data.rollCall);
@@ -37,7 +38,7 @@ export default function InternatRollCallPanel({ onRefresh }: { onRefresh: () => 
     setCanValidate(!!data.canValidate);
     setBoysComplete(!!data.boysComplete);
     setGirlsComplete(!!data.girlsComplete);
-  }, [date]);
+  }, [date, period]);
 
   useEffect(() => {
     void load().catch((e) => alert(e instanceof Error ? e.message : "Erreur"));
@@ -67,7 +68,7 @@ export default function InternatRollCallPanel({ onRefresh }: { onRefresh: () => 
       const res = await fetch("/api/internat/roll-call", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, section, ...payload }),
+        body: JSON.stringify({ date, section, period, ...payload }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Enregistrement impossible");
@@ -129,7 +130,7 @@ export default function InternatRollCallPanel({ onRefresh }: { onRefresh: () => 
       const res = await fetch("/api/internat/roll-call", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "validate", date }),
+        body: JSON.stringify({ action: "validate", date, period }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Validation impossible");
@@ -169,6 +170,17 @@ export default function InternatRollCallPanel({ onRefresh }: { onRefresh: () => 
 
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex flex-wrap gap-3 items-center">
+          <label className="text-sm font-bold text-slate-600">
+            Période
+            <select
+              className="ml-2 border rounded-xl px-3 py-2"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as "matin" | "soir")}
+            >
+              <option value="soir">Appel du soir</option>
+              <option value="matin">Appel du matin</option>
+            </select>
+          </label>
           <label className="text-sm font-bold text-slate-600">
             Date
             <input
