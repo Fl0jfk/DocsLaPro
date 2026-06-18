@@ -5,6 +5,7 @@ import type { Categories } from "@/app/contexts/data";
 import { clampModuleSpan, isWeekSheetModule } from "@/app/lib/dashboard-bento-constraints";
 import { resolveGridPlacement } from "@/app/lib/dashboard-bento-grid";
 import {
+  applyLayoutNormalizers,
   buildDefaultLayout,
   clearSavedBentoLayout,
   getLayoutPosition,
@@ -29,15 +30,18 @@ export function useBentoDashboardLayout(categories: Categories[], userId: string
 
   useEffect(() => {
     const saved = loadSavedBentoLayout(userId);
-    setLayout(mergeSavedLayout(moduleIds, saved));
+    const merged = mergeSavedLayout(moduleIds, saved);
+    setLayout(merged);
+    if (saved) saveSavedBentoLayout(userId, merged);
   }, [userId, moduleKey, moduleIds]);
 
   const persist = useCallback(
     (next: SavedBentoLayout) => {
-      setLayout(next);
-      saveSavedBentoLayout(userId, next);
+      const sanitized = applyLayoutNormalizers(moduleIds, next);
+      setLayout(sanitized);
+      saveSavedBentoLayout(userId, sanitized);
     },
-    [userId],
+    [userId, moduleIds],
   );
 
   const hiddenSet = useMemo(() => new Set(layout.hidden), [layout.hidden]);
@@ -101,19 +105,27 @@ export function useBentoDashboardLayout(categories: Categories[], userId: string
         pos.col,
         pos.row,
       );
+      const nextSpans: SavedBentoLayout["spans"] = {
+        ...layout.spans,
+        [moduleId]: { colSpan: resolved.colSpan, rowSpan: resolved.rowSpan },
+      };
+      if (moduleId === "prof-room" && moduleIds.includes("domain-planning")) {
+        nextSpans["domain-planning"] = clampModuleSpan(
+          "domain-planning",
+          resolved.colSpan,
+          resolved.rowSpan,
+        );
+      }
       persist({
         ...layout,
         positions: {
           ...layout.positions,
           [moduleId]: { col: resolved.col, row: resolved.row },
         },
-        spans: {
-          ...layout.spans,
-          [moduleId]: { colSpan: resolved.colSpan, rowSpan: resolved.rowSpan },
-        },
+        spans: nextSpans,
       });
     },
-    [layout, persist],
+    [layout, moduleIds, persist],
   );
 
   const hideModule = useCallback(

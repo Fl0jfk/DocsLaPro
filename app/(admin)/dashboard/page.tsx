@@ -16,6 +16,7 @@ import { hasRole } from "@/app/lib/absences-types";
 import { hasGlobalAdminRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import DashboardThemeRoot from "@/app/components/Dashboard/DashboardThemeRoot";
 import { dash } from "@/app/lib/dashboard-brand";
+import { ACADEMIC_DEADLINES_DASHBOARD_CATEGORY } from "@/app/lib/dashboard-academic-deadlines-types";
 import { WEEK_SHEET_DASHBOARD_CATEGORY } from "@/app/lib/dashboard-week-sheet-types";
 
 export default function Home() {
@@ -42,8 +43,12 @@ export default function Home() {
 
   const dashboardCategories = useMemo(() => {
     const base = uniqueCategories;
-    const withoutWeek = base.filter((c) => c.moduleId !== WEEK_SHEET_DASHBOARD_CATEGORY.moduleId);
-    return [...withoutWeek, WEEK_SHEET_DASHBOARD_CATEGORY];
+    const extraIds = new Set([
+      WEEK_SHEET_DASHBOARD_CATEGORY.moduleId,
+      ACADEMIC_DEADLINES_DASHBOARD_CATEGORY.moduleId,
+    ]);
+    const withoutExtras = base.filter((c) => !extraIds.has(c.moduleId));
+    return [...withoutExtras, ACADEMIC_DEADLINES_DASHBOARD_CATEGORY, WEEK_SHEET_DASHBOARD_CATEGORY];
   }, [uniqueCategories]);
 
   const catalogQuickLinks = useMemo(() => {

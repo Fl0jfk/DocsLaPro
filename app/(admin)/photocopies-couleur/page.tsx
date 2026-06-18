@@ -16,6 +16,7 @@ type PhotoCopieItem = {
   motif: string;
   classesOuMatiere: string;
   nombrePhotocopies: number;
+  documentFileName?: string;
   decidedBy?: { userId: string; name: string };
   decidedAt?: string;
   directionNote?: string;
@@ -79,6 +80,7 @@ export default function PhotocopiesCouleurPage() {
   const [motif, setMotif] = useState("");
   const [classesOuMatiere, setClassesOuMatiere] = useState("");
   const [nombrePhotocopies, setNombrePhotocopies] = useState("");
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [directionNotes, setDirectionNotes] = useState<Record<string, string>>({});
   const [patchingId, setPatchingId] = useState<string | null>(null);
 
@@ -163,6 +165,34 @@ export default function PhotocopiesCouleurPage() {
     }
     try {
       setSaving(true);
+      let documentKey: string | undefined;
+      let documentFileName: string | undefined;
+      let documentContentType: string | undefined;
+
+      if (documentFile) {
+        if (documentFile.type !== "application/pdf") {
+          setError("Le document à imprimer doit être un PDF.");
+          setSaving(false);
+          return;
+        }
+        const prep = await fetch("/api/photocopies-couleur/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: documentFile.name, contentType: documentFile.type }),
+        });
+        const prepJson = await prep.json();
+        if (!prep.ok) throw new Error(prepJson.error || "Préparation du fichier impossible.");
+        const put = await fetch(prepJson.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": documentFile.type },
+          body: documentFile,
+        });
+        if (!put.ok) throw new Error("Envoi du PDF échoué.");
+        documentKey = prepJson.key;
+        documentFileName = documentFile.name;
+        documentContentType = documentFile.type;
+      }
+
       const res = await fetch("/api/photocopies-couleur", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -171,6 +201,7 @@ export default function PhotocopiesCouleurPage() {
           motif: motif.trim(),
           classesOuMatiere: classesOuMatiere.trim(),
           nombrePhotocopies: n,
+          ...(documentKey ? { documentKey, documentFileName, documentContentType } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -180,6 +211,7 @@ export default function PhotocopiesCouleurPage() {
       setMotif("");
       setClassesOuMatiere("");
       setNombrePhotocopies("");
+      setDocumentFile(null);
       await fetchItems();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur lors de l’envoi.");
@@ -286,6 +318,20 @@ export default function PhotocopiesCouleurPage() {
                   className="w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
               </div>
+              <div>
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
+                  Document à imprimer (PDF)
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setDocumentFile(e.target.files?.[0] ?? null)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1 file:font-semibold file:text-indigo-700"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Optionnel : joint à l&apos;e-mail de la direction et, si acceptée, à Madame Périé pour impression directe.
+                </p>
+              </div>
               {error && <div className="text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{error}</div>}
               <button
                 type="button"
@@ -337,6 +383,9 @@ export default function PhotocopiesCouleurPage() {
                     <p className="text-sm text-slate-700 mb-1">
                       <span className="font-bold">Classes / matière :</span> {item.classesOuMatiere}
                     </p>
+                    {item.documentFileName ? (
+                      <p className="text-xs text-indigo-700 mb-1">PDF joint : {item.documentFileName}</p>
+                    ) : null}
                     {item.directionNote && (
                       <p className="text-sm text-indigo-800 mt-2">
                         <span className="font-bold">Message direction :</span> {item.directionNote}
@@ -397,6 +446,9 @@ export default function PhotocopiesCouleurPage() {
                         <p className="text-sm text-slate-700 mb-3">
                           <span className="font-bold">Classes / matière :</span> {item.classesOuMatiere}
                         </p>
+                        {item.documentFileName ? (
+                          <p className="text-xs text-indigo-700 mb-3">PDF joint : {item.documentFileName}</p>
+                        ) : null}
                         <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
                           Note pour le demandeur (optionnel)
                         </label>

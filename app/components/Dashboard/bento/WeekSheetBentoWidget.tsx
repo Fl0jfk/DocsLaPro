@@ -17,6 +17,7 @@ export function WeekSheetBentoWidget({ category, size }: Props) {
   const [data, setData] = useState<WeekSheetData | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addEventOpen, setAddEventOpen] = useState(false);
 
@@ -25,7 +26,22 @@ export function WeekSheetBentoWidget({ category, size }: Props) {
     try {
       const res = await fetch("/api/dashboard/week-sheet");
       const json = await res.json();
-      setData(json.data ?? null);
+      let next = (json.data ?? null) as WeekSheetData | null;
+
+      if (next?.sourcePdfKey && !next.multiWeekParsed) {
+        setMigrating(true);
+        try {
+          const mig = await fetch("/api/dashboard/week-sheet/reparse", { method: "POST" });
+          const migJson = await mig.json();
+          if (mig.ok && migJson.data) next = migJson.data as WeekSheetData;
+        } catch {
+          /* garder les données existantes */
+        } finally {
+          setMigrating(false);
+        }
+      }
+
+      setData(next);
     } catch {
       setData(null);
     } finally {
@@ -123,11 +139,15 @@ export function WeekSheetBentoWidget({ category, size }: Props) {
       >
         {loading ? (
           <p className="py-6 text-center text-xs text-stone-400">Chargement…</p>
-        ) : importing ? (
+        ) : importing || migrating ? (
           <div className="flex flex-col items-center justify-center gap-2 py-10">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-[color:var(--dash-border)] border-t-[var(--dash-primary)]" />
-            <p className="text-xs font-semibold text-stone-600">Lecture du PDF et analyse IA…</p>
-            <p className="text-[10px] text-stone-400">Comptez 30 à 90 secondes.</p>
+            <p className="text-xs font-semibold text-stone-600">
+              {importing ? "Lecture du PDF et analyse IA…" : "Mise à jour de la semaine affichée…"}
+            </p>
+            {importing ? (
+              <p className="text-[10px] text-stone-400">Comptez 30 à 90 secondes.</p>
+            ) : null}
           </div>
         ) : data?.events?.length ? (
           <WeekSheetHourGrid events={data.events} compact={compact} />

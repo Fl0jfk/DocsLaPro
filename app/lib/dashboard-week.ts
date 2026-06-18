@@ -1,3 +1,5 @@
+import { calendarDateKeyParis } from "@/app/lib/domain-planning-dates";
+
 /** Lundi → vendredi de la semaine courante (fuseau Paris). */
 export function schoolWeekDaysParis(): { key: string; short: string }[] {
   const now = new Date();
@@ -20,6 +22,12 @@ export function schoolWeekDaysParis(): { key: string; short: string }[] {
     days.push({ key, short });
   }
   return days;
+}
+
+/** Index 0=lundi … 4=vendredi dans la semaine scolaire courante ; -1 si hors semaine. */
+export function todaySchoolWeekDayIndex(): number {
+  const todayKey = calendarDateKeyParis();
+  return schoolWeekDaysParis().findIndex((d) => d.key === todayKey);
 }
 
 /** « Jean Dupont » → « Dupont Jean » */

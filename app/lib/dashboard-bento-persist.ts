@@ -1,14 +1,9 @@
 import { getBentoSpan, type BentoSpan } from "@/app/lib/dashboard-bento-layout";
 import { clampModuleSpan } from "@/app/lib/dashboard-bento-constraints";
-import {
-  hasGridCollision,
-  packModules,
-  resolveGridPlacement,
-  type GridPosition,
-} from "@/app/lib/dashboard-bento-grid";
+import { packModules, type GridPosition } from "@/app/lib/dashboard-bento-grid";
 import { DASHBOARD_WEEK_SHEET_MODULE_ID } from "@/app/lib/dashboard-week-sheet-types";
 
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 export type SavedBentoLayout = {
   order: string[];
@@ -17,51 +12,33 @@ export type SavedBentoLayout = {
   hidden: string[];
 };
 
-function normalizeWeekSheetLayout(
+function normalizeWeekSheetSpan(
   moduleIds: string[],
   spans: SavedBentoLayout["spans"],
-  positions: Record<string, GridPosition>,
-  hidden: string[],
 ): void {
   if (!moduleIds.includes(DASHBOARD_WEEK_SHEET_MODULE_ID)) return;
-
   spans[DASHBOARD_WEEK_SHEET_MODULE_ID] = clampModuleSpan(
     DASHBOARD_WEEK_SHEET_MODULE_ID,
     spans[DASHBOARD_WEEK_SHEET_MODULE_ID]?.colSpan ?? 12,
-    spans[DASHBOARD_WEEK_SHEET_MODULE_ID]?.rowSpan ?? 4,
+    spans[DASHBOARD_WEEK_SHEET_MODULE_ID]?.rowSpan ?? 1,
   );
+}
 
-  if (hidden.includes(DASHBOARD_WEEK_SHEET_MODULE_ID)) return;
-
-  const span = spans[DASHBOARD_WEEK_SHEET_MODULE_ID];
-  const others: Record<string, GridPosition> = { ...positions };
-  delete others[DASHBOARD_WEEK_SHEET_MODULE_ID];
-
-  const savedRow = positions[DASHBOARD_WEEK_SHEET_MODULE_ID]?.row;
-  if (
-    savedRow &&
-    !hasGridCollision(
-      others,
-      spans,
-      DASHBOARD_WEEK_SHEET_MODULE_ID,
-      1,
-      savedRow,
-      span.colSpan,
-      span.rowSpan,
-    )
-  ) {
-    positions[DASHBOARD_WEEK_SHEET_MODULE_ID] = { col: 1, row: savedRow };
-    return;
+/** Réaligne tailles liées (sans imposer la position de la feuille de semaine). */
+export function applyLayoutNormalizers(moduleIds: string[], layout: SavedBentoLayout): SavedBentoLayout {
+  const spans = { ...layout.spans };
+  if (moduleIds.includes("domain-planning") && moduleIds.includes("prof-room")) {
+    const roomSpan = spans["prof-room"];
+    if (roomSpan) {
+      spans["domain-planning"] = clampModuleSpan(
+        "domain-planning",
+        roomSpan.colSpan,
+        roomSpan.rowSpan,
+      );
+    }
   }
-
-  const resolved = resolveGridPlacement(
-    others,
-    spans,
-    DASHBOARD_WEEK_SHEET_MODULE_ID,
-    1,
-    savedRow ?? 1,
-  );
-  positions[DASHBOARD_WEEK_SHEET_MODULE_ID] = { col: 1, row: resolved.row };
+  normalizeWeekSheetSpan(moduleIds, spans);
+  return { ...layout, spans };
 }
 
 export function bentoLayoutStorageKey(userId: string | null | undefined): string {
@@ -81,8 +58,7 @@ export function buildDefaultLayout(moduleIds: string[]): SavedBentoLayout {
     spans[id] = clampModuleSpan(id, d.colSpan, d.rowSpan);
   }
   const positions = packModules(sorted, spans, new Set());
-  normalizeWeekSheetLayout(moduleIds, spans, positions, []);
-  return { order: sorted, spans, positions, hidden: [] };
+  return applyLayoutNormalizers(moduleIds, { order: sorted, spans, positions, hidden: [] });
 }
 
 export function mergeSavedLayout(moduleIds: string[], saved: SavedBentoLayout | null): SavedBentoLayout {
@@ -124,9 +100,7 @@ export function mergeSavedLayout(moduleIds: string[], saved: SavedBentoLayout | 
     }
   }
 
-  normalizeWeekSheetLayout(moduleIds, spans, positions, hidden);
-
-  return { order, spans, positions, hidden };
+  return applyLayoutNormalizers(moduleIds, { order, spans, positions, hidden });
 }
 
 export function loadSavedBentoLayout(userId: string | null | undefined): SavedBentoLayout | null {

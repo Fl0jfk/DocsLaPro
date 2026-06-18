@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
+import { pickActiveWeekSheet } from "@/app/lib/dashboard-week-sheet-active";
 import { loadWeekSheetData } from "@/app/lib/dashboard-week-sheet-storage";
 
 export async function GET() {
@@ -7,7 +8,8 @@ export async function GET() {
   if (!gate.ok) return gate.response;
 
   try {
-    const data = await loadWeekSheetData();
+    const stored = await loadWeekSheetData();
+    const data = stored ? pickActiveWeekSheet(stored) : null;
     return NextResponse.json({ data });
   } catch (e) {
     console.error("[dashboard/week-sheet GET]", e);

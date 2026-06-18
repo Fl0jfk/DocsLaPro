@@ -28,6 +28,8 @@ type Props = {
 const GRID_GAP_PX = 16;
 const ROW_UNIT_REM = 7;
 const GRID_PADDING_EDIT = 12;
+/** La feuille de semaine ne réserve qu'une ligne de grille ; la hauteur suit le contenu. */
+const WEEK_SHEET_GRID_ROW_SPAN = 1;
 
 const itemMotion = {
   hidden: { opacity: 0, scale: 0.97, y: 10 },
@@ -49,6 +51,13 @@ function measureGridUnits(el: HTMLElement | null) {
   const rowUnit =
     ROW_UNIT_REM * Number.parseFloat(style.fontSize || "16") + gap;
   return { colUnit: Math.max(colUnit, 48), rowUnit: Math.max(rowUnit, 80) };
+}
+
+function gridSpanForLayout(moduleId: string, span: { colSpan: number; rowSpan: number }) {
+  if (moduleId === DASHBOARD_WEEK_SHEET_MODULE_ID) {
+    return { ...span, rowSpan: WEEK_SHEET_GRID_ROW_SPAN };
+  }
+  return span;
 }
 
 export default function BentoDashboard({
@@ -176,7 +185,9 @@ export default function BentoDashboard({
         return [id, preview];
       }),
     ),
-    Object.fromEntries(visibleCategories.map((c) => [c.moduleId, getSpan(c.moduleId)])),
+    Object.fromEntries(
+      visibleCategories.map((c) => [c.moduleId, gridSpanForLayout(c.moduleId, getSpan(c.moduleId))]),
+    ),
     visibleIds,
   );
 
@@ -200,12 +211,18 @@ export default function BentoDashboard({
           const pos =
             dragPreview?.moduleId === category.moduleId ? dragPreview : savedPos;
           const isDragging = dragPreview?.moduleId === category.moduleId;
-
           const isWeekSheet = category.moduleId === DASHBOARD_WEEK_SHEET_MODULE_ID;
-          const placementStyle = isWide ? gridPlacementStylePlain(pos, span) : undefined;
+
+          const placementStyle = isWide
+            ? gridPlacementStylePlain(pos, span, {
+                rowSpan: isWeekSheet ? WEEK_SHEET_GRID_ROW_SPAN : undefined,
+                alignStart: isWeekSheet,
+              })
+            : undefined;
+
           const flowClass = isWide
             ? isWeekSheet
-              ? "min-h-[8.5rem] h-auto overflow-visible"
+              ? "min-h-0 h-auto overflow-visible"
               : "min-h-[8.5rem]"
             : `col-span-1 min-h-[8.5rem] ${colSpanClass(span.colSpan)} ${rowSpanClass(span.rowSpan)}`;
 
@@ -214,7 +231,7 @@ export default function BentoDashboard({
           } ${isDragging ? `z-20 ring-offset-2 ${dash.ringBright}` : ""}`;
 
           const content = (
-            <div className={`relative ${isWeekSheet ? "h-auto min-h-[8.5rem]" : "h-full min-h-[8.5rem]"}`}>
+            <div className={`relative ${isWeekSheet ? "h-auto" : "h-full min-h-[8.5rem]"}`}>
               <div
                 className={
                   editMode

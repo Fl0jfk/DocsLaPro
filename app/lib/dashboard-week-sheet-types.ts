@@ -24,14 +24,25 @@ export type WeekSheetEvent = {
   notes?: string;
 };
 
+export type WeekSheetWeek = {
+  weekLabel?: string;
+  /** Lundi de la semaine (YYYY-MM-DD). */
+  weekStart?: string;
+  events: WeekSheetEvent[];
+};
+
 export type WeekSheetData = {
   weekLabel?: string;
   weekStart?: string;
   events: WeekSheetEvent[];
+  /** Plusieurs semaines extraites d'un même PDF. */
+  weeks?: WeekSheetWeek[];
   sourcePdfKey?: string;
   uploadedAt?: string;
   uploadedBy?: string;
   rawTextPreview?: string;
+  /** Reparse multi-semaines effectué depuis le PDF source. */
+  multiWeekParsed?: boolean;
 };
 
 export const WEEK_SHEET_DASHBOARD_CATEGORY: DashboardCategory = {

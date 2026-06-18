@@ -115,11 +115,6 @@ export default function WeekSheetEventBlock({ event, top, height, left, width }:
                 {event.location}
               </p>
             ) : null}
-            {event.notes ? (
-              <p className="mt-1 whitespace-pre-wrap break-words text-[11px] text-stone-500">
-                {event.notes}
-              </p>
-            ) : null}
           </div>,
           document.body,
         )
@@ -156,11 +151,6 @@ export default function WeekSheetEventBlock({ event, top, height, left, width }:
           {showDetails && event.location ? (
             <p className="mt-0.5 whitespace-pre-wrap break-words text-[9px] text-stone-500 sm:text-[10px]">
               {event.location}
-            </p>
-          ) : null}
-          {showDetails && event.notes ? (
-            <p className="mt-0.5 whitespace-pre-wrap break-words text-[9px] text-stone-400 sm:text-[10px]">
-              {event.notes}
             </p>
           ) : null}
         </div>

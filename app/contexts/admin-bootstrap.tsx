@@ -66,7 +66,14 @@ export function useAdminBootstrap(): AdminBootstrapContextValue {
   return ctx;
 }
 
-export function AdminBootstrapProvider({ children }: { children: ReactNode }) {
+export function AdminBootstrapProvider({
+  children,
+  enableOverlay = true,
+}: {
+  children: ReactNode;
+  /** Désactiver sur /sign-in pour ne pas masquer le formulaire de connexion. */
+  enableOverlay?: boolean;
+}) {
   const { isLoaded: clerkLoaded } = useUser();
 
   const [appContext, setAppContext] = useState<AppContextPayload | null>(null);
@@ -75,8 +82,8 @@ export function AdminBootstrapProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [accentReady, setAccentReady] = useState(false);
   const [assetsReady, setAssetsReady] = useState(false);
-  const shouldBlock = !clerkLoaded || loading || !assetsReady;
-  const [overlayOpen, setOverlayOpen] = useState(true);
+  const shouldBlock = enableOverlay && (!clerkLoaded || loading || !assetsReady);
+  const [overlayOpen, setOverlayOpen] = useState(enableOverlay);
 
   useLayoutEffect(() => {
     const cached = readCachedDashboardAccent();
@@ -96,19 +103,23 @@ export function AdminBootstrapProvider({ children }: { children: ReactNode }) {
         ]);
         const ctxJson = (await ctxRes.json()) as AppContextPayload & { error?: string };
         const siteJson = (await siteRes.json()) as SitePublicIdentity;
-        if (!ctxRes.ok) throw new Error(ctxJson.error || "Contexte indisponible");
-        if (!cancelled) {
+
+        if (!cancelled && siteRes.ok) {
+          setSitePublic(siteJson);
+          const logoUrl = siteJson.headerLogoUrl?.trim() || "";
+          if (logoUrl) {
+            await preloadImage(logoUrl);
+          }
+        }
+
+        if (!cancelled && ctxRes.ok) {
           setAppContext(ctxJson);
-          if (siteRes.ok) setSitePublic(siteJson);
           const accent = parseDashboardAccent(ctxJson.identity?.dashboardAccent);
           writeCachedDashboardAccent(accent);
           applyDashboardBrandToDocument(accent);
           setAccentReady(true);
-
-          const logoUrl = siteRes.ok ? siteJson.headerLogoUrl?.trim() : "";
-          if (logoUrl) {
-            await preloadImage(logoUrl);
-          }
+        } else if (!cancelled && enableOverlay) {
+          throw new Error(ctxJson.error || "Contexte indisponible");
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Erreur");
@@ -122,11 +133,15 @@ export function AdminBootstrapProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enableOverlay]);
 
   useEffect(() => {
+    if (!enableOverlay) {
+      setOverlayOpen(false);
+      return;
+    }
     setOverlayOpen(shouldBlock);
-  }, [shouldBlock]);
+  }, [enableOverlay, shouldBlock]);
 
   const value = useMemo(
     () => ({ appContext, sitePublic, loading, error }),
@@ -135,7 +150,7 @@ export function AdminBootstrapProvider({ children }: { children: ReactNode }) {
 
   return (
     <AdminBootstrapContext.Provider value={value}>
-      <DashboardBootstrapOverlay open={overlayOpen} accentReady={accentReady} />
+      {enableOverlay ? <DashboardBootstrapOverlay open={overlayOpen} accentReady={accentReady} /> : null}
       {children}
     </AdminBootstrapContext.Provider>
   );

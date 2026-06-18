@@ -179,9 +179,12 @@ export function maxOccupiedRow(
 export function gridPlacementStylePlain(
   pos: GridPosition,
   span: GridSpan,
-): { gridColumn: string; gridRow: string } {
+  options?: { rowSpan?: number; alignStart?: boolean },
+): { gridColumn: string; gridRow: string; alignSelf?: string } {
+  const rowSpan = options?.rowSpan ?? span.rowSpan;
   return {
     gridColumn: `${pos.col} / span ${span.colSpan}`,
-    gridRow: `${pos.row} / span ${span.rowSpan}`,
+    gridRow: `${pos.row} / span ${rowSpan}`,
+    ...(options?.alignStart ? { alignSelf: "start" } : {}),
   };
 }

@@ -1,7 +1,7 @@
 import { DASHBOARD_WEEK_SHEET_MODULE_ID } from "@/app/lib/dashboard-week-sheet-types";
 import { BENTO_COL_OPTIONS, BENTO_ROW_OPTIONS } from "@/app/lib/dashboard-bento-layout";
 
-export const WEEK_SHEET_BENTO_SPAN = { colSpan: 12, rowSpan: 10 } as const;
+export const WEEK_SHEET_BENTO_SPAN = { colSpan: 12, rowSpan: 1 } as const;
 
 export type BentoSizeConstraints = {
   minColSpan?: number;
@@ -19,7 +19,7 @@ export const BENTO_SIZE_CONSTRAINTS: Record<string, BentoSizeConstraints> = {
   absences: { minColSpan: 3, maxColSpan: 6, minRowSpan: 2, maxRowSpan: 4 },
   "prof-room": { minColSpan: 3, maxColSpan: 6, minRowSpan: 2, maxRowSpan: 4 },
   "requests-staff": { minColSpan: 3, maxColSpan: 6, minRowSpan: 2, maxRowSpan: 4 },
-  "domain-planning": { minColSpan: 3, maxColSpan: 6, minRowSpan: 2, maxRowSpan: 3 },
+  "domain-planning": { minColSpan: 3, maxColSpan: 6, minRowSpan: 2, maxRowSpan: 4 },
   internat: { minColSpan: 3, maxColSpan: 6, minRowSpan: 2, maxRowSpan: 3 },
   rh: { minColSpan: 3, maxColSpan: 4, minRowSpan: 2, maxRowSpan: 3 },
   channels: { minColSpan: 3, maxColSpan: 4, minRowSpan: 2, maxRowSpan: 2 },

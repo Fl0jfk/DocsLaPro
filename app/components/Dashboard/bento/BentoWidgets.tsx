@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Categories } from "@/app/contexts/data";
 import BentoWidget from "@/app/components/Dashboard/bento/BentoWidget";
+import { AcademicDeadlinesBentoWidget } from "@/app/components/Dashboard/bento/AcademicDeadlinesBentoWidget";
 import { WeekSheetBentoWidget } from "@/app/components/Dashboard/bento/WeekSheetBentoWidget";
 import type { BentoWidgetSize } from "@/app/lib/bento-widget-size";
 import BentoWeekGrid from "@/app/components/Dashboard/bento/BentoWeekGrid";
@@ -76,17 +77,6 @@ function tripDateLabel(t: TripIndexRow): string {
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
-}
-
-function weekDayKeysParis(): string[] {
-  const keys: string[] = [];
-  const base = new Date();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    keys.push(d.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" }));
-  }
-  return keys;
 }
 
 type DocItem = { type: "folder" | "file"; name: string; relPath: string; ext?: string };
@@ -553,9 +543,17 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
 export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
   const [domains, setDomains] = useState<{ id: string; name: string }[]>([]);
   const [bookings, setBookings] = useState<
-    { id: string; domainId: string; startsAt: string; activityLabel?: string; className: string }[]
+    {
+      id: string;
+      domainId: string;
+      startsAt: string;
+      activityLabel?: string;
+      className: string;
+      status?: string;
+    }[]
   >([]);
   const [domainId, setDomainId] = useState("");
+  const isLg = size === "lg";
 
   useEffect(() => {
     let cancelled = false;
@@ -581,28 +579,46 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
     };
   }, []);
 
-  const isLg = size === "lg";
-  const weekKeys = weekDayKeysParis();
+  const schoolDays = useMemo(() => schoolWeekDaysParis(), []);
 
-  const today = useMemo(() => {
-    const day = calendarDateKeyParis();
-    return bookings
-      .filter((b) => b.status !== "CANCELLED" && b.domainId === domainId && b.startsAt.startsWith(day))
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [bookings, domainId]);
-
-  const week = useMemo(() => {
+  const filtered = useMemo(() => {
+    const keys = isLg
+      ? schoolDays.map((d) => d.key)
+      : [schoolDays.find((d) => d.key === calendarDateKeyParis())?.key ?? schoolDays[0].key];
     return bookings
       .filter(
         (b) =>
           b.status !== "CANCELLED" &&
           b.domainId === domainId &&
-          weekKeys.some((k) => b.startsAt.startsWith(k)),
+          keys.some((k) => b.startsAt.startsWith(k)),
       )
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [bookings, domainId, weekKeys]);
+  }, [bookings, domainId, isLg, schoolDays]);
 
-  const rows = isLg ? week : today;
+  const domainWeekGrid = useMemo(() => {
+    return schoolDays.map((day) => ({
+      key: day.key,
+      short: day.short,
+      items: filtered
+        .filter((b) => b.startsAt.startsWith(day.key))
+        .map((b) => {
+          const time = b.startsAt.split("T")[1].slice(0, 5).replace(":", "h");
+          const line = `${b.activityLabel || ""} ${b.className}`.trim();
+          return (
+            <span
+              key={b.id}
+              className="block truncate text-[9px] leading-tight text-[#14231A]"
+              title={`${time} — ${line}`}
+            >
+              {time} {line}
+            </span>
+          );
+        }),
+    }));
+  }, [schoolDays, filtered]);
+
+  const todayKey = calendarDateKeyParis();
+  const todayRows = filtered.filter((b) => b.startsAt.startsWith(todayKey));
 
   return (
     <BentoWidget
@@ -613,24 +629,34 @@ export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
         </QuickBtn>
       }
     >
-      <select value={domainId} onChange={(e) => setDomainId(e.target.value)} className={`${DASHBOARD_SELECT} mb-2`}>
-        {domains.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.name}
-          </option>
-        ))}
-      </select>
-      {rows.length === 0 ? (
-        <EmptyLine>{isLg ? "Aucun créneau cette semaine." : "Aucun créneau aujourd&apos;hui."}</EmptyLine>
-      ) : (
-        <ul className="max-h-40 space-y-1 overflow-y-auto">
-          {rows.slice(0, isLg ? 8 : 3).map((b) => (
-            <li key={b.id} className={`${DASHBOARD_TILE_HIGHLIGHT} line-clamp-1`}>
-              {b.startsAt.split("T")[1].slice(0, 5).replace(":", "h")} — {b.activityLabel || b.className}
-            </li>
+      <div className="flex h-full min-h-0 flex-col">
+        <select
+          value={domainId}
+          onChange={(e) => setDomainId(e.target.value)}
+          className={`${DASHBOARD_SELECT} mb-2 shrink-0`}
+        >
+          {domains.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
           ))}
-        </ul>
-      )}
+        </select>
+        {isLg ? (
+          <div className="flex min-h-[9rem] flex-1 flex-col">
+            <BentoWeekGrid days={domainWeekGrid} fill />
+          </div>
+        ) : todayRows.length === 0 ? (
+          <EmptyLine>Aucun créneau aujourd&apos;hui.</EmptyLine>
+        ) : (
+          <ul className="space-y-1">
+            {todayRows.slice(0, 4).map((b) => (
+              <li key={b.id} className={`${DASHBOARD_TILE_HIGHLIGHT} text-xs line-clamp-1`}>
+                {b.startsAt.split("T")[1].slice(0, 5).replace(":", "h")} — {b.activityLabel || b.className}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </BentoWidget>
   );
 }
@@ -742,6 +768,90 @@ export function RhBentoWidget({ category, size }: WidgetProps) {
   );
 }
 
+type PhotoCopieRow = {
+  id: string;
+  status: "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE";
+  etablissement: string;
+  nombrePhotocopies: number;
+  motif: string;
+  createdAt: string;
+  createdBy: { name: string };
+};
+
+const PHOTO_STATUS: Record<PhotoCopieRow["status"], string> = {
+  EN_ATTENTE: "En attente",
+  ACCEPTEE: "Acceptée",
+  REFUSEE: "Refusée",
+};
+
+export function PhotocopiesBentoWidget({ category, size }: WidgetProps) {
+  const [rows, setRows] = useState<PhotoCopieRow[]>([]);
+  const limit = size === "lg" ? 5 : 3;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/photocopies-couleur", { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const items = (Array.isArray(data?.items) ? data.items : []) as PhotoCopieRow[];
+        const visible = items
+          .filter((i) => i.status === "EN_ATTENTE" || i.status === "ACCEPTEE")
+          .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+        if (!cancelled) setRows(visible.slice(0, limit));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [limit]);
+
+  const pending = rows.filter((r) => r.status === "EN_ATTENTE").length;
+  const accepted = rows.filter((r) => r.status === "ACCEPTEE").length;
+
+  return (
+    <BentoWidget
+      {...widgetHeader(category)}
+      pulse={pending > 0}
+      headerExtra={
+        <QuickBtn href="/photocopies-couleur" className="bg-indigo-600 text-white hover:bg-indigo-700 !py-1.5">
+          + Demande
+        </QuickBtn>
+      }
+    >
+      {rows.length === 0 ? (
+        <EmptyLine>Aucune demande en attente ni acceptée.</EmptyLine>
+      ) : (
+        <>
+          <p className={`mb-2 ${DASHBOARD_TILE_META}`}>
+            {pending > 0 ? `${pending} en attente` : "Aucune en attente"}
+            {accepted > 0 ? ` · ${accepted} acceptée${accepted > 1 ? "s" : ""}` : ""}
+          </p>
+          <ul className="space-y-1">
+            {rows.map((r) => (
+              <li key={r.id} className={`${DASHBOARD_TILE_HIGHLIGHT} line-clamp-2 text-xs`}>
+                <span
+                  className={
+                    r.status === "EN_ATTENTE"
+                      ? "font-bold text-amber-700"
+                      : "font-bold text-emerald-700"
+                  }
+                >
+                  {PHOTO_STATUS[r.status]}
+                </span>{" "}
+                — {r.etablissement} · {r.nombrePhotocopies} ex. · {r.motif}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </BentoWidget>
+  );
+}
+
 export function AgentIaBentoWidget({ category }: WidgetProps) {
   const router = useRouter();
 
@@ -829,10 +939,14 @@ export function renderBentoWidget(category: Categories, size: BentoWidgetSize) {
   switch (category.variant) {
     case "week-sheet":
       return <WeekSheetBentoWidget {...props} />;
+    case "academic-deadlines":
+      return <AcademicDeadlinesBentoWidget {...props} />;
     case "travels":
       return <TravelsBentoWidget {...props} />;
     case "absences":
       return <AbsencesBentoWidget {...props} />;
+    case "photocopies-couleur":
+      return <PhotocopiesBentoWidget {...props} />;
     case "prof-room":
       return <ProfRoomBentoWidget {...props} />;
     case "domain-planning":

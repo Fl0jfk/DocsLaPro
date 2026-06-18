@@ -14,22 +14,13 @@ import {
   layoutDayEvents,
 } from "@/app/lib/dashboard-week-sheet-time";
 import WeekSheetEventBlock from "@/app/components/Dashboard/bento/WeekSheetEventBlock";
+import { todaySchoolWeekDayIndex } from "@/app/lib/dashboard-week";
 
 function eventsForDay(events: WeekSheetEvent[], day: WeekDayKey) {
   return events.filter((ev) => ev.day === day);
 }
 
 const PX_PER_HOUR = 40;
-
-function getTodayWeekDayKey(): WeekDayKey {
-  const jsDay = new Date().getDay(); // 0: dimanche ... 6: samedi
-  if (jsDay === 1) return "mon";
-  if (jsDay === 2) return "tue";
-  if (jsDay === 3) return "wed";
-  if (jsDay === 4) return "thu";
-  if (jsDay === 5) return "fri";
-  return "mon";
-}
 
 export default function WeekSheetHourGrid({
   events,
@@ -55,8 +46,15 @@ export default function WeekSheetHourGrid({
   const hours = getWeekSheetDisplayHours();
   const totalHeight = getWeekSheetGridPixelHeight(events, pxPerMinute, minEventPx);
   const gutterWidth = compact ? "2.5rem" : "3rem";
-  const todayKey = getTodayWeekDayKey();
-  const visibleDays = isMobile ? WEEK_DAYS.filter((d) => d.key === todayKey) : WEEK_DAYS;
+  const todayKey: WeekDayKey | null = (() => {
+    const idx = todaySchoolWeekDayIndex();
+    const keys: WeekDayKey[] = ["mon", "tue", "wed", "thu", "fri"];
+    return idx >= 0 ? keys[idx] : null;
+  })();
+  const visibleDays = isMobile && todayKey ? WEEK_DAYS.filter((d) => d.key === todayKey) : WEEK_DAYS;
+
+  const todayColClass =
+    "ring-2 ring-[var(--dash-primary)] ring-inset bg-[color:var(--dash-soft-muted)]/40";
 
   return (
     <div className="w-full min-w-0 overflow-visible">
@@ -70,7 +68,9 @@ export default function WeekSheetHourGrid({
         {visibleDays.map((d) => (
           <div
             key={d.key}
-            className="bg-[color:var(--dash-soft-muted)]/90 px-2 py-1.5 text-center text-[11px] font-black uppercase tracking-tight text-[var(--dash-mid)] sm:text-xs"
+            className={`bg-[color:var(--dash-soft-muted)]/90 px-2 py-1.5 text-center text-[11px] font-black uppercase tracking-tight sm:text-xs ${
+              todayKey === d.key ? "text-[var(--dash-primary)] ring-2 ring-[var(--dash-primary)] ring-inset" : "text-[var(--dash-mid)]"
+            }`}
           >
             {d.short}
           </div>
@@ -106,7 +106,9 @@ export default function WeekSheetHourGrid({
           return (
             <div
               key={d.key}
-              className="relative overflow-visible border-l border-[color:var(--dash-soft-muted)]/80 bg-white/95"
+              className={`relative overflow-visible border-l border-[color:var(--dash-soft-muted)]/80 bg-white/95 ${
+                todayKey === d.key ? todayColClass : ""
+              }`}
               style={{ height: totalHeight }}
             >
               {hours.map((hour) => {

@@ -19,7 +19,9 @@ export type DashboardTileVariant =
   | "absences"
   | "personnel-ogec"
   | "internat"
-  | "week-sheet";
+  | "week-sheet"
+  | "academic-deadlines"
+  | "photocopies-couleur";
 
 export type DashboardCategory = {
   id: number;
@@ -306,6 +308,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
       img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Demande+impression.jpg",
       link: "/photocopies-couleur",
       external: false,
+      variant: "photocopies-couleur",
     },
   },
   {

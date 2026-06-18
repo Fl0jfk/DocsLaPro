@@ -2,6 +2,7 @@
  * Grille bento du dashboard (12 colonnes desktop).
  * Layout personnalisable : localStorage par utilisateur (voir dashboard-bento-persist.ts).
  */
+import { DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID } from "@/app/lib/dashboard-academic-deadlines-types";
 import { DASHBOARD_WEEK_SHEET_MODULE_ID } from "@/app/lib/dashboard-week-sheet-types";
 
 export type BentoSpan = { colSpan: number; rowSpan: number; sort: number };
@@ -15,7 +16,7 @@ export const BENTO_LAYOUT: Record<string, BentoSpan> = {
   "prof-room": { colSpan: 6, rowSpan: 3, sort: 4 },
   "requests-staff": { colSpan: 6, rowSpan: 3, sort: 5 },
   absences: { colSpan: 6, rowSpan: 3, sort: 6 },
-  "domain-planning": { colSpan: 4, rowSpan: 3, sort: 7 },
+  "domain-planning": { colSpan: 6, rowSpan: 3, sort: 7 },
   internat: { colSpan: 4, rowSpan: 3, sort: 8 },
   rh: { colSpan: 4, rowSpan: 3, sort: 9 },
   channels: { colSpan: 3, rowSpan: 2, sort: 40 },
@@ -27,7 +28,8 @@ export const BENTO_LAYOUT: Record<string, BentoSpan> = {
   covoiturage: { colSpan: 4, rowSpan: 2, sort: 45 },
   "admin-settings": { colSpan: 3, rowSpan: 2, sort: 80 },
   "admin-members": { colSpan: 3, rowSpan: 2, sort: 81 },
-  [DASHBOARD_WEEK_SHEET_MODULE_ID]: { colSpan: 12, rowSpan: 10, sort: 99 },
+  [DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID]: { colSpan: 4, rowSpan: 2, sort: 2 },
+  [DASHBOARD_WEEK_SHEET_MODULE_ID]: { colSpan: 12, rowSpan: 1, sort: 99 },
 };
 
 export function getBentoSpan(moduleId: string): BentoSpan {

@@ -6,7 +6,7 @@ import {
 } from "@/app/lib/tenant-mail";
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { getJson, putJson } from "@/app/lib/s3-storage";
+import { getJson, putJson, getObjectBytes } from "@/app/lib/s3-storage";
 
 const INDEX_KEY = "photocopies-couleur/index.json";
 
@@ -25,6 +25,9 @@ type PhotoCopieRecord = {
   motif: string;
   classesOuMatiere: string;
   nombrePhotocopies: number;
+  documentKey?: string;
+  documentFileName?: string;
+  documentContentType?: string;
   decidedBy?: { userId: string; name: string };
   decidedAt?: string;
   directionNote?: string;
@@ -99,6 +102,21 @@ async function getIndex(): Promise<PhotoCopieRecord[]> {
 
 async function saveIndex( rows: PhotoCopieRecord[]) {
   await putJson(INDEX_KEY, rows);
+}
+
+function isValidDocumentKey(key: string): boolean {
+  return key.startsWith("photocopies-couleur/uploads/") && !key.includes("..");
+}
+
+async function loadDocumentAttachment(record: PhotoCopieRecord) {
+  if (!record.documentKey || !record.documentFileName) return null;
+  const bytes = await getObjectBytes(record.documentKey);
+  if (!bytes?.length) return null;
+  return {
+    filename: record.documentFileName,
+    content: bytes,
+    contentType: record.documentContentType || "application/pdf",
+  };
 }
 
 function isValidEtab(v: string): v is PhotoCopieEtablissement {
@@ -176,6 +194,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Le champ classes / matière est requis." }, { status: 400 });
   }
 
+  const documentKey = String(body.documentKey || "").trim();
+  const documentFileName = String(body.documentFileName || "").trim();
+  const documentContentType = String(body.documentContentType || "application/pdf").trim();
+  if (documentKey && !isValidDocumentKey(documentKey)) {
+    return NextResponse.json({ error: "Document joint invalide." }, { status: 400 });
+  }
+  if (documentKey && !documentFileName) {
+    return NextResponse.json({ error: "Nom du fichier requis." }, { status: 400 });
+  }
+
   const record: PhotoCopieRecord = {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
@@ -190,6 +218,13 @@ export async function POST(req: Request) {
     motif,
     classesOuMatiere: classeField,
     nombrePhotocopies: nb,
+    ...(documentKey
+      ? {
+          documentKey,
+          documentFileName,
+          documentContentType: documentContentType || "application/pdf",
+        }
+      : {}),
   };
 
   try {
@@ -199,6 +234,7 @@ export async function POST(req: Request) {
 
     const dir = await resolveDirectorMail( etablissement);
     const mail = await getMailer();
+    const docAttachment = await loadDocumentAttachment(record);
     if (mail) {
       const { smtp, transporter } = mail;
       try {
@@ -216,12 +252,16 @@ export async function POST(req: Request) {
             `Motif : ${motif}`,
             `Classes / matière : ${classeField}`,
             `Nombre de photocopies : ${nb}`,
+            docAttachment ? `Document à imprimer : joint à cet e-mail.` : "",
             ``,
             `Traiter la demande : ${appUrl()}/photocopies-couleur`,
             ``,
             `Cordialement,`,
             `Plateforme La Providence Nicolas Barré`,
-          ].join("\n"),
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          ...(docAttachment ? { attachments: [docAttachment] } : {}),
         });
       } catch (mailErr) {
         console.error("[photocopies-couleur] mail direction:", mailErr);
@@ -342,13 +382,16 @@ export async function PATCH(req: Request) {
       const opsMail =
         process.env.PHOTOCOPIES_COULEUR_OPS_EMAIL?.trim() || nCfg.photocopiesOps || DEFAULT_PHOTOCOPIES_OPS_EMAIL;
       if (updated.status === "ACCEPTEE") {
+        const opsAttachment = await loadDocumentAttachment(updated);
         try {
           await transporter.sendMail({
             from: `"Demandes photocopies" <${smtp.user}>`,
             to: opsMail,
             subject: `[À traiter] Photocopies couleur acceptées — ${updated.etablissement}`,
             text: [
-              `Une demande de photocopies couleur a été ACCEPTÉE par la direction.`,
+              `Bonjour,`,
+              ``,
+              `Une demande de photocopies couleur a été ACCEPTÉE par la direction : vous pouvez procéder à l'impression.`,
               ``,
               `Demandeur : ${updated.createdBy.name} (${updated.createdBy.email})`,
               `Établissement : ${updated.etablissement}`,
@@ -357,11 +400,18 @@ export async function PATCH(req: Request) {
               `Motif : ${updated.motif}`,
               `Classes / matière : ${updated.classesOuMatiere}`,
               directionNote ? `Note direction : ${directionNote}` : "",
+              opsAttachment
+                ? `Le document à imprimer est joint à cet e-mail (${updated.documentFileName}).`
+                : `Aucun PDF joint : voir l'intranet ou contacter le demandeur.`,
               ``,
-              `Voir l’historique intranet : ${base}`,
+              `Historique intranet : ${base}`,
+              ``,
+              `Cordialement,`,
+              `Plateforme La Providence Nicolas Barré`,
             ]
               .filter(Boolean)
               .join("\n"),
+            ...(opsAttachment ? { attachments: [opsAttachment] } : {}),
           });
         } catch (e) {
           console.error("[photocopies-couleur] mail ops:", e);

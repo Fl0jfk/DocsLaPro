@@ -1,11 +1,40 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/app/lib/intranet-auth";
+import { pickActiveWeekSheet } from "@/app/lib/dashboard-week-sheet-active";
 import { normalizeWeekDay, parseTimeToMinutes } from "@/app/lib/dashboard-week-sheet-time";
 import { loadWeekSheetData, saveWeekSheetData } from "@/app/lib/dashboard-week-sheet-storage";
-import type { WeekDayKey, WeekSheetEvent } from "@/app/lib/dashboard-week-sheet-types";
+import type { WeekDayKey, WeekSheetData, WeekSheetEvent } from "@/app/lib/dashboard-week-sheet-types";
+import { calendarDateKeyParis } from "@/app/lib/domain-planning-dates";
 
 function newEventId(): string {
   return `ev-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function weekEndFriday(weekStart: string): string {
+  const [y, m, d] = weekStart.split("-").map(Number);
+  const end = new Date(Date.UTC(y, m - 1, d + 4, 12, 0, 0));
+  return end.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+}
+
+function appendEventToSheet(existing: WeekSheetData, event: WeekSheetEvent): WeekSheetData {
+  if (existing.weeks?.length) {
+    const today = calendarDateKeyParis();
+    const weeks = existing.weeks.map((w) => ({ ...w, events: [...w.events] }));
+    let idx = weeks.findIndex(
+      (w) => w.weekStart && today >= w.weekStart && today <= weekEndFriday(w.weekStart),
+    );
+    if (idx < 0) idx = 0;
+    weeks[idx].events.push(event);
+    const active = weeks[idx];
+    return {
+      ...existing,
+      weeks,
+      weekLabel: active.weekLabel,
+      weekStart: active.weekStart,
+      events: active.events,
+    };
+  }
+  return { ...existing, events: [...existing.events, event] };
 }
 
 export async function POST(req: Request) {
@@ -51,13 +80,11 @@ export async function POST(req: Request) {
     };
 
     const existing = (await loadWeekSheetData()) ?? { events: [] };
-    const payload = {
-      ...existing,
-      events: [...existing.events, event],
-    };
+    const payload = appendEventToSheet(existing, event);
 
     await saveWeekSheetData(payload);
-    const data = await loadWeekSheetData();
+    const stored = await loadWeekSheetData();
+    const data = stored ? pickActiveWeekSheet(stored) : null;
 
     return NextResponse.json({ ok: true, data });
   } catch (e) {

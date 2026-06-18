@@ -49,14 +49,22 @@ export default function BentoWeekGrid({
       className={`grid gap-1 ${fill ? "h-full min-h-0" : ""}`}
       style={{ gridTemplateColumns: `repeat(${visibleDays.length}, minmax(0, 1fr))` }}
     >
-      {visibleDays.map((day) => (
+      {visibleDays.map((day) => {
+        const isToday = day.key === todayKey;
+        return (
         <div
           key={day.key}
-          className={`flex min-w-0 flex-col rounded-md border border-[color:var(--dash-border)]/90 bg-[color:var(--dash-soft-muted)]/25 p-1.5 sm:p-1 ${
-            fill ? "min-h-0 h-full" : ""
-          }`}
+          className={`flex min-w-0 flex-col rounded-md p-1.5 sm:p-1 ${
+            isToday
+              ? "border-2 border-[var(--dash-primary)] bg-[color:var(--dash-soft-muted)]/55 shadow-sm"
+              : "border border-[color:var(--dash-border)]/90 bg-[color:var(--dash-soft-muted)]/25"
+          } ${fill ? "min-h-0 h-full" : ""}`}
         >
-          <p className="shrink-0 truncate text-center text-[10px] font-black uppercase tracking-tight text-[var(--dash-mid)] sm:text-[9px]">
+          <p
+            className={`shrink-0 truncate text-center text-[10px] font-black uppercase tracking-tight sm:text-[9px] ${
+              isToday ? "text-[var(--dash-primary)]" : "text-[var(--dash-mid)]"
+            }`}
+          >
             {day.short}
           </p>
           <div
@@ -71,7 +79,8 @@ export default function BentoWeekGrid({
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

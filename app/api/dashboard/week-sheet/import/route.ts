@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/app/lib/intranet-auth";
+import { pickActiveWeekSheet } from "@/app/lib/dashboard-week-sheet-active";
 import { extractPdfTextFromS3 } from "@/app/lib/dashboard-week-sheet-ocr";
 import { parseWeekSheetWithMistral } from "@/app/lib/dashboard-week-sheet-parse";
 import { loadWeekSheetData, saveWeekSheetData } from "@/app/lib/dashboard-week-sheet-storage";
@@ -27,14 +28,17 @@ export async function POST(req: Request) {
       sourcePdfKey: key,
       uploadedAt: new Date().toISOString(),
       uploadedBy: gate.ctx.userId,
+      multiWeekParsed: true,
     };
 
     await saveWeekSheetData(payload);
-    const data = await loadWeekSheetData();
+    const stored = await loadWeekSheetData();
+    const data = stored ? pickActiveWeekSheet(stored) : null;
 
     return NextResponse.json({
       ok: true,
       eventCount: data?.events.length ?? 0,
+      weekCount: stored?.weeks?.length ?? 1,
       data,
     });
   } catch (e) {
