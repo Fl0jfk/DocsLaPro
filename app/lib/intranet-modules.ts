@@ -18,10 +18,12 @@ export type DashboardTileVariant =
   | "agent-ia"
   | "absences"
   | "personnel-ogec"
-  | "internat";
+  | "internat"
+  | "week-sheet";
 
 export type DashboardCategory = {
   id: number;
+  moduleId: string;
   name: string;
   link: string;
   img: string;
@@ -48,7 +50,7 @@ export type IntranetModule = {
   pathPrefixes?: string[];
   excludePrefixes?: string[];
   /** Tuile sur le dashboard. Omis si module API-only (ex. règle complémentaire). */
-  dashboard?: Omit<DashboardCategory, "allowedRoles" | "orgAdminOnly">;
+  dashboard?: Omit<DashboardCategory, "allowedRoles" | "orgAdminOnly" | "moduleId">;
 };
 
 /** Accessible à tout utilisateur connecté (hors contrôle module). */
@@ -393,9 +395,9 @@ export const INTRANET_MODULES: IntranetModule[] = [
       "education",
     ],
     dashboard: {
-      id: 25,
+      id: 26,
       name: "Covoiturage",
-      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/travels.jpg",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Covoiturage.jpg",
       link: "/covoiturage",
       external: false,
       variant: "default",
@@ -448,6 +450,7 @@ export function getDashboardCategories(): DashboardCategory[] {
   return INTRANET_MODULES.filter((m) => m.dashboard)
     .map((m) => ({
       ...m.dashboard!,
+      moduleId: m.id,
       allowedRoles: m.allowedRoles,
       orgAdminOnly: m.orgAdminOnly,
     }))

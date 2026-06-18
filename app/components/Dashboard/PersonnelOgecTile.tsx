@@ -5,6 +5,11 @@ import { useUser } from "@clerk/nextjs";
 import type { Categories } from "@/app/contexts/data";
 import { canViewPersonnelDashboard } from "@/app/lib/personnel-types";
 import type { PersonnelDashboardData } from "@/app/lib/personnel-dashboard";
+import {
+  DASHBOARD_TILE_HIGHLIGHT,
+  DASHBOARD_TILE_META,
+  DASHBOARD_TILE_META_STRONG,
+} from "@/app/lib/dashboard-theme";
 import TileShell from "./TileShell";
 
 export default function PersonnelOgecTile({ category, priority }: { category: Categories; priority?: boolean }) {
@@ -56,30 +61,30 @@ export default function PersonnelOgecTile({ category, priority }: { category: Ca
         <div className="pointer-events-none space-y-1">
           {total > 0 ? (
             <>
-              <p className="text-xs font-black uppercase tracking-wide text-violet-200 drop-shadow">
+              <p className={DASHBOARD_TILE_META_STRONG}>
                 {total} action{total > 1 ? "s" : ""} RH
               </p>
               {data.counts.signatures > 0 && (
-                <p className="text-sm font-semibold text-white/95 drop-shadow">
+                <p className={DASHBOARD_TILE_HIGHLIGHT}>
                   · {data.counts.signatures} signature{data.counts.signatures > 1 ? "s" : ""}
                 </p>
               )}
               {data.counts.absencesToday > 0 && (
-                <p className="text-sm font-semibold text-rose-200 drop-shadow">
+                <p className="text-xs font-semibold text-rose-600">
                   · {data.counts.absencesToday} absent{data.counts.absencesToday > 1 ? "s" : ""}
                 </p>
               )}
             </>
           ) : data.counts.absencesToday > 0 ? (
-            <p className="text-sm font-semibold text-rose-200 drop-shadow">
+            <p className="text-xs font-semibold text-rose-600">
               {data.counts.absencesToday} absent{data.counts.absencesToday > 1 ? "s" : ""} aujourd&apos;hui
             </p>
           ) : (
-            <p className="text-xs text-white/70">Tout est à jour</p>
+            <p className={DASHBOARD_TILE_META}>Tout est à jour</p>
           )}
         </div>
       ) : (
-        <p className="text-xs text-white/70">Mon dossier personnel</p>
+        <p className={DASHBOARD_TILE_META}>Mon dossier personnel</p>
       )}
     </TileShell>
   );

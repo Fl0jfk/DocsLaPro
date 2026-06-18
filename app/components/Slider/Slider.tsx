@@ -1,38 +1,40 @@
-"use client"
+"use client";
 
-import { useState, useRef } from "react";
+import { motion } from "framer-motion";
 import type { Categories } from "@/app/contexts/data";
 import DashboardTile from "../Dashboard/DashboardTile";
 
 export type Category = Categories;
 
-export type SliderProps = { items: Category[]};
+export type SliderProps = { items: Category[] };
+
+const rowMotion = {
+  hidden: { opacity: 0, x: -12 },
+  show: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: i * 0.06, duration: 0.38, ease: [0.22, 1, 0.36, 1] as const },
+  }),
+};
 
 export default function Slider({ items }: SliderProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (containerRef.current) {
-      setIsDragging(true);
-      setStartX(e.pageX);
-      setScrollLeft(containerRef.current.scrollLeft);
-    }
-  };
-  const handleMouseUp = () => { setIsDragging(false); };
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !containerRef.current) return;
-    const x = e.pageX;
-    const diffX = x - startX;
-    const newScrollLeft = scrollLeft - diffX;
-    containerRef.current.scrollLeft = newScrollLeft;
-  };
   return (
-    <div ref={containerRef} className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 select-none h-full w-full mx-auto" onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}>
+    <motion.div
+      initial="hidden"
+      animate="show"
+      className="mx-auto flex w-full max-w-3xl flex-col gap-3"
+    >
       {items.map((category, index) => (
-        <DashboardTile key={category.id} category={category} priority={index === 0} />
+        <motion.div
+          key={category.id}
+          custom={index}
+          variants={rowMotion}
+          whileHover={{ x: 4 }}
+          transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        >
+          <DashboardTile category={category} priority={index === 0} />
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }

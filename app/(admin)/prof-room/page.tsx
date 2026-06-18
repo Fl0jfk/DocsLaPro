@@ -82,6 +82,32 @@ function ProfRoomPageContent() {
       return d;
     });
   }, [startOfWeek]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  const displayDays = useMemo(() => {
+    if (!isMobile) {
+      return weekDays.map((date, i) => ({ date, label: DAYS[i] }));
+    }
+    const today = new Date();
+    const todayIndex = weekDays.findIndex((date) => date.toDateString() === today.toDateString());
+    if (todayIndex >= 0) {
+      return [{ date: weekDays[todayIndex], label: DAYS[todayIndex] }];
+    }
+    return [
+      {
+        date: today,
+        label: today.toLocaleDateString("fr-FR", { weekday: "long" }),
+      },
+    ];
+  }, [isMobile, weekDays]);
   useEffect(() => {
     async function load() {
       try {
@@ -286,11 +312,34 @@ function ProfRoomPageContent() {
             ))}
           </select>
           <div className="flex items-center bg-gray-100 rounded-xl w-full justify-between">
-            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 py-3 hover:bg-white rounded-lg">◀</button>
+            {!isMobile ? (
+              <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 py-3 hover:bg-white rounded-lg">◀</button>
+            ) : (
+              <span className="w-8" aria-hidden />
+            )}
             <div className="px-4 text-[12px] font-black uppercase text-center">
-              Semaine du <br/><span className="text-blue-600">{startOfWeek.toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
+              {isMobile ? (
+                <>
+                  Aujourd&apos;hui
+                  <br />
+                  <span className="text-blue-600">
+                    {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" })}
+                  </span>
+                </>
+              ) : (
+                <>
+                  Semaine du <br />
+                  <span className="text-blue-600">
+                    {startOfWeek.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                  </span>
+                </>
+              )}
             </div>
-            <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-white rounded-lg">▶</button>
+            {!isMobile ? (
+              <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-white rounded-lg">▶</button>
+            ) : (
+              <span className="w-8" aria-hidden />
+            )}
           </div>
         </div>
         <div className="flex items-center justify-between md:justify-end w-full md:w-1/2 gap-3">
@@ -302,20 +351,21 @@ function ProfRoomPageContent() {
         </div>
       </div>
       <div className="bg-white rounded-3xl overflow-hidden">
-        <div className="grid grid-cols-6 bg-gray-50 border-b">
+        <div className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-6"} bg-gray-50 border-b`}>
           <div className="p-4 text-[13px] font-black text-gray-400 uppercase text-center">Heure</div>
-          {weekDays.map((d, i) => (
-            <div key={i} className={`p-4 text-center border-l ${d.toDateString() === new Date().toDateString() ? "bg-blue-50" : ""}`}>
-              <p className="text-[10px] uppercase font-bold text-gray-400">{DAYS[i]}</p>
-              <p className="text-xl font-black">{d.getDate()}</p>
+          {displayDays.map((day, i) => (
+            <div key={`${day.label}-${i}`} className={`p-4 text-center border-l ${day.date.toDateString() === new Date().toDateString() ? "bg-blue-50" : ""}`}>
+              <p className="text-[10px] uppercase font-bold text-gray-400">{day.label}</p>
+              <p className="text-xl font-black">{day.date.getDate()}</p>
             </div>
           ))}
         </div>
         <div className="divide-y">
           {HOURS.map(h => (
-            <div key={h} className="grid grid-cols-6 min-h-[95px]">
+            <div key={h} className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-6"} min-h-[95px]`}>
               <div className="text-[13px] font-black text-gray-400 flex items-center justify-center bg-gray-50/50 italic">{h}h30</div>
-              {weekDays.map((date, i) => {
+              {displayDays.map((day, i) => {
+                const date = day.date;
                 const dateStr = date.toISOString().split("T")[0];
                 const hourPrefix = `${dateStr}T${h.toString().padStart(2, "0")}`;
                 const res = reservations.find(r => r.roomId === selectedRoom && r.startsAt.startsWith(hourPrefix) && r.status !== "CANCELLED");

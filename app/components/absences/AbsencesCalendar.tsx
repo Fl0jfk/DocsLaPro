@@ -19,7 +19,6 @@ import {
 } from "@/app/lib/absences-calendar";
 
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const WEEKDAYS_ONLY = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 
 function sameDay(date: Date, y: number, m: number, d: number) {
   return date.getFullYear() === y && date.getMonth() === m && date.getDate() === d;
@@ -346,6 +345,15 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
   const [editRecord, setEditRecord] = useState<AbsenceRecord | null>(null);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   const roles = useMemo(() => {
     if (!userLoaded) return [] as string[];
@@ -549,30 +557,20 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
     return cells;
   }, [currentMonth, events]);
 
-  const weekdayCells = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const firstDayOffsetMon0 = (firstDay.getDay() + 6) % 7; // 0..6 (Lun..Dim)
-    const firstDayOffset = Math.min(firstDayOffsetMon0, 5); // si ça commence Sam/Dim, on démarre directement Lun
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells: Array<{ key: string; date: Date | null; events: CalendarEvent[] }> = [];
-    for (let i = 0; i < firstDayOffset; i += 1) { cells.push({ key: `w-empty-start-${i}`, date: null, events: [] })}
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      const date = new Date(year, month, day);
-      const weekdayMon0 = (date.getDay() + 6) % 7;
-      if (weekdayMon0 >= 5) continue;
-      const dayEvents = sortCalendarEvents(
-        events.filter((event) => {
-          const eventDate = new Date(event.startAt);
-          return sameDay(eventDate, year, month, day);
-        }),
-      );
-      cells.push({ key: `w-d-${day}`, date, events: dayEvents });
-    }
-    while (cells.length % 5 !== 0) { cells.push({ key: `w-empty-end-${cells.length}`, date: null, events: [] })}
-    return cells;
-  }, [currentMonth, events]);
+  const mobileTodayCell = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const day = now.getDate();
+    const date = new Date(year, month, day);
+    const dayEvents = sortCalendarEvents(
+      events.filter((event) => {
+        const eventDate = new Date(event.startAt);
+        return sameDay(eventDate, year, month, day);
+      }),
+    );
+    return { key: "mobile-today", date, events: dayEvents };
+  }, [events]);
   const yearOptions = useMemo(() => {
     const years = new Set<number>();
     years.add(new Date().getFullYear());
@@ -607,7 +605,20 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
       />
       <section className="bg-white border border-slate-200 rounded-none sm:rounded-3xl p-0 sm:p-5 -mx-6 sm:mx-0">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 px-4 pt-4 sm:px-0 sm:pt-0">
-          <h2 className="text-xl font-black text-slate-900">Calendrier des absences</h2>
+          <div>
+            <h2 className="text-xl font-black text-slate-900">Calendrier des absences</h2>
+            {isMobile ? (
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Aujourd&apos;hui —{" "}
+              {mobileTodayCell.date.toLocaleDateString("fr-FR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
+            </p>
+            ) : null}
+          </div>
+          {!isMobile ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
             <select
               className="w-full sm:w-auto px-3 py-2 sm:py-1 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700"
@@ -645,36 +656,23 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
               </button>
             </div>
           </div>
+          ) : null}
         </div>
-        <div className="md:hidden px-2 pb-2">
-          <div className="grid grid-cols-5 gap-2 mb-2">
-            {WEEKDAYS_ONLY.map((day) => (
-              <div key={day} className="text-xs font-black uppercase text-slate-500 px-2 py-1">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-5 gap-2">
-            {weekdayCells.map((cell) => (
-              <div key={cell.key} className={calendarDayCellClass(cell.date, "mobile")}>
-                {cell.date ? (
-                  <>
-                    <div className="flex items-center gap-1 mb-2">
-                      <span
-                        className={[
-                          "text-xs font-black",
-                          isTodayDate(cell.date) ? "text-sky-800" : "text-slate-700",
-                        ].join(" ")}
-                      >
-                        {cell.date.getDate()}
-                      </span>
-                      {isTodayDate(cell.date) ? (
-                        <span className="text-[8px] font-black uppercase tracking-wide text-sky-700">Auj.</span>
-                      ) : null}
-                    </div>
-                    <div className="space-y-1">
-                      {cell.events.map((event) => (
+        {isMobile ? (
+        <div className="px-2 pb-2">
+          <div className="grid grid-cols-1 gap-2">
+            <div key={mobileTodayCell.key} className={calendarDayCellClass(mobileTodayCell.date, "mobile")}>
+              {mobileTodayCell.date ? (
+                <>
+                  <div className="flex items-center gap-1 mb-2">
+                    <span className="text-xs font-black text-sky-800">{mobileTodayCell.date.getDate()}</span>
+                    <span className="text-[8px] font-black uppercase tracking-wide text-sky-700">Auj.</span>
+                  </div>
+                  <div className="space-y-1">
+                    {mobileTodayCell.events.length === 0 ? (
+                      <p className="text-xs font-semibold text-slate-400">Aucune absence aujourd&apos;hui.</p>
+                    ) : null}
+                    {mobileTodayCell.events.map((event) => (
                         (() => {
                           const appearance = appearanceForEvent(event, teacherColorIndexMap);
                           return (
@@ -701,7 +699,7 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
                           }
                           style={appearance.cardStyle}
                           className={[
-                            "relative text-left w-full rounded-lg border px-1.5 py-1 text-[10px] leading-snug",
+                            "relative text-left w-full rounded-lg border px-2 py-2 text-[11px] leading-snug",
                             event.hasDocument
                               ? "transition-[filter] cursor-pointer hover:brightness-[0.97]"
                               : "opacity-80 cursor-default",
@@ -734,21 +732,27 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
                               </button>
                             </div>
                           ) : null}
-                          <div className="font-bold break-words whitespace-normal">{event.displayName}</div>
-                          <div className="break-words whitespace-normal">{event.reason}</div>
-                          <div className="break-words whitespace-normal">{event.displayTime}</div>
+                          <div className="text-center text-sm font-black leading-snug break-words whitespace-normal">
+                            {event.displayName}
+                          </div>
+                          <div className="mt-1 text-center text-xs font-semibold break-words whitespace-normal">
+                            {event.reason}
+                          </div>
+                          <div className="mt-0.5 text-center text-[11px] break-words whitespace-normal text-slate-600">
+                            {event.displayTime}
+                          </div>
                         </div>
                           );
                         })()
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            ))}
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
-        <div className="hidden md:block">
+        ) : (
+        <div>
           <div className="grid grid-cols-7 gap-2 mb-2">
             {DAYS.map((day) => (
               <div key={day} className="text-xs font-black uppercase text-slate-500 px-2 py-1">
@@ -947,6 +951,7 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
             ))}
           </div>
         </div>
+        )}
         {loading && <p className="text-sm text-slate-500 mt-3 px-4 sm:px-0">Chargement des absences…</p>}
         {success && (
           <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 mt-3 mx-4 sm:mx-0">

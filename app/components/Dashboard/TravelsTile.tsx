@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Categories } from "@/app/contexts/data";
 import { tripsToday, type TripIndexRow } from "@/app/lib/dashboard-trips";
+import {
+  DASHBOARD_BTN_INDIGO,
+  DASHBOARD_TILE_HIGHLIGHT,
+  DASHBOARD_TILE_META,
+  DASHBOARD_TILE_META_STRONG,
+} from "@/app/lib/dashboard-theme";
 import TileShell from "./TileShell";
 
 export default function TravelsTile({ category, priority }: { category: Categories; priority?: boolean }) {
@@ -42,7 +48,7 @@ export default function TravelsTile({ category, priority }: { category: Categori
             e.stopPropagation();
             router.push("/travels?new=1");
           }}
-          className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-lg transition"
+          className={DASHBOARD_BTN_INDIGO}
         >
           + Nouvelle sortie
         </button>
@@ -50,20 +56,20 @@ export default function TravelsTile({ category, priority }: { category: Categori
     >
       {todayTrips.length > 0 ? (
         <div className="pointer-events-none space-y-1">
-          <p className="text-xs font-black uppercase tracking-wide text-amber-300 drop-shadow">
+          <p className={DASHBOARD_TILE_META_STRONG}>
             Sortie{todayTrips.length > 1 ? "s" : ""} aujourd&apos;hui
           </p>
           {todayTrips.slice(0, 3).map((t) => (
-            <p key={t.id} className="text-sm font-semibold text-white/95 line-clamp-1 drop-shadow">
+            <p key={t.id} className={`${DASHBOARD_TILE_HIGHLIGHT} line-clamp-1`}>
               · {t.data?.title || "Sans titre"}
             </p>
           ))}
           {todayTrips.length > 3 && (
-            <p className="text-xs text-white/80">+{todayTrips.length - 3} autre(s)</p>
+            <p className={DASHBOARD_TILE_META}>+{todayTrips.length - 3} autre(s)</p>
           )}
         </div>
       ) : (
-        <p className="text-xs text-white/70">Aucune sortie prévue aujourd&apos;hui</p>
+        <p className={DASHBOARD_TILE_META}>Aucune sortie prévue aujourd&apos;hui</p>
       )}
     </TileShell>
   );

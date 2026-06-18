@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
-import QRCode from 'qrcode';
+import { useState, useRef, useEffect } from "react";
+import QRCode from "qrcode";
 
 export default function QRCreator() {
   const [url, setUrl] = useState("https://laprovidence-nicolasbarre.fr/");
@@ -18,6 +18,11 @@ export default function QRCreator() {
       }
     }
   };
+  useEffect(() => {
+    const fromQuery = new URLSearchParams(window.location.search).get("url");
+    if (fromQuery) setUrl(fromQuery);
+  }, []);
+
   useEffect(() => {
     generateQRCodeWithLogo();
   }, [url, fillColor, backColor]);

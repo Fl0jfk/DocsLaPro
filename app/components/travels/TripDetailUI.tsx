@@ -182,20 +182,24 @@ export function TripWorkflowStepper({
   currentStatus: string;
   busSignatureOnLogistics?: boolean;
 }) {
+  const isFullyComplete = currentStatus === "VALIDE";
   const activeIndex = steps.findIndex(
     (s) =>
       currentStatus === s.key ||
-      (s.key === "VALIDE" && currentStatus === "VALIDE") ||
       (busSignatureOnLogistics && currentStatus === "EN_ATTENTE_BUS_SIGNATURE" && s.key === "PROF_LOGISTICS"),
   );
-  const resolvedActive = activeIndex >= 0 ? activeIndex : 0;
+  const resolvedActive = isFullyComplete
+    ? steps.length
+    : activeIndex >= 0
+      ? activeIndex
+      : 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm overflow-x-auto">
       <div className="flex min-w-max sm:min-w-0 sm:w-full items-center gap-0">
         {steps.map((s, i) => {
-          const isActive = i === resolvedActive;
-          const isDone = i < resolvedActive || (currentStatus === "VALIDE" && i < steps.length);
+          const isActive = !isFullyComplete && i === resolvedActive;
+          const isDone = i < resolvedActive;
           return (
             <div key={s.key} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center gap-2 min-w-[4.5rem] sm:min-w-0 sm:flex-1">

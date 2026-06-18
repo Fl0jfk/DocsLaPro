@@ -28,5 +28,17 @@
 
 body { font-family: Arial, Helvetica, sans-serif}
 a { cursor: pointer}
+
+/* Fallback thème dashboard (surchargé par DashboardThemeRoot) */
+.dashboard-themed {
+  --dash-primary: #2F6B4A;
+  --dash-dark: #1E4A32;
+  --dash-mid: #3D8A5C;
+  --dash-bright: #4ADE80;
+  --dash-soft: #D1FAE5;
+  --dash-soft-muted: #ECFDF5;
+  --dash-border: #A7F3D0;
+  --dash-ink: #14231A;
+}
 button { cursor: pointer}
 ::-webkit-scrollbar { display: none}

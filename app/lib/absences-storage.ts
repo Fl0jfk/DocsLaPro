@@ -1,12 +1,17 @@
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getJson, putJson, getBucketName } from "@/app/lib/s3-storage";
-import { getTenantDataS3Client } from "@/app/lib/s3-clients";
-import { s3Key } from "@/app/lib/s3-path";
+import { getAbsenceDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/absences-documents";
+import { isDocumentKeyReferencedInLegacy } from "@/app/lib/absences-legacy-convocations";
+import { isSensitiveAbsenceContent } from "@/app/lib/absences-privacy";
 import {
   ABSENCES_INDEX_KEY,
   normalizeAbsenceRecord,
+  resolveAbsenceScope,
   type AbsenceRecord,
 } from "@/app/lib/absences-types";
+import { getTenantDataS3Client } from "@/app/lib/s3-clients";
+import { getBucketName, getJson, putJson } from "@/app/lib/s3-storage";
+import { s3Key } from "@/app/lib/s3-path";
+import { resolveTravelsS3ObjectKey } from "@/app/lib/travels-s3";
 
 function recordKey(id: string) {
   return `absences/${id}.json`;
@@ -32,61 +37,118 @@ export async function saveAbsenceRecord(record: AbsenceRecord) {
   return normalized;
 }
 
-function parseDateOnly(value: string) {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-/** Purge RGPD : uniquement les auto-déclarations (source self), pas le calendrier admin. */
-function shouldPurgeSelfDeclaration(rec: AbsenceRecord) {
-  const source = rec.source || "self";
-  return source === "self";
-}
-
+/** Conservé pour compatibilité : on ne supprime plus les absences (seules les pièces sensibles le sont). */
 export async function purgeExpiredAbsences(index: AbsenceRecord[]) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const keep: AbsenceRecord[] = [];
-  const remove: AbsenceRecord[] = [];
-
-  for (const rec of index) {
-    if (!shouldPurgeSelfDeclaration(rec)) {
-      keep.push(rec);
-      continue;
-    }
-    const endAt = rec?.data?.endAt || "";
-    const end = parseDateOnly(rec?.data?.endDate || endAt.slice(0, 10));
-    if (!end || end >= today) keep.push(rec);
-    else remove.push(rec);
-  }
-
-  if (remove.length === 0) return keep;
-
-  const bucket = await getBucketName();
-  const s3Client = await getTenantDataS3Client();
-  for (const rec of remove) {
-    try {
-      await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: bucket,
-          Key: s3Key(recordKey(rec.id)),
-        }),
-      );
-    } catch (e) {
-      console.error(`Absences purge error (${rec.id}):`, e);
-    }
-  }
-
-  await saveAbsenceIndex(keep);
-  return keep;
+  return index;
 }
 
 export async function upsertAbsenceInIndex(record: AbsenceRecord) {
-  const index = await purgeExpiredAbsences(await getAbsenceIndex());
+  const index = await getAbsenceIndex();
   const pos = index.findIndex((a) => a.id === record.id);
   if (pos >= 0) index[pos] = record;
   else index.push(record);
   await saveAbsenceIndex(index);
   return index;
+}
+
+async function deleteStorageKeyIfUnused(key: string, index: AbsenceRecord[]) {
+  const trimmed = key.trim();
+  if (!trimmed) return;
+  const stillUsed =
+    isDocumentKeyReferenced(index, trimmed) || (await isDocumentKeyReferencedInLegacy(trimmed));
+  if (stillUsed) return;
+
+  const bucket = await getBucketName();
+  const s3Client = await getTenantDataS3Client();
+  await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: s3Key(trimmed) }));
+}
+
+/** Supprime les fichiers S3 liés à une absence (sans supprimer l'absence elle-même). */
+export async function purgeAbsenceDocumentsFromStorage(
+  record: AbsenceRecord,
+  index: AbsenceRecord[],
+): Promise<AbsenceRecord> {
+  const keys = new Set<string>(getAbsenceDocumentKeys(record));
+  const justificationUrl = record.justification?.fileUrl?.trim();
+  if (justificationUrl) {
+    const justificationKey = await resolveTravelsS3ObjectKey(justificationUrl);
+    if (justificationKey) keys.add(justificationKey);
+  }
+
+  const indexWithoutCurrent = index.filter((item) => item.id !== record.id);
+  for (const key of keys) {
+    try {
+      await deleteStorageKeyIfUnused(key, indexWithoutCurrent);
+    } catch (error) {
+      console.error(`Absences privacy purge error (${record.id}, ${key}):`, error);
+    }
+  }
+
+  const now = new Date().toISOString();
+  return {
+    ...record,
+    updatedAt: now,
+    justification: null,
+    data: {
+      ...record.data,
+      details: "",
+      sourceDocument: undefined,
+      documentKeys: undefined,
+    },
+    privacyDocumentsPurgedAt: now,
+    history: [
+      ...(record.history || []),
+      {
+        at: now,
+        by: "Système",
+        action: "RGPD_PIECES_SUPPRIMEES",
+        note: "Pièces jointes sensibles supprimées après envoi du mail de validation.",
+      },
+    ],
+  };
+}
+
+/** Après validation : conserve l'absence, purge les pièces sensibles, anonymise le motif si besoin. */
+export async function applyPostValidationPrivacy(
+  record: AbsenceRecord,
+  index: AbsenceRecord[],
+): Promise<AbsenceRecord> {
+  const scope = resolveAbsenceScope(record);
+  const sensitive = isSensitiveAbsenceContent(
+    record.data.reason,
+    record.data.details,
+    record.justification?.fileName,
+  );
+  const shouldRedactReason = scope === "ogec" || sensitive;
+  const shouldPurgeDocs = sensitive;
+
+  if (!shouldRedactReason && !shouldPurgeDocs) return record;
+
+  let next = record;
+  if (shouldPurgeDocs) {
+    next = await purgeAbsenceDocumentsFromStorage(next, index);
+  }
+
+  if (!shouldRedactReason) return next;
+
+  const now = new Date().toISOString();
+  return {
+    ...next,
+    data: {
+      ...next.data,
+      reason: "Absence",
+      details: "",
+    },
+    privacyReasonRedacted: true,
+    updatedAt: now,
+    history: [
+      ...(next.history || []),
+      {
+        at: now,
+        by: "Système",
+        action: "RGPD_MOTIF_ANONYMISE",
+        note: scope === "ogec" ? "Motif masqué (personnel OGEC)." : "Motif masqué (donnée sensible).",
+      },
+    ],
+  };
 }

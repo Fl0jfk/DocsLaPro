@@ -16,6 +16,7 @@ export async function GET() {
       identity: {
         name: config.identity.name,
         shortName: config.identity.shortName,
+        dashboardAccent: config.identity.dashboardAccent,
       },
       establishments: config.establishments,
       profRoom: config.profRoom,

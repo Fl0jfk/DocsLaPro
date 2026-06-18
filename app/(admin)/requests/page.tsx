@@ -6,13 +6,15 @@ import MesDemandesSuivi from "@/app/(admin)/requests/MesDemandesSuivi";
 import CreateRequestModal from "@/app/components/requests/CreateRequestModal";
 import FaireUneDemandeForm from "@/app/components/requests/FaireUneDemandeForm";
 import CorbeilleInbox, { type PileKey } from "@/app/components/requests/CorbeilleInbox";
+import RequestBoardMoveSelect from "@/app/components/requests/RequestBoardMoveSelect";
 import { useBoardPointerDnd } from "@/app/lib/requests-board-dnd";
+import { useMobileBoardUi } from "@/app/hooks/useMobileBoardUi";
+import type { VisualColumnKey } from "@/app/lib/request-board-move";
 import { getViewerServiceLabel } from "@/app/lib/requests-view-utils";
 
 type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
 
 type BoardColumnKey = "CORBEILLE" | "NOUVELLES" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
-type VisualColumnKey = "A_TRAITER" | "EN_COURS" | "TERMINEE";
 
 type RequestRecord = {
   id: string;
@@ -201,6 +203,7 @@ export default function RequestsPage() {
   const draggedRequestIdRef = useRef<string | null>(null);
   const [hasStaffBoard, setHasStaffBoard] = useState(false);
   const [delegateEmailById, setDelegateEmailById] = useState<Record<string, string>>({});
+  const mobileMoveMode = useMobileBoardUi();
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const userRoles = useMemo(() => {
     if (!user) return [] as string[];
@@ -588,8 +591,11 @@ export default function RequestsPage() {
         pinnedCardId={pinnedCardId}
         submittingId={submittingId}
         dropPileTarget={dropPileTarget}
-        isDragging={isDragging}
+        isDragging={isDragging && !mobileMoveMode}
         makeCardProps={makeCardProps}
+        mobileMoveMode={mobileMoveMode}
+        onMoveToPile={onDropOnPile}
+        onMoveToColumn={runColumnDrop}
         onCardClick={(id) => {
           setPinnedCardId((cur) => (cur === id ? null : id));
         }}
@@ -615,7 +621,7 @@ export default function RequestsPage() {
             <div className="space-y-2 min-h-[160px]">
               {colCards.length === 0 ? (
                 <p className="text-[10px] text-slate-400/90 italic text-center py-8 px-2 border border-dashed border-slate-200/80 rounded-xl bg-white/40 pointer-events-none">
-                  Glissez une demande ici
+                  {mobileMoveMode ? "Aucune demande ici" : "Glissez une demande ici"}
                 </p>
               ) : null}
               {colCards.map((r) => {
@@ -636,13 +642,18 @@ export default function RequestsPage() {
                   key={r.id}
                   id={`request-card-${r.id}`}
                   {...makeCardProps(r.id, {
+                    enabled: !mobileMoveMode,
                     disabled: submittingId === r.id,
                     onActivate: () => setPinnedCardId((id) => (id === r.id ? null : r.id)),
                   })}
-                  title="Glisser la fiche vers une colonne ou une corbeille · Clic pour ouvrir ou fermer le détail"
-                  className={`group relative rounded-xl border p-2 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow duration-300 ease-out hover:shadow-md ${CARD_SURFACE[col.key]} ${
-                    isPinned ? "z-10 shadow-md ring-1 ring-slate-300/80" : "z-0"
-                  }`}
+                  title={
+                    mobileMoveMode
+                      ? "Clic pour ouvrir ou fermer le détail"
+                      : "Glisser la fiche vers une colonne ou une corbeille · Clic pour ouvrir ou fermer le détail"
+                  }
+                  className={`group relative rounded-xl border p-2 shadow-sm select-none transition-shadow duration-300 ease-out hover:shadow-md ${CARD_SURFACE[col.key]} ${
+                    mobileMoveMode ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
+                  } ${isPinned ? "z-10 shadow-md ring-1 ring-slate-300/80" : "z-0"}`}
                 >
                   {submittingId === r.id ? (
                     <div
@@ -732,6 +743,15 @@ export default function RequestsPage() {
                       <span className="text-sm font-bold leading-none">{isPinned ? "▴" : "⋯"}</span>
                     </button>
                   </div>
+
+                  <RequestBoardMoveSelect
+                    requestId={r.id}
+                    item={r}
+                    serviceLabel={serviceLabel}
+                    disabled={submittingId === r.id}
+                    onMoveToPile={onDropOnPile}
+                    onMoveToColumn={runColumnDrop}
+                  />
 
                   <div
                     className={`grid transition-[grid-template-rows,opacity] ease-out motion-reduce:transition-opacity motion-reduce:duration-200 ${

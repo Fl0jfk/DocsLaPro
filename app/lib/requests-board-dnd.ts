@@ -17,7 +17,7 @@ export type BoardDndConfig = {
   onHoverPile: (pile: string | null) => void;
 };
 
-type CardOptions = { disabled?: boolean; onActivate?: () => void };
+type CardOptions = { disabled?: boolean; enabled?: boolean; onActivate?: () => void };
 
 type InternalState = {
   requestId: string | null;
@@ -239,7 +239,13 @@ export function useBoardPointerDnd(config: BoardDndConfig) {
   }, []);
 
   const makeCardProps = useCallback(
-    (requestId: string, opts?: CardOptions) => ({
+    (requestId: string, opts?: CardOptions) => {
+      if (opts?.enabled === false) {
+        return opts.onActivate
+          ? { onClick: opts.onActivate, "data-no-drag": true as const }
+          : { "data-no-drag": true as const };
+      }
+      return {
       "data-board-card": requestId,
       style: { touchAction: "none" as const },
       onPointerDown: (e: ReactPointerEvent) => {
@@ -263,7 +269,8 @@ export function useBoardPointerDnd(config: BoardDndConfig) {
         window.addEventListener("pointerup", onUpRef.current);
         window.addEventListener("pointercancel", onCancelRef.current);
       },
-    }),
+    };
+    },
     [],
   );
 

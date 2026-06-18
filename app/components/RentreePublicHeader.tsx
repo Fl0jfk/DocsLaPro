@@ -49,7 +49,7 @@ export default function RentreePublicHeader() {
               <img
                 src={customLogoUrl}
                 alt={logoAlt}
-                className="absolute top-7 left-[-20px] sm:left-0 max-h-[72px] w-auto object-contain"
+                className="absolute top-7 left-[-20px] sm:left-0 max-h-[80px] w-auto object-contain [image-rendering:auto]"
               />
             ) : (
               <Image src={Logo} alt={logoAlt} width={300} height={300} className="absolute top-7 left-[-20px] sm:left-0" />

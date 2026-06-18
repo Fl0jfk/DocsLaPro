@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Categories } from "@/app/contexts/data";
+import {
+  DASHBOARD_BTN_SLATE,
+  DASHBOARD_TILE_HIGHLIGHT,
+  DASHBOARD_TILE_META,
+  DASHBOARD_TILE_META_STRONG,
+} from "@/app/lib/dashboard-theme";
 import TileShell from "./TileShell";
 
 type RollStatus = "validee" | "en_cours" | "non_demarre";
@@ -57,7 +63,7 @@ export default function InternatTile({ category, priority }: { category: Categor
             e.stopPropagation();
             router.push("/gestion-internat?tab=appel");
           }}
-          className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-lg transition"
+          className={DASHBOARD_BTN_SLATE}
         >
           Appel du soir
         </button>
@@ -65,18 +71,18 @@ export default function InternatTile({ category, priority }: { category: Categor
     >
       <div className="pointer-events-none space-y-1">
         <p
-          className={`text-xs font-black uppercase tracking-wide drop-shadow ${
+          className={`${DASHBOARD_TILE_META_STRONG} ${
             status === "validee"
-              ? "text-emerald-300"
+              ? "text-[var(--dash-primary)]"
               : status === "en_cours"
-                ? "text-amber-300"
-                : "text-white/80"
+                ? "text-[#F59E0B]"
+                : ""
           }`}
         >
           {statusLabel}
         </p>
         {activeStudents != null && (
-          <p className="text-sm font-semibold text-white/95 drop-shadow">
+          <p className={DASHBOARD_TILE_HIGHLIGHT}>
             {activeStudents} interne{activeStudents > 1 ? "s" : ""} actif{activeStudents > 1 ? "s" : ""}
           </p>
         )}

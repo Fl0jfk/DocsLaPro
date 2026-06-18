@@ -279,6 +279,13 @@ export default function DocumentsPage() {
   const [shareFileMembers, setShareFileMembers] = useState<string[]>([]);
   const [incomingFileCount, setIncomingFileCount] = useState(0);
 
+  useEffect(() => {
+    const pathFromUrl = new URLSearchParams(window.location.search).get("path");
+    if (pathFromUrl) {
+      setCurrentPath(pathFromUrl.endsWith("/") ? pathFromUrl : `${pathFromUrl}/`);
+    }
+  }, []);
+
   const activeShare = useMemo(
     () => shares.find((s) => s.id === shareId) ?? null,
     [shares, shareId],

@@ -6,6 +6,7 @@ import ProfRoomAdminPicker, { type ClerkMemberOption } from "@/app/components/pr
 import RequestsRoutingEditor from "@/app/components/settings/RequestsRoutingEditor";
 import type { RequestsRoutingConfig } from "@/app/lib/app-config-schemas";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
+import { DASHBOARD_ACCENT_OPTIONS } from "@/app/lib/dashboard-brand-presets";
 
 type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing";
 
@@ -265,6 +266,38 @@ export default function ParametresPage() {
               className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-bold hover:file:bg-indigo-100 disabled:opacity-50"
             />
             {uploadingLogo && <p className="text-xs text-indigo-600 font-medium">Envoi du logo en cours…</p>}
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <label className="block text-sm font-bold text-slate-600">Couleur du tableau de bord</label>
+            <p className="text-xs text-slate-500">
+              Teinte des boutons, titres et tuiles sur la page d&apos;accueil intranet (le dégradé s&apos;adapte
+              automatiquement).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DASHBOARD_ACCENT_OPTIONS.map((opt) => {
+                const selected = (String(identity.dashboardAccent || "green")) === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setIdentity({ ...identity, dashboardAccent: opt.id })}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition ${
+                      selected
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-200"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                    }`}
+                  >
+                    <span
+                      className="h-5 w-5 shrink-0 rounded-full border border-black/10 shadow-sm"
+                      style={{ backgroundColor: opt.swatch }}
+                      aria-hidden
+                    />
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button

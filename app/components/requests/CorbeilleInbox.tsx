@@ -2,7 +2,9 @@
 
 import { useMemo, useRef } from "react";
 import { BoardDropZone } from "@/app/components/requests/BoardDragHandle";
+import RequestBoardMoveSelect from "@/app/components/requests/RequestBoardMoveSelect";
 import type { MakeCardProps } from "@/app/lib/requests-board-dnd";
+import type { VisualColumnKey } from "@/app/lib/request-board-move";
 
 export type PileKey = "etablissement" | "service";
 
@@ -47,6 +49,7 @@ function PileChip({
   compact,
   onClick,
   dropActive,
+  mobileMoveMode,
 }: {
   pile: PileKey;
   label: string;
@@ -55,6 +58,7 @@ function PileChip({
   compact: boolean;
   onClick: () => void;
   dropActive: boolean;
+  mobileMoveMode?: boolean;
 }) {
   const s = PILE_STYLES[pile];
   return (
@@ -81,7 +85,9 @@ function PileChip({
       <p className={`font-black text-slate-900 mt-2 leading-tight ${compact ? "text-xs" : "text-sm"}`}>{label}</p>
       <p className={`mt-1 font-black ${s.count} ${compact ? "text-lg" : "text-2xl"}`}>{count}</p>
       <p className="text-[9px] text-slate-500 mt-1">{active ? "Cliquer pour fermer" : "Cliquer pour parcourir"}</p>
-      <p className="text-[8px] text-slate-400 mt-1">Déposer ici pour renvoyer</p>
+      <p className="text-[8px] text-slate-400 mt-1">
+        {mobileMoveMode ? "Utilisez le menu sur chaque fiche" : "Déposer ici pour renvoyer"}
+      </p>
     </div>
   );
 }
@@ -93,6 +99,10 @@ function SliderCard({
   onActivate,
   pinned,
   submitting,
+  mobileMoveMode,
+  serviceLabel,
+  onMoveToPile,
+  onMoveToColumn,
 }: {
   item: CorbeilleItem;
   makeCardProps: MakeCardProps;
@@ -100,14 +110,20 @@ function SliderCard({
   onActivate: () => void;
   pinned: boolean;
   submitting: boolean;
+  mobileMoveMode: boolean;
+  serviceLabel: string;
+  onMoveToPile: (pile: PileKey, requestId: string) => void;
+  onMoveToColumn: (column: VisualColumnKey, requestId: string) => void;
 }) {
   const waiting = item.status === "EN_ATTENTE";
   return (
     <article
-      {...makeCardProps(item.id, { disabled, onActivate })}
-      className={`snap-start shrink-0 w-[220px] rounded-xl border bg-[#fdfcfb] p-2 transition-shadow cursor-grab active:cursor-grabbing select-none ${
+      {...makeCardProps(item.id, { disabled, enabled: !mobileMoveMode, onActivate })}
+      className={`snap-start shrink-0 w-[220px] rounded-xl border bg-[#fdfcfb] p-2 transition-shadow select-none ${
         waiting ? "border-orange-300" : "border-slate-300"
-      } ${pinned ? "ring-2 ring-slate-300 shadow-md" : ""} ${submitting ? "opacity-60" : ""}`}
+      } ${mobileMoveMode ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"} ${
+        pinned ? "ring-2 ring-slate-300 shadow-md" : ""
+      } ${submitting ? "opacity-60" : ""}`}
     >
       <div className="min-w-0 flex-1 py-1">
         <p className="text-[9px] font-bold uppercase text-slate-400 truncate">{item.category}</p>
@@ -120,6 +136,14 @@ function SliderCard({
           </span>
         ) : null}
       </div>
+      <RequestBoardMoveSelect
+        requestId={item.id}
+        item={item}
+        serviceLabel={serviceLabel}
+        disabled={disabled}
+        onMoveToPile={onMoveToPile}
+        onMoveToColumn={onMoveToColumn}
+      />
     </article>
   );
 }
@@ -135,6 +159,9 @@ export default function CorbeilleInbox({
   dropPileTarget,
   isDragging,
   makeCardProps,
+  mobileMoveMode = false,
+  onMoveToPile,
+  onMoveToColumn,
 }: {
   items: CorbeilleItem[];
   serviceLabel: string;
@@ -146,6 +173,9 @@ export default function CorbeilleInbox({
   dropPileTarget: PileKey | null;
   isDragging: boolean;
   makeCardProps: MakeCardProps;
+  mobileMoveMode?: boolean;
+  onMoveToPile: (pile: PileKey, requestId: string) => void;
+  onMoveToColumn: (column: VisualColumnKey, requestId: string) => void;
 }) {
   const sliderRef = useRef<HTMLDivElement>(null);
 
@@ -194,6 +224,7 @@ export default function CorbeilleInbox({
             compact={false}
             onClick={() => togglePile("etablissement")}
             dropActive={dropPileTarget === "etablissement"}
+            mobileMoveMode={mobileMoveMode}
           />
           <PileChip
             pile="service"
@@ -203,6 +234,7 @@ export default function CorbeilleInbox({
             compact={false}
             onClick={() => togglePile("service")}
             dropActive={dropPileTarget === "service"}
+            mobileMoveMode={mobileMoveMode}
           />
         </div>
       ) : (
@@ -215,6 +247,7 @@ export default function CorbeilleInbox({
             compact={activePile !== "etablissement"}
             onClick={() => togglePile("etablissement")}
             dropActive={dropPileTarget === "etablissement"}
+            mobileMoveMode={mobileMoveMode}
           />
 
           <div
@@ -235,6 +268,10 @@ export default function CorbeilleInbox({
                   disabled={submittingId === item.id}
                   pinned={pinnedCardId === item.id}
                   submitting={submittingId === item.id}
+                  mobileMoveMode={mobileMoveMode}
+                  serviceLabel={serviceLabel}
+                  onMoveToPile={onMoveToPile}
+                  onMoveToColumn={onMoveToColumn}
                   onActivate={() => onCardClick(item.id)}
                 />
               ))
@@ -249,6 +286,7 @@ export default function CorbeilleInbox({
             compact={activePile !== "service"}
             onClick={() => togglePile("service")}
             dropActive={dropPileTarget === "service"}
+            mobileMoveMode={mobileMoveMode}
           />
         </div>
       )}

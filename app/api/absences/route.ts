@@ -20,6 +20,7 @@ import {
   canManageAbsence,
   canViewAbsence,
   canViewCalendar,
+  isAbsenceVisibleOnCalendar,
   computeStartEndAt,
   filterAbsenceForViewer,
   resolveAbsenceScope,
@@ -36,6 +37,7 @@ import {
 import {
   getAbsenceIndex,
   getAbsenceRecord,
+  applyPostValidationPrivacy,
   purgeExpiredAbsences,
   saveAbsenceIndex,
   saveAbsenceRecord,
@@ -123,11 +125,12 @@ export async function GET(req: Request) {
     if (calendarOnly || todayOnly) {
       index = await mergeLegacyConvocationsForCalendar(index);
     }
-    let visible = calendarOnly
-      ? index.filter((a) => a.calendarVisible)
-      : index.filter((a) => canViewAbsence(a, userId, roles));
+    let visible = index.filter((a) => canViewAbsence(a, userId, roles));
+    if (calendarOnly) {
+      visible = visible.filter((a) => isAbsenceVisibleOnCalendar(a, userId, roles));
+    }
     if (todayOnly) {
-      visible = visible.filter((a) => a.calendarVisible && isTodayOverlap(a));
+      visible = visible.filter((a) => isTodayOverlap(a));
     }
 
     visible.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
@@ -408,6 +411,7 @@ export async function PATCH(req: Request) {
       };
 
       const recipients = await resolveValidationRecipients(updated);
+      let validationMailSent = false;
       if (recipients.length > 0) {
         try {
           const mail = await getMailer();
@@ -446,10 +450,15 @@ export async function PATCH(req: Request) {
               contentType: a.contentType,
             })),
           });
+          validationMailSent = true;
           }
         } catch (mailErr) {
           console.error("Absences validation mail error:", mailErr);
         }
+      }
+
+      if (validationMailSent || recipients.length === 0) {
+        updated = await applyPostValidationPrivacy(updated, index);
       }
 
       try {

@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Categories } from "@/app/contexts/data";
 import { calendarDateKeyParis } from "@/app/lib/domain-planning-dates";
+import {
+  DASHBOARD_BTN_VIOLET,
+  DASHBOARD_TILE_HIGHLIGHT,
+  DASHBOARD_TILE_META,
+  DASHBOARD_SELECT,
+} from "@/app/lib/dashboard-theme";
 import TileShell from "./TileShell";
 
 type Domain = { id: string; name: string };
@@ -74,7 +80,7 @@ export default function DomainPlanningTile({ category, priority }: { category: C
             e.stopPropagation();
             router.push("/domain-planning?new=1#form-section");
           }}
-          className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg transition"
+          className={DASHBOARD_BTN_VIOLET}
         >
           + Réserver un créneau
         </button>
@@ -84,7 +90,7 @@ export default function DomainPlanningTile({ category, priority }: { category: C
         <select
           value={domainId}
           onChange={(e) => setDomainId(e.target.value)}
-          className="w-full text-xs font-bold rounded-lg bg-black/40 text-white border border-white/20 px-2 py-1.5 backdrop-blur-sm"
+          className={DASHBOARD_SELECT}
         >
           {domains.length === 0 ? (
             <option value="">Chargement domaines…</option>
@@ -99,13 +105,13 @@ export default function DomainPlanningTile({ category, priority }: { category: C
         {todayForDomain.length > 0 ? (
           <div className="space-y-0.5 max-h-[72px] overflow-y-auto">
             {todayForDomain.slice(0, 4).map((b) => (
-              <p key={b.id} className="text-xs text-white/95 line-clamp-1 drop-shadow">
+              <p key={b.id} className={`${DASHBOARD_TILE_HIGHLIGHT} line-clamp-1`}>
                 {b.startsAt.split("T")[1].slice(0, 5).replace(":", "h")} — {b.activityLabel || domainName} ({b.className})
               </p>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-white/70">Aucun créneau aujourd&apos;hui pour ce domaine</p>
+          <p className={DASHBOARD_TILE_META}>Aucun créneau aujourd&apos;hui pour ce domaine</p>
         )}
       </div>
     </TileShell>

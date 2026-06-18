@@ -38,3 +38,20 @@ export function tripsToday(trips: TripIndexRow[]): TripIndexRow[] {
   const today = parisDateKey(new Date());
   return trips.filter((t) => isTripOnDay(t, today));
 }
+
+export function tripsThisWeek(trips: TripIndexRow[]): TripIndexRow[] {
+  const keys = new Set<string>();
+  const base = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    keys.add(parisDateKey(d));
+  }
+  return trips
+    .filter((t) => [...keys].some((day) => isTripOnDay(t, day)))
+    .sort((a, b) => {
+      const da = parseDay(a.data?.date || a.data?.startDate) || "";
+      const db = parseDay(b.data?.date || b.data?.startDate) || "";
+      return da.localeCompare(db);
+    });
+}

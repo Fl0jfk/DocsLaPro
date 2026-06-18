@@ -9,6 +9,8 @@ export const SCHOOL = {
     fullCompact: "6 rue de Neuvillette · 76240 Le Mesnil-Esnard",
     mapsEmbed:"https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2596.094939189387!2d1.1363342768705298!3d49.407110261934506!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e0ded159510c6f%3A0x5f13891b9b6ad8fa!2s6%20Rue%20de%20Neuvillette%2C%2076240%20Le%20Mesnil-Esnard!5e0!3m2!1sfr!2sfr!4v1774430884088!5m2!1sfr!2sfr",
     mapsItinerary:"https://www.google.com/maps/dir/?api=1&destination=6+Rue+de+Neuvillette,+76240+Le+Mesnil-Esnard",
+    latitude: 49.4071,
+    longitude: 1.1363,
   },
   phone: {
     display: "02 32 86 50 90",

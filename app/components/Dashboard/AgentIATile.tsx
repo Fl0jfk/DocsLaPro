@@ -6,19 +6,21 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Categories } from "@/app/contexts/data";
 import { stageDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
+import {
+  DASHBOARD_ENTER_CTA,
+  DASHBOARD_ROW_SHELL,
+} from "@/app/lib/dashboard-theme";
 
 function DropSlot({
   label,
   hint,
   badge,
-  badgeClass,
   multiple,
   onFiles,
 }: {
   label: string;
   hint: string;
   badge: string;
-  badgeClass: string;
   multiple?: boolean;
   onFiles: (files: FileList) => void;
 }) {
@@ -43,8 +45,10 @@ function DropSlot({
         setDrag(false);
         if (e.dataTransfer.files?.length) onFiles(e.dataTransfer.files);
       }}
-      className={`flex-1 min-h-[88px] rounded-xl border-2 border-dashed p-2 text-center transition cursor-pointer ${
-        drag ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white/95 hover:border-violet-300"
+      className={`min-h-[4.5rem] flex-1 cursor-pointer rounded-xl border-2 border-dashed p-2 text-center transition ${
+        drag
+          ? "border-[var(--dash-bright)] bg-[color:var(--dash-soft-muted)]"
+          : "border-[color:var(--dash-border)]/80 bg-white/80 hover:border-[color:var(--dash-primary)]/35"
       }`}
     >
       <input
@@ -58,11 +62,11 @@ function DropSlot({
           e.target.value = "";
         }}
       />
-      <span className={`inline-block mb-1 px-1.5 py-0.5 text-[9px] font-black uppercase rounded-full ${badgeClass}`}>
+      <span className="mb-1 inline-block rounded-full bg-[color:var(--dash-soft)] px-1.5 py-0.5 text-[9px] font-black uppercase text-[var(--dash-primary)]">
         {badge}
       </span>
-      <p className="text-[11px] font-bold text-slate-800 leading-tight">{label}</p>
-      <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{hint}</p>
+      <p className="text-[11px] font-bold leading-tight text-[#14231A]">{label}</p>
+      <p className="mt-0.5 text-[10px] leading-snug text-stone-500">{hint}</p>
     </div>
   );
 }
@@ -77,45 +81,53 @@ export default function AgentIATile({ category, priority }: { category: Categori
   };
 
   return (
-    <div className="bg-white border shadow-xs hover:shadow-lg border-gray-200 flex flex-col h-[350px] md:max-lg:h-[300px] sm:max-md:h-[450px] min-w-[250px] rounded-3xl m-3 relative overflow-hidden transition-transform duration-300 ease-in-out xl:hover:scale-[1.02]">
-      <Link href={category.link} className="absolute inset-0 z-0 h-[55%]">
-        <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black/70 to-transparent z-[1] pointer-events-none" />
-        {category.img && (
-          <Image
-            src={category.img}
-            fill
-            alt={category.name}
-            sizes="35vw"
-            priority={isPriorityImage}
-            className="object-contain pointer-events-none"
-          />
-        )}
-        <p className="absolute bottom-3 left-4 z-[2] text-xl font-bold text-white drop-shadow">
-          {category.name}
-        </p>
-      </Link>
-
-      <div className="relative z-[3] mt-auto p-3 pt-2 space-y-2 pointer-events-auto">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 text-center">
-          Glisser-déposer un PDF
-        </p>
-        <div className="flex gap-2">
-          <DropSlot
-            badge="Unité"
-            badgeClass="bg-blue-100 text-blue-800"
-            label="PDF unité"
-            hint="1 élève = 1 PDF"
-            multiple
-            onFiles={(files) => goWithFiles("standard", files)}
-          />
-          <DropSlot
-            badge="Découpage"
-            badgeClass="bg-violet-100 text-violet-800"
-            label="Bloc PDF"
-            hint="Export classe, découpe IA"
-            onFiles={(files) => goWithFiles("class", files)}
-          />
+    <div className={`${DASHBOARD_ROW_SHELL} flex-col`}>
+      <div className="flex min-h-[6.5rem] flex-row">
+        <Link
+          href={category.link}
+          className="relative w-24 shrink-0 overflow-hidden bg-[color:var(--dash-soft)]/50 sm:w-28"
+        >
+          {category.img ? (
+            <Image
+              src={category.img}
+              alt=""
+              fill
+              sizes="112px"
+              priority={isPriorityImage}
+              className="object-cover transition duration-500 group-hover:scale-105"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
+        </Link>
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-4 py-3">
+          <Link
+            href={category.link}
+            className="text-base font-black text-[#14231A] transition hover:text-[var(--dash-primary)] sm:text-lg"
+          >
+            {category.name}
+          </Link>
+          <p className="text-xs text-stone-500">Déposez un PDF pour lancer l&apos;OCR directement</p>
         </div>
+        <div className="flex shrink-0 items-center p-3 sm:pl-0">
+          <Link href={category.link} className={DASHBOARD_ENTER_CTA}>
+            Ouvrir <span aria-hidden>→</span>
+          </Link>
+        </div>
+      </div>
+      <div className="flex gap-2 border-t border-[color:var(--dash-border)]/80 bg-[color:var(--dash-soft-muted)]/25 p-3">
+        <DropSlot
+          badge="Unité"
+          label="PDF unité"
+          hint="1 élève = 1 PDF"
+          multiple
+          onFiles={(files) => goWithFiles("standard", files)}
+        />
+        <DropSlot
+          badge="Découpage"
+          label="Bloc PDF"
+          hint="Export classe, découpe IA"
+          onFiles={(files) => goWithFiles("class", files)}
+        />
       </div>
     </div>
   );

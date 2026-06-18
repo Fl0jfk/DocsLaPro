@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Categories } from "@/app/contexts/data";
+import {
+  DASHBOARD_BTN_EMERALD,
+  DASHBOARD_TILE_HIGHLIGHT,
+  DASHBOARD_TILE_META,
+  DASHBOARD_TILE_META_STRONG,
+  DASHBOARD_SELECT,
+} from "@/app/lib/dashboard-theme";
 import TileShell from "./TileShell";
 
 type Room = { id: string; name: string };
@@ -75,7 +82,7 @@ export default function ProfRoomTile({ category, priority }: { category: Categor
             e.stopPropagation();
             router.push("/prof-room?new=1#form-section");
           }}
-          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-lg transition"
+          className={DASHBOARD_BTN_EMERALD}
         >
           + Faire une réservation
         </button>
@@ -85,7 +92,7 @@ export default function ProfRoomTile({ category, priority }: { category: Categor
         <select
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
-          className="w-full text-xs font-bold rounded-lg bg-black/40 text-white border border-white/20 px-2 py-1.5 backdrop-blur-sm"
+          className={DASHBOARD_SELECT}
         >
           {rooms.length === 0 ? (
             <option value="">Chargement salles…</option>
@@ -100,13 +107,13 @@ export default function ProfRoomTile({ category, priority }: { category: Categor
         {todayForRoom.length > 0 ? (
           <div className="space-y-0.5 max-h-[72px] overflow-y-auto">
             {todayForRoom.slice(0, 4).map((r) => (
-              <p key={r.id} className="text-xs text-white/95 line-clamp-1 drop-shadow">
+              <p key={r.id} className={`${DASHBOARD_TILE_HIGHLIGHT} line-clamp-1`}>
                 {r.startsAt.split("T")[1].slice(0, 5).replace(":", "h")} — {r.subject} ({r.className})
               </p>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-white/70">Aucune réservation aujourd&apos;hui pour cette salle</p>
+          <p className={DASHBOARD_TILE_META}>Aucune réservation aujourd&apos;hui pour cette salle</p>
         )}
       </div>
     </TileShell>

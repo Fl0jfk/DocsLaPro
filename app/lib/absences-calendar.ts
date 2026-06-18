@@ -1,3 +1,4 @@
+import { getPublicAbsenceReason } from "@/app/lib/absences-privacy";
 import { resolveAbsenceScope, type AbsenceRecord } from "@/app/lib/absences-types";
 
 export type CalendarEvent = {
@@ -50,11 +51,10 @@ export function absencesToCalendarEvents(
   items: AbsenceRecord[],
   opts?: { includeDocumentsFor?: (item: AbsenceRecord) => boolean },
 ): CalendarEvent[] {
-  const visible = items.filter((item) => item.calendarVisible);
   const out: CalendarEvent[] = [];
   const includeDocumentsFor = opts?.includeDocumentsFor ?? (() => true);
 
-  for (const item of visible) {
+  for (const item of items) {
     const start = new Date(item.data.startAt);
     const end = new Date(item.data.endAt);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || +end <= +start) continue;
@@ -90,7 +90,7 @@ export function absencesToCalendarEvents(
         id: item.id,
         displayName: item.displayName,
         scope,
-        reason: item.data.reason,
+        reason: getPublicAbsenceReason(item),
         startAt,
         endAt,
         hasDocument: documentCount > 0,

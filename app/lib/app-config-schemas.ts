@@ -1,10 +1,12 @@
-/** Types et parseurs légers pour la configuration intranet (sans dépendance externe). */
+import { parseDashboardAccent } from "@/app/lib/dashboard-brand-presets";
 
 export type SiteIdentity = {
   name: string;
   shortName?: string;
   /** Logo affiché en haut à gauche (URL publique S3). */
   headerLogoUrl?: string;
+  /** Couleur d'accent du tableau de bord (vert, bleu, rose…). */
+  dashboardAccent?: string;
   address?: {
     street?: string;
     city?: string;
@@ -182,6 +184,7 @@ export function parseSiteIdentity(raw: unknown): SiteIdentity {
     preinscriptionUrl: str(o.preinscriptionUrl) || undefined,
     reglementFinancier: str(o.reglementFinancier) || undefined,
     headerLogoUrl: str(o.headerLogoUrl).trim() || undefined,
+    dashboardAccent: parseDashboardAccent(o.dashboardAccent),
   };
 }
 

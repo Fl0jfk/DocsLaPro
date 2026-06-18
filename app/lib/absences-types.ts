@@ -48,6 +48,10 @@ export type AbsenceRecord = {
   managerNote?: string;
   hoursTreatment?: AbsenceHoursTreatment | null;
   justificatifRelanceAt?: string | null;
+  /** Motif masqué au calendrier (RGPD). */
+  privacyReasonRedacted?: boolean;
+  /** Date de suppression des pièces jointes sensibles. */
+  privacyDocumentsPurgedAt?: string | null;
   history: Array<{
     at: string;
     by: string;
@@ -120,7 +124,7 @@ export function getRoleFlags(roles: string[]) {
     isDirectionEcole: hasToken("direction ecole") || hasRole(roles, "directionecole"),
     isDirectionCollege: hasToken("direction college") || hasRole(roles, "directioncollege"),
     isDirectionLycee: hasToken("direction lycee") || hasRole(roles, "directionlycee"),
-    isCompta: hasToken("compta"),
+    isCompta: hasToken("compta") || hasToken("comptabilite") || hasRole(roles, "comptabilite"),
     isAdministratif: hasToken("administratif"),
     isEducation: hasToken("education"),
   };
@@ -148,6 +152,31 @@ export function resolveAbsenceScope(abs: AbsenceRecord): AbsenceScope {
   if (abs.data.etablissement) return "professeur";
   if (abs.source === "admin_manual" || abs.source === "admin_pdf") return "professeur";
   return "ogec";
+}
+
+/** Qui peut consulter les absences du personnel OGEC (hors les siennes). */
+export function canViewOgecAbsences(roles: string[]) {
+  const flags = getRoleFlags(roles);
+  return (
+    flags.isAdministratif ||
+    flags.isCompta ||
+    flags.isDirectionEcole ||
+    flags.isDirectionCollege ||
+    flags.isDirectionLycee
+  );
+}
+
+/** Visible sur le calendrier pour le viewer. */
+export function isAbsenceVisibleOnCalendar(
+  abs: AbsenceRecord,
+  viewerUserId: string,
+  roles: string[],
+) {
+  if (abs.managerDecision === "REFUSEE") return false;
+  if (abs.calendarVisible) return true;
+  if (abs.createdBy.userId === viewerUserId) return true;
+  if (resolveAbsenceScope(abs) === "ogec") return canViewOgecAbsences(roles);
+  return false;
 }
 
 /** Pièces jointes absences personnel OGEC : compta et direction uniquement (jamais administratif). */
@@ -206,7 +235,7 @@ export function canViewAbsence(abs: AbsenceRecord, viewerUserId: string, roles: 
   const flags = getRoleFlags(roles);
   const scope = resolveAbsenceScope(abs);
   if (scope === "ogec") {
-    return flags.isDirectionLycee;
+    return canViewOgecAbsences(roles);
   }
   if (flags.isAdministratif || flags.isEducation) return true;
   if (abs.data.etablissement === "École") return flags.isDirectionEcole;

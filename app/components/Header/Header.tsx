@@ -5,6 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
+import { useAdminBootstrap } from "@/app/contexts/admin-bootstrap";
+import { dashboardBrandCssVars, parseDashboardAccent } from "@/app/lib/dashboard-brand-presets";
+import { SCOLA_HEADER_ACCENT } from "@/app/lib/marketing-theme";
 import Logo from "../../../public/Logo header.png";
 
 const MOBILE_MODULE_LINKS = [
@@ -61,34 +64,14 @@ function UserPopover({ onClose }: { onClose: () => void }) {
   );
 }
 
-type SitePublicIdentity = {
-  name?: string;
-  shortName?: string;
-  headerLogoUrl?: string | null;
-};
-
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [siteIdentity, setSiteIdentity] = useState<SitePublicIdentity | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { isSignedIn } = useUser();
   const { signOut, openUserProfile } = useClerk();
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/site/public", { cache: "no-store" });
-        const data = await res.json();
-        if (!cancelled && res.ok) setSiteIdentity(data);
-      } catch {
-        /* garde le logo par défaut */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const { appContext, sitePublic: siteIdentity, loading: bootstrapLoading } = useAdminBootstrap();
 
   useEffect(() => { setMobileOpen(false); setPopoverOpen(false); }, [pathname]);
   useEffect(() => {
@@ -106,26 +89,62 @@ export default function Header() {
   }, []);
 
   const isDashboard = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const dashVars = isDashboard
+    ? dashboardBrandCssVars(parseDashboardAccent(appContext?.identity?.dashboardAccent))
+    : null;
   const homeHref = isSignedIn ? "/dashboard" : "/";
-  const logoAlt = siteIdentity?.shortName || siteIdentity?.name || "La Providence Nicolas Barré";
+  const logoAlt = siteIdentity?.shortName || siteIdentity?.name || "Établissement";
   const customLogoUrl = siteIdentity?.headerLogoUrl?.trim() || "";
 
   return (
     <>
-      <header className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 print:!hidden">
+      <header
+        className={`relative sticky top-0 z-50 border-b bg-white/90 backdrop-blur-md print:!hidden ${
+          isDashboard ? "" : "border-emerald-200/50"
+        }`}
+        style={
+          isDashboard && dashVars
+            ? { borderBottomColor: dashVars["--dash-border"] }
+            : undefined
+        }
+      >
+        <div
+          className={
+            isDashboard && dashVars
+              ? "pointer-events-none absolute inset-x-0 bottom-0 h-px"
+              : SCOLA_HEADER_ACCENT
+          }
+          style={
+            isDashboard && dashVars
+              ? {
+                  background: `linear-gradient(to right, transparent, ${dashVars["--dash-bright"]}80, transparent)`,
+                }
+              : undefined
+          }
+          aria-hidden
+        />
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <Link href={homeHref} className="hover:opacity-75 transition flex-shrink-0 relative">
-            <div className="w-[110px] h-[110px]">
-              {customLogoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={customLogoUrl}
-                  alt={logoAlt}
-                  className="absolute top-7 left-[-20px] sm:left-0 max-h-[72px] w-auto object-contain"
-                />
-              ) : (
-                <Image src={Logo} alt={logoAlt} width={300} height={300} className="absolute top-7 left-[-20px] sm:left-0" />
-              )}
+          <Link href={homeHref} className="group flex shrink-0 items-center transition hover:opacity-90">
+            <div className="flex h-10 shrink-0 items-center justify-center min-w-[56px]">
+              {!bootstrapLoading &&
+                (customLogoUrl ? (
+                  <Image
+                    src={customLogoUrl}
+                    alt={logoAlt}
+                    width={180}
+                    height={48}
+                    unoptimized
+                    className="max-h-12 max-w-[180px] h-auto w-auto object-contain [image-rendering:auto]"
+                  />
+                ) : (
+                  <Image
+                    src={Logo}
+                    alt={logoAlt}
+                    width={56}
+                    height={56}
+                    className="drop-shadow-[0_3px_10px_rgba(47,107,74,0.22)]"
+                  />
+                ))}
             </div>
           </Link>
 

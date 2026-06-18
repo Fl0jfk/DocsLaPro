@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import LandingPage from "./components/landing/LandingPage";
 
 export const metadata: Metadata = {
-  title: "DocsLaPro — Plateforme intranet pour établissements scolaires",
+  title: "Scola — Intranet tout-en-un pour établissements scolaires",
   description:
-    "Centralisez documents, RH, sorties, absences, réservations et communication interne dans un seul espace sécurisé par rôles.",
+    "Workflows documents élèves, sorties, absences, RH, internat… Un abonnement tout inclus. Hébergement France.",
 };
 
 export default async function HomePage() {
