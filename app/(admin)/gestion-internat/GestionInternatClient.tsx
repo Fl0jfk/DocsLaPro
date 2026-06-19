@@ -23,7 +23,7 @@ import {
   rolesFromMetadata,
 } from "@/app/lib/internat-rbac";
 import type { InternatDashboardStats } from "@/app/lib/internat-stats";
-import type { InternatRoom, InternatStudent } from "@/app/lib/internat-types";
+import type { InternatBuilding, InternatRoom, InternatStudent } from "@/app/lib/internat-types";
 
 const TAB_IDS: InternatTab[] = [
   "dashboard",
@@ -58,6 +58,7 @@ export default function GestionInternatClient() {
   const canManage = isOrgAdmin || canManageInternatConfig(roles);
 
   const [rooms, setRooms] = useState<InternatRoom[]>([]);
+  const [buildings, setBuildings] = useState<InternatBuilding[]>([]);
   const [students, setStudents] = useState<InternatStudent[]>([]);
   const [stats, setStats] = useState<InternatDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,10 @@ export default function GestionInternatClient() {
     const roomsData = await roomsRes.json();
     const studentsData = await studentsRes.json();
     const statsData = await statsRes.json();
-    if (roomsRes.ok) setRooms(roomsData.rooms || []);
+    if (roomsRes.ok) {
+      setRooms(roomsData.rooms || []);
+      setBuildings(roomsData.buildings || []);
+    }
     if (studentsRes.ok) setStudents(studentsData.students || []);
     if (statsRes.ok) setStats(statsData.stats || null);
   }, []);
@@ -115,10 +119,22 @@ export default function GestionInternatClient() {
         <>
           {activeTab === "dashboard" && <InternatDashboardPanel stats={stats} />}
           {activeTab === "chambres" && (
-            <InternatRoomsPanel rooms={rooms} students={students} canManage={canManage} onRefresh={refresh} />
+            <InternatRoomsPanel
+              rooms={rooms}
+              buildings={buildings}
+              students={students}
+              canManage={canManage}
+              onRefresh={refresh}
+            />
           )}
           {activeTab === "internes" && (
-            <InternatStudentsPanel students={students} rooms={rooms} canManage={canManage} onRefresh={refresh} />
+            <InternatStudentsPanel
+              students={students}
+              rooms={rooms}
+              buildings={buildings}
+              canManage={canManage}
+              onRefresh={refresh}
+            />
           )}
           {activeTab === "sorties" && <InternatOutingsPanel students={students} canManage={canManage} />}
           {activeTab === "appel" && <InternatRollCallPanel onRefresh={refresh} />}

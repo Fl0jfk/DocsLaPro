@@ -26,6 +26,7 @@ export const BENTO_DEFAULT_ORDER: string[] = [
   "domain-planning",
   "covoiturage",
   "demandes-hse",
+  "assistance",
 ];
 
 export const BENTO_MODULE_SORT: Record<string, number> = {
@@ -46,6 +47,7 @@ export const BENTO_MODULE_SORT: Record<string, number> = {
   "photocopies-couleur": 15,
   "chatbot-knowledge": 16,
   "demandes-hse": 17,
+  assistance: 18,
 };
 
 export function getBentoModuleSort(moduleId: string): number {

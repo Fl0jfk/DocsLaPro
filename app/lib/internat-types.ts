@@ -14,6 +14,7 @@ export type InternatAlertSeverity = "info" | "urgent" | "critique";
 
 export const INTERNAT_S3 = {
   rooms: "internat/rooms.json",
+  buildings: "internat/buildings.json",
   students: "internat/students.json",
   activities: "internat/activities.json",
   rollCallPrefix: "internat/roll-calls/",
@@ -28,10 +29,31 @@ export const INTERNAT_S3 = {
   moduleConfig: "settings/modules/internat.json",
 } as const;
 
+export type InternatFloor = {
+  id: string;
+  /** Ex. « Rez-de-chaussée », « 1er étage » */
+  label: string;
+  sortOrder: number;
+  /** Étage utilisé pour loger des internes (sinon structure seulement). */
+  inUse: boolean;
+  notes?: string;
+};
+
+export type InternatBuilding = {
+  id: string;
+  label: string;
+  floors: InternatFloor[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type InternatRoom = {
   id: string;
   label: string;
   capacity: 2 | 3;
+  buildingId?: string;
+  floorId?: string;
   wing?: InternatWing;
   notes?: string;
   createdAt: string;
@@ -303,4 +325,39 @@ export function emptyRollCall(date: string, period: InternatRollCallPeriod = "so
 
 export function studentDisplayName(s: InternatStudent) {
   return `${s.eleveRef.prenom} ${s.eleveRef.nom}`.trim();
+}
+
+export function sortInternatFloors(floors: InternatFloor[]): InternatFloor[] {
+  return [...floors].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, "fr"),
+  );
+}
+
+export function findInternatBuilding(
+  buildings: InternatBuilding[],
+  buildingId: string | undefined | null,
+): InternatBuilding | undefined {
+  if (!buildingId) return undefined;
+  return buildings.find((b) => b.id === buildingId);
+}
+
+export function findInternatFloor(
+  buildings: InternatBuilding[],
+  buildingId: string | undefined | null,
+  floorId: string | undefined | null,
+): InternatFloor | undefined {
+  const building = findInternatBuilding(buildings, buildingId);
+  if (!building || !floorId) return undefined;
+  return building.floors.find((f) => f.id === floorId);
+}
+
+export function roomLocationLabel(buildings: InternatBuilding[], room: InternatRoom): string {
+  const building = findInternatBuilding(buildings, room.buildingId);
+  const floor = findInternatFloor(buildings, room.buildingId, room.floorId);
+  const parts = [building?.label, floor?.label].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Non classée";
+}
+
+export function usableInternatFloors(building: InternatBuilding): InternatFloor[] {
+  return sortInternatFloors(building.floors).filter((f) => f.inUse);
 }

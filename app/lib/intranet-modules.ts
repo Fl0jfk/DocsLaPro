@@ -357,6 +357,19 @@ export const INTRANET_MODULES: IntranetModule[] = [
     },
   },
   {
+    id: "assistance",
+    pathPrefixes: ["/assistance", "/api/assistance"],
+    allowedRoles: [...ROLES_EXCEPT_PARENT],
+    dashboard: {
+      id: 27,
+      name: "Assistance",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
+      link: "/assistance",
+      external: false,
+      description: "Signaler un problème technique",
+    },
+  },
+  {
     id: "dashboard-academic-deadlines",
     pathPrefixes: ["/api/academic-deadlines", "/api/dashboard/academic-deadlines"],
     allowedRoles: [...DIRECTIONS, "administratif"],

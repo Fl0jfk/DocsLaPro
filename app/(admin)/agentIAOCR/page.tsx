@@ -378,15 +378,10 @@ function OneDriveUpDocsOCRAIContent() {
       const newFileName = `${ai.fileName}.pdf`;
       const targetFolderPath = ai.oneDriveFolderPath || null;
       if (!targetFolderPath) {
-        const pool = ai?.matchDebug?.elevesInPool;
-        const poolHint =
-          typeof pool === "number"
-            ? ` Liste de recherche : ${pool} élève(s).`
-            : "";
         return {
           success: false,
           error:
-            `Aucun élève trouvé — le fichier est dans Temp.${poolHint} Rangez-le à la main ou repassez-le en mode Standard.`,
+            "Élève non identifié — le fichier reste dans le dossier Temp. Rangez-le à la main dans le dossier élève, ou repassez-le en mode Standard (un PDF = un document).",
           fileName: displayName,
           result: ai,
           tempOneDrivePath: sourcePath,
@@ -561,18 +556,10 @@ function OneDriveUpDocsOCRAIContent() {
           const ai = await r4.json();
 
           if (!ai?.fileName || !ai.oneDriveFolderPath) {
-            const pool = ai?.matchDebug?.elevesInPool;
-            const poolHint =
-              typeof pool === "number"
-                ? ` Liste de recherche : ${pool} élève(s).`
-                : "";
-            const profileHint = ai?.matchDebug?.hasOneDriveProfile === false
-              ? " Profil OneDrive non reconnu pour votre compte Clerk."
-              : "";
             results.push({
               success: false,
               error:
-                `Élève non identifié — le document découpé est dans Temp.${poolHint}${profileHint} Rangez-le à la main ou repassez-le en mode Standard.`,
+                "Élève non identifié sur ce segment — le PDF découpé reste dans Temp. Rangez-le à la main ou repassez-le en mode Standard.",
               fileName: label,
               result: ai,
               tempOneDrivePath: tempSegPath,
@@ -832,7 +819,8 @@ function OneDriveUpDocsOCRAIContent() {
     );
   }
 
-  const dropDisabled = ocrProcessing || checkingOneDrive;
+  const dropsAvailable = oneDriveVerified && Boolean(accessToken);
+  const dropDisabled = !dropsAvailable || ocrProcessing || checkingOneDrive;
   const progressPercent =
     processingStatus.total > 0
       ? ((processingStatus.completed + processingStatus.failed) /
@@ -840,11 +828,32 @@ function OneDriveUpDocsOCRAIContent() {
         100
       : 0;
 
-  const dropZoneClass = (active: boolean, variant: "blue" | "violet") =>
-    `relative overflow-hidden border-2 border-dashed rounded-3xl p-10 text-center transition-all duration-300 group
+  const dropZoneClass = (active: boolean, variant: "blue" | "violet") => {
+    if (!dropsAvailable) {
+      return "relative overflow-hidden border-2 border-dashed rounded-3xl p-10 text-center border-slate-200 bg-slate-50/90 cursor-not-allowed opacity-80";
+    }
+    return `relative overflow-hidden border-2 border-dashed rounded-3xl p-10 text-center transition-all duration-300 group
     ${active ? (variant === "violet" ? "border-violet-600 bg-violet-50 scale-[1.01]" : "border-blue-600 bg-blue-50 scale-[1.01]") : "border-gray-300 bg-white hover:border-blue-400 hover:bg-gray-50"}
     ${dropDisabled ? "opacity-60 cursor-not-allowed shadow-none" : "cursor-pointer shadow-lg hover:shadow-xl"}
     ${ocrProcessing ? "ring-4 ring-blue-400/40 border-blue-500 bg-blue-50/80" : ""}`;
+  };
+
+  const failureHint = (result: ProcessResult): string => {
+    const err = (result.error || "").toLowerCase();
+    if (err.includes("élève") || err.includes("eleve") || err.includes("identifi")) {
+      return "Le nom ou prénom de l'élève n'a pas été reconnu clairement dans le document.";
+    }
+    if (err.includes("incomplet") || err.includes("filename")) {
+      return "Le type de document ou les informations attendues (classe, date…) n'ont pas pu être lues.";
+    }
+    if (err.includes("ocr") || err.includes("texte")) {
+      return "Le texte du PDF est illisible ou trop pauvre pour une analyse fiable.";
+    }
+    if (err.includes("déplacé") || err.includes("deplace") || err.includes("folder")) {
+      return "Le dossier de destination n'a pas pu être créé ou atteint sur OneDrive.";
+    }
+    return "Le rangement automatique n'a pas abouti pour ce fichier.";
+  };
 
   const failedResults = ocrResults.filter((r) => !r.success);
 
@@ -863,10 +872,10 @@ function OneDriveUpDocsOCRAIContent() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-            IA Scanner & OneDrive
+            Ajout de documents IA
           </h1>
-          <p className="text-gray-500">
-            Automatisez le rangement de vos documents par élève.
+          <p className="text-gray-500 mt-1">
+            Numérisez et rangez vos PDF dans les dossiers élèves sur OneDrive.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -874,14 +883,7 @@ function OneDriveUpDocsOCRAIContent() {
             <span className="px-4 py-2 bg-green-50 text-green-800 text-sm font-bold rounded-xl border border-green-200">
               OneDrive connecté
             </span>
-          ) : (
-            <button
-              onClick={login}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2"
-            >
-              <span>🔌</span> Se connecter à OneDrive
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -892,136 +894,39 @@ function OneDriveUpDocsOCRAIContent() {
         </div>
       )}
 
-      <div className="mb-8 bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-        <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-          📋 Liste des élèves (S3)
-        </h4>
-        <p className="text-sm text-gray-500 mb-4">
-          Liste élèves : <code className="text-xs bg-gray-100 px-1 rounded">ine</code>,{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">nom</code>,{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">prenom</code>,{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">folderName</code>,{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">mef</code> (code formation de la classe, export
-          Pronote / SI scolarité).
-          {elevesCount != null && (
-            <span className="ml-2 font-medium text-gray-700">
-              — {elevesCount} élève(s) au total.
-            </span>
-          )}
-        </p>
-        <p className="text-sm text-gray-500 mb-4">
-          Table MEF : aussi modifiable dans{" "}
-          <a href="/parametres" className="text-indigo-600 font-medium hover:underline">
-            Paramètres → Formations MEF
-          </a>
-          . Ou upload ici : un JSON avec les libellés par secteur —{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">lycee</code>,{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">college</code>,{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">ecole</code> (tableaux de chaînes). Le secteur de
-          chaque élève = son <code className="text-xs bg-gray-100 px-1 rounded">mef</code> comparé à cette table
-          (plus de devinette sur « 2A »).
-          {mefCounts != null && mefCounts.total > 0 && (
-            <span className="ml-2 font-medium text-gray-700">
-              — {mefCounts.total} code(s) MEF ({mefCounts.lycee} lycée, {mefCounts.college} collège,{" "}
-              {mefCounts.ecole} école).
-            </span>
-          )}
-        </p>
-        <pre className="text-xs bg-slate-100 rounded-lg p-3 mb-4 overflow-x-auto text-slate-600">
-{`{
-  "lycee": ["01234567890123", "09876543210987"],
-  "college": ["11111111111111"],
-  "ecole": ["22222222222222"]
-}`}
-        </pre>
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4">
-          Chaque secrétariat ne synchronise que <strong>son</strong> OneDrive. Avec la table MEF, seuls les élèves
-          dont le <code className="text-xs">mef</code> est listé pour votre secteur sont pris en compte — « 2A » dans
-          le nom du dossier ne sert qu’au libellé OneDrive.
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={elevesUploading}
-            onClick={() => elevesInputRef.current?.click()}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-          >
-            {elevesUploading ? "Envoi…" : "Remplacer la liste (.json)"}
-          </button>
-          <button
-            type="button"
-            disabled={mefUploading}
-            onClick={() => mefInputRef.current?.click()}
-            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-          >
-            {mefUploading ? "Envoi…" : "Table MEF secteurs (.json)"}
-          </button>
-          <button
-            type="button"
-            disabled={syncingFolders || checkingOneDrive}
-            onClick={handleSyncOneDriveFolders}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-          >
-            {syncingFolders ? "Synchronisation…" : "Synchroniser dossiers OneDrive"}
-          </button>
-          <input
-            ref={elevesInputRef}
-            type="file"
-            accept=".json,application/json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleElevesUpload(f);
-            }}
-          />
-          <input
-            ref={mefInputRef}
-            type="file"
-            accept=".json,application/json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleMefUpload(f);
-            }}
-          />
-        </div>
-        {mefMessage && (
-          <p
-            className={`mt-2 text-sm ${mefMessage.startsWith("Erreur") ? "text-red-600" : "text-slate-700"}`}
-          >
-            {mefMessage}
-          </p>
-        )}
-        {elevesMessage && (
-          <p
-            className={`mt-3 text-sm ${elevesMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}
-          >
-            {elevesMessage}
-          </p>
-        )}
-        {syncReport && (
-          <div className="mt-4 p-4 bg-slate-50 rounded-xl text-sm text-slate-700 space-y-1">
-            <p>
-              <strong>{syncReport.secteurLabel}</strong> — {syncReport.basePath}
+      <div
+        className={`mb-8 rounded-3xl border p-5 md:p-6 ${
+          dropsAvailable
+            ? "border-green-200 bg-green-50/60"
+            : "border-amber-200 bg-amber-50/80"
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+              Étape 1 — Connexion
             </p>
-            <p>
-              JSON pour votre secteur : {syncReport.jsonForYourSecteur} · Créés : {syncReport.created} · Déjà
-              là : {syncReport.alreadyThere}
+            <h2 className="text-lg font-bold text-slate-900">
+              {dropsAvailable ? "OneDrive est connecté" : "Connectez-vous à OneDrive"}
+            </h2>
+            <p className="text-sm text-slate-600 mt-1 max-w-xl">
+              {dropsAvailable
+                ? account?.name
+                  ? `Compte : ${account.name}. Vous pouvez déposer vos PDF ci-dessous.`
+                  : "Vous pouvez déposer vos PDF ci-dessous."
+                : "La connexion Microsoft est obligatoire avant tout dépôt. Sans OneDrive, l'analyse et le rangement ne sont pas possibles."}
             </p>
-            {syncReport.otherSecteurCounts && (
-              <p className="text-xs text-slate-500">
-                Autres secteurs (non synchronisés chez vous) — Lycée :{" "}
-                {syncReport.otherSecteurCounts.lycee}, Collège : {syncReport.otherSecteurCounts.college}, École :{" "}
-                {syncReport.otherSecteurCounts.ecole}
-              </p>
-            )}
-            {(syncReport.ambiguous?.length ?? 0) > 0 && (
-              <p className="text-xs text-amber-700">
-                {syncReport.ambiguous?.length} élève(s) non classés (MEF manquant ou absent de la table).
-              </p>
-            )}
           </div>
-        )}
+          {!dropsAvailable && (
+            <button
+              type="button"
+              onClick={login}
+              className="shrink-0 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all"
+            >
+              Se connecter à OneDrive
+            </button>
+          )}
+        </div>
       </div>
 
       <>
@@ -1056,6 +961,17 @@ function OneDriveUpDocsOCRAIContent() {
               </div>
             </div>
           )}
+
+          <div className="mb-4">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+              Étape 2 — Dépôt des PDF
+            </p>
+            <p className="text-sm text-slate-600">
+              {dropsAvailable
+                ? "Choisissez la zone adaptée à vos fichiers."
+                : "Les zones ci-dessous restent désactivées tant que OneDrive n'est pas connecté."}
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div
@@ -1094,18 +1010,22 @@ function OneDriveUpDocsOCRAIContent() {
                 )}
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-2">
-                {checkingOneDrive
-                  ? "Vérification OneDrive…"
-                  : ocrProcessing
-                    ? "Analyse en cours…"
-                    : "Un PDF = un document"}
+                {!dropsAvailable
+                  ? "Connexion OneDrive requise"
+                  : checkingOneDrive
+                    ? "Vérification OneDrive…"
+                    : ocrProcessing
+                      ? "Analyse en cours…"
+                      : "Un PDF = un document"}
               </h3>
               <p className="text-sm text-gray-500">
-                {checkingOneDrive
-                  ? "Connexion Microsoft vérifiée avant tout traitement."
-                  : ocrProcessing
-                    ? "Traitement en cours — patientez."
-                    : "Fichiers déjà séparés (un élève par PDF). La connexion OneDrive est vérifiée dès le dépôt."}
+                {!dropsAvailable
+                  ? "Connectez-vous à l'étape 1 pour débloquer le dépôt de fichiers."
+                  : checkingOneDrive
+                    ? "Connexion Microsoft vérifiée avant tout traitement."
+                    : ocrProcessing
+                      ? "Traitement en cours — patientez."
+                      : "Un fichier PDF par élève (bulletin, courrier…). Glissez-déposez ou cliquez pour choisir."}
               </p>
               <input
                 ref={standardInputRef}
@@ -1157,18 +1077,22 @@ function OneDriveUpDocsOCRAIContent() {
                 )}
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-2">
-                {checkingOneDrive
-                  ? "Vérification OneDrive…"
-                  : ocrProcessing
-                    ? "Analyse en cours…"
-                    : "Export classe entière"}
+                {!dropsAvailable
+                  ? "Connexion OneDrive requise"
+                  : checkingOneDrive
+                    ? "Vérification OneDrive…"
+                    : ocrProcessing
+                      ? "Analyse en cours…"
+                      : "Export classe entière"}
               </h3>
               <p className="text-sm text-gray-500">
-                {checkingOneDrive
-                  ? "Connexion Microsoft vérifiée avant tout traitement."
-                  : ocrProcessing
-                    ? "Découpe et rangement en cours…"
-                    : "Un PDF multi-pages (ex. export classe Charlemagne). Détection, découpe et rangement par élève."}
+                {!dropsAvailable
+                  ? "Connectez-vous à l'étape 1 pour débloquer le dépôt de fichiers."
+                  : checkingOneDrive
+                    ? "Connexion Microsoft vérifiée avant tout traitement."
+                    : ocrProcessing
+                      ? "Découpe et rangement en cours…"
+                      : "Un seul PDF multi-pages (export classe). L'outil découpe et range automatiquement par élève."}
               </p>
               <input
                 ref={classInputRef}
@@ -1210,44 +1134,53 @@ function OneDriveUpDocsOCRAIContent() {
           </div>
 
           {failedResults.length > 0 && (
-            <div className="mb-8 p-6 bg-red-50 border-2 border-red-300 rounded-3xl shadow-lg">
-              <h3 className="text-lg font-black text-red-900 mb-2 flex items-center gap-2">
-                <span>⚠️</span>
+            <div className="mb-8 p-6 bg-amber-50 border-2 border-amber-300 rounded-3xl shadow-lg">
+              <h3 className="text-lg font-black text-amber-950 mb-2 flex items-center gap-2">
+                <span>📁</span>
                 {failedResults.length} document
-                {failedResults.length > 1 ? "s" : ""} non rangé
-                {failedResults.length > 1 ? "s" : ""}
+                {failedResults.length > 1 ? "s" : ""} à traiter manuellement
               </h3>
-              <p className="text-sm text-red-800 mb-4 leading-relaxed">
-                Ces documents n&apos;ont pas été rangés dans un dossier élève.
-                Les PDF <strong>déjà découpés</strong> sont dans OneDrive →{" "}
-                <code className="bg-red-100 px-1.5 py-0.5 rounded font-bold">Temp</code>{" "}
-                (un fichier par document, voir chemins ci-dessous). Le PDF classe
-                d&apos;origine n&apos;y est plus : seuls les documents à traiter
-                restent visibles.
-                <br />
-                <br />
-                Pour chaque fichier : <strong>rangez-le manuellement</strong>{" "}
-                dans le bon dossier élève, ou{" "}
-                <strong>re-déposez-le dans la zone Standard</strong> (« un PDF =
-                un document ») — ne repassez pas par Expérimental, le découpage
-                est déjà fait.
-              </p>
+              <div className="text-sm text-amber-950 mb-4 leading-relaxed space-y-3">
+                <p>
+                  Ces fichiers n&apos;ont <strong>pas pu être rangés automatiquement</strong> dans le dossier
+                  d&apos;un élève. Ils se trouvent dans le dossier{" "}
+                  <strong>Temp</strong>, à la <strong>racine de votre OneDrive</strong> (même niveau que
+                  « Documents », « Images », etc.).
+                </p>
+                <p>
+                  <strong>Pourquoi ?</strong> Le plus souvent : le nom de l&apos;élève n&apos;a pas été reconnu,
+                  le type de document est ambigu, ou le texte du PDF est illisible.
+                </p>
+                <p>
+                  <strong>Que faire ?</strong>
+                </p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>
+                    Ouvrez OneDrive → dossier <strong>Temp</strong> → déplacez le PDF dans le bon dossier élève ;
+                  </li>
+                  <li>
+                    ou repassez le fichier en mode <strong>Standard</strong> (« un PDF = un document ») si vous
+                    l&apos;avez déjà séparé ;
+                  </li>
+                  <li>
+                    n&apos;utilisez pas à nouveau le mode « Export classe » : la découpe a déjà eu lieu.
+                  </li>
+                </ul>
+              </div>
               <ul className="space-y-3">
                 {failedResults.map((r, index) => (
                   <li
                     key={index}
-                    className="p-4 bg-white rounded-xl border border-red-200"
+                    className="p-4 bg-white rounded-xl border border-amber-200"
                   >
-                    <p className="font-bold text-red-800">{r.fileName}</p>
+                    <p className="font-bold text-slate-900">{r.fileName}</p>
+                    <p className="text-sm text-slate-600 mt-1">{failureHint(r)}</p>
                     {r.tempOneDrivePath && (
-                      <p className="text-sm text-red-700 mt-1">
-                        <span className="font-semibold">Dans OneDrive :</span>{" "}
-                        <code className="bg-gray-100 px-2 py-0.5 rounded text-xs break-all">
-                          {r.tempOneDrivePath}
-                        </code>
+                      <p className="text-sm text-slate-700 mt-2">
+                        Emplacement OneDrive :{" "}
+                        <span className="font-semibold">Temp / {r.tempOneDrivePath.replace(/^Temp\//, "")}</span>
                       </p>
                     )}
-                    <p className="text-xs text-red-600 mt-2">{r.error}</p>
                   </li>
                 ))}
               </ul>
@@ -1292,21 +1225,14 @@ function OneDriveUpDocsOCRAIContent() {
                       ) : (
                         <>
                           <p className="text-sm text-red-600 mt-1 font-medium">
-                            {result.error}
+                            {failureHint(result)}
                           </p>
                           {result.tempOneDrivePath ? (
-                            <p className="text-xs text-red-800 mt-2 bg-red-100/60 p-2 rounded-lg">
-                              Dans OneDrive (Temp) :{" "}
-                              <code className="font-bold break-all">
-                                {result.tempOneDrivePath}
-                              </code>
+                            <p className="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg">
+                              Fichier dans OneDrive → dossier{" "}
+                              <strong>Temp</strong> ({result.tempOneDrivePath.replace(/^Temp\//, "")})
                             </p>
-                          ) : (
-                            <p className="text-xs text-red-700 mt-2 italic">
-                              Aucun PDF dans Temp pour cette entrée (échec avant
-                              découpe).
-                            </p>
-                          )}
+                          ) : null}
                         </>
                       )}
                     </div>
@@ -1314,6 +1240,96 @@ function OneDriveUpDocsOCRAIContent() {
               </div>
             </div>
           )}
+
+          <details className="mt-10 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden group">
+            <summary className="cursor-pointer list-none px-6 py-4 font-bold text-slate-800 hover:bg-slate-50 flex items-center justify-between gap-2">
+              <span>Configuration — liste élèves & dossiers OneDrive</span>
+              <span className="text-slate-400 text-sm font-normal group-open:rotate-180 transition-transform">
+                ▼
+              </span>
+            </summary>
+            <div className="px-6 pb-6 pt-2 border-t border-slate-100 space-y-4">
+              <p className="text-sm text-slate-600">
+                {elevesCount != null
+                  ? `${elevesCount} élève(s) enregistré(s) pour le classement automatique.`
+                  : "Chargez la liste des élèves exportée depuis votre logiciel de scolarité (fichier JSON)."}
+                {" "}
+                La table des formations (MEF) se gère dans{" "}
+                <a href="/parametres" className="text-indigo-600 font-medium hover:underline">
+                  Paramètres
+                </a>
+                .
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={elevesUploading}
+                  onClick={() => elevesInputRef.current?.click()}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+                >
+                  {elevesUploading ? "Envoi…" : "Mettre à jour la liste élèves"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!dropsAvailable || syncingFolders || checkingOneDrive}
+                  onClick={handleSyncOneDriveFolders}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+                >
+                  {syncingFolders ? "Synchronisation…" : "Créer les dossiers sur OneDrive"}
+                </button>
+                <button
+                  type="button"
+                  disabled={mefUploading}
+                  onClick={() => mefInputRef.current?.click()}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 text-sm font-bold rounded-xl"
+                >
+                  {mefUploading ? "Envoi…" : "Importer table MEF (JSON)"}
+                </button>
+                <input
+                  ref={elevesInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleElevesUpload(f);
+                  }}
+                />
+                <input
+                  ref={mefInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleMefUpload(f);
+                  }}
+                />
+              </div>
+              {elevesMessage && (
+                <p
+                  className={`text-sm ${elevesMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}
+                >
+                  {elevesMessage}
+                </p>
+              )}
+              {mefMessage && (
+                <p className={`text-sm ${mefMessage.startsWith("Erreur") ? "text-red-600" : "text-slate-700"}`}>
+                  {mefMessage}
+                </p>
+              )}
+              {syncReport && (
+                <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-700 space-y-1">
+                  <p>
+                    <strong>{syncReport.secteurLabel}</strong> — {syncReport.basePath}
+                  </p>
+                  <p>
+                    Dossiers créés : {syncReport.created} · Déjà existants : {syncReport.alreadyThere}
+                  </p>
+                </div>
+              )}
+            </div>
+          </details>
       </>
     </div>
   );

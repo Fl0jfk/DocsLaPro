@@ -13,6 +13,7 @@ import {
   type InternatOutingIndexEntry,
   type InternatRollCall,
   type InternatRollCallPeriod,
+  type InternatBuilding,
   type InternatRoom,
   type InternatStudent,
   type InternatStudyGroup,
@@ -56,6 +57,15 @@ export async function getInternatRooms(): Promise<InternatRoom[]> {
 
 export async function saveInternatRooms(rooms: InternatRoom[]) {
   await putJson(INTERNAT_S3.rooms, rooms);
+}
+
+export async function getInternatBuildings(): Promise<InternatBuilding[]> {
+  const hit = await getJson<InternatBuilding[]>(INTERNAT_S3.buildings);
+  return Array.isArray(hit?.data) ? hit.data : [];
+}
+
+export async function saveInternatBuildings(buildings: InternatBuilding[]) {
+  await putJson(INTERNAT_S3.buildings, buildings);
 }
 
 export async function getInternatStudents(): Promise<InternatStudent[]> {

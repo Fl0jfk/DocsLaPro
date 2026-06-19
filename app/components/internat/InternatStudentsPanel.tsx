@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { InternatRoom, InternatStudent } from "@/app/lib/internat-types";
-import { studentDisplayName } from "@/app/lib/internat-types";
+import type { InternatBuilding, InternatRoom, InternatStudent } from "@/app/lib/internat-types";
+import { roomLocationLabel, studentDisplayName } from "@/app/lib/internat-types";
 
 type RosterPreviewRow = {
   nom: string;
@@ -19,14 +19,21 @@ type RosterMeta = {
   lastApplySummary?: { added: number; updated: number; skipped: number };
 };
 
+function formatRoomOption(buildings: InternatBuilding[], room: InternatRoom) {
+  const loc = roomLocationLabel(buildings, room);
+  return loc === "Non classée" ? room.label : `${room.label} — ${loc}`;
+}
+
 export default function InternatStudentsPanel({
   students,
   rooms,
+  buildings = [],
   canManage,
   onRefresh,
 }: {
   students: InternatStudent[];
   rooms: InternatRoom[];
+  buildings?: InternatBuilding[];
   canManage: boolean;
   onRefresh: () => Promise<void>;
 }) {
@@ -383,7 +390,7 @@ export default function InternatStudentsPanel({
             <select className="border rounded-xl px-3 py-2 text-sm" value={manual.roomId} onChange={(e) => setManual({ ...manual, roomId: e.target.value })}>
               <option value="">Chambre —</option>
               {rooms.map((r) => (
-                <option key={r.id} value={r.id}>{r.label}</option>
+                <option key={r.id} value={r.id}>{formatRoomOption(buildings, r)}</option>
               ))}
             </select>
           </div>
@@ -425,11 +432,14 @@ export default function InternatStudentsPanel({
                     >
                       <option value="">—</option>
                       {rooms.map((r) => (
-                        <option key={r.id} value={r.id}>{r.label}</option>
+                        <option key={r.id} value={r.id}>{formatRoomOption(buildings, r)}</option>
                       ))}
                     </select>
                   ) : (
-                    rooms.find((r) => r.id === s.roomId)?.label || "—"
+                    (() => {
+                      const room = rooms.find((r) => r.id === s.roomId);
+                      return room ? formatRoomOption(buildings, room) : "—";
+                    })()
                   )}
                 </td>
                 <td className="p-3 text-xs">
