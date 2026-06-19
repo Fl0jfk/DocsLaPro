@@ -60,7 +60,8 @@ export function isOnboardingComplete(config: AppConfigBundle): boolean {
   return config.identity.onboardingCompleted === true;
 }
 
-function looksLikeLaProvidenceTenant(identity: SiteIdentity): boolean {
+/** Détection heuristique du tenant La Providence (migration legacy). */
+export function looksLikeLaProvidenceTenant(identity: SiteIdentity): boolean {
   const name = identity.name?.toLowerCase() ?? "";
   return name.includes("providence") || name.includes("nicolas barré") || name.includes("nicolas barre");
 }
@@ -109,6 +110,42 @@ async function maybeBackfillLegacyTravelsModule(
     invalidateAppConfigCache();
   } catch (e) {
     console.error("[app-config] backfill travels", e);
+  }
+  return merged;
+}
+
+/** Réactive OneDrive / Zeendoc / ÉcoleDirecte si integrations.json absent ou désactivé par l'onboarding. */
+async function maybeBackfillLegacyIntegrations(
+  identity: SiteIdentity,
+  integrations: IntegrationsConfig,
+): Promise<IntegrationsConfig> {
+  if (!looksLikeLaProvidenceTenant(identity)) return integrations;
+
+  const seed = laprovidenceIntegrations();
+  const merged: IntegrationsConfig = { ...integrations };
+
+  if (merged.microsoftOneDrive?.enabled !== true) {
+    merged.microsoftOneDrive = { enabled: true };
+  }
+  if (merged.zeendoc?.enabled !== true) {
+    merged.zeendoc = { ...seed.zeendoc, ...merged.zeendoc, enabled: true };
+  }
+  if (merged.ecoleDirecte?.enabled !== true) {
+    merged.ecoleDirecte = { ...seed.ecoleDirecte, ...merged.ecoleDirecte, enabled: true };
+  }
+
+  const unchanged =
+    integrations.microsoftOneDrive?.enabled === merged.microsoftOneDrive?.enabled &&
+    integrations.zeendoc?.enabled === merged.zeendoc?.enabled &&
+    integrations.ecoleDirecte?.enabled === merged.ecoleDirecte?.enabled &&
+    integrations.zeendoc?.destinationEmail === merged.zeendoc?.destinationEmail;
+  if (unchanged) return integrations;
+
+  try {
+    await putJson("settings/integrations.json", merged);
+    invalidateAppConfigCache();
+  } catch (e) {
+    console.error("[app-config] backfill integrations", e);
   }
   return merged;
 }
@@ -199,7 +236,8 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
     : defaultDomainPlanningModule();
   const domainPlanning = normalizeDomainPlanningModule(domainPlanningRaw);
   const internat = internatRaw?.data ? parseInternatModule(internatRaw.data) : defaultInternatModule();
-  const integrations = integrationsRaw?.data ? parseIntegrations(integrationsRaw.data) : defaultIntegrations();
+  let integrations = integrationsRaw?.data ? parseIntegrations(integrationsRaw.data) : defaultIntegrations();
+  integrations = await maybeBackfillLegacyIntegrations(identity, integrations);
   const externalLinks = externalLinksRaw?.data
     ? parseExternalLinksFile(externalLinksRaw.data)
     : defaultExternalLinks();

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/app/lib/tenant-context";
 import { getTenantSecrets } from "@/app/lib/tenant-registry";
-import { loadAppConfig } from "@/app/lib/app-config";
+import { loadAppConfig, looksLikeLaProvidenceTenant } from "@/app/lib/app-config";
 
 /** Infos publiques du tenant (sans secrets serveur). */
 export async function GET() {
@@ -15,6 +15,13 @@ export async function GET() {
       tenantId: process.env.NEXT_PUBLIC_TENANT_ID?.trim() || "",
     };
     const msFromSecrets = secrets?.microsoft;
+    const msClientId = msFromSecrets?.clientId || msFromEnv.clientId || "";
+    const msTenantId = msFromSecrets?.tenantId || msFromEnv.tenantId || "";
+    const msCredentialsAvailable = Boolean(msClientId && msTenantId);
+    const oneDriveFlagEnabled = config.integrations.microsoftOneDrive?.enabled === true;
+    const oneDriveEnabled =
+      oneDriveFlagEnabled ||
+      (msCredentialsAvailable && looksLikeLaProvidenceTenant(config.identity));
 
     return NextResponse.json({
       slug: tenant.slug,
@@ -23,9 +30,9 @@ export async function GET() {
       appUrl: tenant.appUrl,
       clerkPublishableKey: tenant.clerkPublishableKey,
       microsoftOneDrive: {
-        enabled: config.integrations.microsoftOneDrive?.enabled === true,
-        clientId: msFromSecrets?.clientId || msFromEnv.clientId || null,
-        tenantId: msFromSecrets?.tenantId || msFromEnv.tenantId || null,
+        enabled: oneDriveEnabled,
+        clientId: msClientId || null,
+        tenantId: msTenantId || null,
       },
     });
   } catch (err) {

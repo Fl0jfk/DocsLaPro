@@ -82,7 +82,15 @@ export default function OnboardingWizard() {
       setExistingConfigDetected(hasRealName || activeCount >= 2);
       setNotifications(cfg.notifications || {});
       setTravels(cfg.travels || { transportProviders: [] });
-      setIntegrations(cfg.integrations || {});
+      const integrationsCfg = cfg.integrations || {};
+      setIntegrations({
+        ...integrationsCfg,
+        microsoftOneDrive: {
+          enabled:
+            integrationsCfg.microsoftOneDrive?.enabled ??
+            (hasRealName || activeCount >= 2),
+        },
+      });
       setExternalLinks(cfg.externalLinks || []);
       const onboardingStep = identityCfg.onboardingStep || 1;
       const onboardingCompleted = identityCfg.onboardingCompleted === true;
@@ -302,7 +310,14 @@ export default function OnboardingWizard() {
         await saveIntegrationsApi({ ecoleDirecte: integrations.ecoleDirecte });
         await saveExternalLinksApi(externalLinks, next);
       } else if (step === 12) {
-        await saveIntegrationsApi({ microsoftOneDrive: integrations.microsoftOneDrive }, next);
+        await saveIntegrationsApi(
+          {
+            microsoftOneDrive: {
+              enabled: integrations.microsoftOneDrive?.enabled ?? existingConfigDetected,
+            },
+          },
+          next,
+        );
       } else if (step === 13) {
         await saveSite({}, next);
       } else if (step === 14) {
