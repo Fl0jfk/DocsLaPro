@@ -1,5 +1,3 @@
-import { SCHOOL } from "@/app/lib/school";
-import { STAFF_DIRECTORY } from "@/app/lib/staff-directory";
 import type { RequestsRoutingConfig, RoutingAssignment, RoutingTask } from "@/app/lib/app-config-schemas";
 
 const BRANCH_TO_SERVICE: Record<string, string> = {
@@ -23,25 +21,73 @@ function uid(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function defaultRequestsRouting(): RequestsRoutingConfig {
-  const branches = SCHOOL.requestsBranches;
-  const tasks: RoutingTask[] = Object.entries(branches).map(([id, b]) => ({
-    id,
-    label: b.roleLabel,
-    hint: b.promptLine,
-    keywords: [...b.keywords],
-    active: !id.startsWith("direction_"),
-  }));
-
-  const assignments: RoutingAssignment[] = STAFF_DIRECTORY.filter((r) => r.branchId !== "corbeille").map((r) => ({
-    id: uid("asg"),
-    taskId: r.branchId,
-    email: r.email,
-    personName: r.email.split("@")[0] || r.email,
-    serviceId: BRANCH_TO_SERVICE[r.branchId] || "administratif",
+const DEFAULT_TASKS: RoutingTask[] = [
+  {
+    id: "corbeille",
+    label: "Corbeille établissement",
+    hint: "Demandes générales ou non classées",
+    keywords: [],
     active: true,
-  }));
+  },
+  {
+    id: "maintenance",
+    label: "Maintenance",
+    hint: "Problèmes techniques, réparations, bâtiment",
+    keywords: ["maintenance", "réparation", "panne", "fuite", "électricité"],
+    active: true,
+  },
+  {
+    id: "admin_ecole",
+    label: "Administratif — école",
+    hint: "Demandes administratives école",
+    keywords: ["école", "maternelle", "élémentaire"],
+    active: true,
+  },
+  {
+    id: "admin_college",
+    label: "Administratif — collège",
+    hint: "Demandes administratives collège",
+    keywords: ["collège", "6e", "5e", "4e", "3e"],
+    active: true,
+  },
+  {
+    id: "admin_lycee",
+    label: "Administratif — lycée",
+    hint: "Demandes administratives lycée",
+    keywords: ["lycée", "2nde", "1ère", "terminale"],
+    active: true,
+  },
+  {
+    id: "comptabilite",
+    label: "Comptabilité",
+    hint: "Factures, paiements, budgets",
+    keywords: ["compta", "facture", "paiement", "budget"],
+    active: true,
+  },
+  {
+    id: "direction_ecole",
+    label: "Direction — école",
+    hint: "Transfert manuel vers la direction école",
+    keywords: ["direction école"],
+    active: false,
+  },
+  {
+    id: "direction_college",
+    label: "Direction — collège",
+    hint: "Transfert manuel vers la direction collège",
+    keywords: ["direction collège"],
+    active: false,
+  },
+  {
+    id: "direction_lycee",
+    label: "Direction — lycée",
+    hint: "Transfert manuel vers la direction lycée",
+    keywords: ["direction lycée"],
+    active: false,
+  },
+];
 
+export function defaultRequestsRouting(): RequestsRoutingConfig {
   return {
     version: 1,
     services: [
@@ -53,12 +99,25 @@ export function defaultRequestsRouting(): RequestsRoutingConfig {
       { id: "comptabilite", label: "Comptabilité", category: "Finances" },
       { id: "direction", label: "Direction", category: "Direction", manualOnly: true },
     ],
-    tasks,
-    assignments,
-    directionQueues: [
-      { id: "direction_ecole", label: "Direction — école", email: SCHOOL.ecole.email, active: true },
-      { id: "direction_college", label: "Direction — collège", email: SCHOOL.college.email, active: true },
-      { id: "direction_lycee", label: "Direction — lycée", email: SCHOOL.lycee.email, active: true },
-    ],
+    tasks: DEFAULT_TASKS,
+    assignments: [] as RoutingAssignment[],
+    directionQueues: [],
   };
 }
+
+export function buildAssignmentsFromStaffRows(
+  rows: { email: string; branchId: string; role: string }[],
+): RoutingAssignment[] {
+  return rows
+    .filter((r) => r.branchId !== "corbeille")
+    .map((r) => ({
+      id: uid("asg"),
+      taskId: r.branchId,
+      email: r.email,
+      personName: r.email.split("@")[0] || r.email,
+      serviceId: BRANCH_TO_SERVICE[r.branchId] || "administratif",
+      active: true,
+    }));
+}
+
+export { BRANCH_TO_SERVICE };

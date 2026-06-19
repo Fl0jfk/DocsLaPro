@@ -1,5 +1,4 @@
 import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand} from "@aws-sdk/client-s3";
-import { SCHOOL } from "@/app/lib/school";
 import { getJson, putJson, putObject, getS3Client, getBucketName, getObjectBytes } from "@/app/lib/s3-storage";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
 import {
@@ -8,7 +7,9 @@ import {
 } from "@/app/lib/tenant-mail";
 import { s3Key } from "@/app/lib/s3-path";
 import { LEGACY_ROUTE_TO_BRANCH, normalizeRequestBranchId, normalizeRequestEmail, isCorbeilleBranchId} from "@/app/lib/requests-board";
-import { getFirstBranchForStaffEmailFromDirectory, getStaffExecutorsForBranch, getStaffLeadersForBranch} from "@/app/lib/staff-directory";
+import { getFirstBranchForStaffEmailFromDirectory } from "@/app/lib/staff-directory";
+import { ensureRequestRoutes, getRouteById } from "@/app/lib/requests-routes-cache";
+import type { RequestRouteDef } from "@/app/lib/requests-types";
 import { resolveRoutingFromCatalog } from "@/app/lib/requests-routing-config";
 
 export type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
@@ -296,57 +297,18 @@ function normalizeForMatch(input: string) {
 
 const ROUTING_CONFIDENCE_MIN = 0.52;
 
-export type RequestRouteDef = {
-  id: string;
-  category: string;
-  roleLabel: string;
-  leaderEmails: () => string[];
-  executorEmails: () => string[];
-  primaryEmail: () => string;
-  ccEmails: () => string[];
-  poolEmails: () => string[];
-  promptLine: string;
-  keywords: string[];
-};
-
-type BranchId = keyof typeof SCHOOL.requestsBranches;
-
-function buildRouteFromBranch(id: BranchId): RequestRouteDef {
-  const b = SCHOOL.requestsBranches[id];
-  const leaders = getStaffLeadersForBranch(id);
-  const execs = getStaffExecutorsForBranch(id);
-  const pool = [...new Set([...leaders, ...execs].map((e) => normalizeRequestEmail(String(e))).filter(Boolean))];
-  const primary = pool[0] || leaders[0] || "";
-  return {
-    id,
-    category: b.category,
-    roleLabel: b.roleLabel,
-    leaderEmails: () => [...leaders],
-    executorEmails: () => [...execs],
-    primaryEmail: () => primary,
-    ccEmails: () => [],
-    poolEmails: () => (pool.length > 0 ? pool : primary ? [primary] : []),
-    promptLine: b.promptLine,
-    keywords: [...b.keywords],
-  };
-}
-
-const ROUTE_BRANCH_IDS: BranchId[] = [
-  "corbeille", "maintenance", "admin_ecole", "admin_college", "admin_lycee",
-  "cpe_lycee", "cpe_3e4e", "cpe_5e6e", "vie_scolaire_infirmerie", "accueil", "comptabilite",
-  "direction_ecole", "direction_college", "direction_lycee",
-];
+export type { RequestRouteDef } from "@/app/lib/requests-types";
 
 /** Jamais assignées automatiquement — réservées au transfert manuel admin. */
 export const MANUAL_ONLY_DIRECTION_IDS = new Set(["direction_ecole", "direction_college", "direction_lycee"]);
 
-const DIRECTION_TO_ADMIN_QUEUE: Record<string, BranchId> = {
+const DIRECTION_TO_ADMIN_QUEUE: Record<string, string> = {
   direction_ecole: "admin_ecole",
   direction_college: "admin_college",
   direction_lycee: "admin_lycee",
 };
 
-function applyDirectionGate(routing: ResolvedRequestRouting): ResolvedRequestRouting {
+async function applyDirectionGate(routing: ResolvedRequestRouting): Promise<ResolvedRequestRouting> {
   const assignedRoute = routing.assignedTo.routeId ?? routing.assignedTo.unit;
   const hintId = MANUAL_ONLY_DIRECTION_IDS.has(assignedRoute)
     ? assignedRoute
@@ -355,7 +317,7 @@ function applyDirectionGate(routing: ResolvedRequestRouting): ResolvedRequestRou
       : null;
   if (!hintId) return routing;
 
-  const directionDef = ROUTE_BY_ID.get(hintId);
+  const directionDef = await getRouteById(hintId);
   const directionHint = {
     suggestedQueueId: hintId,
     label: directionDef?.roleLabel ?? hintId,
@@ -368,7 +330,7 @@ function applyDirectionGate(routing: ResolvedRequestRouting): ResolvedRequestRou
   }
 
   const adminId = DIRECTION_TO_ADMIN_QUEUE[hintId];
-  const adminDef = adminId ? ROUTE_BY_ID.get(adminId) : null;
+  const adminDef = adminId ? await getRouteById(adminId) : null;
   if (!adminDef) return { ...routing, directionHint };
   return {
     category: adminDef.category,
@@ -380,12 +342,11 @@ function applyDirectionGate(routing: ResolvedRequestRouting): ResolvedRequestRou
     suggestedRouteId: routing.suggestedRouteId,
   };
 }
-const REQUEST_ROUTES: RequestRouteDef[] = ROUTE_BRANCH_IDS.map((id) => buildRouteFromBranch(id));
-const ROUTE_BY_ID = new Map(REQUEST_ROUTES.map((r) => [r.id, r]));
 
-export function getAllBranchStaffEmails(): string[] {
+export async function getAllBranchStaffEmails(): Promise<string[]> {
+  const { routes } = await ensureRequestRoutes();
   const s = new Set<string>();
-  for (const r of REQUEST_ROUTES) {
+  for (const r of routes) {
     if (r.id === "corbeille") continue;
     for (const e of r.poolEmails()) {
       s.add(normalizeRequestEmail(e));
@@ -418,80 +379,113 @@ function materializeAssigned(def: RequestRouteDef): RequestRecord["assignedTo"] 
   };
 }
 
-export function listRequestRoutesForPicker(): Array<{ id: string; label: string; category: string }> {
-  return REQUEST_ROUTES.filter((r) => r.id !== "corbeille").map((r) => ({
+export async function listRequestRoutesForPicker(): Promise<Array<{ id: string; label: string; category: string }>> {
+  const { routes } = await ensureRequestRoutes();
+  return routes.filter((r) => r.id !== "corbeille").map((r) => ({
     id: r.id,
     label: r.roleLabel,
     category: r.category,
   }));
 }
 
-export function listRequestRoutesForTransmit(): Array<{ id: string; label: string; category: string }> {
-  return REQUEST_ROUTES.filter((r) => r.id !== "corbeille" && MANUAL_ONLY_DIRECTION_IDS.has(r.id)).map((r) => ({
+export async function listRequestRoutesForTransmit(): Promise<Array<{ id: string; label: string; category: string }>> {
+  const { routes } = await ensureRequestRoutes();
+  return routes.filter((r) => r.id !== "corbeille" && MANUAL_ONLY_DIRECTION_IDS.has(r.id)).map((r) => ({
     id: r.id,
     label: r.roleLabel,
     category: r.category,
   }));
 }
 
-export function isLeaderForRequestBranch(routeId: string | undefined, unit: string | undefined, actorEmail: string): boolean {
+export async function isLeaderForRequestBranch(
+  routeId: string | undefined,
+  unit: string | undefined,
+  actorEmail: string,
+): Promise<boolean> {
   if (!actorEmail) return false;
   const b = normalizeRequestBranchId(routeId, unit);
-  const def = ROUTE_BY_ID.get(b);
+  const def = await getRouteById(b);
   if (!def) return false;
   const u = normalizeRequestEmail(actorEmail);
   return def.leaderEmails().map(normalizeRequestEmail).includes(u);
 }
 
-export function getDefaultRequestBranchForStaffEmail(actorEmail: string): string | null {
+export async function getDefaultRequestBranchForStaffEmail(actorEmail: string): Promise<string | null> {
   return getFirstBranchForStaffEmailFromDirectory(actorEmail);
 }
 
-export function getRequestPoolEmails(record: RequestRecord): string[] {
+export async function getRequestPoolEmails(record: RequestRecord): Promise<string[]> {
   const branch = normalizeRequestBranchId(record.assignedTo.routeId, record.assignedTo.unit);
-  if (isCorbeilleBranchId(branch)) { return getAllBranchStaffEmails()}
+  if (isCorbeilleBranchId(branch)) {
+    return getAllBranchStaffEmails();
+  }
   const a = record.assignedTo;
-  if (a.poolEmails && a.poolEmails.length > 0) { return [...new Set(a.poolEmails.map(normalizeRequestEmail).filter(Boolean))]}
+  if (a.poolEmails && a.poolEmails.length > 0) {
+    return [...new Set(a.poolEmails.map(normalizeRequestEmail).filter(Boolean))];
+  }
   return [normalizeRequestEmail(a.email)];
 }
 
-export function getDelegateTargetEmailsForRequest(record: RequestRecord, leaderEmail: string): string[] {
+export async function getDelegateTargetEmailsForRequest(
+  record: RequestRecord,
+  leaderEmail: string,
+): Promise<string[]> {
   const u = normalizeRequestEmail(leaderEmail);
-  return getRequestPoolEmails(record).map(normalizeRequestEmail).filter((e) => e && e !== u).sort();
+  return (await getRequestPoolEmails(record)).map(normalizeRequestEmail).filter((e) => e && e !== u).sort();
 }
 
-export function isUserInRequestPool(record: RequestRecord, userEmail: string) {return getRequestPoolEmails(record).includes(normalizeRequestEmail(userEmail))}
+export async function isUserInRequestPool(record: RequestRecord, userEmail: string) {
+  return (await getRequestPoolEmails(record)).includes(normalizeRequestEmail(userEmail));
+}
 
-export function isSharedRequestPool(record: RequestRecord): boolean { return (record.assignedTo.poolEmails?.length ?? 0) > 1}
+export function isSharedRequestPool(record: RequestRecord): boolean {
+  return (record.assignedTo.poolEmails?.length ?? 0) > 1;
+}
 
-export function isVisibleInMyQueue(record: RequestRecord, userEmail: string) {
+export async function isVisibleInMyQueue(record: RequestRecord, userEmail: string) {
   if (!userEmail) return false;
   const u = normalizeRequestEmail(userEmail);
   const c = record.assignedTo.claimedBy;
   if (c?.email && normalizeRequestEmail(c.email) === u) return true;
   if (isSharedRequestPool(record)) return false;
-  if (!isUserInRequestPool(record, userEmail)) return false;
+  if (!(await isUserInRequestPool(record, userEmail))) return false;
   if (!c?.email) return true;
   return normalizeRequestEmail(c.email) === u;
 }
 
-function staffMailTargets(record: RequestRecord): { to: string; cc: string | undefined } {
+async function staffMailTargets(record: RequestRecord): Promise<{ to: string; cc: string | undefined }> {
   const branch = normalizeRequestBranchId(record.assignedTo.routeId, record.assignedTo.unit);
   if (isCorbeilleBranchId(branch)) {
-    const def = ROUTE_BY_ID.get("corbeille");
+    const def = await getRouteById("corbeille");
     const to = (def?.leaderEmails() ?? [record.assignedTo.email]).map(normalizeRequestEmail).filter(Boolean).join(", ");
     return { to, cc: undefined };
   }
-  const pool = getRequestPoolEmails(record);
+  const pool = await getRequestPoolEmails(record);
   const to = pool.join(", ");
   const ccParts = (record.assignedTo.ccEmails || []).map(normalizeRequestEmail).filter((e) => e && !pool.map(normalizeRequestEmail).includes(e));
   return { to, cc: ccParts.length > 0 ? ccParts.join(", ") : undefined };
 }
 
-function computeFallbackRouting(subject: string, description: string) {
+async function computeFallbackRouting(subject: string, description: string) {
+  const { routes, map } = await ensureRequestRoutes();
   const text = normalizeForMatch(`${subject} ${description}`);
-  const candidates = REQUEST_ROUTES.filter((r) => r.id !== "corbeille");
-  const corb = ROUTE_BY_ID.get("corbeille")!;
+  const candidates = routes.filter((r) => r.id !== "corbeille");
+  const corb = map.get("corbeille");
+  if (!corb) {
+    return {
+      category: "Établissement",
+      assignedTo: {
+        routeId: "corbeille",
+        unit: "corbeille",
+        roleLabel: "Corbeille",
+        email: "",
+        claimedBy: null,
+      },
+      source: "fallback" as const,
+      confidence: 0.32,
+      reason: "Aucune route configurée.",
+    };
+  }
   let best = corb;
   let bestScore = -1;
   for (const rule of candidates) {
@@ -523,7 +517,8 @@ type MistralRouteResult = {
 async function routeWithMistral(subject: string, description: string): Promise<MistralRouteResult | null> {
   const mistralKey = await getMistralApiKey();
   if (!mistralKey) return null;
-  const routeList = REQUEST_ROUTES.map((r) => `- ${r.id}: ${r.promptLine}`).join("\n");
+  const { routes, map } = await ensureRequestRoutes();
+  const routeList = routes.map((r) => `- ${r.id}: ${r.promptLine}`).join("\n");
   const prompt = `Tu es un classificateur pour un établissement scolaire. Choisis UNE SEULE routeId parmi la liste (identifiant exact).
 Routes possibles:
 ${routeList}
@@ -568,10 +563,11 @@ Demande: ${description}`;
     };
     const rawId = typeof parsed.routeId === "string" ? parsed.routeId.trim() : "";
     const routeId = LEGACY_ROUTE_TO_BRANCH[rawId] ?? rawId;
-    const def = ROUTE_BY_ID.get(routeId);
+    const def = map.get(routeId);
     if (!def) return null;
     const confidence = typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.65;
-    const corb = ROUTE_BY_ID.get("corbeille")!;
+    const corb = map.get("corbeille");
+    if (!corb) return null;
     let chosen = def;
     let suggestedRouteId: string | undefined;
     let reason = parsed.reason || "Routage IA Mistral.";
@@ -606,7 +602,7 @@ export type ResolvedRequestRouting = {
 
 export async function resolveRequestRouting(subject: string, description: string): Promise<ResolvedRequestRouting> {
   const base = await resolveRoutingFromCatalog(subject, description);
-  const gated = applyDirectionGate(base);
+  const gated = await applyDirectionGate(base);
   if (base.routingMeta) {
     return {
       ...gated,
@@ -616,10 +612,10 @@ export async function resolveRequestRouting(subject: string, description: string
   return gated;
 }
 
-export function resolveRequestRouteById(routeId: string): ResolvedRequestRouting | null {
+export async function resolveRequestRouteById(routeId: string): Promise<ResolvedRequestRouting | null> {
   const raw = routeId.trim();
   const canonical = LEGACY_ROUTE_TO_BRANCH[raw] ?? raw;
-  const def = ROUTE_BY_ID.get(canonical);
+  const def = await getRouteById(canonical);
   if (!def) return null;
   return {
     category: def.category,
@@ -675,7 +671,7 @@ export async function notifyRequestCreated(record: RequestRecord) {
   const mail = await getMailer();
   if (!mail) return;
   const { smtp, transporter } = mail;
-  const { to, cc } = staffMailTargets(record);
+  const { to, cc } = await staffMailTargets(record);
   await transporter.sendMail({
     from: `"Demandes" <${smtp.user}>`,
     to,
@@ -769,7 +765,7 @@ export async function notifyRequestStatusMilestone(
     ].join("\n"),
     ...(mailAttachments.length > 0 ? { attachments: mailAttachments } : {}),
   });
-  const { to: staffTo, cc: staffCc } = staffMailTargets(record);
+  const { to: staffTo, cc: staffCc } = await staffMailTargets(record);
   await transporter.sendMail({
     from: `"Demandes" <${smtp.user}>`,
     to: staffTo,

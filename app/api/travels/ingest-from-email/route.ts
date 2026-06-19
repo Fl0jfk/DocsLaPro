@@ -736,7 +736,7 @@ export async function POST(req: Request) {
   });
 
   const candidates = await loadTripCandidates(client, bucket);
-  const providerName = providerNameFromEmail(fromEmail) ?? "Transporteur (e-mail)";
+  const providerName = (await providerNameFromEmail(fromEmail)) ?? "Transporteur (e-mail)";
 
   after(() =>
     runIngestBackgroundJob({

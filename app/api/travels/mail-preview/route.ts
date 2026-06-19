@@ -4,7 +4,7 @@ import { defaultNotifications } from "@/app/lib/app-config-defaults";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";
 import { assertTravelsTripAccess } from "@/app/lib/travels-rbac-server";
-import { buildTravelsMailPreview, type MailPreviewType } from "@/app/lib/travels-mail-preview";
+import { buildTravelsMailPreviewFromConfig, type MailPreviewType } from "@/app/lib/travels-mail-preview";
 import type { TravelsTrip } from "@/app/lib/travels-types";
 
 const VALID_TYPES: MailPreviewType[] = [
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       defaultNotifications().travelsCuisine ||
       "";
 
-    const preview = buildTravelsMailPreview(trip, type, {
+    const preview = await buildTravelsMailPreviewFromConfig(trip, type, {
       userName: body.userName || trip.ownerName,
       chefEmail,
     });

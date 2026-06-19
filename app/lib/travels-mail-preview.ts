@@ -1,4 +1,4 @@
-import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
+import { getTransportProviders, type TransportProvider } from "@/app/lib/transport-providers";
 import { CUISINE_DAYS, cuisineDateRangeLabel } from "@/app/lib/travels-cuisine-shared";
 import { orderEmailForQuote } from "@/app/lib/travels-transport-shared";
 import { tripDateRangeLabel } from "@/app/lib/travels-trip-helpers";
@@ -25,9 +25,10 @@ export type MailPreviewResult = {
 export function buildTravelsMailPreview(
   trip: TravelsTrip,
   type: MailPreviewType,
-  opts?: { userName?: string; chefEmail?: string },
+  opts?: { userName?: string; chefEmail?: string; transportProviders?: TransportProvider[] },
 ): MailPreviewResult {
-  const userName = opts?.userName || trip.ownerName || "La Providence";
+  const userName = opts?.userName || trip.ownerName || "Administration";
+  const transportProviders = opts?.transportProviders ?? [];
   const data = trip.data;
   const dest = String(data.destination || "voyage");
   const dateRange = tripDateRangeLabel(data);
@@ -44,7 +45,7 @@ export function buildTravelsMailPreview(
     const recipients =
       selected && selectedEmail
         ? [{ name: String(selected.providerName || "Transporteur"), email: selectedEmail }]
-        : TRANSPORT_PROVIDERS.map((p) => ({ name: p.name, email: p.email }));
+        : transportProviders.map((p) => ({ name: p.name, email: p.email }));
 
     const snap = data.transportQuoteSnapshot;
     const prevTotal = snap ? Number(snap.nbEleves) + Number(snap.nbAccompagnateurs || 0) : null;
@@ -74,7 +75,7 @@ export function buildTravelsMailPreview(
   if (type === "transport_initial") {
     return {
       type,
-      to: TRANSPORT_PROVIDERS.map((p) => p.email),
+      to: transportProviders.map((p) => p.email),
       subject: `🚗 DEMANDE DE DEVIS - ${dest.toUpperCase()} - ${userName}`,
       text: `Demande de devis transport vers ${dest} (${dateRange}). Réf. ${trip.id}`,
       attachments: [{ filename: `Demande_Transport_${dest.replace(/\s+/g, "_")}.pdf`, description: "Demande initiale" }],
@@ -121,7 +122,7 @@ export function buildTravelsMailPreview(
     const email = orderEmailForQuote(selected);
     return {
       type,
-      to: email ? [email] : TRANSPORT_PROVIDERS.map((p) => p.email),
+      to: email ? [email] : transportProviders.map((p) => p.email),
       subject: `ANNULATION transport — ${dest} — Réf. ${trip.id}`,
       text: [
         "Bonjour,",
@@ -151,4 +152,13 @@ export function buildTravelsMailPreview(
     ].join("\n"),
     attachments: [],
   };
+}
+
+export async function buildTravelsMailPreviewFromConfig(
+  trip: TravelsTrip,
+  type: MailPreviewType,
+  opts?: { userName?: string; chefEmail?: string },
+): Promise<MailPreviewResult> {
+  const transportProviders = await getTransportProviders();
+  return buildTravelsMailPreview(trip, type, { ...opts, transportProviders });
 }

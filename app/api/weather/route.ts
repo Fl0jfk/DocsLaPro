@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { SCHOOL } from "@/app/lib/school";
+import { loadAppConfig } from "@/app/lib/app-config";
 import { weatherCodeIcon, weatherCodeLabel } from "@/app/lib/weather-codes";
 
 export const revalidate = 1800;
@@ -22,7 +22,18 @@ export async function GET() {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const { latitude, longitude, city } = SCHOOL.address;
+  const config = await loadAppConfig();
+  const latitude = config.identity.address?.latitude;
+  const longitude = config.identity.address?.longitude;
+  const city = config.identity.address?.city || config.identity.shortName || config.identity.name;
+
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    return NextResponse.json(
+      { error: "Coordonnées météo non configurées. Complétez l'adresse dans Paramètres." },
+      { status: 503 },
+    );
+  }
+
   const url = new URL("https://api.open-meteo.com/v1/forecast");
   url.searchParams.set("latitude", String(latitude));
   url.searchParams.set("longitude", String(longitude));

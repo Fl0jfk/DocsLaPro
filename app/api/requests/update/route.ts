@@ -59,11 +59,11 @@ export async function PATCH(req: Request) {
       const targetEmail = normalizeRequestEmail(String(body?.targetEmail ?? ""));
       if (!actorEmail) return NextResponse.json({ error: "Email requis" }, { status: 400 });
       if (!targetEmail) return NextResponse.json({ error: "Collaborateur cible requis (targetEmail)" }, { status: 400 });
-      if (!isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail)) { return NextResponse.json({ error: "Seul le responsable du service peut déléguer." }, { status: 403 })}
+      if (!(await isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail))) { return NextResponse.json({ error: "Seul le responsable du service peut déléguer." }, { status: 403 })}
       const branch = normalizeRequestBranchId(current.assignedTo.routeId, current.assignedTo.unit);
       if (isCorbeilleBranchId(branch)) { return NextResponse.json({ error: "Délégation impossible pour une fiche en corbeille." }, { status: 400 })}
-      if (!isStaffInBranchPool(branch, targetEmail)) { return NextResponse.json({ error: "Ce collaborateur n’est pas dans le service (table équipe)." }, { status: 403 })}
-      const pool = getRequestPoolEmails(current).map(normalizeRequestEmail);
+      if (!(await isStaffInBranchPool(branch, targetEmail))) { return NextResponse.json({ error: "Ce collaborateur n’est pas dans le service (table équipe)." }, { status: 403 })}
+      const pool = (await getRequestPoolEmails(current)).map(normalizeRequestEmail);
       if (!pool.includes(targetEmail)) { return NextResponse.json({ error: "Ce collaborateur ne figure pas sur la file de cette fiche." }, { status: 403 })}
       if (normalizeRequestEmail(actorEmail) === targetEmail) { return NextResponse.json({ error: "Choisissez un autre collaborateur que vous-même." }, { status: 400 })}
       const delegated: RequestRecord = {
@@ -98,7 +98,7 @@ export async function PATCH(req: Request) {
     if (action === "claim" || action === "release_claim") {
       if (action === "claim") {
         if (!actorEmail) return NextResponse.json({ error: "Email requis pour prendre en charge" }, { status: 400 });
-        if (!isUserInRequestPool(current, actorEmail)) {
+        if (!(await isUserInRequestPool(current, actorEmail))) {
           return NextResponse.json({ error: "Vous n'êtes pas dans la file de cette demande" }, { status: 403 });
         }
         const existing = current.assignedTo.claimedBy;
@@ -115,9 +115,9 @@ export async function PATCH(req: Request) {
           claimedBy: { email: actorEmail, name: actorName, userId: userId ?? null, at: now },
         };
         if (isCorbeilleBranchId(fromBrClaim)) {
-          const dest = getDefaultRequestBranchForStaffEmail(actorEmail);
+          const dest = await getDefaultRequestBranchForStaffEmail(actorEmail);
           if (dest) {
-            const resolved = resolveRequestRouteById(dest);
+            const resolved = await resolveRequestRouteById(dest);
             if (resolved) {
               nextCatClaim = resolved.category;
               nextAssignedClaim = {
@@ -152,10 +152,10 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true, request: finalizedClaim });
       }
       if (toCorbeille) {
-        if (!isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail)) {
+        if (!(await isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail))) {
           return NextResponse.json({ error: "Seul le responsable du service peut renvoyer la demande à la corbeille." },{ status: 403 });
         }
-        const corb = resolveRequestRouteById("corbeille");
+        const corb = await resolveRequestRouteById("corbeille");
         if (!corb) return NextResponse.json({ error: "Configuration corbeille manquante" }, { status: 500 });
         const updatedBasket: RequestRecord = {
           ...current,
@@ -208,7 +208,7 @@ export async function PATCH(req: Request) {
       if (!actorEmail) return NextResponse.json({ error: "Email requis pour prendre en charge" }, { status: 400 });
       if (!(await canAccessRequestsStaffBoard(actorRoles, actorEmail))) { return NextResponse.json({ error: "Réservé au personnel habilité aux demandes" }, { status: 403 })}
       const existingClaim = current.assignedTo.claimedBy?.email;
-      if (!existingClaim && !isUserInRequestPool(current, actorEmail)) { return NextResponse.json({ error: "Vous ne pouvez pas prendre cette demande." }, { status: 403 })}
+      if (!existingClaim && !(await isUserInRequestPool(current, actorEmail))) { return NextResponse.json({ error: "Vous ne pouvez pas prendre cette demande." }, { status: 403 })}
       const statusOpt = String(body?.status || "").trim() as RequestStatus;
       let nextStatus = current.status;
       if (statusOpt && REQUEST_STATUSES.includes(statusOpt)) nextStatus = statusOpt;
@@ -264,7 +264,7 @@ export async function PATCH(req: Request) {
       if (!MANUAL_ONLY_DIRECTION_IDS.has(directionId)) {
         return NextResponse.json({ error: "Corbeille direction invalide." }, { status: 400 });
       }
-      const resolved = resolveRequestRouteById(directionId);
+      const resolved = await resolveRequestRouteById(directionId);
       if (!resolved) return NextResponse.json({ error: "Configuration direction manquante." }, { status: 500 });
       const updatedDir: RequestRecord = {
         ...current,
@@ -298,7 +298,7 @@ export async function PATCH(req: Request) {
       if (!(await canAccessRequestsStaffBoard(actorRoles, actorEmail))) {  return NextResponse.json({ error: "Non autorisé" }, { status: 403 });}
       const claimedBy = current.assignedTo.claimedBy?.email;
       const claimedMe = Boolean(claimedBy) && normalizeRequestEmail(claimedBy!) === normalizeRequestEmail(actorEmail);
-      const inPool = isUserInRequestPool(current, actorEmail);
+      const inPool = await isUserInRequestPool(current, actorEmail);
       if (!claimedMe && !inPool) {
         return NextResponse.json({ error: "Vous n'avez pas accès à cette demande." }, { status: 403 });
       }
@@ -328,10 +328,10 @@ export async function PATCH(req: Request) {
       targetRouteId = LEGACY_ASSIGN_UNIT_TO_ROUTE[assignUnit] || assignUnit;
     }
     if (targetRouteId) {
-      if (!isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail)) {
+      if (!(await isLeaderForRequestBranch(current.assignedTo.routeId, current.assignedTo.unit, actorEmail))) {
         return NextResponse.json({ error: "Seul le responsable du service peut renvoyer la demande vers un autre service." },{ status: 403 });
       }
-      const resolved = resolveRequestRouteById(targetRouteId);
+      const resolved = await resolveRequestRouteById(targetRouteId);
       if (!resolved) return NextResponse.json({ error: "Route d'assignation invalide" }, { status: 400 });
       updated = {
         ...updated,

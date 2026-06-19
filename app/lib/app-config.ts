@@ -2,6 +2,8 @@ import {
   parseDomainPlanningModule,
   parseEstablishment,
   parseEstablishmentsFile,
+  parseExternalLinksFile,
+  parseIntegrations,
   parseInternatModule,
   parseNotifications,
   parseProfRoomModule,
@@ -11,6 +13,8 @@ import {
   type AppConfigBundle,
   type DomainPlanningModuleConfig,
   type Establishment,
+  type ExternalQuickLinkConfig,
+  type IntegrationsConfig,
   type InternatModuleConfig,
   type NotificationsConfig,
   type ProfRoomModuleConfig,
@@ -21,6 +25,8 @@ import {
 import {
   defaultDomainPlanningModule,
   defaultEstablishments,
+  defaultExternalLinks,
+  defaultIntegrations,
   defaultInternatModule,
   defaultNotifications,
   defaultProfRoomModule,
@@ -28,8 +34,19 @@ import {
   defaultStaffDirectory,
   defaultTravelsModule,
 } from "@/app/lib/app-config-defaults";
+import {
+  laprovidenceEstablishments,
+  laprovidenceExternalLinks,
+  laprovidenceIntegrations,
+  laprovidenceNotifications,
+  laprovidenceSiteIdentity,
+  LAPROVIDENCE_STAFF_DIRECTORY,
+  laprovidenceTravelsModule,
+} from "@/app/lib/laprovidence-seed";
 import { normalizeDomainPlanningModule } from "@/app/lib/domain-planning-defaults";
 import { withDefaultProfRoomSubjects } from "@/app/lib/prof-room-defaults";
+import { getActiveEstablishments, shouldShowGroupeScolaire } from "@/app/lib/app-config-establishments";
+import { PLATFORM_ASSISTANCE_EMAIL } from "@/app/lib/platform-assistance-email";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 
 const CACHE_MS = 45_000;
@@ -39,10 +56,122 @@ export function invalidateAppConfigCache() {
   cache = null;
 }
 
+export function isOnboardingComplete(config: AppConfigBundle): boolean {
+  return config.identity.onboardingCompleted === true;
+}
+
+function looksLikeLaProvidenceTenant(identity: SiteIdentity): boolean {
+  const name = identity.name?.toLowerCase() ?? "";
+  return name.includes("providence") || name.includes("nicolas barré") || name.includes("nicolas barre");
+}
+
+function isLegacyTenantIdentity(identity: SiteIdentity, activeEstablishmentCount: number): boolean {
+  const name = identity.name?.trim();
+  const hasRealName = Boolean(name && name !== "Mon établissement");
+  return hasRealName || activeEstablishmentCount >= 2;
+}
+
+/** Rétablit école/collège/lycée si site.json existe mais establishments.json jamais créé (La Providence). */
+async function maybeBackfillLegacyEstablishments(
+  estRaw: { data: unknown } | null,
+  identity: SiteIdentity,
+): Promise<Establishment[]> {
+  if (estRaw?.data) return parseEstablishmentsFile(estRaw.data);
+  if (!looksLikeLaProvidenceTenant(identity)) return defaultEstablishments();
+  const est = laprovidenceEstablishments();
+  try {
+    await putJson("settings/establishments.json", { establishments: est });
+    invalidateAppConfigCache();
+  } catch (e) {
+    console.error("[app-config] backfill establishments", e);
+  }
+  return est;
+}
+
+/** Rétablit transporteurs (et compta voyages) si travels.json absent ou vide (La Providence). */
+async function maybeBackfillLegacyTravelsModule(
+  identity: SiteIdentity,
+  travels: TravelsModuleConfig,
+): Promise<TravelsModuleConfig> {
+  if (!looksLikeLaProvidenceTenant(identity)) return travels;
+  if (travels.transportProviders.length > 0) return travels;
+
+  const seed = laprovidenceTravelsModule();
+  const merged: TravelsModuleConfig = {
+    ...travels,
+    transportProviders: seed.transportProviders,
+    comptaEmails: travels.comptaEmails.length ? travels.comptaEmails : seed.comptaEmails,
+    pdfFooterText: travels.pdfFooterText || seed.pdfFooterText,
+    showGroupeScolaireOption: travels.showGroupeScolaireOption || seed.showGroupeScolaireOption,
+  };
+  try {
+    await putJson("settings/modules/travels.json", merged);
+    invalidateAppConfigCache();
+  } catch (e) {
+    console.error("[app-config] backfill travels", e);
+  }
+  return merged;
+}
+
+async function maybeMigrateLegacyOnboarding(
+  identityRaw: { data: unknown } | null,
+  identity: SiteIdentity,
+  establishments: Establishment[],
+): Promise<SiteIdentity> {
+  if (!identityRaw?.data) return identity;
+  if (identity.onboardingCompleted === true) return identity;
+
+  const activeCount = getActiveEstablishments(establishments).length;
+  const atRecapStep = (identity.onboardingStep ?? 0) >= 14;
+  const legacyTenant = isLegacyTenantIdentity(identity, activeCount);
+
+  if (identity.onboardingCompleted === false) {
+    const shouldCompleteAnyway =
+      looksLikeLaProvidenceTenant(identity) || (legacyTenant && atRecapStep);
+    if (!shouldCompleteAnyway) return identity;
+  } else if (!legacyTenant) {
+    return identity;
+  }
+
+  const migrated: SiteIdentity = {
+    ...identity,
+    onboardingCompleted: true,
+    onboardingCompletedAt: new Date().toISOString(),
+    assistanceEmail: PLATFORM_ASSISTANCE_EMAIL,
+    organizationKind:
+      identity.organizationKind ?? (activeCount >= 2 ? "groupe" : "standalone"),
+  };
+  try {
+    await putJson("settings/site.json", migrated);
+  } catch (e) {
+    console.error("[app-config] migration onboarding", e);
+  }
+  return migrated;
+}
+
+function withInferredOrganizationKind(identity: SiteIdentity, establishments: Establishment[]): SiteIdentity {
+  if (identity.organizationKind) return identity;
+  const activeCount = getActiveEstablishments(establishments).length;
+  if (activeCount >= 2) return { ...identity, organizationKind: "groupe" };
+  if (activeCount === 1) return { ...identity, organizationKind: "standalone" };
+  return identity;
+}
+
 export async function loadAppConfig(): Promise<AppConfigBundle> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.bundle;
 
-  const [identityRaw, estRaw, notifRaw, staffRaw, travelsRaw, profRaw, domainRaw, internatRaw] = await Promise.all([
+  const [
+    identityRaw,
+    estRaw,
+    notifRaw,
+    staffRaw,
+    travelsRaw,
+    profRaw,
+    domainRaw,
+    internatRaw,
+    integrationsRaw,
+    externalLinksRaw,
+  ] = await Promise.all([
     getJson<unknown>("settings/site.json"),
     getJson<unknown>("settings/establishments.json"),
     getJson<unknown>("settings/notifications.json"),
@@ -51,13 +180,18 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
     getJson<unknown>("settings/modules/prof-room.json"),
     getJson<unknown>("settings/modules/domain-planning.json"),
     getJson<unknown>("settings/modules/internat.json"),
+    getJson<unknown>("settings/integrations.json"),
+    getJson<unknown>("settings/external-links.json"),
   ]);
 
-  const identity = identityRaw?.data ? parseSiteIdentity(identityRaw.data) : defaultSiteIdentity();
-  const establishments = estRaw?.data ? parseEstablishmentsFile(estRaw.data) : defaultEstablishments();
+  let identity = identityRaw?.data ? parseSiteIdentity(identityRaw.data) : defaultSiteIdentity();
+  const allEstablishments = await maybeBackfillLegacyEstablishments(estRaw, identity);
+  identity = await maybeMigrateLegacyOnboarding(identityRaw, identity, allEstablishments);
+  identity = withInferredOrganizationKind(identity, allEstablishments);
   const notifications = notifRaw?.data ? parseNotifications(notifRaw.data) : defaultNotifications();
   const staffDirectory = staffRaw?.data ? parseStaffDirectoryFile(staffRaw.data) : defaultStaffDirectory();
-  const travels = travelsRaw?.data ? parseTravelsModule(travelsRaw.data) : defaultTravelsModule();
+  let travels = travelsRaw?.data ? parseTravelsModule(travelsRaw.data) : defaultTravelsModule();
+  travels = await maybeBackfillLegacyTravelsModule(identity, travels);
   const profRoomRaw = profRaw?.data ? parseProfRoomModule(profRaw.data) : defaultProfRoomModule();
   const profRoom = withDefaultProfRoomSubjects(profRoomRaw);
   const domainPlanningRaw = domainRaw?.data
@@ -65,23 +199,35 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
     : defaultDomainPlanningModule();
   const domainPlanning = normalizeDomainPlanningModule(domainPlanningRaw);
   const internat = internatRaw?.data ? parseInternatModule(internatRaw.data) : defaultInternatModule();
+  const integrations = integrationsRaw?.data ? parseIntegrations(integrationsRaw.data) : defaultIntegrations();
+  const externalLinks = externalLinksRaw?.data
+    ? parseExternalLinksFile(externalLinksRaw.data)
+    : defaultExternalLinks();
+
+  const activeEstablishments = getActiveEstablishments(allEstablishments);
+  travels = {
+    ...travels,
+    showGroupeScolaireOption: shouldShowGroupeScolaire(allEstablishments),
+  };
 
   const bundle: AppConfigBundle = {
     identity,
-    establishments: establishments.filter((e) => e.active !== false),
+    establishments: activeEstablishments,
     notifications,
     staffDirectory,
     travels,
     profRoom,
     domainPlanning,
     internat,
+    integrations,
+    externalLinks,
   };
   cache = { at: Date.now(), bundle };
   return bundle;
 }
 
 export async function saveSiteIdentity(data: SiteIdentity) {
-  const parsed = parseSiteIdentity(data);
+  const parsed = parseSiteIdentity({ ...data, assistanceEmail: PLATFORM_ASSISTANCE_EMAIL });
   await putJson("settings/site.json", parsed);
   invalidateAppConfigCache();
 }
@@ -128,6 +274,36 @@ export async function saveInternatModule(data: InternatModuleConfig) {
   invalidateAppConfigCache();
 }
 
+export async function saveIntegrations(data: IntegrationsConfig) {
+  const parsed = parseIntegrations(data);
+  await putJson("settings/integrations.json", parsed);
+  invalidateAppConfigCache();
+}
+
+export async function saveExternalLinks(links: ExternalQuickLinkConfig[]) {
+  const parsed = parseExternalLinksFile({ links });
+  await putJson("settings/external-links.json", { links: parsed });
+  invalidateAppConfigCache();
+}
+
+export async function markOnboardingComplete(step = 14) {
+  const config = await loadAppConfig();
+  await saveSiteIdentity({
+    ...config.identity,
+    onboardingCompleted: true,
+    onboardingCompletedAt: new Date().toISOString(),
+    onboardingStep: step,
+  });
+}
+
+export async function saveOnboardingStep(step: number) {
+  const config = await loadAppConfig();
+  await saveSiteIdentity({
+    ...config.identity,
+    onboardingStep: step,
+  });
+}
+
 export function getEstablishmentByLabel(bundle: AppConfigBundle, label: string): Establishment | null {
   const t = label.trim();
   return bundle.establishments.find((e) => e.label === t) ?? null;
@@ -145,4 +321,25 @@ export async function seedAppSettingsFromDefaults() {
   await saveTravelsModule(defaultTravelsModule());
   await saveProfRoomModule(defaultProfRoomModule());
   await saveInternatModule(defaultInternatModule());
+  await saveIntegrations(defaultIntegrations());
+  await saveExternalLinks(defaultExternalLinks());
+}
+
+export async function seedAppSettingsFromLaProvidence() {
+  await saveSiteIdentity(laprovidenceSiteIdentity());
+  await saveEstablishments(laprovidenceEstablishments());
+  await saveNotifications(laprovidenceNotifications());
+  await saveStaffDirectory(
+    LAPROVIDENCE_STAFF_DIRECTORY.map((r) => ({
+      email: r.email,
+      branchId: r.branchId,
+      role: r.role,
+      validUntil: r.validUntil,
+    })),
+  );
+  await saveTravelsModule(laprovidenceTravelsModule());
+  await saveProfRoomModule(defaultProfRoomModule());
+  await saveInternatModule(defaultInternatModule());
+  await saveIntegrations(laprovidenceIntegrations());
+  await saveExternalLinks(laprovidenceExternalLinks());
 }

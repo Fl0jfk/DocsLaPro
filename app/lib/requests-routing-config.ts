@@ -5,9 +5,8 @@ import {
   type RoutingAssignment,
   type RoutingTask,
 } from "@/app/lib/app-config-schemas";
-import { saveStaffDirectory } from "@/app/lib/app-config";
+import { saveStaffDirectory, loadAppConfig } from "@/app/lib/app-config";
 import { defaultRequestsRouting } from "@/app/lib/requests-routing-defaults";
-import { SCHOOL } from "@/app/lib/school";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
 import type { ResolvedRequestRouting } from "@/app/lib/requests";
 
@@ -33,9 +32,7 @@ export async function getRequestsRoutingConfig(): Promise<RequestsRoutingConfig>
 }
 
 function routingToStaffDirectoryRows(config: RequestsRoutingConfig) {
-  const rows: { email: string; branchId: string; role: "leader" | "executor" }[] = [
-    { email: "florian@h-me.fr", branchId: "corbeille", role: "leader" },
-  ];
+  const rows: { email: string; branchId: string; role: "leader" | "executor" }[] = [];
   const seen = new Set<string>();
   for (const a of getActiveAssignments(config)) {
     const key = `${a.email.toLowerCase()}::${a.taskId}`;
@@ -45,6 +42,10 @@ function routingToStaffDirectoryRows(config: RequestsRoutingConfig) {
   }
   for (const d of config.directionQueues.filter((q) => q.active)) {
     rows.push({ email: d.email, branchId: d.id, role: "leader" });
+  }
+  const corbeille = getActiveAssignments(config).find((a) => a.taskId === "corbeille");
+  if (corbeille) {
+    rows.unshift({ email: corbeille.email, branchId: "corbeille", role: "leader" });
   }
   return rows as import("@/app/lib/app-config-schemas").StaffDirectoryRow[];
 }
@@ -175,16 +176,17 @@ Choisis UNE SEULE affectation (assignmentId) la plus pertinente pour traiter la 
 Les files direction (direction_ecole, direction_college, direction_lycee) ne sont PAS dans le catalogue : si la demande concerne clairement la direction, renvoie directionHint avec l'id approprié mais choisis quand même une affectation non-direction du catalogue pour le traitement initial.
 Réponds UNIQUEMENT en JSON valide : {"assignmentId":"...","confidence":0.0-1.0,"reason":"...","directionHint":null ou "direction_..."}`;
 
+  const appConfig = await loadAppConfig();
+  const establishmentLabels = Object.fromEntries(
+    appConfig.establishments.map((e) => [e.id, e.label]),
+  );
+
   const user = JSON.stringify({
     subject,
     description,
     catalog,
     directionHints,
-    school: {
-      ecole: SCHOOL.ecole.label,
-      college: SCHOOL.college.label,
-      lycee: SCHOOL.lycee.label,
-    },
+    establishments: establishmentLabels,
   });
 
   const res = await fetch(MISTRAL_URL, {
@@ -305,7 +307,7 @@ function corbeilleFallback(
   const corbeille = getActiveAssignments(config).find((a) => a.taskId === "corbeille");
   const task = config.tasks.find((t) => t.id === "corbeille");
   const service = config.services.find((s) => s.id === "etablissement");
-  const email = corbeille?.email || SCHOOL.ecole.email;
+  const email = corbeille?.email || "";
   return {
     category: service?.category || "Établissement",
     assignedTo: {

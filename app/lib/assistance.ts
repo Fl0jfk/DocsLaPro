@@ -1,5 +1,7 @@
 import "server-only";
 
+import { loadAppConfig } from "@/app/lib/app-config";
+import { PLATFORM_ASSISTANCE_EMAIL } from "@/app/lib/platform-assistance-email";
 import { getDashboardCategories } from "@/app/lib/intranet-modules";
 import {
   assertEligibleRequestAttachment,
@@ -14,9 +16,16 @@ export type AssistanceScopeOption = {
   label: string;
 };
 
-/** Destinataire des tickets assistance (surchargeable via ASSISTANCE_EMAIL). */
-export function getAssistanceTargetEmail(): string {
-  return (process.env.ASSISTANCE_EMAIL || "florian@h-me.fr").trim();
+/** Destinataire des tickets assistance (config tenant puis env). */
+export async function getAssistanceTargetEmail(): Promise<string> {
+  try {
+    const config = await loadAppConfig();
+    const fromSite = config.identity.assistanceEmail?.trim();
+    if (fromSite) return fromSite;
+  } catch {
+    /* fallback plateforme */
+  }
+  return PLATFORM_ASSISTANCE_EMAIL;
 }
 
 export function getAssistanceScopeOptions(): AssistanceScopeOption[] {
@@ -57,7 +66,8 @@ export async function sendAssistanceTicketEmails(input: {
   const transporter = await createTenantTransporter();
   if (!transporter) throw new Error("SMTP non configuré — impossible d'envoyer le ticket.");
 
-  const to = getAssistanceTargetEmail();
+  const to = await getAssistanceTargetEmail();
+  if (!to) throw new Error("Email assistance non configuré.");
   const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
   const safeDesc = input.description
     .replace(/&/g, "&amp;")

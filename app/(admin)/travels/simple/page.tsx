@@ -7,7 +7,7 @@ import {
   WEEKDAY_JS_OPTIONS,
 } from "@/app/lib/simple-trip-recurrence";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAppContext } from "@/app/hooks/useAppContext";
+import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
 
 const CUISINE_DAYS = [
   { key: "lundi",    label: "Lun." },
@@ -46,7 +46,7 @@ function SimpleTripFormContent() {
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    etablissement: "" as "" | "École" | "Collège" | "Lycée" | "Groupe Scolaire",
+    etablissement: "",
     destination: "",
     date: "",
     startTime: "",
@@ -285,20 +285,16 @@ function SimpleTripFormContent() {
         </div>
         <div>
           <label className="block text-sm font-semibold mb-2">Établissement concerné</label>
-          <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value as typeof formData.etablissement})}>
+          <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value})}>
             <option value="">— Sélectionner —</option>
-            {(appCtx?.establishments?.length
-              ? appCtx.establishments.map((e) => (
-                  <option key={e.id} value={e.label}>
-                    {e.label}
-                  </option>
-                ))
-              : [
-                  <option key="ecole" value="École">École</option>,
-                  <option key="college" value="Collège">Collège</option>,
-                  <option key="lycee" value="Lycée">Lycée</option>,
-                ])}
-            <option value="Groupe Scolaire">Groupe Scolaire</option>
+            {(appCtx?.establishments || []).map((e) => (
+              <option key={e.id} value={e.label}>
+                {e.label}
+              </option>
+            ))}
+            {(appCtx?.establishments?.length ?? 0) > 1 && (
+              <option value={GROUPE_SCOLAIRE_LABEL}>{GROUPE_SCOLAIRE_LABEL}</option>
+            )}
           </select>
         </div>
         <div className="md:col-span-2">

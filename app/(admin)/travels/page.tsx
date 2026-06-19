@@ -11,10 +11,12 @@ import {
 } from "@/app/components/travels/TravelsRemindersModal";
 import type { TravelsDirectionDashboard } from "@/app/lib/travels-direction-dashboard";
 import { isTripTravelDatePast } from "@/app/lib/travels-trip-helpers";
-import type { TravelsTrip } from "@/app/lib/travels-types";
+import { useAppContext } from "@/app/hooks/useAppContext";
+import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
 
 function TripDashboardContent() {
   const { isLoaded, isSignedIn } = useUser();
+  const { data: appCtx } = useAppContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showModal, setShowModal] = useState(false);
@@ -79,12 +81,17 @@ function TripDashboardContent() {
     if (searchParams.get("new") === "1") setShowModal(true);
   }, [searchParams]);
 
+  const etabFilterOptions = useMemo(() => {
+    const labels = (appCtx?.establishments || []).map((e) => e.label);
+    const showGroupe = labels.length > 1;
+    return { labels, showGroupe };
+  }, [appCtx?.establishments]);
+
   const filteredTrips = useMemo(() => {
     if (!filterEtab) return trips;
-    return trips.filter(
-      (t) => (t.data?.etablissement || "Groupe Scolaire") === filterEtab,
-    );
-  }, [trips, filterEtab]);
+    const defaultLabel = etabFilterOptions.showGroupe ? GROUPE_SCOLAIRE_LABEL : etabFilterOptions.labels[0] || "";
+    return trips.filter((t) => (t.data?.etablissement || defaultLabel) === filterEtab);
+  }, [trips, filterEtab, etabFilterOptions]);
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -139,9 +146,9 @@ function TripDashboardContent() {
       </div>
       {directionDashboard && <TravelsDirectionDashboardPanel data={directionDashboard} />}
       <div className="flex gap-2 flex-wrap mb-6">
-        {["Tous", "École", "Collège", "Lycée", "Groupe Scolaire"].map((f) => {
+        {["Tous", ...etabFilterOptions.labels, ...(etabFilterOptions.showGroupe ? [GROUPE_SCOLAIRE_LABEL] : [])].map((f) => {
           const active = (f === "Tous" && !filterEtab) || filterEtab === f;
-          const s = f !== "Tous" ? ETAB_STYLE[f] : null;
+          const s = f !== "Tous" ? ETAB_STYLE[f] ?? ETAB_STYLE[GROUPE_SCOLAIRE_LABEL] : null;
           return (
             <button
               key={f}
@@ -166,8 +173,9 @@ function TripDashboardContent() {
             const imageUrl =
               (typeof trip.imageUrl === "string" && trip.imageUrl) ||
               (typeof trip.data?.imageUrl === "string" ? trip.data.imageUrl : undefined);
-            const etabLabel = trip.data?.etablissement || "Groupe Scolaire";
-            const etabStyle = ETAB_STYLE[etabLabel] ?? ETAB_STYLE["Groupe Scolaire"];
+            const defaultEtab = etabFilterOptions.showGroupe ? GROUPE_SCOLAIRE_LABEL : etabFilterOptions.labels[0] || "Établissement";
+            const etabLabel = trip.data?.etablissement || defaultEtab;
+            const etabStyle = ETAB_STYLE[etabLabel] ?? ETAB_STYLE[GROUPE_SCOLAIRE_LABEL];
             const isPast = isTripTravelDatePast(trip);
             return (
               <div

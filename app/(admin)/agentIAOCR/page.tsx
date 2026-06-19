@@ -5,18 +5,14 @@ import * as msal from "@azure/msal-browser";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
 import { consumeDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 
-const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-
-const msalConfig: msal.Configuration = {
-  auth: {
-    clientId: process.env.NEXT_PUBLIC_CLIENT_ID!,
-    authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_TENANT_ID}`,
-    redirectUri: `${appBaseUrl}/agentIAOCR`,
-  }
-};
-
-const msalInstance = new msal.PublicClientApplication(msalConfig);
 const ONEDRIVE_SCOPES = ["Files.ReadWrite", "User.Read"];
+
+let msalInstance: msal.PublicClientApplication | null = null;
+
+function getMsalInstance() {
+  if (!msalInstance) throw new Error("MSAL non initialisé");
+  return msalInstance;
+}
 
 type ProcessResult = {
   success: boolean;
@@ -100,7 +96,7 @@ function OneDriveUpDocsOCRAIContent() {
     }
     setCheckingOneDrive(true);
     try {
-      const accounts = msalInstance.getAllAccounts();
+      const accounts = getMsalInstance().getAllAccounts();
       if (accounts.length === 0) {
         applyOneDriveSession(null, null);
         setError("Connectez-vous à OneDrive avant de déposer des fichiers (bouton en haut à droite).");
@@ -109,14 +105,14 @@ function OneDriveUpDocsOCRAIContent() {
       const activeAccount = accounts[0];
       let token: string;
       try {
-        const tokenResponse = await msalInstance.acquireTokenSilent({
+        const tokenResponse = await getMsalInstance().acquireTokenSilent({
           account: activeAccount,
           scopes: ONEDRIVE_SCOPES,
         });
         token = tokenResponse.accessToken;
       } catch (err) {
         if (err instanceof msal.InteractionRequiredAuthError) {
-          const tokenResponse = await msalInstance.acquireTokenPopup({
+          const tokenResponse = await getMsalInstance().acquireTokenPopup({
             account: activeAccount,
             scopes: ONEDRIVE_SCOPES,
           });
@@ -137,7 +133,7 @@ function OneDriveUpDocsOCRAIContent() {
       setError("");
       return token;
     } catch (err: unknown) {
-      applyOneDriveSession(msalInstance.getAllAccounts()[0] ?? null, null);
+      applyOneDriveSession(getMsalInstance().getAllAccounts()[0] ?? null, null);
       const msg = err instanceof Error ? err.message : String(err);
       setError(`OneDrive indisponible : ${msg}`);
       return null;
@@ -171,12 +167,29 @@ function OneDriveUpDocsOCRAIContent() {
   useEffect(() => {
     const init = async () => {
       try {
-        await msalInstance.initialize();
+        const tenantRes = await fetch("/api/tenant/public");
+        const tenant = await tenantRes.json();
+        const ms = tenant.microsoftOneDrive;
+        if (!ms?.enabled || !ms.clientId || !ms.tenantId) {
+          setError("OneDrive n'est pas activé pour cet établissement. Activez-le dans Paramètres → Intégrations.");
+          setMsalReady(true);
+          return;
+        }
+        const redirectUri =
+          typeof window !== "undefined" ? `${window.location.origin}/agentIAOCR` : "/agentIAOCR";
+        msalInstance = new msal.PublicClientApplication({
+          auth: {
+            clientId: ms.clientId,
+            authority: `https://login.microsoftonline.com/${ms.tenantId}`,
+            redirectUri,
+          },
+        });
+        await getMsalInstance().initialize();
         setMsalReady(true);
-        const accounts = msalInstance.getAllAccounts();
+        const accounts = getMsalInstance().getAllAccounts();
         if (accounts.length > 0) {
           try {
-            const tokenResponse = await msalInstance.acquireTokenSilent({
+            const tokenResponse = await getMsalInstance().acquireTokenSilent({
               account: accounts[0],
               scopes: ONEDRIVE_SCOPES,
             });
@@ -231,9 +244,9 @@ function OneDriveUpDocsOCRAIContent() {
     if (!msalReady) return;
     const handleRedirect = async () => {
       try {
-        const result = await msalInstance.handleRedirectPromise();
+        const result = await getMsalInstance().handleRedirectPromise();
         if (result?.account) {
-          const tokenResponse = await msalInstance.acquireTokenSilent({
+          const tokenResponse = await getMsalInstance().acquireTokenSilent({
             account: result.account,
             scopes: ONEDRIVE_SCOPES,
           });
@@ -260,7 +273,7 @@ function OneDriveUpDocsOCRAIContent() {
       return;
     }
     try {
-      await msalInstance.loginRedirect({ scopes: ONEDRIVE_SCOPES });
+      await getMsalInstance().loginRedirect({ scopes: ONEDRIVE_SCOPES });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError("Erreur login: " + err.message);

@@ -1,9 +1,8 @@
 "use client";
 
-import { createContext, useContext, PropsWithChildren } from "react";
+import { createContext, useContext, PropsWithChildren, useEffect, useState } from "react";
 import {
   getDashboardCategories,
-  getExternalQuickLinks,
   type DashboardCategory,
   type DashboardTileVariant,
   type ExternalQuickLink,
@@ -21,17 +20,37 @@ type Data = {
   error: null;
 };
 
-const STATIC_DATA: Data = {
-  categories: getDashboardCategories(),
-  externalQuickLinks: getExternalQuickLinks(),
-  travels: [],
-  documents: [],
-  error: null,
-};
-
 const DataContext = createContext<Data | undefined>(undefined);
 
-export const DataProvider = ({ children }: PropsWithChildren<object>) => ( <DataContext.Provider value={STATIC_DATA}>{children}</DataContext.Provider>);
+export const DataProvider = ({ children }: PropsWithChildren<object>) => {
+  const [data, setData] = useState<Data>({
+    categories: getDashboardCategories(),
+    externalQuickLinks: [],
+    travels: [],
+    documents: [],
+    error: null,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/dashboard/links", { cache: "no-store" });
+        const j = await res.json();
+        if (!cancelled && res.ok && Array.isArray(j.links)) {
+          setData((prev) => ({ ...prev, externalQuickLinks: j.links }));
+        }
+      } catch {
+        /* liens optionnels */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return <DataContext.Provider value={data}>{children}</DataContext.Provider>;
+};
 
 export const useData = () => {
   const context = useContext(DataContext);

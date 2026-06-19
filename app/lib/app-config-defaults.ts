@@ -1,8 +1,7 @@
-import { SCHOOL } from "@/app/lib/school";
-import { STAFF_DIRECTORY } from "@/app/lib/staff-directory";
-import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
 import type {
   Establishment,
+  ExternalQuickLinkConfig,
+  IntegrationsConfig,
   InternatModuleConfig,
   NotificationsConfig,
   DomainPlanningModuleConfig,
@@ -16,69 +15,30 @@ import { DEFAULT_PROF_ROOM_SUBJECT_COLORS } from "@/app/lib/prof-room-defaults";
 
 export function defaultSiteIdentity(): SiteIdentity {
   return {
-    name: SCHOOL.name,
-    shortName: SCHOOL.shortName,
-    address: { ...SCHOOL.address },
-    phone: { ...SCHOOL.phone },
-    preinscriptionUrl: SCHOOL.preinscriptionUrl,
-    reglementFinancier: SCHOOL.reglementFinancier,
+    name: "Mon établissement",
+    shortName: "Mon établissement",
+    organizationKind: "standalone",
+    onboardingCompleted: false,
+    onboardingStep: 1,
   };
 }
 
 export function defaultEstablishments(): Establishment[] {
   return [
     {
-      id: "ecole",
-      label: SCHOOL.ecole.label,
-      directorName: SCHOOL.ecole.directrice,
-      directorEmail: SCHOOL.ecole.email,
-      grades: SCHOOL.ecole.grades,
-      clerkRoleSlugs: ["direction_ecole", "direction école"],
+      id: "principal",
+      label: "Mon établissement",
+      kind: "custom",
       active: true,
-    },
-    {
-      id: "college",
-      label: SCHOOL.college.label,
-      directorName: SCHOOL.college.directrice,
-      directorEmail: SCHOOL.college.email,
-      grades: SCHOOL.college.grades,
-      clerkRoleSlugs: ["direction_college", "direction collège"],
-      active: true,
-    },
-    {
-      id: "lycee",
-      label: SCHOOL.lycee.label,
-      directorName: SCHOOL.lycee.directrice,
-      directorEmail: SCHOOL.lycee.email,
-      grades: SCHOOL.lycee.grades,
-      clerkRoleSlugs: ["direction_lycee", "direction_lycee"],
-      active: true,
+      clerkRoleSlugs: ["direction_lycee"],
     },
   ];
 }
 
 export function defaultNotifications(): NotificationsConfig {
   return {
-    travelsCompta: ["valerie.vasseur@laprovidence-nicolasbarre.fr", "cecile.douaglin@laprovidence-nicolasbarre.fr"],
-    travelsCuisine: "chef.0056isi@newrest.eu",
-    travelsZeendoc: "comptabilite@laprovidence-nicolasbarre.fr",
-    hseOps: "sarah.buno@ac-normandie.fr",
-    photocopiesOps: "carine.perier@ac-normandie.fr",
-    absencesNotifyProfEcole: {
-      label: SCHOOL.absences.notifyProfEcole.label,
-      email: SCHOOL.absences.notifyProfEcole.email,
-    },
-    absencesNotifyProfCollegeLycee: {
-      label: SCHOOL.absences.notifyProfCollegeLycee.label,
-      email: SCHOOL.absences.notifyProfCollegeLycee.email,
-    },
-    absencesNotifyOgecCompta: [...SCHOOL.absences.notifyOgecCompta],
-    internatRollCallRecipients: {
-      directionLycee: SCHOOL.lycee.email,
-      cpeLycee: "florian@h-me.fr",
-      cpeCollege: SCHOOL.requestsRouting.cpeCollege,
-    },
-    internatEmergencyRecipients: [SCHOOL.lycee.email, "florian@h-me.fr", SCHOOL.requestsRouting.cpeCollege],
+    travelsCompta: [],
+    absencesNotifyOgecCompta: [],
   };
 }
 
@@ -94,33 +54,32 @@ export function defaultInternatModule(): InternatModuleConfig {
 }
 
 export function defaultStaffDirectory(): StaffDirectoryRow[] {
-  return STAFF_DIRECTORY.map((r) => ({
-    email: r.email,
-    branchId: r.branchId,
-    role: r.role,
-    validUntil: r.validUntil,
-  }));
+  return [];
 }
 
 export function defaultTravelsModule(): TravelsModuleConfig {
   return {
-    comptaEmails: ["valerie.vasseur@laprovidence-nicolasbarre.fr", "cecile.douaglin@laprovidence-nicolasbarre.fr"],
-    transportProviders: TRANSPORT_PROVIDERS.map((p) => ({ ...p })),
+    comptaEmails: [],
+    transportProviders: [],
+    showGroupeScolaireOption: false,
   };
+}
+
+export function defaultIntegrations(): IntegrationsConfig {
+  return {
+    zeendoc: { enabled: false, buttonLabel: "Envoyer par mail" },
+    ecoleDirecte: { enabled: false },
+    microsoftOneDrive: { enabled: false },
+  };
+}
+
+export function defaultExternalLinks(): ExternalQuickLinkConfig[] {
+  return [];
 }
 
 export function defaultDomainPlanningModule(): DomainPlanningModuleConfig {
   return {
-    classesByPole: {
-      ÉCOLE: ["CP", "CE1", "CE2", "CM1", "CM2"],
-      COLLÈGE: [
-        "6A", "6B", "6C", "6D", "6E", "6F",
-        "5A", "5B", "5C", "5D", "5E", "5F",
-        "4A", "4B", "4C", "4D", "4E", "4F",
-        "3A", "3B", "3C", "3D", "3E", "3F",
-      ],
-      LYCÉE: ["2A", "2B", "2C", "2D", "2E", "1A", "1B", "1C", "1D", "1E", "1F", "TA", "TB", "TC", "TD", "TE", "TF"],
-    },
+    classesByPole: {},
     activityColors: { ...DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS },
     hoursStart: 8,
     hoursEnd: 17,
@@ -130,17 +89,7 @@ export function defaultDomainPlanningModule(): DomainPlanningModuleConfig {
 
 export function defaultProfRoomModule(): ProfRoomModuleConfig {
   return {
-    classesByPole: {
-      ÉCOLE: ["CP", "CE1", "CE2", "CM1", "CM2"],
-      COLLÈGE: [
-        "6A", "6B", "6C", "6D", "6E", "6F",
-        "5A", "5B", "5C", "5D", "5E", "5F",
-        "4A", "4B", "4C", "4D", "4E", "4F",
-        "3A", "3B", "3C", "3D", "3E", "3F",
-      ],
-      LYCÉE: ["2A", "2B", "2C", "2D", "2E", "1A", "1B", "1C", "1D", "1E", "1F", "TA", "TB", "TC", "TD", "TE", "TF"],
-      MAINTENANCE: ["MAINTENANCE"],
-    },
+    classesByPole: {},
     subjectColors: { ...DEFAULT_PROF_ROOM_SUBJECT_COLORS },
     hoursStart: 8,
     hoursEnd: 17,

@@ -1,5 +1,6 @@
+import { loadAppConfig, invalidateAppConfigCache } from "@/app/lib/app-config";
+import type { StaffDirectoryRow as ConfigStaffRow } from "@/app/lib/app-config-schemas";
 import { normalizeRequestEmail } from "@/app/lib/requests-board";
-import { SCHOOL } from "@/app/lib/school";
 
 export type StaffRequestBranchId =
   | "corbeille"
@@ -19,32 +20,33 @@ export type StaffRequestBranchId =
 
 export type StaffDirectoryRow = {
   email: string;
-  branchId: StaffRequestBranchId;
+  branchId: StaffRequestBranchId | string;
   role: "leader" | "executor";
   validUntil?: string;
 };
 
+let cachedRows: StaffDirectoryRow[] | null = null;
+let cacheAt = 0;
+const CACHE_MS = 45_000;
 
-export const STAFF_DIRECTORY: StaffDirectoryRow[] = [
-  { email: "florian@h-me.fr", branchId: "corbeille", role: "leader" },
-  { email: "jerome.laine@laprovidence-nicolasbarre.fr", branchId: "maintenance", role: "leader" },
-  { email: "sarah@laprovidence-nicolasbarre.fr", branchId: "maintenance", role: "executor" },
-  { email: "m.leblond@laprovidence-nicolasbarre.fr", branchId: "admin_ecole", role: "leader" },
-  { email: "0762565a@ac-normandie.fr", branchId: "admin_college", role: "leader" },
-  { email: "florian@h-me.fr", branchId: "admin_lycee", role: "leader" },
-  { email: "florian@h-me.fr", branchId: "cpe_lycee", role: "leader" },
-  { email: "sarah@laprovidence-nicolasbarre.fr", branchId: "cpe_3e4e", role: "leader" },
-  { email: "sarah@laprovidence-nicolasbarre.fr", branchId: "cpe_5e6e", role: "leader" },
-  { email: "sarah@laprovidence-nicolasbarre.fr", branchId: "vie_scolaire_infirmerie", role: "leader" },
-  { email: "florian@h-me.fr", branchId: "vie_scolaire_infirmerie", role: "leader" },
-  { email: "m.leblond@laprovidence-nicolasbarre.fr", branchId: "accueil", role: "leader" },
-  { email: "florian.hacqueville-mathi@ac-normandie.fr", branchId: "comptabilite", role: "leader" },
-  { email: "sarah@laprovidence-nicolasbarre.fr", branchId: "comptabilite", role: "executor" },
-  { email: "m.leblond@laprovidence-nicolasbarre.fr", branchId: "comptabilite", role: "executor" },
-  { email: SCHOOL.ecole.email, branchId: "direction_ecole", role: "leader" },
-  { email: SCHOOL.college.email, branchId: "direction_college", role: "leader" },
-  { email: SCHOOL.lycee.email, branchId: "direction_lycee", role: "leader" },
-];
+export function invalidateStaffDirectoryCache() {
+  cachedRows = null;
+  cacheAt = 0;
+  invalidateAppConfigCache();
+}
+
+export async function loadStaffDirectoryRows(): Promise<StaffDirectoryRow[]> {
+  if (cachedRows && Date.now() - cacheAt < CACHE_MS) return cachedRows;
+  const config = await loadAppConfig();
+  cachedRows = config.staffDirectory.map((r) => ({
+    email: r.email,
+    branchId: r.branchId,
+    role: r.role,
+    validUntil: r.validUntil,
+  }));
+  cacheAt = Date.now();
+  return cachedRows;
+}
 
 export function isStaffRowActive(row: StaffDirectoryRow, now = new Date()): boolean {
   const v = row.validUntil?.trim();
@@ -54,13 +56,19 @@ export function isStaffRowActive(row: StaffDirectoryRow, now = new Date()): bool
   return now.getTime() <= end.getTime();
 }
 
-function activeRows(now = new Date()) { return STAFF_DIRECTORY.filter((r) => isStaffRowActive(r, now))}
+function activeRows(rows: StaffDirectoryRow[], now = new Date()) {
+  return rows.filter((r) => isStaffRowActive(r, now));
+}
 
-export function getStaffLeadersForBranch(branchId: string, now = new Date()): string[] {
+export function getStaffLeadersForBranchFromRows(
+  rows: StaffDirectoryRow[],
+  branchId: string,
+  now = new Date(),
+): string[] {
   const b = branchId.trim();
   return [
     ...new Set(
-      activeRows(now)
+      activeRows(rows, now)
         .filter((r) => r.branchId === b && r.role === "leader")
         .map((r) => normalizeRequestEmail(r.email))
         .filter(Boolean),
@@ -68,11 +76,15 @@ export function getStaffLeadersForBranch(branchId: string, now = new Date()): st
   ];
 }
 
-export function getStaffExecutorsForBranch(branchId: string, now = new Date()): string[] {
+export function getStaffExecutorsForBranchFromRows(
+  rows: StaffDirectoryRow[],
+  branchId: string,
+  now = new Date(),
+): string[] {
   const b = branchId.trim();
   return [
     ...new Set(
-      activeRows(now)
+      activeRows(rows, now)
         .filter((r) => r.branchId === b && r.role === "executor")
         .map((r) => normalizeRequestEmail(r.email))
         .filter(Boolean),
@@ -80,42 +92,77 @@ export function getStaffExecutorsForBranch(branchId: string, now = new Date()): 
   ];
 }
 
-export function getStaffPoolForBranch(branchId: string, now = new Date()): string[] {
-  const leaders = getStaffLeadersForBranch(branchId, now);
-  const execs = getStaffExecutorsForBranch(branchId, now);
+export async function getStaffLeadersForBranch(branchId: string, now = new Date()): Promise<string[]> {
+  const rows = await loadStaffDirectoryRows();
+  return getStaffLeadersForBranchFromRows(rows, branchId, now);
+}
+
+export async function getStaffExecutorsForBranch(branchId: string, now = new Date()): Promise<string[]> {
+  const rows = await loadStaffDirectoryRows();
+  return getStaffExecutorsForBranchFromRows(rows, branchId, now);
+}
+
+export async function getStaffPoolForBranch(branchId: string, now = new Date()): Promise<string[]> {
+  const leaders = await getStaffLeadersForBranch(branchId, now);
+  const execs = await getStaffExecutorsForBranch(branchId, now);
   return [...new Set([...leaders, ...execs].filter(Boolean))];
 }
 
-export function isStaffLeaderForBranch(branchId: string, actorEmail: string, now = new Date()): boolean {
+export async function isStaffLeaderForBranch(
+  branchId: string,
+  actorEmail: string,
+  now = new Date(),
+): Promise<boolean> {
   if (!actorEmail) return false;
-  return getStaffLeadersForBranch(branchId, now).includes(normalizeRequestEmail(actorEmail));
+  return (await getStaffLeadersForBranch(branchId, now)).includes(normalizeRequestEmail(actorEmail));
 }
 
-export function isStaffInBranchPool(branchId: string, actorEmail: string, now = new Date()): boolean {
+export async function isStaffInBranchPool(
+  branchId: string,
+  actorEmail: string,
+  now = new Date(),
+): Promise<boolean> {
   if (!actorEmail) return false;
-  return getStaffPoolForBranch(branchId, now).includes(normalizeRequestEmail(actorEmail));
+  return (await getStaffPoolForBranch(branchId, now)).includes(normalizeRequestEmail(actorEmail));
 }
 
-export function getAllStaffEmailsFromDirectory(now = new Date()): string[] {
+export async function getAllStaffEmailsFromDirectory(now = new Date()): Promise<string[]> {
+  const rows = await loadStaffDirectoryRows();
   const s = new Set<string>();
-  for (const r of activeRows(now)) {
+  for (const r of activeRows(rows, now)) {
     if (r.branchId === "corbeille") continue;
     s.add(normalizeRequestEmail(r.email));
   }
   return [...s];
 }
 
-export function isListedAsRequestsStaff(actorEmail: string, now = new Date()): boolean {
+export async function isListedAsRequestsStaff(actorEmail: string, now = new Date()): Promise<boolean> {
   if (!actorEmail) return false;
+  const rows = await loadStaffDirectoryRows();
   const u = normalizeRequestEmail(actorEmail);
-  return activeRows(now).some((r) => r.branchId !== "corbeille" && normalizeRequestEmail(r.email) === u);
+  return activeRows(rows, now).some(
+    (r) => r.branchId !== "corbeille" && normalizeRequestEmail(r.email) === u,
+  );
 }
 
-export function getFirstBranchForStaffEmailFromDirectory(actorEmail: string, now = new Date()): string | null {
+export async function getFirstBranchForStaffEmailFromDirectory(
+  actorEmail: string,
+  now = new Date(),
+): Promise<string | null> {
+  const rows = await loadStaffDirectoryRows();
   const u = normalizeRequestEmail(actorEmail);
-  for (const r of activeRows(now)) {
+  for (const r of activeRows(rows, now)) {
     if (r.branchId === "corbeille") continue;
     if (normalizeRequestEmail(r.email) === u) return r.branchId;
   }
   return null;
+}
+
+export function configRowsToStaffDirectory(rows: ConfigStaffRow[]): StaffDirectoryRow[] {
+  return rows.map((r) => ({
+    email: r.email,
+    branchId: r.branchId,
+    role: r.role,
+    validUntil: r.validUntil,
+  }));
 }

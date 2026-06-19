@@ -1,5 +1,7 @@
 import { parseDashboardAccent } from "@/app/lib/dashboard-brand-presets";
 
+export type OrganizationKind = "standalone" | "groupe";
+
 export type SiteIdentity = {
   name: string;
   shortName?: string;
@@ -7,6 +9,12 @@ export type SiteIdentity = {
   headerLogoUrl?: string;
   /** Couleur d'accent du tableau de bord (vert, bleu, rose…). */
   dashboardAccent?: string;
+  organizationKind?: OrganizationKind;
+  onboardingCompleted?: boolean;
+  onboardingCompletedAt?: string;
+  /** Dernière étape validée dans l'assistant (1–14). */
+  onboardingStep?: number;
+  assistanceEmail?: string;
   address?: {
     street?: string;
     city?: string;
@@ -15,6 +23,8 @@ export type SiteIdentity = {
     fullCompact?: string;
     mapsEmbed?: string;
     mapsItinerary?: string;
+    latitude?: number;
+    longitude?: number;
   };
   phone?: {
     display?: string;
@@ -25,14 +35,49 @@ export type SiteIdentity = {
   reglementFinancier?: string;
 };
 
+export type EstablishmentKind = "ecole" | "college" | "lycee" | "custom";
+
 export type Establishment = {
   id: string;
   label: string;
+  kind?: EstablishmentKind;
   directorName?: string;
   directorEmail?: string;
   grades?: string;
   clerkRoleSlugs?: string[];
   active?: boolean;
+};
+
+export type ZeendocIntegration = {
+  enabled: boolean;
+  buttonLabel?: string;
+  destinationEmail?: string;
+  loginUrl?: string;
+};
+
+export type EcoleDirecteIntegration = {
+  enabled: boolean;
+  label?: string;
+  loginUrl?: string;
+  preinscriptionUrl?: string;
+};
+
+export type MicrosoftOneDriveIntegration = {
+  enabled: boolean;
+};
+
+export type IntegrationsConfig = {
+  zeendoc?: ZeendocIntegration;
+  ecoleDirecte?: EcoleDirecteIntegration;
+  microsoftOneDrive?: MicrosoftOneDriveIntegration;
+};
+
+export type ExternalQuickLinkConfig = {
+  id: string;
+  name: string;
+  link: string;
+  img?: string;
+  allowedRoles: string[];
 };
 
 export type InternatRollCallRecipients = {
@@ -74,6 +119,9 @@ export type StaffDirectoryRow = {
 export type TravelsModuleConfig = {
   comptaEmails: string[];
   transportProviders: { name: string; email: string }[];
+  showGroupeScolaireOption?: boolean;
+  pdfFooterText?: string;
+  signatureImageUrls?: Record<string, string>;
 };
 
 export type ProfRoomModuleConfig = {
@@ -142,6 +190,8 @@ export type AppConfigBundle = {
   profRoom: ProfRoomModuleConfig;
   domainPlanning: DomainPlanningModuleConfig;
   internat: InternatModuleConfig;
+  integrations: IntegrationsConfig;
+  externalLinks: ExternalQuickLinkConfig[];
   requestsRouting?: RequestsRoutingConfig;
 };
 
@@ -158,15 +208,32 @@ function strArr(v: unknown): string[] {
   return v.map((x) => str(x).trim()).filter(Boolean);
 }
 
-export function parseSiteIdentity(raw: unknown): SiteIdentity {
+export function parseSiteIdentity(raw: unknown, opts?: { allowEmptyName?: boolean }): SiteIdentity {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const addr = o.address && typeof o.address === "object" ? (o.address as Record<string, unknown>) : {};
   const phone = o.phone && typeof o.phone === "object" ? (o.phone as Record<string, unknown>) : {};
   const name = str(o.name).trim();
-  if (!name) throw new Error("Le nom du groupe est requis.");
+  if (!name && !opts?.allowEmptyName) throw new Error("Le nom du groupe est requis.");
+  const lat = Number(addr.latitude);
+  const lng = Number(addr.longitude);
+  const orgKind = str(o.organizationKind);
+  const organizationKind: OrganizationKind | undefined =
+    orgKind === "standalone" || orgKind === "groupe" ? orgKind : undefined;
+  const onboardingStep = Number(o.onboardingStep);
+  const assistanceEmail = str(o.assistanceEmail).trim();
   return {
-    name,
+    name: name || "Mon établissement",
     shortName: str(o.shortName) || undefined,
+    organizationKind,
+    onboardingCompleted:
+      o.onboardingCompleted === true
+        ? true
+        : "onboardingCompleted" in o && o.onboardingCompleted === false
+          ? false
+          : undefined,
+    onboardingCompletedAt: str(o.onboardingCompletedAt) || undefined,
+    onboardingStep: Number.isFinite(onboardingStep) && onboardingStep >= 1 ? onboardingStep : undefined,
+    assistanceEmail: assistanceEmail && isEmail(assistanceEmail) ? assistanceEmail : undefined,
     address: {
       street: str(addr.street) || undefined,
       city: str(addr.city) || undefined,
@@ -175,6 +242,8 @@ export function parseSiteIdentity(raw: unknown): SiteIdentity {
       fullCompact: str(addr.fullCompact) || undefined,
       mapsEmbed: str(addr.mapsEmbed) || undefined,
       mapsItinerary: str(addr.mapsItinerary) || undefined,
+      latitude: Number.isFinite(lat) ? lat : undefined,
+      longitude: Number.isFinite(lng) ? lng : undefined,
     },
     phone: {
       display: str(phone.display) || undefined,
@@ -195,9 +264,15 @@ export function parseEstablishment(raw: unknown): Establishment {
   if (!id || !label) throw new Error("Chaque établissement doit avoir un id et un libellé.");
   const email = str(o.directorEmail).trim();
   if (email && !isEmail(email)) throw new Error(`Email direction invalide pour ${label}.`);
+  const kindRaw = str(o.kind).trim();
+  const kind: EstablishmentKind | undefined =
+    kindRaw === "ecole" || kindRaw === "college" || kindRaw === "lycee" || kindRaw === "custom"
+      ? kindRaw
+      : undefined;
   return {
     id,
     label,
+    kind,
     directorName: str(o.directorName) || undefined,
     directorEmail: email || undefined,
     grades: str(o.grades) || undefined,
@@ -282,15 +357,81 @@ export function parseStaffDirectoryFile(raw: unknown): StaffDirectoryRow[] {
 export function parseTravelsModule(raw: unknown): TravelsModuleConfig {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const providers = Array.isArray(o.transportProviders) ? o.transportProviders : [];
+  const sigUrls: Record<string, string> = {};
+  if (o.signatureImageUrls && typeof o.signatureImageUrls === "object") {
+    for (const [k, v] of Object.entries(o.signatureImageUrls as Record<string, unknown>)) {
+      const url = str(v).trim();
+      if (url) sigUrls[k] = url;
+    }
+  }
   return {
     comptaEmails: strArr(o.comptaEmails).filter(isEmail),
-    transportProviders: providers.map((p) => {
+    transportProviders: providers.flatMap((p) => {
       const x = p && typeof p === "object" ? (p as Record<string, unknown>) : {};
       const email = str(x.email).trim();
+      if (!email) return [];
       if (!isEmail(email)) throw new Error("Transporteur : email invalide.");
-      return { name: str(x.name) || "Transporteur", email };
+      return [{ name: str(x.name) || "Transporteur", email }];
     }),
+    showGroupeScolaireOption: o.showGroupeScolaireOption === true,
+    pdfFooterText: str(o.pdfFooterText) || undefined,
+    signatureImageUrls: Object.keys(sigUrls).length ? sigUrls : undefined,
   };
+}
+
+function parseZeendocIntegration(raw: unknown): ZeendocIntegration | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  const enabled = o.enabled === true;
+  const destinationEmail = str(o.destinationEmail).trim();
+  return {
+    enabled,
+    buttonLabel: str(o.buttonLabel) || undefined,
+    destinationEmail: destinationEmail && isEmail(destinationEmail) ? destinationEmail : undefined,
+    loginUrl: str(o.loginUrl) || undefined,
+  };
+}
+
+function parseEcoleDirecteIntegration(raw: unknown): EcoleDirecteIntegration | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  return {
+    enabled: o.enabled === true,
+    label: str(o.label) || undefined,
+    loginUrl: str(o.loginUrl) || undefined,
+    preinscriptionUrl: str(o.preinscriptionUrl) || undefined,
+  };
+}
+
+export function parseIntegrations(raw: unknown): IntegrationsConfig {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const oneDrive = o.microsoftOneDrive && typeof o.microsoftOneDrive === "object"
+    ? (o.microsoftOneDrive as Record<string, unknown>)
+    : null;
+  return {
+    zeendoc: parseZeendocIntegration(o.zeendoc),
+    ecoleDirecte: parseEcoleDirecteIntegration(o.ecoleDirecte),
+    microsoftOneDrive: oneDrive ? { enabled: oneDrive.enabled === true } : undefined,
+  };
+}
+
+export function parseExternalLinksFile(raw: unknown): ExternalQuickLinkConfig[] {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const list = Array.isArray(o.links) ? o.links : Array.isArray(raw) ? raw : [];
+  return list.map((item) => {
+    const x = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const id = str(x.id).trim();
+    const name = str(x.name).trim();
+    const link = str(x.link).trim();
+    if (!id || !name || !link) throw new Error("Lien externe : id, nom et URL requis.");
+    return {
+      id,
+      name,
+      link,
+      img: str(x.img) || undefined,
+      allowedRoles: strArr(x.allowedRoles),
+    };
+  });
 }
 
 export function parseDomainPlanningModule(raw: unknown): DomainPlanningModuleConfig {

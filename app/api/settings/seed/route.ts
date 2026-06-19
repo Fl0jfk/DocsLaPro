@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/app/lib/intranet-auth";
-import { seedAppSettingsFromDefaults } from "@/app/lib/app-config";
+import { seedAppSettingsFromDefaults, seedAppSettingsFromLaProvidence } from "@/app/lib/app-config";
 
-export async function POST() {
+export async function POST(req: Request) {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
   try {
-    await seedAppSettingsFromDefaults();
+    const url = new URL(req.url);
+    const profile = url.searchParams.get("profile");
+    if (profile === "laprovidence") {
+      await seedAppSettingsFromLaProvidence();
+    } else {
+      await seedAppSettingsFromDefaults();
+    }
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("[settings/seed]", e);

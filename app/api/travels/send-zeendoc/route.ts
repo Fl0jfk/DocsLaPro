@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { loadAppConfig } from "@/app/lib/app-config";
 import { fetchTravelsPdfBytes } from "@/app/lib/travels-s3";
+import { zeendocDestinationEmail } from "@/app/lib/travels-establishments";
 import {
   createTenantTransporter,
   getTenantSmtpConfig,
 } from "@/app/lib/tenant-mail";
-
-const ZEENDOC_TO = "comptabilite@laprovidence-nicolasbarre.fr";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -28,9 +28,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "fileUrl requis." }, { status: 400 });
   }
 
+  const config = await loadAppConfig();
+  const destination = zeendocDestinationEmail(config);
+  if (!destination) {
+    return NextResponse.json(
+      { error: "Destinataire non configuré (Zeendoc / envoi mail)." },
+      { status: 400 },
+    );
+  }
+
   try {
     const fileBuffer = await fetchTravelsPdfBytes(fileUrl);
-    let contentType = "application/pdf";
+    const contentType = "application/pdf";
     if (!fileBuffer || fileBuffer.length === 0) {
       throw new Error("Pièce jointe vide : envoi annulé.");
     }
@@ -42,7 +51,7 @@ export async function POST(req: Request) {
 
     await transporter.sendMail({
       from: `"Travels" <${smtp.user}>`,
-      to: ZEENDOC_TO,
+      to: destination,
       subject: `Travels - document joint (${fileName})`,
       text: [
         "Envoi automatique Travels.",
@@ -60,7 +69,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Erreur d'envoi." }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Erreur d'envoi.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

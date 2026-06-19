@@ -3,11 +3,14 @@
 import { useUser } from "@clerk/nextjs";
 import { useState, Suspense, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useAppContext } from "@/app/hooks/useAppContext";
+import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
 
 import { CUISINE_DAYS_UI as CUISINE_DAYS, CUISINE_ROWS_UI as CUISINE_ROWS } from "@/app/lib/travels-cuisine-form";
 
 function ComplexTripFormContent() {
   const { user, isLoaded } = useUser();
+  const { data: appCtx } = useAppContext();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const busProgramRef = useRef<HTMLInputElement>(null);
@@ -17,7 +20,7 @@ function ComplexTripFormContent() {
   const [showBusRecapModal, setShowBusRecapModal] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    etablissement: "" as "" | "École" | "Collège" | "Lycée" | "Groupe Scolaire",
+    etablissement: "",
     destination: "",
     objectifs: "",
     startDate: "",
@@ -166,12 +169,14 @@ function ComplexTripFormContent() {
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">Établissement concerné</label>
-              <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value as typeof formData.etablissement})}>
+              <select required value={formData.etablissement} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" onChange={e => setFormData({...formData, etablissement: e.target.value})}>
                 <option value="">— Sélectionner —</option>
-                <option value="École">🏫 École</option>
-                <option value="Collège">📚 Collège</option>
-                <option value="Lycée">🎓 Lycée</option>
-                <option value="Groupe Scolaire">🏛 Groupe Scolaire</option>
+                {(appCtx?.establishments || []).map((e) => (
+                  <option key={e.id} value={e.label}>{e.label}</option>
+                ))}
+                {(appCtx?.establishments?.length ?? 0) > 1 && (
+                  <option value={GROUPE_SCOLAIRE_LABEL}>{GROUPE_SCOLAIRE_LABEL}</option>
+                )}
               </select>
             </div>
             <div className="md:col-span-2">

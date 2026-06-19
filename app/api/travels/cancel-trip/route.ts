@@ -3,7 +3,7 @@ import { loadAppConfig } from "@/app/lib/app-config";
 import { defaultNotifications } from "@/app/lib/app-config-defaults";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson, putJson } from "@/app/lib/s3-storage";
-import { buildTravelsMailPreview } from "@/app/lib/travels-mail-preview";
+import { buildTravelsMailPreviewFromConfig } from "@/app/lib/travels-mail-preview";
 import { assertTravelsTripAccess } from "@/app/lib/travels-rbac-server";
 import { tripDateRangeLabel } from "@/app/lib/travels-trip-helpers";
 import type { TravelsTrip } from "@/app/lib/travels-types";
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     const emailsSent: string[] = [];
 
     if (notifyTransport && trip.data.needsBus) {
-      const preview = buildTravelsMailPreview(trip, "cancel_trip_transport", { userName: actor });
+      const preview = await buildTravelsMailPreviewFromConfig(trip, "cancel_trip_transport", { userName: actor });
       for (const to of preview.to) {
         await transporter.sendMail({
           from: `"Plateforme Voyages" <${smtp.user}>`,
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     }
 
     if (notifyCuisine && trip.data.cuisineOrderSentAt) {
-      const preview = buildTravelsMailPreview(trip, "cancel_trip_cuisine", {
+      const preview = await buildTravelsMailPreviewFromConfig(trip, "cancel_trip_cuisine", {
         userName: actor,
         chefEmail,
       });

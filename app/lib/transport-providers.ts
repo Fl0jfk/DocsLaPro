@@ -1,16 +1,36 @@
+import { loadAppConfig, invalidateAppConfigCache } from "@/app/lib/app-config";
+
 export type TransportProvider = { name: string; email: string };
 
-export const TRANSPORT_PROVIDERS: TransportProvider[] = [
-  { name: "Perrier", email: "stephanie.fouin@cars-perier.fr" },
-  { name: "Reflexe", email: "contact@reflexe-voyages.com" },
-  { name: "Grisel", email: "j.saint-denis@grisel-voyages.fr" },
-  { name: "Hangard", email: "carole@hangard-autocars.com" },
-];
+let cachedProviders: TransportProvider[] | null = null;
+let cacheAt = 0;
+const CACHE_MS = 45_000;
+
+export function invalidateTransportProvidersCache() {
+  cachedProviders = null;
+  cacheAt = 0;
+  invalidateAppConfigCache();
+}
+
+export async function getTransportProviders(): Promise<TransportProvider[]> {
+  if (cachedProviders && Date.now() - cacheAt < CACHE_MS) return cachedProviders;
+  const config = await loadAppConfig();
+  cachedProviders = config.travels.transportProviders.map((p) => ({ ...p }));
+  cacheAt = Date.now();
+  return cachedProviders;
+}
 
 const norm = (e: string) => e.trim().toLowerCase();
 
-export function providerNameFromEmail(fromEmail: string): string | null {
+export async function providerNameFromEmail(fromEmail: string): Promise<string | null> {
+  const providers = await getTransportProviders();
   const n = norm(fromEmail);
-  const p = TRANSPORT_PROVIDERS.find((t) => norm(t.email) === n);
+  const p = providers.find((t) => norm(t.email) === n);
+  return p?.name ?? null;
+}
+
+export function providerNameFromEmailSync(fromEmail: string, providers: TransportProvider[]): string | null {
+  const n = norm(fromEmail);
+  const p = providers.find((t) => norm(t.email) === n);
   return p?.name ?? null;
 }

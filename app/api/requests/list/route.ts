@@ -40,15 +40,20 @@ export async function GET(req: NextRequest) {
       if (!(await hasStaffBoardAccess(roles, userEmail))) return new NextResponse("Accès refusé", { status: 403 });
       if (!userEmail) return NextResponse.json({ error: "Email requis pour le tableau des demandes" }, { status: 400 });
       const allStaff = await getAllBranchStaffEmailsFromRouting();
-      const visible = index.filter((r) => isVisibleOnStaffBoard( r.assignedTo, userEmail, allStaff, isLeaderForRequestBranch(r.assignedTo.routeId, r.assignedTo.unit, userEmail)));
-      const enriched = visible
-        .sort(sortDesc)
-        .map((r) => {
-          const isLeaderHere = isLeaderForRequestBranch(r.assignedTo.routeId, r.assignedTo.unit, userEmail);
+      const visible: typeof index = [];
+      for (const r of index) {
+        const isLeader = await isLeaderForRequestBranch(r.assignedTo.routeId, r.assignedTo.unit, userEmail);
+        if (isVisibleOnStaffBoard(r.assignedTo, userEmail, allStaff, isLeader)) {
+          visible.push(r);
+        }
+      }
+      const enriched = await Promise.all(
+        visible.sort(sortDesc).map(async (r) => {
+          const isLeaderHere = await isLeaderForRequestBranch(r.assignedTo.routeId, r.assignedTo.unit, userEmail);
           const branch = normalizeRequestBranchId(r.assignedTo.routeId, r.assignedTo.unit);
           const isCorbeilleCard = isCorbeilleBranchId(branch);
           const delegateTargets =
-            isLeaderHere && !isCorbeilleCard ? getDelegateTargetEmailsForRequest(r, userEmail) : [];
+            isLeaderHere && !isCorbeilleCard ? await getDelegateTargetEmailsForRequest(r, userEmail) : [];
           return {
             ...r,
             boardColumn: computeStaffBoardColumn(r.assignedTo, r.status, userEmail, allStaff, isLeaderHere),
@@ -56,7 +61,8 @@ export async function GET(req: NextRequest) {
             boardCanDelegate: delegateTargets.length > 0,
             delegateTargets,
           };
-        });
+        }),
+      );
       return NextResponse.json(enriched);
     }
     return NextResponse.json({ error: "Scope de liste inconnu." }, { status: 400 });

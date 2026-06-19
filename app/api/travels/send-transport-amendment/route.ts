@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
+import { getTransportProviders } from "@/app/lib/transport-providers";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { loadBusProgramAttachments } from "@/app/lib/travels-bus-program";
@@ -65,7 +65,8 @@ export async function POST(req: Request) {
         email: selectedEmail,
       });
     } else {
-      for (const p of TRANSPORT_PROVIDERS) {
+      const providers = await getTransportProviders();
+      for (const p of providers) {
         recipients.push({ name: p.name, email: p.email });
       }
     }

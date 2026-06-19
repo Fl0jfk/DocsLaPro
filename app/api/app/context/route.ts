@@ -21,6 +21,9 @@ export async function GET() {
       establishments: config.establishments,
       profRoom: config.profRoom,
       domainPlanning: config.domainPlanning,
+      travelsOptions: config.travels,
+      integrations: config.integrations,
+      onboardingCompleted: config.identity.onboardingCompleted === true,
       session: {
         intranetRoles,
         isGlobalAdmin: isOrgAdminFromPublicMetadata(user?.publicMetadata),

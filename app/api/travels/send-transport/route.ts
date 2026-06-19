@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { TRANSPORT_PROVIDERS } from "@/app/lib/transport-providers";
+import { getTransportProviders } from "@/app/lib/transport-providers";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { loadBusProgramAttachments } from "@/app/lib/travels-bus-program";
 import { buildTransportQuotePdf } from "@/app/lib/travels-transport-quote-pdf";
@@ -18,7 +18,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { tripData, userName } = body;
     const { data } = tripData;
-    const transporteurs = TRANSPORT_PROVIDERS;
+    const transporteurs = await getTransportProviders();
+    if (transporteurs.length === 0) {
+      return NextResponse.json({ error: "Aucun transporteur configuré." }, { status: 400 });
+    }
 
     const buildDemandePDF = async (transporteurName: string) =>
       buildTransportQuotePdf({

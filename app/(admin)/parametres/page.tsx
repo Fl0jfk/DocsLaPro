@@ -7,8 +7,9 @@ import RequestsRoutingEditor from "@/app/components/settings/RequestsRoutingEdit
 import type { RequestsRoutingConfig } from "@/app/lib/app-config-schemas";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import { DASHBOARD_ACCENT_OPTIONS } from "@/app/lib/dashboard-brand-presets";
+import { PLATFORM_ASSISTANCE_EMAIL } from "@/app/lib/platform-assistance-email";
 
-type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing";
+type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing" | "travels" | "integrations";
 
 type MefSecteursConfig = { lycee: string[]; college: string[]; ecole: string[] };
 
@@ -50,6 +51,8 @@ export default function ParametresPage() {
   const [clerkMembers, setClerkMembers] = useState<ClerkMemberOption[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [requestsRouting, setRequestsRouting] = useState<RequestsRoutingConfig | null>(null);
+  const [travelsCfg, setTravelsCfg] = useState<{ transportProviders: { name: string; email: string }[]; pdfFooterText?: string }>({ transportProviders: [] });
+  const [integrations, setIntegrations] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     if (!isOrgAdmin) {
@@ -89,6 +92,14 @@ export default function ParametresPage() {
         if (rrRes.ok && rrJson.config) {
           setRequestsRouting(rrJson.config as RequestsRoutingConfig);
         }
+        const [trRes, intRes] = await Promise.all([
+          fetch("/api/settings/travels"),
+          fetch("/api/settings/integrations"),
+        ]);
+        const trJson = await trRes.json();
+        const intJson = await intRes.json();
+        if (trRes.ok && trJson.travels) setTravelsCfg(trJson.travels);
+        if (intRes.ok && intJson.integrations) setIntegrations(intJson.integrations);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
       } finally {
@@ -191,6 +202,9 @@ export default function ParametresPage() {
     <RequireOrgAdmin>
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Paramètres généraux</h1>
+      <a href="/onboarding?review=1" className="text-sm text-indigo-600 font-medium hover:underline">
+        Relancer l&apos;assistant de configuration
+      </a>
       {error && <p className="text-red-600 text-sm">{error}</p>}
       <div className="flex flex-wrap gap-2">
         {(
@@ -198,6 +212,8 @@ export default function ParametresPage() {
             ["site", "Identité"],
             ["establishments", "Établissements"],
             ["notifications", "Notifications"],
+            ["travels", "Sorties scolaires"],
+            ["integrations", "Intégrations"],
             ["mef", "Formations MEF"],
             ["prof-room", "Réservation salles"],
             ["requests-routing", "Routage demandes"],
@@ -228,6 +244,52 @@ export default function ParametresPage() {
             value={String(identity.shortName || "")}
             onChange={(e) => setIdentity({ ...identity, shortName: e.target.value })}
           />
+          <label className="block text-sm font-bold text-slate-600">E-mail assistance technique</label>
+          <input
+            className="w-full border rounded-xl p-3 bg-slate-50 text-slate-600"
+            type="email"
+            value={PLATFORM_ASSISTANCE_EMAIL}
+            readOnly
+          />
+          <label className="block text-sm font-bold text-slate-600">Adresse (rue)</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={String((identity.address as { street?: string })?.street || "")}
+            onChange={(e) =>
+              setIdentity({
+                ...identity,
+                address: { ...(identity.address as object), street: e.target.value },
+              })
+            }
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-slate-600">Code postal</label>
+              <input
+                className="w-full border rounded-xl p-3"
+                value={String((identity.address as { zip?: string })?.zip || "")}
+                onChange={(e) =>
+                  setIdentity({
+                    ...identity,
+                    address: { ...(identity.address as object), zip: e.target.value },
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-600">Ville</label>
+              <input
+                className="w-full border rounded-xl p-3"
+                value={String((identity.address as { city?: string })?.city || "")}
+                onChange={(e) =>
+                  setIdentity({
+                    ...identity,
+                    address: { ...(identity.address as object), city: e.target.value },
+                  })
+                }
+              />
+            </div>
+          </div>
 
           <div className="pt-2 border-t border-slate-100 space-y-3">
             <label className="block text-sm font-bold text-slate-600">Logo du header (haut gauche)</label>
@@ -442,6 +504,12 @@ export default function ParametresPage() {
             value={String(notifications.photocopiesOps || "")}
             onChange={(e) => setNotifications({ ...notifications, photocopiesOps: e.target.value })}
           />
+          <label className="block text-sm font-bold">Email Zeendoc / envoi PDF voyages</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={String(notifications.travelsZeendoc || "")}
+            onChange={(e) => setNotifications({ ...notifications, travelsZeendoc: e.target.value })}
+          />
           <hr className="border-slate-200" />
           <p className="text-sm font-black text-slate-800">Internat — appel du soir (validation)</p>
           <label className="block text-sm font-bold">Direction lycée</label>
@@ -508,6 +576,120 @@ export default function ParametresPage() {
             className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
           >
             Enregistrer les notifications
+          </button>
+        </div>
+      )}
+
+      {tab === "travels" && (
+        <div className="bg-white rounded-2xl border p-6 space-y-4">
+          <p className="text-sm text-slate-600">Transporteurs et pied de page des PDF de sorties scolaires.</p>
+          <label className="block text-sm font-bold">Texte pied de page PDF</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={travelsCfg.pdfFooterText || ""}
+            onChange={(e) => setTravelsCfg({ ...travelsCfg, pdfFooterText: e.target.value })}
+          />
+          <p className="text-sm font-bold">Transporteurs</p>
+          {travelsCfg.transportProviders.map((p, idx) => (
+            <div key={idx} className="grid grid-cols-2 gap-2">
+              <input
+                className="border rounded-lg p-2 text-sm"
+                placeholder="Nom"
+                value={p.name}
+                onChange={(e) => {
+                  const copy = [...travelsCfg.transportProviders];
+                  copy[idx] = { ...copy[idx], name: e.target.value };
+                  setTravelsCfg({ ...travelsCfg, transportProviders: copy });
+                }}
+              />
+              <input
+                className="border rounded-lg p-2 text-sm"
+                placeholder="E-mail"
+                type="email"
+                value={p.email}
+                onChange={(e) => {
+                  const copy = [...travelsCfg.transportProviders];
+                  copy[idx] = { ...copy[idx], email: e.target.value };
+                  setTravelsCfg({ ...travelsCfg, transportProviders: copy });
+                }}
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            className="text-indigo-600 text-sm font-bold"
+            onClick={() =>
+              setTravelsCfg({
+                ...travelsCfg,
+                transportProviders: [...travelsCfg.transportProviders, { name: "", email: "" }],
+              })
+            }
+          >
+            + Transporteur
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => saveSection("travels", travelsCfg)}
+            className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
+          >
+            Enregistrer sorties scolaires
+          </button>
+        </div>
+      )}
+
+      {tab === "integrations" && (
+        <div className="bg-white rounded-2xl border p-6 space-y-4">
+          <label className="block text-sm font-bold">Zeendoc activé</label>
+          <select
+            className="w-full border rounded-xl p-3"
+            value={(integrations.zeendoc as { enabled?: boolean })?.enabled ? "yes" : "no"}
+            onChange={(e) =>
+              setIntegrations({
+                ...integrations,
+                zeendoc: {
+                  ...((integrations.zeendoc as object) || {}),
+                  enabled: e.target.value === "yes",
+                  buttonLabel: e.target.value === "yes" ? "Envoyer sur Zeendoc" : "Envoyer par mail",
+                },
+              })
+            }
+          >
+            <option value="no">Non</option>
+            <option value="yes">Oui</option>
+          </select>
+          <label className="block text-sm font-bold">E-mail destination Zeendoc / envoi PDF</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={String((integrations.zeendoc as { destinationEmail?: string })?.destinationEmail || "")}
+            onChange={(e) =>
+              setIntegrations({
+                ...integrations,
+                zeendoc: { ...((integrations.zeendoc as object) || {}), destinationEmail: e.target.value },
+              })
+            }
+          />
+          <label className="block text-sm font-bold">OneDrive / OCR activé</label>
+          <select
+            className="w-full border rounded-xl p-3"
+            value={(integrations.microsoftOneDrive as { enabled?: boolean })?.enabled ? "yes" : "no"}
+            onChange={(e) =>
+              setIntegrations({
+                ...integrations,
+                microsoftOneDrive: { enabled: e.target.value === "yes" },
+              })
+            }
+          >
+            <option value="no">Non</option>
+            <option value="yes">Oui</option>
+          </select>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => saveSection("integrations", integrations)}
+            className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
+          >
+            Enregistrer intégrations
           </button>
         </div>
       )}
