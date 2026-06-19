@@ -8,7 +8,7 @@ import type { EleveConfig } from "@/app/lib/eleves-config";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
   buildElevesPoolForOcrMatching,
-  getOneDriveProfileForClerkLastName,
+  getOneDriveProfileForClerkUser,
   oneDrivePathForEleve,
 } from "@/app/lib/onedrive-eleves";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
@@ -48,8 +48,7 @@ export async function POST(req: Request) {
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
     const user = await currentUser();
-    const lastName = (user?.lastName || "").trim();
-    const odProfile = getOneDriveProfileForClerkLastName(lastName);
+    const odProfile = user ? getOneDriveProfileForClerkUser(user) : null;
     const { text } = await req.json();
     if (!text) { return NextResponse.json({ error: 'text requis' }, { status: 400 })}
     const mistralKey = await getMistralApiKey();

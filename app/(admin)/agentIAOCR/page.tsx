@@ -1,9 +1,11 @@
 'use client';
-import { Suspense, useState, useEffect, useRef, useCallback } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import * as msal from "@azure/msal-browser";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
 import { consumeDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
+import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
 
 const ONEDRIVE_SCOPES = ["Files.ReadWrite", "User.Read"];
 
@@ -38,6 +40,11 @@ type Segment = {
 
 function OneDriveUpDocsOCRAIContent() {
   const searchParams = useSearchParams();
+  const { user: clerkUser } = useUser();
+  const oneDriveProfile = useMemo(
+    () => (clerkUser ? getOneDriveProfileForClerkUser(clerkUser) : null),
+    [clerkUser],
+  );
   const [account, setAccount] = useState<msal.AccountInfo | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -183,6 +190,9 @@ function OneDriveUpDocsOCRAIContent() {
             authority: `https://login.microsoftonline.com/${ms.tenantId}`,
             redirectUri,
           },
+          cache: {
+            cacheLocation: "localStorage",
+          },
         });
         await getMsalInstance().initialize();
         setMsalReady(true);
@@ -272,11 +282,34 @@ function OneDriveUpDocsOCRAIContent() {
       setError("MSAL n'est pas encore initialisé.");
       return;
     }
+    setError("");
     try {
-      await getMsalInstance().loginRedirect({ scopes: ONEDRIVE_SCOPES });
+      const result = await getMsalInstance().loginPopup({
+        scopes: ONEDRIVE_SCOPES,
+        prompt: "select_account",
+      });
+      const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
+        headers: { Authorization: `Bearer ${result.accessToken}` },
+      });
+      if (!verifyRes.ok) {
+        throw new Error(
+          "Accès OneDrive refusé pour ce compte Microsoft. Utilisez le compte professionnel de l'établissement.",
+        );
+      }
+      applyOneDriveSession(result.account, result.accessToken);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      setError("Erreur login: " + err.message);
+      if (err instanceof msal.BrowserAuthError && err.errorCode === "user_cancelled") {
+        setError("Connexion annulée.");
+        return;
+      }
+      if (err instanceof msal.BrowserAuthError && err.errorCode === "interaction_in_progress") {
+        setError("Une connexion Microsoft est déjà en cours. Fermez la fenêtre Microsoft et réessayez.");
+        return;
+      }
+      setError(
+        `Erreur connexion OneDrive : ${err?.message || "échec inconnu"}. Choisissez votre compte professionnel (@ac-normandie.fr ou @laprovidence-nicolasbarre.fr).`,
+      );
     }
   };
 
@@ -904,6 +937,24 @@ function OneDriveUpDocsOCRAIContent() {
         <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-xl">
           <p className="font-bold">Attention</p>
           <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {clerkUser && !oneDriveProfile && (
+        <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 rounded-r-xl">
+          <p className="font-bold">Profil OneDrive non reconnu</p>
+          <p className="text-sm">
+            Votre compte Clerk ({clerkUser.lastName || "nom absent"} —{" "}
+            {clerkUser.primaryEmailAddress?.emailAddress || "e-mail absent"}) n&apos;est pas encore associé au
+            dossier collège / lycée / école. Contactez l&apos;administrateur pour l&apos;ajouter.
+          </p>
+        </div>
+      )}
+
+      {oneDriveProfile && (
+        <div className="mb-6 p-4 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-sm">
+          Dossier OneDrive configuré : <strong>{oneDriveProfile.label}</strong> —{" "}
+          <span className="font-mono text-xs">{oneDriveProfile.basePath}</span>
         </div>
       )}
 

@@ -174,7 +174,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "agent-ia-ocr",
     pathPrefixes: ["/agentIAOCR", "/api/agentIAOCR", "/api/eleves", "/api/mef-secteurs"],
-    allowedRoles: ["administratif"],
+    allowedRoles: ["administratif", ...DIRECTIONS],
     dashboard: {
       id: 10,
       name: "Ajout de documents IA",

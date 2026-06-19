@@ -7,7 +7,7 @@ import { listChildFolderNames, ensureChildFolder, ensureFolderPath } from "@/app
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
   filterElevesForSecteur,
-  getOneDriveProfileForClerkLastName,
+  getOneDriveProfileForClerkUser,
   resolveEleveSecteur,
 } from "@/app/lib/onedrive-eleves";
 
@@ -19,8 +19,7 @@ export async function POST(req: Request) {
     if (!gate.ok) return gate.response;
 
     const user = await currentUser();
-    const lastName = (user?.lastName || "").trim();
-    const profile = getOneDriveProfileForClerkLastName(lastName);
+    const profile = user ? getOneDriveProfileForClerkUser(user) : null;
     if (!profile) {
       return NextResponse.json(
         {

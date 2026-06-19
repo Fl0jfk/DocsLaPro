@@ -1,23 +1,22 @@
 import type { EleveConfig } from "@/app/lib/eleves-config";
 import { normMefCode } from "@/app/lib/mef-secteurs";
+import type { Secteur } from "@/app/lib/onedrive-eleves-types";
+import {
+  getOneDriveProfileForClerkLastName,
+  getOneDriveProfileForClerkUser,
+  getOneDriveProfileForUser,
+  ONEDRIVE_USER_BASES,
+} from "@/app/lib/onedrive-user-profiles";
 
-export type Secteur = "lycee" | "college" | "ecole";
+export type { Secteur } from "@/app/lib/onedrive-eleves-types";
+export {
+  getOneDriveProfileForClerkLastName,
+  getOneDriveProfileForClerkUser,
+  getOneDriveProfileForUser,
+  ONEDRIVE_USER_BASES,
+};
 
 export type EleveSecteurInput = EleveConfig & { secteur?: string; mef?: string };
-
-/** Clé = nom de famille Clerk (majuscules, sans accents). */
-export const ONEDRIVE_USER_BASES: Record<
-  string,
-  { basePath: string; secteur: Secteur; label: string }
-> = {
-  "HACQUEVILLE-MATHI": {
-    basePath: "Dossier élèves/Lycée",
-    secteur: "lycee",
-    label: "Lycée",
-  },
-  VILLIER: { basePath: "Dossier élèves/Collège", secteur: "college", label: "Collège" },
-  LEBLOND: { basePath: "Dossier élèves/École", secteur: "ecole", label: "École" },
-};
 
 function norm(s: string) {
   return s
@@ -111,20 +110,6 @@ export function buildElevesPoolForOcrMatching(
   }
 
   return { eleves: scoped, secteurFilterApplied: true };
-}
-
-export function getOneDriveProfileForClerkLastName(lastName: string) {
-  const key = lastName
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "-")
-    .trim();
-  if (ONEDRIVE_USER_BASES[key]) return { key, ...ONEDRIVE_USER_BASES[key] };
-  for (const [k, v] of Object.entries(ONEDRIVE_USER_BASES)) {
-    if (key.includes(k) || k.includes(key.replace(/-/g, ""))) return { key: k, ...v };
-  }
-  return null;
 }
 
 export function filterElevesForSecteur(
