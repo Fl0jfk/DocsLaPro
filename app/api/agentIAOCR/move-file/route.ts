@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveSession } from "@/app/lib/intranet-session";
 
 import { ensureFolderPath } from "@/app/lib/graph-onedrive-folders";
 

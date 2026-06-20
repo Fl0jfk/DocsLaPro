@@ -1,4 +1,4 @@
-import { safeCurrentUser } from "@/app/lib/intranet-session";
+import { resolveSession, safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
 
 import { readIngestJob, canIngestFromUser } from "../ingest-job";

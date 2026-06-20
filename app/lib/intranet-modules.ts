@@ -8,7 +8,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { hasGlobalAdminRole, hasMasterRole } from "./intranet-role-utils";
+import { hasGlobalAdminRole, hasMasterRole, hasRole } from "./intranet-role-utils";
 import { INTRANET_DIRECTION_SLUGS, intranetRolesExceptParent } from "./intranet-roles";
 
 const DIRECTIONS = [...INTRANET_DIRECTION_SLUGS];

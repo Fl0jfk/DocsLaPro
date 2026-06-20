@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveSession } from "@/app/lib/intranet-session";
 
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";

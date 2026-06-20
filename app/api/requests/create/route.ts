@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveSession } from "@/app/lib/intranet-session";
 
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { RequestRecord, getPublicAppBaseUrl, notifyRequestCreated, notifyRequestPendingVerification, resolveRequestRouting, saveRequestFile, saveRequestsIndex, getRequestsIndex, validateRequestInput, uploadBuffersAsRequestAttachments, assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";

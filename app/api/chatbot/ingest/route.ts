@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveSession } from "@/app/lib/intranet-session";
 
 import { appendEntryToKnowledgeFile, readKnowledgeIndex, selectDomainByMessage } from "@/app/lib/knowledge";
 import { getMistralApiKey } from "@/app/lib/tenant-config";

@@ -8,6 +8,7 @@ import {
 } from "@/app/lib/simple-trip-recurrence";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
+import { useAppContext } from "@/app/hooks/useAppContext";
 
 const CUISINE_DAYS = [
   { key: "lundi",    label: "Lun." },

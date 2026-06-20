@@ -11,6 +11,7 @@ import {
 } from "@/app/components/travels/TravelsRemindersModal";
 import type { TravelsDirectionDashboard } from "@/app/lib/travels-direction-dashboard";
 import { isTripTravelDatePast } from "@/app/lib/travels-trip-helpers";
+import type { TravelsTrip } from "@/app/lib/travels-types";
 import { useAppContext } from "@/app/hooks/useAppContext";
 import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
 
