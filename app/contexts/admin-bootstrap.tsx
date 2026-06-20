@@ -74,7 +74,7 @@ export function AdminBootstrapProvider({
   /** Désactiver sur /sign-in pour ne pas masquer le formulaire de connexion. */
   enableOverlay?: boolean;
 }) {
-  const { isLoaded: clerkLoaded } = useUser();
+  const { isLoaded: clerkLoaded, isSignedIn } = useUser();
 
   const [appContext, setAppContext] = useState<AppContextPayload | null>(null);
   const [sitePublic, setSitePublic] = useState<SitePublicIdentity | null>(null);
@@ -94,14 +94,12 @@ export function AdminBootstrapProvider({
   }, []);
 
   useEffect(() => {
+    if (!clerkLoaded) return;
+
     let cancelled = false;
     (async () => {
       try {
-        const [ctxRes, siteRes] = await Promise.all([
-          fetch("/api/app/context", { cache: "no-store" }),
-          fetch("/api/site/public", { cache: "no-store" }),
-        ]);
-        const ctxJson = (await ctxRes.json()) as AppContextPayload & { error?: string };
+        const siteRes = await fetch("/api/site/public", { cache: "no-store" });
         const siteJson = (await siteRes.json()) as SitePublicIdentity;
 
         if (!cancelled && siteRes.ok) {
@@ -112,14 +110,21 @@ export function AdminBootstrapProvider({
           }
         }
 
-        if (!cancelled && ctxRes.ok) {
-          setAppContext(ctxJson);
-          const accent = parseDashboardAccent(ctxJson.identity?.dashboardAccent);
-          writeCachedDashboardAccent(accent);
-          applyDashboardBrandToDocument(accent);
-          setAccentReady(true);
-        } else if (!cancelled && enableOverlay) {
-          throw new Error(ctxJson.error || "Contexte indisponible");
+        if (isSignedIn) {
+          const ctxRes = await fetch("/api/app/context", { cache: "no-store" });
+          const ctxJson = (await ctxRes.json()) as AppContextPayload & { error?: string };
+
+          if (!cancelled && ctxRes.ok) {
+            setAppContext(ctxJson);
+            const accent = parseDashboardAccent(ctxJson.identity?.dashboardAccent);
+            writeCachedDashboardAccent(accent);
+            applyDashboardBrandToDocument(accent);
+            setAccentReady(true);
+          } else if (!cancelled && enableOverlay) {
+            throw new Error(ctxJson.error || "Contexte indisponible");
+          }
+        } else if (!cancelled) {
+          setAppContext(null);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Erreur");
@@ -133,7 +138,7 @@ export function AdminBootstrapProvider({
     return () => {
       cancelled = true;
     };
-  }, [enableOverlay]);
+  }, [clerkLoaded, isSignedIn, enableOverlay]);
 
   useEffect(() => {
     if (!enableOverlay) {
