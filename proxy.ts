@@ -6,7 +6,7 @@ import {
 } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { TENANT_SLUG_HEADER, type TenantConfig } from '@/app/lib/tenant-types';
+import { TENANT_SLUG_HEADER, TENANT_REQUEST_URL_HEADER, type TenantConfig } from '@/app/lib/tenant-types';
 import {
   defaultTenantFromEnv,
   isMultiTenantEnabled,
@@ -105,6 +105,18 @@ function withTenantHeaders(response: NextResponse, tenant: TenantConfig): NextRe
   response.headers.set("x-tenant-bucket", tenant.dataBucket);
   response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue());
   return response;
+}
+
+function nextWithTenant(request: NextRequest, tenant: TenantConfig): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(TENANT_SLUG_HEADER, tenant.slug);
+  requestHeaders.set(TENANT_REQUEST_URL_HEADER, request.url);
+  return withTenantHeaders(
+    NextResponse.next({
+      request: { headers: requestHeaders },
+    }),
+    tenant,
+  );
 }
 
 function clerkClientForProxy(tenant: TenantConfig, hostname: string) {
@@ -216,7 +228,7 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
     if (canonicalRedirect) return withTenantHeaders(canonicalRedirect, tenant);
   }
 
-  if (isPublicRoute(request)) { return withTenantHeaders(NextResponse.next(), tenant)}
+  if (isPublicRoute(request)) { return nextWithTenant(request, tenant)}
 
   let authState: ProxyAuthState;
   if (isMultiTenantEnabled()) {
@@ -273,35 +285,10 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return withTenantHeaders(NextResponse.next(), tenant);
+  return nextWithTenant(request, tenant);
 }
 
-async function clerkOptionsForTenant(request: NextRequest) {
-  try {
-    const tenant = await resolveTenantForProxy(request);
-    return resolveClerkKeysForHostname(request.nextUrl.hostname, {
-      clerkPublishableKey: tenant.clerkPublishableKey,
-      clerkSecretKey: tenant.clerkSecretKey,
-      clerkDevPublishableKey: tenant.secrets?.clerkDevPublishableKey,
-      clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
-    });
-  } catch {
-    const keys = clerkKeysFromEnv();
-    if (keys) {
-      return keys;
-    }
-    try {
-      return resolveClerkKeysForHostname(request.nextUrl.hostname, platformTenantFromEnv());
-    } catch {
-      const fallback = defaultTenantFromEnv();
-      return resolveClerkKeysForHostname(request.nextUrl.hostname, fallback);
-    }
-  }
-}
-
-export default isMultiTenantEnabled()
-  ? clerkMiddleware(clerkAuthHandler, clerkOptionsForTenant)
-  : clerkMiddleware(clerkAuthHandler);
+export default clerkMiddleware(clerkAuthHandler);
 
 export const config = {
   matcher: [

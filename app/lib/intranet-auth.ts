@@ -46,7 +46,14 @@ export async function requireAuth(): Promise<
     if (isClerkDynamicKeyError(error)) {
       return { ok: false, response: clerkServerConfigResponse() };
     }
-    throw error;
+    console.error("[requireAuth]", error);
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Authentification temporairement indisponible.", code: "AUTH_UNAVAILABLE" },
+        { status: 503 },
+      ),
+    };
   }
 }
 

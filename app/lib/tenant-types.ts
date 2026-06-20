@@ -1,6 +1,8 @@
 /** Un tenant = un client (groupe scolaire ou école seule) avec son sous-domaine. */
 
 export const TENANT_SLUG_HEADER = "x-tenant-slug";
+/** URL complète de la requête — middleware → handlers (auth Clerk backend). */
+export const TENANT_REQUEST_URL_HEADER = "x-tenant-request-url";
 
 export type TenantKind = "groupe" | "standalone";
 
