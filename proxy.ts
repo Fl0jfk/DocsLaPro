@@ -169,8 +169,15 @@ function redirectToTenantCanonicalHost(
 ): NextResponse | null {
   if (isLocalDevHostname(host)) return null;
 
+  const normalizedHost = normalizeHostname(host);
+
+  // Déjà sur un hôte légitime du tenant (ex. lp.docslapro.com) → aucune
+  // redirection. Sinon on enverrait l'utilisateur cross-origin et le fetch RSC
+  // de Next serait bloqué (« access control checks ») → page blanche.
+  if (tenant.hostnames.some((h) => normalizeHostname(h) === normalizedHost)) return null;
+
   const canonicalHost = tenantCanonicalHostname(tenant);
-  if (!canonicalHost || normalizeHostname(host) === canonicalHost) return null;
+  if (!canonicalHost || normalizedHost === canonicalHost) return null;
 
   const dest = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, tenantCanonicalOrigin(tenant));
   return NextResponse.redirect(dest);

@@ -6,18 +6,13 @@ import { normalizeHostname } from "@/app/lib/tenant-registry";
 import type { TenantConfig } from "@/app/lib/tenant-types";
 
 export function tenantOrigin(tenant: TenantConfig, host: string): string {
-  const appUrl = tenant.appUrl?.trim();
-  if (appUrl) {
-    try {
-      return new URL(appUrl.startsWith("http") ? appUrl : `https://${appUrl}`).origin;
-    } catch {
-      /* fall through */
-    }
-  }
-
   const normalized = normalizeHostname(host);
-  if (normalized) return `https://${normalized}`;
-  return platformAppOrigin();
+  // Si on est déjà sur un hôte légitime du tenant, on y reste (évite tout saut
+  // cross-origin dû à un appUrl mal renseigné).
+  if (normalized && tenant.hostnames.some((h) => normalizeHostname(h) === normalized)) {
+    return `https://${normalized}`;
+  }
+  return tenantCanonicalOrigin(tenant);
 }
 
 /** Origine canonique du tenant (sous-domaine établissement ou vitrine plateforme). */
@@ -25,7 +20,27 @@ export function tenantCanonicalOrigin(tenant: TenantConfig): string {
   if (isPlatformTenantSlug(tenant.slug)) {
     return platformAppOrigin();
   }
-  return tenantOrigin(tenant, tenant.hostnames.find((h) => !isLocalDevHostname(h)) ?? "");
+
+  const primaryHost = tenant.hostnames.find((h) => !isLocalDevHostname(h));
+
+  // appUrl n'est de confiance que s'il correspond à un hôte déclaré du tenant ;
+  // sinon (donnée erronée) on retombe sur le vrai sous-domaine, sans quoi on
+  // redirigerait l'utilisateur hors de son intranet (cross-origin).
+  const appUrl = tenant.appUrl?.trim();
+  if (appUrl) {
+    try {
+      const parsed = new URL(appUrl.startsWith("http") ? appUrl : `https://${appUrl}`);
+      const appHost = normalizeHostname(parsed.hostname);
+      if (tenant.hostnames.some((h) => normalizeHostname(h) === appHost)) {
+        return parsed.origin;
+      }
+    } catch {
+      /* appUrl invalide → repli sur le sous-domaine */
+    }
+  }
+
+  if (primaryHost) return `https://${normalizeHostname(primaryHost)}`;
+  return platformAppOrigin();
 }
 
 export function tenantCanonicalHostname(tenant: TenantConfig): string | null {
