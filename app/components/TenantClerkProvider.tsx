@@ -8,7 +8,7 @@ import {
   resolveClerkKeysForHostname,
 } from "@/app/lib/clerk-tenant-keys";
 import { getTenant } from "@/app/lib/tenant-context";
-import { clerkAfterSignInUrl, clerkSignInPageUrl } from "@/app/lib/tenant-auth-urls";
+import { clerkAfterSignInUrl, clerkSignInPageUrl, tenantOrigin } from "@/app/lib/tenant-auth-urls";
 import { isMultiTenantEnabled } from "@/app/lib/tenant-registry";
 
 type Props = {
@@ -69,6 +69,8 @@ export default async function TenantClerkProvider({ children }: Props) {
       publishableKey={keys.publishableKey}
       signInUrl={signInUrl}
       signUpUrl={signInUrl.replace(/\/sign-in$/, "/sign-up")}
+      signOutFallbackRedirectUrl={`${tenantOrigin(tenant, host)}/`}
+      signOutForceRedirectUrl={`${tenantOrigin(tenant, host)}/`}
       afterSignInUrl={afterAuthUrl}
       afterSignUpUrl={afterAuthUrl}
       localization={frFR}

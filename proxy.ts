@@ -57,6 +57,7 @@ const isPublicRoute = createRouteMatcher([
   '/plateforme',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/sign-out(.*)',
   '/mentions-legales',
   '/tarifs',
   '/internat/autorisation(.*)',
@@ -219,7 +220,12 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
 
   let authState: ProxyAuthState;
   if (isMultiTenantEnabled()) {
-    const tenantSession = await resolveTenantSessionFromRequest(request, tenant);
+    let tenantSession: { userId: string } | null = null;
+    try {
+      tenantSession = await resolveTenantSessionFromRequest(request, tenant);
+    } catch (error) {
+      console.error("[proxy] resolveTenantSessionFromRequest", error);
+    }
     if (!tenantSession) {
       if (pathname.startsWith("/api/")) {
         return withTenantHeaders(
@@ -270,7 +276,32 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
   return withTenantHeaders(NextResponse.next(), tenant);
 }
 
-export default clerkMiddleware(clerkAuthHandler);
+async function clerkOptionsForTenant(request: NextRequest) {
+  try {
+    const tenant = await resolveTenantForProxy(request);
+    return resolveClerkKeysForHostname(request.nextUrl.hostname, {
+      clerkPublishableKey: tenant.clerkPublishableKey,
+      clerkSecretKey: tenant.clerkSecretKey,
+      clerkDevPublishableKey: tenant.secrets?.clerkDevPublishableKey,
+      clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
+    });
+  } catch {
+    const keys = clerkKeysFromEnv();
+    if (keys) {
+      return keys;
+    }
+    try {
+      return resolveClerkKeysForHostname(request.nextUrl.hostname, platformTenantFromEnv());
+    } catch {
+      const fallback = defaultTenantFromEnv();
+      return resolveClerkKeysForHostname(request.nextUrl.hostname, fallback);
+    }
+  }
+}
+
+export default isMultiTenantEnabled()
+  ? clerkMiddleware(clerkAuthHandler, clerkOptionsForTenant)
+  : clerkMiddleware(clerkAuthHandler);
 
 export const config = {
   matcher: [
