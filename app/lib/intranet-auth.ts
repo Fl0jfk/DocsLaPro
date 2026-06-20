@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import {
+  CLERK_ENCRYPTION_KEY_HINT,
+  isClerkDynamicKeyError,
+} from "@/app/lib/clerk-request-error";
+import {
   isOrgAdminFromPublicMetadata,
   isPlatformMasterFromPublicMetadata,
   resolveSession,
+  safeCurrentUser,
 } from "@/app/lib/intranet-session";
-import { currentUser } from "@clerk/nextjs/server";
 import {
   canEditAcademicDeadlinesFromRoles,
   canViewAcademicDeadlinesFromRoles,
@@ -15,26 +19,44 @@ export type AuthContext = {
   userId: string;
 };
 
+function clerkServerConfigResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      error: "Configuration Clerk serveur incomplète pour ce tenant.",
+      code: "CLERK_SERVER_CONFIG",
+      hint: CLERK_ENCRYPTION_KEY_HINT,
+    },
+    { status: 503 },
+  );
+}
+
 export async function requireAuth(): Promise<
   { ok: true; ctx: AuthContext } | { ok: false; response: NextResponse }
 > {
-  const session = await resolveSession();
-  if (!session) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "Non autorisé.", code: "AUTH_REQUIRED" }, { status: 401 }),
-    };
+  try {
+    const session = await resolveSession();
+    if (!session) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "Non autorisé.", code: "AUTH_REQUIRED" }, { status: 401 }),
+      };
+    }
+    return { ok: true, ctx: { userId: session.userId } };
+  } catch (error) {
+    if (isClerkDynamicKeyError(error)) {
+      return { ok: false, response: clerkServerConfigResponse() };
+    }
+    throw error;
   }
-  return { ok: true, ctx: { userId: session.userId } };
 }
 
 export async function isPlatformMaster(): Promise<boolean> {
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   return isPlatformMasterFromPublicMetadata(user?.publicMetadata);
 }
 
 export async function isIntranetAdmin(): Promise<boolean> {
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   return isOrgAdminFromPublicMetadata(user?.publicMetadata);
 }
 
@@ -82,7 +104,7 @@ export async function requireAcademicDeadlinesEditor(): Promise<
   const gate = await requireAuth();
   if (!gate.ok) return gate;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = intranetRolesFromMetadata(user?.publicMetadata);
   if (canEditAcademicDeadlinesFromRoles(roles)) {
     return gate;
@@ -106,7 +128,7 @@ export async function requireAcademicDeadlinesViewer(): Promise<
   const gate = await requireAuth();
   if (!gate.ok) return gate;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = intranetRolesFromMetadata(user?.publicMetadata);
   if (canViewAcademicDeadlinesFromRoles(roles)) {
     return gate;

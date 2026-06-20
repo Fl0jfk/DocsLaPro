@@ -65,6 +65,7 @@ export const INTRANET_ALWAYS_ALLOWED_PREFIXES = [
   "/dashboard",
   "/api/app/context",
   "/api/tenant/public",
+  "/api/tenant/diagnostics",
   "/calendrierAbsProfs",
   "/faire-une-demande",
   "/demande/merci",

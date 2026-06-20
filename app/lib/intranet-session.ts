@@ -1,6 +1,9 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { auth } from "@clerk/nextjs/server";
+import { isClerkDynamicKeyError } from "@/app/lib/clerk-request-error";
 import { hasGlobalAdminRole, hasMasterRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
+import { isMultiTenantEnabled } from "@/app/lib/tenant-registry";
+import { resolveTenantCurrentUser, resolveTenantSession } from "@/app/lib/tenant-session";
 
 export type ResolvedSession = {
   userId: string;
@@ -29,12 +32,47 @@ export function isOrgAdminFromPublicMetadata(meta: unknown): boolean {
 
 /** Session : utilisateur Clerk connecté (une instance = une app Clerk + un bucket). */
 export async function resolveSession(): Promise<ResolvedSession | null> {
-  const { userId } = await auth();
-  if (!userId) return null;
-  return { userId };
+  if (isMultiTenantEnabled()) {
+    try {
+      return await resolveTenantSession();
+    } catch (error) {
+      console.error("[resolveSession:tenant]", error);
+      return null;
+    }
+  }
+
+  try {
+    const { userId } = await auth();
+    if (!userId) return null;
+    return { userId };
+  } catch (error) {
+    if (isClerkDynamicKeyError(error)) throw error;
+    console.error("[resolveSession]", error);
+    return null;
+  }
+}
+
+/** Profil Clerk courant — en multi-tenant, via la clé secrète du tenant (pas auth() Next). */
+export async function safeCurrentUser() {
+  if (isMultiTenantEnabled()) {
+    try {
+      return await resolveTenantCurrentUser();
+    } catch (error) {
+      console.error("[safeCurrentUser:tenant]", error);
+      return null;
+    }
+  }
+
+  try {
+    return await currentUser();
+  } catch (error) {
+    if (isClerkDynamicKeyError(error)) throw error;
+    console.error("[safeCurrentUser]", error);
+    return null;
+  }
 }
 
 export async function isCurrentUserAdmin(): Promise<boolean> {
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   return isOrgAdminFromPublicMetadata(user?.publicMetadata);
 }
