@@ -17,7 +17,7 @@ import {
   warmTenantRegistry,
   getCachedTenants,
 } from '@/app/lib/tenant-registry';
-import { isLocalDevHostname, clerkKeysFromEnv, resolveClerkKeysForHostname } from '@/app/lib/clerk-tenant-keys';
+import { isLocalDevHostname, resolveClerkKeysForHostname } from '@/app/lib/clerk-tenant-keys';
 import { isPlatformHostname } from '@/app/lib/platform-hostname';
 import { isPlatformTenantSlug, platformTenantFromEnv } from '@/app/lib/platform-tenant';
 import { clerkSignInPageUrl } from '@/app/lib/tenant-auth-urls';
@@ -297,22 +297,39 @@ async function handleProxyRequest(
   return nextWithTenant(request, tenant);
 }
 
-/** Multi-tenant : auth Clerk via clé secrète tenant (pas clerkMiddleware — évite CLERK_ENCRYPTION_KEY). */
-async function tenantMiddleware(request: NextRequest): Promise<NextResponse> {
-  try {
-    return await handleProxyRequest(request);
-  } catch (error) {
-    console.error("[proxy:tenant]", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
-  }
-}
-
 async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest) {
   return handleProxyRequest(request, auth);
 }
 
+/**
+ * Clés Clerk dynamiques par tenant : indispensable pour que clerkMiddleware()
+ * tourne sur chaque requête (sinon <ClerkProvider> / <SignIn> plantent au rendu
+ * des Server Components → 500 sur tout le site).
+ */
+const clerkOptionsForTenant = async (request: NextRequest) => {
+  try {
+    const host =
+      request.headers.get("x-forwarded-host") ||
+      request.headers.get("host") ||
+      request.nextUrl.hostname;
+    const tenant = await resolveTenantForProxy(request);
+    const keys = resolveClerkKeysForHostname(host, {
+      clerkPublishableKey: tenant.clerkPublishableKey,
+      clerkSecretKey: tenant.clerkSecretKey,
+      clerkDevPublishableKey: tenant.secrets?.clerkDevPublishableKey,
+      clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
+    });
+    if (keys.publishableKey?.trim() && keys.secretKey?.trim()) {
+      return { publishableKey: keys.publishableKey, secretKey: keys.secretKey };
+    }
+  } catch (error) {
+    console.error("[proxy:clerkOptions]", error);
+  }
+  return {};
+};
+
 export default isMultiTenantEnabled()
-  ? tenantMiddleware
+  ? clerkMiddleware(clerkAuthHandler, clerkOptionsForTenant)
   : clerkMiddleware(clerkAuthHandler);
 
 export const config = {
