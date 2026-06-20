@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { isOrgAdminFromPublicMetadata, resolveSession } from "@/app/lib/intranet-session";
+import {
+  isOrgAdminFromPublicMetadata,
+  isPlatformMasterFromPublicMetadata,
+  resolveSession,
+} from "@/app/lib/intranet-session";
 import { currentUser } from "@clerk/nextjs/server";
 import {
   canEditAcademicDeadlinesFromRoles,
@@ -24,6 +28,11 @@ export async function requireAuth(): Promise<
   return { ok: true, ctx: { userId: session.userId } };
 }
 
+export async function isPlatformMaster(): Promise<boolean> {
+  const user = await currentUser();
+  return isPlatformMasterFromPublicMetadata(user?.publicMetadata);
+}
+
 export async function isIntranetAdmin(): Promise<boolean> {
   const user = await currentUser();
   return isOrgAdminFromPublicMetadata(user?.publicMetadata);
@@ -43,6 +52,25 @@ export async function requireAdmin(): Promise<
     ok: false,
     response: NextResponse.json(
       { error: "Réservé aux utilisateurs avec le rôle admin.", code: "ADMIN_REQUIRED" },
+      { status: 403 },
+    ),
+  };
+}
+
+export async function requirePlatformMaster(): Promise<
+  { ok: true; ctx: AuthContext } | { ok: false; response: NextResponse }
+> {
+  const gate = await requireAuth();
+  if (!gate.ok) return gate;
+
+  if (await isPlatformMaster()) {
+    return gate;
+  }
+
+  return {
+    ok: false,
+    response: NextResponse.json(
+      { error: "Réservé au profil Master plateforme.", code: "MASTER_REQUIRED" },
       { status: 403 },
     ),
   };

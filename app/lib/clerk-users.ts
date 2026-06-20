@@ -1,6 +1,6 @@
 import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import type { User } from "@clerk/backend";
-import { hasGlobalAdminRole, intranetRolesFromMetadata, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
+import { hasGlobalAdminRole, intranetRolesFromMetadata, isHiddenMasterMember, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
 
 export type ClerkMemberRow = {
   clerkUserId: string;
@@ -68,7 +68,15 @@ export async function listClerkMembers(): Promise<ClerkMemberRow[]> {
     });
   }
 
-  return out.sort((a, b) => displayName(a).localeCompare(displayName(b), "fr", { sensitivity: "base" }));
+  return out
+    .filter((m) => !isHiddenMasterMember(m.roles))
+    .sort((a, b) => displayName(a).localeCompare(displayName(b), "fr", { sensitivity: "base" }));
+}
+
+export async function getClerkUserRoles(clerkUserId: string): Promise<string[]> {
+  const client = await getClerkClientForTenant();
+  const user = await client.users.getUser(clerkUserId);
+  return intranetRolesFromMetadata(user.publicMetadata);
 }
 
 export async function syncClerkUserRoles(

@@ -8,7 +8,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { hasGlobalAdminRole, hasRole } from "./intranet-role-utils";
+import { hasGlobalAdminRole, hasMasterRole } from "./intranet-role-utils";
 import { INTRANET_DIRECTION_SLUGS, intranetRolesExceptParent } from "./intranet-roles";
 
 const DIRECTIONS = [...INTRANET_DIRECTION_SLUGS];
@@ -25,7 +25,8 @@ export type DashboardTileVariant =
   | "internat"
   | "week-sheet"
   | "academic-deadlines"
-  | "photocopies-couleur";
+  | "photocopies-couleur"
+  | "toolbox";
 
 export type DashboardCategory = {
   id: number;
@@ -67,6 +68,16 @@ export const INTRANET_ALWAYS_ALLOWED_PREFIXES = [
   "/calendrierAbsProfs",
   "/faire-une-demande",
   "/demande/merci",
+  "/api/onboarding/status",
+  "/onboarding",
+  "/configuration-en-cours",
+];
+
+/** Réservé au profil Master (invisible, config plateforme). */
+export const INTRANET_PLATFORM_MASTER_PREFIXES = [
+  "/platform/setup",
+  "/api/platform/setup",
+  "/plateforme",
 ];
 
 export const INTRANET_MODULES: IntranetModule[] = [
@@ -125,12 +136,20 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "qrcreator",
     pathPrefixes: ["/qrcreator"],
     allowedRoles: [...ROLES_EXCEPT_PARENT],
+  },
+  {
+    id: "toolbox",
+    pathPrefixes: ["/toolbox", "/api/toolbox"],
+    allowedRoles: [...ROLES_EXCEPT_PARENT],
+    orgAdminOnly: false,
     dashboard: {
       id: 5,
-      name: "Création de QR Code",
-      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/qr_code_avec_logo_personnalise.png",
-      link: "/qrcreator",
+      name: "Boîte à outils",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+      link: "/toolbox",
       external: false,
+      variant: "toolbox",
+      description: "QR code, rentrée, portes ouvertes, Secret Santa…",
     },
   },
   {
@@ -344,6 +363,26 @@ export const INTRANET_MODULES: IntranetModule[] = [
     },
   },
   {
+    id: "stages",
+    pathPrefixes: ["/stages", "/api/stages"],
+    excludePrefixes: ["/stages/eleve", "/stages/signer", "/stages/candidater", "/api/stages/public"],
+    allowedRoles: [
+      ...DIRECTIONS,
+      "administratif",
+      "professeur",
+      "education",
+      "parent",
+    ],
+    dashboard: {
+      id: 28,
+      name: "Stages & conventions",
+      img: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
+      link: "/stages",
+      external: false,
+      description: "Offres parents, préconventions, signatures PFMP et jobs d'été",
+    },
+  },
+  {
     id: "covoiturage",
     pathPrefixes: ["/covoiturage", "/api/covoiturage"],
     allowedRoles: ["parent"],
@@ -482,6 +521,7 @@ export function rolesAllowModule(
   module: IntranetModule,
   isOrgAdmin: boolean,
 ): boolean {
+  if (hasMasterRole(roles)) return true;
   if (module.orgAdminOnly) return isOrgAdmin;
   if (hasGlobalAdminRole(roles)) return true;
   if (!module.allowedRoles.length) return false;
@@ -494,6 +534,14 @@ export function canAccessIntranetPath(
   isOrgAdmin: boolean,
 ): boolean {
   const normalized = normalizePathname(pathname);
+
+  if (
+    INTRANET_PLATFORM_MASTER_PREFIXES.some(
+      (p) => normalized === p || normalized.startsWith(`${p}/`),
+    )
+  ) {
+    return hasMasterRole(roles);
+  }
 
   if (
     INTRANET_ALWAYS_ALLOWED_PREFIXES.some(
@@ -521,6 +569,7 @@ export function isOrgAdminFromSession(
   return (
     orgRole === "org:admin" ||
     roleArr.includes("admin") ||
+    roleArr.includes("master") ||
     publicMetadata?.org_admin === true ||
     publicMetadata?.platform_admin === true
   );

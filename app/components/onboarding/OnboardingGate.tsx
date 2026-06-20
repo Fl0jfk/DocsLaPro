@@ -8,6 +8,7 @@ type OnboardingStatus = {
   completed: boolean;
   step: number;
   isOrgAdmin: boolean;
+  isPlatformMaster: boolean;
 };
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
       pathname,
       onboardingCompleted: status.completed,
       isOrgAdmin: status.isOrgAdmin,
+      isPlatformMaster: status.isPlatformMaster,
       reviewMode,
     });
     if (decision.action === "redirect" && decision.path !== pathname) {
@@ -56,6 +58,7 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
         pathname,
         onboardingCompleted: status.completed,
         isOrgAdmin: status.isOrgAdmin,
+        isPlatformMaster: status.isPlatformMaster,
         reviewMode,
       })
     : { action: "allow" as const };

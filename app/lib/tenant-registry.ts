@@ -1,5 +1,8 @@
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
 import { getPlatformS3Client } from "@/app/lib/s3-clients";
+import { isPlatformHostname } from "@/app/lib/platform-hostname";
+import { platformTenantFromEnv } from "@/app/lib/platform-tenant";
 import type {
   TenantConfig,
   TenantIndexEntry,
@@ -11,6 +14,19 @@ import type {
 const REGISTRY_KEY = process.env.TENANT_REGISTRY_KEY?.trim() || "tenants/index.json";
 const SECRETS_PREFIX = process.env.TENANT_SECRETS_PREFIX?.trim() || "tenants/secrets";
 const CACHE_MS = 60_000;
+
+export function getRegistryStorageConfig() {
+  return {
+    bucket: process.env.REGISTRY_BUCKET?.trim() || null,
+    indexKey: REGISTRY_KEY,
+    secretsPrefix: SECRETS_PREFIX,
+  };
+}
+
+/** Écriture S3 possible (pas en mode inline JSON / mono-.env seul). */
+export function isRegistryWritable(): boolean {
+  return Boolean(process.env.REGISTRY_BUCKET?.trim());
+}
 
 /** Registry S3 ou JSON inline — sinon mono-tenant via variables d'environnement. */
 export function isMultiTenantEnabled(): boolean {
@@ -33,7 +49,9 @@ function secretsKeyForSlug(slug: string): string {
   return `${SECRETS_PREFIX}/${safe}.json`;
 }
 
-function parseTenantIndexEntry(raw: unknown): TenantIndexEntry | null {
+export { secretsKeyForSlug };
+
+export function parseTenantIndexEntry(raw: unknown): TenantIndexEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const slug = typeof o.slug === "string" ? o.slug.trim() : "";
@@ -56,6 +74,24 @@ function parseTenantIndexEntry(raw: unknown): TenantIndexEntry | null {
       ? o.clerkSecretKey.trim()
       : undefined;
 
+  const postalRaw = o.postalAddress;
+  let postalAddress: TenantIndexEntry["postalAddress"];
+  if (postalRaw && typeof postalRaw === "object") {
+    const pa = postalRaw as Record<string, unknown>;
+    const street = typeof pa.street === "string" ? pa.street.trim() : "";
+    const zip = typeof pa.zip === "string" ? pa.zip.trim() : "";
+    const city = typeof pa.city === "string" ? pa.city.trim() : "";
+    if (street || zip || city) {
+      postalAddress = {
+        ...(street ? { street } : {}),
+        ...(zip ? { zip } : {}),
+        ...(city ? { city } : {}),
+      };
+    }
+  }
+
+  const logoUrl = typeof o.logoUrl === "string" && o.logoUrl.trim() ? o.logoUrl.trim() : undefined;
+
   return {
     slug,
     kind,
@@ -65,10 +101,12 @@ function parseTenantIndexEntry(raw: unknown): TenantIndexEntry | null {
     appUrl,
     clerkPublishableKey,
     clerkSecretKey,
+    ...(postalAddress ? { postalAddress } : {}),
+    ...(logoUrl ? { logoUrl } : {}),
   };
 }
 
-function parseTenantSecrets(raw: unknown): TenantSecrets | null {
+export function parseTenantSecrets(raw: unknown): TenantSecrets | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const clerkSecretKey =
@@ -214,12 +252,14 @@ async function hydrateTenant(entry: TenantIndexEntry): Promise<TenantConfig | nu
 }
 
 export function defaultTenantFromEnv(): TenantConfig {
-  const dataBucket = process.env.BUCKET_NAME?.trim();
+  const dataBucket =
+    process.env.BUCKET_NAME?.trim() ||
+    process.env.REGISTRY_BUCKET?.trim();
   const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
   const clerkSecretKey = process.env.CLERK_SECRET_KEY?.trim();
   if (!dataBucket || !clerkPublishableKey || !clerkSecretKey) {
     throw new Error(
-      "Configuration tenant manquante (BUCKET_NAME, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY).",
+      "Configuration tenant manquante (BUCKET_NAME ou REGISTRY_BUCKET, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY).",
     );
   }
 
@@ -297,6 +337,52 @@ async function loadRegistryIndexFromS3(): Promise<TenantIndexEntry[] | null> {
   }
 }
 
+export async function loadRegistryIndexEntries(): Promise<TenantIndexEntry[]> {
+  const fromS3 = await loadRegistryIndexFromS3();
+  const fromInline = loadInlineRegistry();
+  return fromS3 ?? fromInline ?? [];
+}
+
+export async function saveRegistryIndexEntries(entries: TenantIndexEntry[]): Promise<void> {
+  const bucket = process.env.REGISTRY_BUCKET?.trim();
+  if (!bucket) {
+    throw new Error("REGISTRY_BUCKET non configuré — écriture impossible.");
+  }
+  const payload: TenantRegistryFile = { version: 1, tenants: entries };
+  await getPlatformS3Client().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: REGISTRY_KEY,
+      Body: JSON.stringify(payload, null, 2),
+      ContentType: "application/json; charset=utf-8",
+    }),
+  );
+  invalidateTenantRegistryCache();
+}
+
+export async function loadTenantSecretsFile(slug: string): Promise<TenantSecrets | null> {
+  return resolveSecretsForSlug(slug);
+}
+
+export async function saveTenantSecretsFile(slug: string, secrets: TenantSecrets): Promise<void> {
+  const bucket = process.env.REGISTRY_BUCKET?.trim();
+  if (!bucket) {
+    throw new Error("REGISTRY_BUCKET non configuré — écriture impossible.");
+  }
+  if (!secrets.clerkSecretKey?.trim()) {
+    throw new Error("clerkSecretKey requis dans le fichier secrets.");
+  }
+  await getPlatformS3Client().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: secretsKeyForSlug(slug),
+      Body: JSON.stringify(secrets, null, 2),
+      ContentType: "application/json; charset=utf-8",
+    }),
+  );
+  invalidateTenantRegistryCache();
+}
+
 export async function loadAllTenants(): Promise<TenantConfig[]> {
   if (registryCache && Date.now() - registryCache.at < CACHE_MS) {
     return registryCache.tenants;
@@ -314,6 +400,11 @@ export async function loadAllTenants(): Promise<TenantConfig[]> {
   return tenants;
 }
 
+/** Dernier registry chargé (middleware — repli localhost en dev). */
+export function getCachedTenants(): TenantConfig[] | null {
+  return registryCache?.tenants ?? null;
+}
+
 export function invalidateTenantRegistryCache() {
   registryCache = null;
 }
@@ -325,13 +416,34 @@ export async function resolveTenantBySlug(slug: string): Promise<TenantConfig | 
   return tenants.find((t) => t.slug.toLowerCase() === normalized) ?? null;
 }
 
+export function resolveLocalDevTenantFromList(tenants: TenantConfig[]): TenantConfig | null {
+  if (process.env.NODE_ENV === "production" || tenants.length === 0) return null;
+
+  const slug = process.env.DEFAULT_TENANT_SLUG?.trim();
+  if (slug) {
+    const bySlug = tenants.find((t) => t.slug.toLowerCase() === slug.toLowerCase());
+    if (bySlug) return bySlug;
+  }
+  if (tenants.length === 1) return tenants[0];
+  return tenants[0] ?? null;
+}
+
 export async function resolveTenantByHostname(hostname: string): Promise<TenantConfig> {
   const host = normalizeHostname(hostname);
+  if (isPlatformHostname(host)) {
+    return platformTenantFromEnv();
+  }
+
   const tenants = await loadAllTenants();
 
   if (host) {
     const hit = tenants.find((t) => t.hostnames.some((h) => h === host));
     if (hit) return hit;
+  }
+
+  if (host && isLocalDevHostname(host)) {
+    const devTenant = resolveLocalDevTenantFromList(tenants);
+    if (devTenant) return devTenant;
   }
 
   if (tenants.length === 1) return tenants[0];
@@ -352,11 +464,21 @@ export async function resolveTenantByHostname(hostname: string): Promise<TenantC
 /** Résolution synchrone pour le middleware (cache mémoire uniquement). */
 export function resolveTenantByHostnameSync(hostname: string): TenantConfig | null {
   const host = normalizeHostname(hostname);
+  if (isPlatformHostname(host)) {
+    try {
+      return platformTenantFromEnv();
+    } catch {
+      return null;
+    }
+  }
   const tenants = registryCache?.tenants;
   if (!tenants?.length) return null;
   if (host) {
     const hit = tenants.find((t) => t.hostnames.some((h) => h === host));
     if (hit) return hit;
+  }
+  if (host && isLocalDevHostname(host)) {
+    return resolveLocalDevTenantFromList(tenants);
   }
   if (tenants.length === 1) return tenants[0];
   const fallback = process.env.DEFAULT_TENANT_SLUG?.trim();

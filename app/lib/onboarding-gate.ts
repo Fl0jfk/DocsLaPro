@@ -5,6 +5,8 @@ export type OnboardingGateDecision =
 const ONBOARDING_EXEMPT_PREFIXES = [
   "/onboarding",
   "/configuration-en-cours",
+  "/platform/setup",
+  "/plateforme",
   "/sign-in",
   "/sign-up",
 ];
@@ -18,8 +20,10 @@ export function resolveOnboardingGate(input: {
   pathname: string;
   onboardingCompleted: boolean;
   isOrgAdmin: boolean;
+  isPlatformMaster?: boolean;
   reviewMode?: boolean;
 }): OnboardingGateDecision {
+  if (input.isPlatformMaster) return { action: "allow" };
   if (input.reviewMode && input.isOrgAdmin) return { action: "allow" };
   if (isOnboardingExemptPath(input.pathname)) return { action: "allow" };
   if (input.onboardingCompleted) return { action: "allow" };

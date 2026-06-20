@@ -31,7 +31,7 @@ export function filterBentoGridModuleIds(moduleIds: string[]): string[] {
 
 /** Modules volontairement compacts (pas besoin de grand espace vertical). */
 export const BENTO_COMPACT_MODULES = new Set([
-  "qrcreator",
+  "toolbox",
   "channels",
   "agent-ia-ocr",
 ]);

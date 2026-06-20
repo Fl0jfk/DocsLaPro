@@ -25,13 +25,15 @@ export function intranetRolesExceptParent(): string[] {
 }
 
 const ALLOWED = new Set(INTRANET_ROLE_OPTIONS.map((r) => r.slug));
+const HIDDEN_ROLES = new Set(["master"]);
 
 export function normalizeIntranetRoles(input: unknown): string[] {
   const raw = Array.isArray(input) ? input : typeof input === "string" && input ? [input] : [];
   const out: string[] = [];
   for (const r of raw) {
     const s = String(r).trim();
-    if (s && ALLOWED.has(s) && !out.includes(s)) out.push(s);
+    if (!s || out.includes(s)) continue;
+    if (ALLOWED.has(s) || HIDDEN_ROLES.has(s)) out.push(s);
   }
   return out;
 }
@@ -79,4 +81,4 @@ export function intranetRolesFromSessionClaims(
   return normalizeIntranetRoles(claims?.role);
 }
 
-export { hasGlobalAdminRole } from "./intranet-role-utils";
+export { hasGlobalAdminRole, hasMasterRole, hasTenantAdminRole, isHiddenMasterMember } from "./intranet-role-utils";

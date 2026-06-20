@@ -4,6 +4,12 @@ export const TENANT_SLUG_HEADER = "x-tenant-slug";
 
 export type TenantKind = "groupe" | "standalone";
 
+export type TenantPostalAddress = {
+  street?: string;
+  zip?: string;
+  city?: string;
+};
+
 /** Entrée dans tenants/index.json — pas de secrets lourds (option B). */
 export type TenantIndexEntry = {
   slug: string;
@@ -13,6 +19,10 @@ export type TenantIndexEntry = {
   dataBucket: string;
   appUrl: string;
   clerkPublishableKey: string;
+  /** Adresse postale (portail de connexion, désambiguïsation). */
+  postalAddress?: TenantPostalAddress;
+  /** Logo public (URL https) — défini par le Master plateforme. */
+  logoUrl?: string;
   /** Rétrocompat : si présent dans l'index, pas de fichier secrets requis. */
   clerkSecretKey?: string;
 };

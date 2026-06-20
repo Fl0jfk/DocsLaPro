@@ -17,6 +17,20 @@ export function hasGlobalAdminRole(roles: string[]): boolean {
   return roles.includes("admin");
 }
 
+/** Super-utilisateur plateforme (invisible, tous tenants, config clés API). */
+export function hasMasterRole(roles: string[]): boolean {
+  return roles.includes("master");
+}
+
+/** Administrateur de l'établissement (son tenant uniquement). */
+export function hasTenantAdminRole(roles: string[]): boolean {
+  return hasGlobalAdminRole(roles) || hasMasterRole(roles);
+}
+
+export function isHiddenMasterMember(roles: string[]): boolean {
+  return hasMasterRole(roles);
+}
+
 /** Paramétrage planning domaines : admin org, direction*, administratif. */
 export function canAccessDomainPlanningSettingsFromRoles(roles: string[]): boolean {
   if (hasGlobalAdminRole(roles)) return true;

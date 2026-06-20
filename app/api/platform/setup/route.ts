@@ -1,0 +1,66 @@
+import { NextResponse } from "next/server";
+import { requirePlatformMaster } from "@/app/lib/intranet-auth";
+import { getTenant } from "@/app/lib/tenant-context";
+import { tenantToEditPayload } from "@/app/lib/tenant-registry-admin";
+import {
+  getRegistryStorageConfig,
+  isMultiTenantEnabled,
+  isRegistryWritable,
+  loadAllTenants,
+} from "@/app/lib/tenant-registry";
+import type { TenantConfig } from "@/app/lib/tenant-types";
+
+function maskPk(value: string): string {
+  const v = value.trim();
+  if (!v) return "—";
+  if (v.length <= 12) return v;
+  return `${v.slice(0, 10)}…${v.slice(-4)}`;
+}
+
+function tenantListItem(t: TenantConfig) {
+  const edit = tenantToEditPayload(t);
+  return {
+    slug: t.slug,
+    kind: t.kind,
+    label: t.label,
+    hostnames: t.hostnames,
+    appUrl: t.appUrl,
+    dataBucket: t.dataBucket,
+    clerkPublishableKey: maskPk(edit.entry.clerkPublishableKey),
+    configured: edit.configured,
+  };
+}
+
+/** Vue plateforme (Master) : registry tenants et statut d'édition. */
+export async function GET() {
+  const gate = await requirePlatformMaster();
+  if (!gate.ok) return gate.response;
+
+  try {
+    const current = await getTenant();
+    const multiTenant = isMultiTenantEnabled();
+    const writable = isRegistryWritable();
+    const storage = getRegistryStorageConfig();
+    const tenants = multiTenant ? await loadAllTenants() : [current];
+
+    return NextResponse.json({
+      multiTenant,
+      writable,
+      registry: {
+        ...storage,
+        inlineIndex: Boolean(process.env.TENANT_INDEX_JSON?.trim()),
+      },
+      currentTenantSlug: current.slug,
+      tenants: tenants.map(tenantListItem),
+      localDev: {
+        clerkEnvOverride: Boolean(
+          process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() &&
+            process.env.CLERK_SECRET_KEY?.trim(),
+        ),
+      },
+    });
+  } catch (e) {
+    console.error("[platform/setup]", e);
+    return NextResponse.json({ error: "Configuration plateforme indisponible." }, { status: 500 });
+  }
+}

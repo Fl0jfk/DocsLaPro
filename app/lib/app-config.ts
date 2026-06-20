@@ -159,7 +159,7 @@ async function maybeMigrateLegacyOnboarding(
   if (identity.onboardingCompleted === true) return identity;
 
   const activeCount = getActiveEstablishments(establishments).length;
-  const atRecapStep = (identity.onboardingStep ?? 0) >= 14;
+  const atRecapStep = (identity.onboardingStep ?? 0) >= 12;
   const legacyTenant = isLegacyTenantIdentity(identity, activeCount);
 
   if (identity.onboardingCompleted === false) {
@@ -324,7 +324,7 @@ export async function saveExternalLinks(links: ExternalQuickLinkConfig[]) {
   invalidateAppConfigCache();
 }
 
-export async function markOnboardingComplete(step = 14) {
+export async function markOnboardingComplete(step = 12) {
   const config = await loadAppConfig();
   await saveSiteIdentity({
     ...config.identity,

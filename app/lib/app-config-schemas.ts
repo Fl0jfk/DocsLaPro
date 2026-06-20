@@ -12,7 +12,7 @@ export type SiteIdentity = {
   organizationKind?: OrganizationKind;
   onboardingCompleted?: boolean;
   onboardingCompletedAt?: string;
-  /** Dernière étape validée dans l'assistant (1–14). */
+  /** Dernière étape validée dans l'assistant (1–12). */
   onboardingStep?: number;
   assistanceEmail?: string;
   address?: {
@@ -81,6 +81,8 @@ export type ExternalQuickLinkConfig = {
 };
 
 export type InternatRollCallRecipients = {
+  /** Destinataire principal des appels internat (onboarding / config générique). */
+  appelContact?: string;
   directionLycee?: string;
   cpeLycee?: string;
   cpeCollege?: string;
@@ -93,10 +95,17 @@ export type NotificationsConfig = {
   hseOps?: string;
   photocopiesOps?: string;
   absencesNotifyProfEcole?: { label?: string; email: string };
+  absencesNotifyProfCollege?: { label?: string; email: string };
+  absencesNotifyProfLycee?: { label?: string; email: string };
+  /** @deprecated Préférer absencesNotifyProfCollege / absencesNotifyProfLycee */
   absencesNotifyProfCollegeLycee?: { label?: string; email: string };
   absencesNotifyOgecCompta: string[];
   internatRollCallRecipients?: InternatRollCallRecipients;
   internatEmergencyRecipients?: string[];
+  /** Préconventions / conventions de stage — file administratif. */
+  stagesAdminEmails?: string[];
+  /** Signature direction (repli : e-mail directeur selon niveau élève). */
+  stagesDirectionEmail?: string;
 };
 
 export type InternatModuleConfig = {
@@ -302,9 +311,11 @@ export function parseNotifications(raw: unknown): NotificationsConfig {
     if (!block || typeof block !== "object") return undefined;
     const b = block as Record<string, unknown>;
     const out: InternatRollCallRecipients = {};
+    const appel = str(b.appelContact).trim();
     const d = str(b.directionLycee).trim();
     const cL = str(b.cpeLycee).trim();
     const cC = str(b.cpeCollege).trim();
+    if (appel && isEmail(appel)) out.appelContact = appel;
     if (d && isEmail(d)) out.directionLycee = d;
     if (cL && isEmail(cL)) out.cpeLycee = cL;
     if (cC && isEmail(cC)) out.cpeCollege = cC;
@@ -318,10 +329,17 @@ export function parseNotifications(raw: unknown): NotificationsConfig {
     hseOps: str(o.hseOps) || undefined,
     photocopiesOps: str(o.photocopiesOps) || undefined,
     absencesNotifyProfEcole: parseNotify(o.absencesNotifyProfEcole),
+    absencesNotifyProfCollege: parseNotify(o.absencesNotifyProfCollege),
+    absencesNotifyProfLycee: parseNotify(o.absencesNotifyProfLycee),
     absencesNotifyProfCollegeLycee: parseNotify(o.absencesNotifyProfCollegeLycee),
     absencesNotifyOgecCompta: ogec,
     internatRollCallRecipients: parseInternatRollCall(o.internatRollCallRecipients),
     internatEmergencyRecipients: strArr(o.internatEmergencyRecipients).filter(isEmail),
+    stagesAdminEmails: strArr(o.stagesAdminEmails).filter(isEmail),
+    stagesDirectionEmail: (() => {
+      const e = str(o.stagesDirectionEmail).trim();
+      return e && isEmail(e) ? e : undefined;
+    })(),
   };
 }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadAppConfig } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { isOrgAdminFromPublicMetadata } from "@/app/lib/intranet-session";
+import { isOrgAdminFromPublicMetadata, isPlatformMasterFromPublicMetadata } from "@/app/lib/intranet-session";
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { currentUser } from "@clerk/nextjs/server";
 import { onboardingStatusFromConfig } from "@/app/lib/onboarding-status";
@@ -13,9 +13,11 @@ export async function GET() {
     const [config, user] = await Promise.all([loadAppConfig(), currentUser()]);
     const status = onboardingStatusFromConfig(config);
     const isOrgAdmin = isOrgAdminFromPublicMetadata(user?.publicMetadata);
+    const isPlatformMaster = isPlatformMasterFromPublicMetadata(user?.publicMetadata);
     return NextResponse.json({
       ...status,
       isOrgAdmin,
+      isPlatformMaster,
       identity: {
         name: config.identity.name,
         shortName: config.identity.shortName,

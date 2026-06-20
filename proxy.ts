@@ -11,17 +11,20 @@ import {
   defaultTenantFromEnv,
   isMultiTenantEnabled,
   normalizeHostname,
+  resolveLocalDevTenantFromList,
   resolveTenantByHostname,
   resolveTenantByHostnameSync,
   warmTenantRegistry,
+  getCachedTenants,
 } from '@/app/lib/tenant-registry';
-import {
-  resolveClerkKeysForHostname,
-} from '@/app/lib/clerk-tenant-keys';
+import { isLocalDevHostname, clerkKeysFromEnv, resolveClerkKeysForHostname } from '@/app/lib/clerk-tenant-keys';
+import { isPlatformHostname } from '@/app/lib/platform-hostname';
+import { platformTenantFromEnv } from '@/app/lib/platform-tenant';
 import {
   canAccessIntranetPath,
   isOrgAdminFromSession,
 } from '@/app/lib/intranet-modules';
+import { hasMasterRole } from '@/app/lib/intranet-role-utils';
 import {
   intranetRolesFromMetadata,
   intranetRolesFromSessionClaims,
@@ -34,6 +37,9 @@ const isPublicRoute = createRouteMatcher([
   '/rentree(.*)',
   '/simulateurTarifs(.*)',
   '/simulateurFournitures(.*)',
+  '/portes-ouvertes(.*)',
+  '/api/toolbox/public',
+  '/api/portes-ouvertes/register',
   '/faire-une-demande(.*)',
   '/demande/merci',
   '/api/travels/ingest-from-email',
@@ -43,12 +49,19 @@ const isPublicRoute = createRouteMatcher([
   '/api/chatbot',
   '/api/site/public',
   '/api/tenant/public',
+  '/api/tenants/public',
+  '/connexion',
+  '/plateforme',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/mentions-legales',
   '/tarifs',
   '/internat/autorisation(.*)',
   '/api/internat/outings/decision(.*)',
+  '/stages/eleve(.*)',
+  '/stages/signer(.*)',
+  '/stages/candidater(.*)',
+  '/api/stages/public(.*)',
 ]);
 
 async function resolveTenantForProxy(request: NextRequest): Promise<TenantConfig> {
@@ -65,10 +78,21 @@ async function resolveTenantForProxy(request: NextRequest): Promise<TenantConfig
   try {
     return await resolveTenantByHostname(host);
   } catch {
+    const normalized = normalizeHostname(host);
+    if (isPlatformHostname(normalized)) {
+      return platformTenantFromEnv();
+    }
+    if (isLocalDevHostname(normalized)) {
+      const cached = getCachedTenants();
+      if (cached?.length) {
+        const devTenant = resolveLocalDevTenantFromList(cached);
+        if (devTenant) return devTenant;
+      }
+    }
     if (!process.env.REGISTRY_BUCKET?.trim() && !process.env.TENANT_INDEX_JSON?.trim()) {
       return defaultTenantFromEnv();
     }
-    throw new Error(`Domaine non configuré : ${normalizeHostname(host)}`);
+    throw new Error(`Domaine non configuré : ${normalized}`);
   }
 }
 
@@ -142,6 +166,16 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
   );
   const isOrgAdmin = isOrgAdminFromSession(authState.orgRole, publicMetadata);
   const pathname = request.nextUrl.pathname;
+  const host = normalizeHostname(
+    request.headers.get("x-forwarded-host") ||
+      request.headers.get("host") ||
+      request.nextUrl.hostname,
+  );
+
+  if (isPlatformHostname(host) && pathname === "/dashboard") {
+    const dest = hasMasterRole(roles) ? "/plateforme" : "/";
+    return NextResponse.redirect(new URL(dest, request.url));
+  }
 
   if (!canAccessIntranetPath(pathname, roles, isOrgAdmin)) {
     if (pathname.startsWith("/api/")) {
@@ -166,8 +200,16 @@ async function clerkOptionsForTenant(request: NextRequest) {
       clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
     });
   } catch {
-    const fallback = defaultTenantFromEnv();
-    return resolveClerkKeysForHostname(request.nextUrl.hostname, fallback);
+    const keys = clerkKeysFromEnv();
+    if (keys) {
+      return keys;
+    }
+    try {
+      return resolveClerkKeysForHostname(request.nextUrl.hostname, platformTenantFromEnv());
+    } catch {
+      const fallback = defaultTenantFromEnv();
+      return resolveClerkKeysForHostname(request.nextUrl.hostname, fallback);
+    }
   }
 }
 

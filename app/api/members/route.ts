@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
-import { INTRANET_ROLE_OPTIONS, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
+import { INTRANET_ROLE_OPTIONS, hasMasterRole, intranetRolesFromMetadata, normalizeIntranetRoles } from "@/app/lib/intranet-roles";
 import { requireAdmin } from "@/app/lib/intranet-auth";
 import {
+  getClerkUserRoles,
   listClerkMembers,
   memberRowFromClerkUser,
   syncClerkUserRoles,
@@ -36,6 +37,10 @@ export async function POST(req: Request) {
     const firstName = String(body.firstName ?? "").trim();
     const lastName = String(body.lastName ?? "").trim();
 
+    if (roles.some((r) => r === "master")) {
+      return NextResponse.json({ error: "Le rôle Master ne peut pas être attribué ici." }, { status: 403 });
+    }
+
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "Adresse e-mail invalide." }, { status: 400 });
     }
@@ -48,6 +53,10 @@ export async function POST(req: Request) {
     const clerkUser = existing.data?.[0];
 
     if (clerkUser) {
+      const existingRoles = intranetRolesFromMetadata(clerkUser.publicMetadata);
+      if (hasMasterRole(existingRoles)) {
+        return NextResponse.json({ error: "Ce compte est protégé." }, { status: 403 });
+      }
       await syncClerkUserRoles(clerkUser.id, roles);
       if (firstName || lastName) {
         await client.users.updateUser(clerkUser.id, {
@@ -102,6 +111,13 @@ export async function PATCH(req: Request) {
     if (!clerkUserId) {
       return NextResponse.json({ error: "clerkUserId requis." }, { status: 400 });
     }
+    if (roles.some((r) => r === "master")) {
+      return NextResponse.json({ error: "Le rôle Master ne peut pas être attribué ici." }, { status: 403 });
+    }
+    const existingRoles = await getClerkUserRoles(clerkUserId);
+    if (hasMasterRole(existingRoles)) {
+      return NextResponse.json({ error: "Ce compte est protégé." }, { status: 403 });
+    }
     if (roles.length === 0) {
       return NextResponse.json({ error: "Sélectionnez au moins un rôle." }, { status: 400 });
     }
@@ -128,6 +144,10 @@ export async function DELETE(req: Request) {
     const client = await getClerkClientForTenant();
 
     if (clerkUserId) {
+      const existingRoles = await getClerkUserRoles(clerkUserId);
+      if (hasMasterRole(existingRoles)) {
+        return NextResponse.json({ error: "Ce compte est protégé." }, { status: 403 });
+      }
       await client.users.deleteUser(clerkUserId);
       return NextResponse.json({ success: true });
     }
@@ -135,6 +155,10 @@ export async function DELETE(req: Request) {
     const found = await client.users.getUserList({ emailAddress: [email!], limit: 1 });
     const u = found.data?.[0];
     if (u) {
+      const existingRoles = intranetRolesFromMetadata(u.publicMetadata);
+      if (hasMasterRole(existingRoles)) {
+        return NextResponse.json({ error: "Ce compte est protégé." }, { status: 403 });
+      }
       await client.users.deleteUser(u.id);
       return NextResponse.json({ success: true });
     }

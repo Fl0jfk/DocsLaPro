@@ -5,10 +5,15 @@ import { TENANT_SLUG_HEADER, type TenantConfig } from "@/app/lib/tenant-types";
 import {
   defaultTenantFromEnv,
   isMultiTenantEnabled,
+  loadAllTenants,
   normalizeHostname,
+  resolveLocalDevTenantFromList,
   resolveTenantByHostname,
   resolveTenantBySlug,
 } from "@/app/lib/tenant-registry";
+import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
+import { isPlatformHostname } from "@/app/lib/platform-hostname";
+import { platformTenantFromEnv } from "@/app/lib/platform-tenant";
 
 export { TENANT_SLUG_HEADER };
 
@@ -28,7 +33,16 @@ export const getTenant = cache(async (): Promise<TenantConfig> => {
     if (!isMultiTenantEnabled()) {
       return defaultTenantFromEnv();
     }
-    throw new Error(`Tenant introuvable pour « ${normalizeHostname(host)} ».`);
+    const normalized = normalizeHostname(host);
+    if (isPlatformHostname(normalized)) {
+      return platformTenantFromEnv();
+    }
+    if (isLocalDevHostname(normalized)) {
+      const tenants = await loadAllTenants();
+      const devTenant = resolveLocalDevTenantFromList(tenants);
+      if (devTenant) return devTenant;
+    }
+    throw new Error(`Tenant introuvable pour « ${normalized} ».`);
   }
 });
 

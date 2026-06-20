@@ -1,10 +1,17 @@
 import { SignIn } from "@clerk/nextjs";
+import { headers } from "next/headers";
+import { isPlatformHostname } from "@/app/lib/platform-hostname";
 
-export default function SignInPage() {
+export default async function SignInPage() {
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "";
+  const afterSignIn = isPlatformHostname(host) ? "/plateforme" : "/dashboard";
+
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-10">
       <SignIn
-        fallbackRedirectUrl="/dashboard"
+        fallbackRedirectUrl={afterSignIn}
+        forceRedirectUrl={afterSignIn}
         appearance={{
           variables: {
             colorPrimary: "#2F6B4A",

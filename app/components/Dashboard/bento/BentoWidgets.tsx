@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Categories } from "@/app/contexts/data";
 import BentoWidget from "@/app/components/Dashboard/bento/BentoWidget";
+import DashboardModuleIcon from "@/app/components/Dashboard/bento/DashboardModuleIcon";
 import { AcademicDeadlinesBentoWidget } from "@/app/components/Dashboard/bento/AcademicDeadlinesBentoWidget";
 import { WeekSheetBentoWidget } from "@/app/components/Dashboard/bento/WeekSheetBentoWidget";
 import type { BentoWidgetSize } from "@/app/lib/bento-widget-size";
@@ -24,6 +25,9 @@ import { absencesInWeek, absencesToday, type AbsenceTodayRow, type AbsenceWeekRo
 import { getRecentDocs, pushRecentDoc } from "@/app/lib/dashboard-recent-docs";
 import { tripsThisWeek, tripsToday, type TripIndexRow } from "@/app/lib/dashboard-trips";
 import QRCode from "qrcode";
+import ToolboxModal from "@/app/components/toolbox/ToolboxModal";
+import { renderToolboxIcon, ToolboxFolderIcon } from "@/app/components/toolbox/ToolboxIcons";
+import type { ToolboxToolId } from "@/app/lib/toolbox-types";
 import { stageDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 import {
   DASHBOARD_BTN_EMERALD,
@@ -41,6 +45,7 @@ import type { PersonnelDashboardData } from "@/app/lib/personnel-dashboard";
 import { useUser } from "@clerk/nextjs";
 import { calendarDateKeyParis } from "@/app/lib/domain-planning-dates";
 import { formatNomPrenom, schoolWeekDaysParis } from "@/app/lib/dashboard-week";
+import { dash } from "@/app/lib/dashboard-brand";
 
 const STATUS_LABEL: Record<string, string> = {
   NOUVELLE: "Nouvelle",
@@ -926,6 +931,83 @@ export function AgentIaBentoWidget({ category }: WidgetProps) {
   );
 }
 
+export function ToolboxBentoWidget({ category }: WidgetProps) {
+  const [open, setOpen] = useState(false);
+  const [toolIds, setToolIds] = useState<ToolboxToolId[]>([]);
+
+  useEffect(() => {
+    fetch("/api/toolbox/public", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => setToolIds((j.tools || []).map((t: { id: ToolboxToolId }) => t.id)))
+      .catch(() => setToolIds([]));
+  }, [open]);
+
+  const preview = toolIds.slice(0, 4);
+
+  return (
+    <>
+      <article
+        className={`flex flex-col overflow-hidden rounded-2xl border bg-white/92 shadow-sm backdrop-blur-sm transition duration-300 hover:shadow-md ${dash.tileBorder} ${dash.tileBorderHover} h-auto min-h-0`}
+      >
+        <header
+          className={`flex shrink-0 items-center justify-between gap-2 rounded-t-2xl border-b px-3 py-2.5 sm:px-4 ${dash.border} ${dash.gradientHeader}`}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <DashboardModuleIcon src={category.img} label={category.name} />
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className={`truncate text-sm font-black transition sm:text-base text-left ${dash.ink} ${dash.hoverPrimary}`}
+            >
+              {category.name}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className={`text-[11px] ${dash.linkBold}`}
+          >
+            Ouvrir →
+          </button>
+        </header>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="overflow-auto p-3 sm:p-4 text-left w-full hover:bg-slate-50/80 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="grid grid-cols-2 gap-1.5 shrink-0">
+              {preview.length > 0 ? (
+                preview.map((id) => (
+                  <span
+                    key={id}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm"
+                  >
+                    {renderToolboxIcon(id, "w-5 h-5")}
+                  </span>
+                ))
+              ) : (
+                <span className="flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-2xl bg-amber-50 text-amber-700 col-span-2">
+                  <ToolboxFolderIcon className="w-8 h-8" />
+                </span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className={DASHBOARD_TILE_META_STRONG}>
+                {toolIds.length > 0 ? `${toolIds.length} outil${toolIds.length > 1 ? "s" : ""} actif${toolIds.length > 1 ? "s" : ""}` : "Aucun outil activé"}
+              </p>
+              <p className={`${DASHBOARD_TILE_META} mt-1`}>
+                QR code, rentrée, portes ouvertes, Secret Santa…
+              </p>
+            </div>
+          </div>
+        </button>
+      </article>
+      <ToolboxModal open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
 export function QrBentoWidget({ category }: WidgetProps) {
   const router = useRouter();
   const [url, setUrl] = useState("https://");
@@ -1010,6 +1092,8 @@ export function renderBentoWidget(category: Categories, size: BentoWidgetSize) {
       return <RhBentoWidget {...props} />;
     case "agent-ia":
       return <AgentIaBentoWidget {...props} />;
+    case "toolbox":
+      return <ToolboxBentoWidget {...props} />;
     default:
       break;
   }

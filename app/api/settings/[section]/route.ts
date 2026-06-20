@@ -19,6 +19,7 @@ import {
 } from "@/app/lib/app-config-schemas";
 import { requireAdmin } from "@/app/lib/intranet-auth";
 import { normalizeProfRoomAdminClerkIds } from "@/app/lib/prof-room-auth";
+import { ensureSiteAddressCoordinates } from "@/app/lib/site-address-coordinates";
 
 const ALLOWED = new Set([
   "site",
@@ -42,7 +43,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ section: string
     const audit = { updatedAt: new Date().toISOString(), updatedBy: user?.fullName || user?.id || "admin" };
 
     if (section === "site") {
-      const parsed = parseSiteIdentity(body);
+      const parsed = await ensureSiteAddressCoordinates(parseSiteIdentity(body));
       await saveSiteIdentity(parsed);
       if (typeof body.onboardingStep === "number") {
         await saveOnboardingStep(body.onboardingStep);

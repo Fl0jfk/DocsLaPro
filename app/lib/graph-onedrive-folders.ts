@@ -69,3 +69,49 @@ export async function ensureFolderPath(accessToken: string, fullPath: string): P
     acc = acc ? `${acc}/${part}` : part;
   }
 }
+
+/** Évite les collisions de noms dans un dossier OneDrive. */
+export async function resolveUniqueFileName(
+  accessToken: string,
+  folderPath: string,
+  fileName: string,
+): Promise<string> {
+  const children = await listChildFolderNames(accessToken, folderPath);
+  if (!children.has(fileName)) return fileName;
+  const dot = fileName.lastIndexOf(".");
+  const base = dot > 0 ? fileName.slice(0, dot) : fileName;
+  const ext = dot > 0 ? fileName.slice(dot) : "";
+  let suffix = 2;
+  let candidate = `${base} (${suffix})${ext}`;
+  while (children.has(candidate)) {
+    suffix += 1;
+    candidate = `${base} (${suffix})${ext}`;
+  }
+  return candidate;
+}
+
+/** Upload binaire dans un dossier OneDrive (crée le dossier si besoin). */
+export async function uploadFileToOneDriveFolder(
+  accessToken: string,
+  folderPath: string,
+  fileName: string,
+  bytes: Uint8Array,
+  contentType = "application/pdf",
+): Promise<{ folderPath: string; fileName: string; fullPath: string }> {
+  await ensureFolderPath(accessToken, folderPath);
+  const safeName = await resolveUniqueFileName(accessToken, folderPath, fileName);
+  const fullPath = `${folderPath.replace(/\/+$/, "")}/${safeName}`;
+  const res = await fetch(`${GRAPH_BASE}/me/drive/root:/${encodePath(fullPath)}:/content`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": contentType,
+    },
+    body: bytes,
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Upload OneDrive échoué : ${err}`);
+  }
+  return { folderPath, fileName: safeName, fullPath };
+}

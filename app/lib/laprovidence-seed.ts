@@ -113,12 +113,21 @@ export function laprovidenceNotifications(): NotificationsConfig {
       label: SCHOOL.absences.notifyProfEcole.label,
       email: SCHOOL.absences.notifyProfEcole.email,
     },
+    absencesNotifyProfCollege: {
+      label: SCHOOL.absences.notifyProfCollegeLycee.label,
+      email: SCHOOL.absences.notifyProfCollegeLycee.email,
+    },
+    absencesNotifyProfLycee: {
+      label: SCHOOL.absences.notifyProfCollegeLycee.label,
+      email: SCHOOL.absences.notifyProfCollegeLycee.email,
+    },
     absencesNotifyProfCollegeLycee: {
       label: SCHOOL.absences.notifyProfCollegeLycee.label,
       email: SCHOOL.absences.notifyProfCollegeLycee.email,
     },
     absencesNotifyOgecCompta: [...SCHOOL.absences.notifyOgecCompta],
     internatRollCallRecipients: {
+      appelContact: SCHOOL.lycee.email,
       directionLycee: SCHOOL.lycee.email,
       cpeLycee: "florian@h-me.fr",
       cpeCollege: SCHOOL.requestsRouting.cpeCollege,

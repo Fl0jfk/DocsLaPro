@@ -289,6 +289,7 @@ export type InternatModuleConfig = {
 };
 
 export type InternatRollCallRecipients = {
+  appelContact?: string;
   directionLycee?: string;
   cpeLycee?: string;
   cpeCollege?: string;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { loadAppConfig } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { isOrgAdminFromPublicMetadata } from "@/app/lib/intranet-session";
+import { isOrgAdminFromPublicMetadata, isPlatformMasterFromPublicMetadata } from "@/app/lib/intranet-session";
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 
 /** Contexte intranet pour les pages admin (établissements actifs, identité courte). */
@@ -27,6 +27,7 @@ export async function GET() {
       session: {
         intranetRoles,
         isGlobalAdmin: isOrgAdminFromPublicMetadata(user?.publicMetadata),
+        isPlatformMaster: isPlatformMasterFromPublicMetadata(user?.publicMetadata),
       },
     });
   } catch (e) {

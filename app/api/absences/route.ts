@@ -91,6 +91,14 @@ async function resolveValidationRecipients(record: AbsenceRecord) {
   if (record.data.etablissement === "École") {
     return n.absencesNotifyProfEcole?.email ? [n.absencesNotifyProfEcole.email] : [];
   }
+  if (record.data.etablissement === "Collège") {
+    const email = n.absencesNotifyProfCollege?.email || n.absencesNotifyProfCollegeLycee?.email;
+    return email ? [email] : [];
+  }
+  if (record.data.etablissement === "Lycée") {
+    const email = n.absencesNotifyProfLycee?.email || n.absencesNotifyProfCollegeLycee?.email;
+    return email ? [email] : [];
+  }
   return n.absencesNotifyProfCollegeLycee?.email ? [n.absencesNotifyProfCollegeLycee.email] : [];
 }
 

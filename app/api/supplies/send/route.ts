@@ -6,6 +6,7 @@ import {
   createTenantTransporter,
   getTenantSmtpConfig,
 } from "@/app/lib/tenant-mail";
+import { getToolboxConfig } from "@/app/lib/toolbox-config";
 
 type LangueSeconde = "Espagnol" | "Allemand";
 type CollegeNiveau = "6e" | "5e" | "4e" | "3e";
@@ -65,6 +66,11 @@ function formatChildLabel(child: Child) {
 
 export async function POST(req: Request) {
   try {
+    const toolbox = await getToolboxConfig();
+    if (!toolbox.tools["simulateur-fournitures"].enabled) {
+      return NextResponse.json({ error: "Simulateur fournitures désactivé." }, { status: 404 });
+    }
+
     const body = await req.json();
     const email = String(body?.email || "").trim();
     const children = (body?.children || []) as Child[];

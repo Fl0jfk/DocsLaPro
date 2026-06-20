@@ -8,6 +8,7 @@ export function useIsOrgAdmin(): boolean {
   const roles = meta?.role;
   const arr = Array.isArray(roles) ? roles.map(String) : roles ? [String(roles)] : [];
   if (arr.includes("admin")) return true;
+  if (arr.includes("master")) return true;
   if (meta?.org_admin === true) return true;
   if (meta?.platform_admin === true) return true;
   return arr.includes("platform_admin");

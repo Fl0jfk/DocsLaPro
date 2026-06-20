@@ -1,0 +1,48 @@
+import { getJson, putJson } from "@/app/lib/s3-storage";
+
+export type PortesOuvertesRegistration = {
+  id: string;
+  slotId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  childrenInfo?: string;
+  consent: boolean;
+  createdAt: string;
+};
+
+const KEY = "toolbox/portes-ouvertes/registrations.json";
+
+export async function listPortesOuvertesRegistrations(): Promise<PortesOuvertesRegistration[]> {
+  const raw = await getJson<PortesOuvertesRegistration[]>(KEY);
+  return Array.isArray(raw?.data) ? raw.data : [];
+}
+
+export async function savePortesOuvertesRegistrations(rows: PortesOuvertesRegistration[]): Promise<void> {
+  await putJson(KEY, rows);
+}
+
+export async function addPortesOuvertesRegistration(
+  row: Omit<PortesOuvertesRegistration, "id" | "createdAt">,
+): Promise<PortesOuvertesRegistration> {
+  const list = await listPortesOuvertesRegistrations();
+  const entry: PortesOuvertesRegistration = {
+    ...row,
+    id: `po-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+  };
+  list.push(entry);
+  await savePortesOuvertesRegistrations(list);
+  return entry;
+}
+
+export function countRegistrationsBySlot(
+  rows: PortesOuvertesRegistration[],
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    out[r.slotId] = (out[r.slotId] || 0) + 1;
+  }
+  return out;
+}

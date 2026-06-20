@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { loadAppConfig } from "@/app/lib/app-config";
+import { geocodeFrenchAddress } from "@/app/lib/geocode-address";
 import { weatherCodeIcon, weatherCodeLabel } from "@/app/lib/weather-codes";
 
 export const revalidate = 1800;
@@ -23,9 +24,21 @@ export async function GET() {
   if (!gate.ok) return gate.response;
 
   const config = await loadAppConfig();
-  const latitude = config.identity.address?.latitude;
-  const longitude = config.identity.address?.longitude;
+  let latitude = config.identity.address?.latitude;
+  let longitude = config.identity.address?.longitude;
   const city = config.identity.address?.city || config.identity.shortName || config.identity.name;
+
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    const geo = await geocodeFrenchAddress({
+      street: config.identity.address?.street,
+      zip: config.identity.address?.zip,
+      city: config.identity.address?.city,
+    });
+    if (geo) {
+      latitude = geo.latitude;
+      longitude = geo.longitude;
+    }
+  }
 
   if (typeof latitude !== "number" || typeof longitude !== "number") {
     return NextResponse.json(

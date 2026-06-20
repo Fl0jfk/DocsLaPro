@@ -27,7 +27,7 @@ async function getInternatMailer() {
 
 function parseRollCallRecipients(raw: InternatRollCallRecipients | undefined) {
   const emails = new Set<string>();
-  for (const v of [raw?.directionLycee, raw?.cpeLycee, raw?.cpeCollege]) {
+  for (const v of [raw?.appelContact, raw?.directionLycee, raw?.cpeLycee, raw?.cpeCollege]) {
     const e = String(v || "").trim();
     if (e) emails.add(e);
   }

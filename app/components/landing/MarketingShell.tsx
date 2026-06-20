@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MARKETING } from "@/app/lib/marketing-site";
 import { SCOLA, SCOLA_GRADIENT_TEXT, SCOLA_HEADER_ACCENT, SCOLA_HEADER_SHELL } from "@/app/lib/marketing-theme";
+import PlatformMasterNav from "@/app/components/platform/PlatformMasterNav";
 import Logo from "../../../public/Logo header.png";
 
 const NAV = [
@@ -91,12 +92,7 @@ export default function MarketingShell({ children }: { children: ReactNode }) {
             >
               {MARKETING.demoCtaLabel}
             </a>
-            <Link
-              href="/sign-in"
-              className="rounded-full bg-gradient-to-r from-[#2F6B4A] via-[#25633F] to-[#1E4A32] px-4 py-2 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 transition hover:scale-[1.02] hover:brightness-110"
-            >
-              Se connecter
-            </Link>
+            <PlatformMasterNav />
           </div>
         </div>
       </header>

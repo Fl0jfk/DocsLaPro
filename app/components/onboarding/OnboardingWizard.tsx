@@ -14,7 +14,26 @@ import type {
   TravelsModuleConfig,
 } from "@/app/lib/app-config-schemas";
 
-const TOTAL_STEPS = 14;
+const TOTAL_STEPS = 12;
+
+const DEFAULT_QUICK_LINK_ROLES = [
+  "admin",
+  "administratif",
+  "professeur",
+  "direction_ecole",
+  "direction_college",
+  "direction_lycee",
+  "comptabilite",
+  "education",
+];
+
+function normalizeOnboardingStep(saved: number): number {
+  if (!Number.isFinite(saved) || saved < 1) return 1;
+  if (saved <= 4) return saved;
+  if (saved === 5) return 5;
+  if (saved >= 13) return 12;
+  return Math.min(saved - 1, 12);
+}
 
 type EstablishmentDraft = Establishment & { clerkRoleSlugsText: string };
 
@@ -56,6 +75,7 @@ export default function OnboardingWizard() {
   const [travels, setTravels] = useState<Partial<TravelsModuleConfig>>({ transportProviders: [] });
   const [integrations, setIntegrations] = useState<IntegrationsConfig>({});
   const [externalLinks, setExternalLinks] = useState<ExternalQuickLinkConfig[]>([]);
+  const [wantQuickLinks, setWantQuickLinks] = useState(false);
   const [hasInternat, setHasInternat] = useState(false);
   const [existingConfigDetected, setExistingConfigDetected] = useState(false);
 
@@ -92,7 +112,8 @@ export default function OnboardingWizard() {
         },
       });
       setExternalLinks(cfg.externalLinks || []);
-      const onboardingStep = identityCfg.onboardingStep || 1;
+      setWantQuickLinks((cfg.externalLinks || []).length > 0);
+      const onboardingStep = normalizeOnboardingStep(identityCfg.onboardingStep || 1);
       const onboardingCompleted = identityCfg.onboardingCompleted === true;
 
       if (!reviewMode && onboardingCompleted) {
@@ -200,14 +221,15 @@ export default function OnboardingWizard() {
   };
 
   const saveExternalLinksApi = async (links: ExternalQuickLinkConfig[], nextStep?: number) => {
+    const valid = links.filter((l) => l.name.trim() && l.link.trim());
     const res = await fetch("/api/settings/external-links", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ links }),
+      body: JSON.stringify({ links: valid }),
     });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || "Enregistrement liens impossible");
-    setExternalLinks(j.links || links);
+    setExternalLinks(j.links || valid);
     if (nextStep) await saveSite({}, nextStep);
   };
 
@@ -234,12 +256,22 @@ export default function OnboardingWizard() {
     return j;
   };
 
+  const activeEstablishmentKinds = useMemo(() => {
+    return new Set(
+      establishments
+        .filter((e) => e.active !== false)
+        .map((e) => e.kind)
+        .filter(Boolean) as EstablishmentKind[],
+    );
+  }, [establishments]);
+
   const goNext = async () => {
     setSaving(true);
     setError(null);
     try {
       const next = Math.min(TOTAL_STEPS, step + 1);
       if (step === 1) {
+        if (!identity.name?.trim()) throw new Error("Le nom de la plateforme est requis.");
         await saveSite(
           {
             name: identity.name,
@@ -252,20 +284,33 @@ export default function OnboardingWizard() {
         await saveSite({ dashboardAccent: identity.dashboardAccent, shortName: identity.shortName }, next);
       } else if (step === 3) {
         if (establishments.length === 0) throw new Error("Ajoutez au moins un établissement.");
+        if (identity.organizationKind === "standalone" && establishments.length > 1) {
+          throw new Error("Pour un établissement unique, ne conservez qu'un seul niveau.");
+        }
         await saveEstablishmentsApi(establishments, next);
       } else if (step === 4) {
-        await geocodeAddress();
-        await saveSite({ address: identity.address }, next);
-      } else if (step === 5) {
+        if (!identity.address?.street?.trim() || !identity.address?.city?.trim()) {
+          throw new Error("Renseignez au minimum la rue et la ville (code postal recommandé).");
+        }
+        let latitude: number | undefined;
+        let longitude: number | undefined;
+        try {
+          const geo = await geocodeAddress();
+          latitude = geo.latitude;
+          longitude = geo.longitude;
+        } catch {
+          /* le serveur tentera le géocodage à l'enregistrement */
+        }
         await saveSite(
           {
-            phone: identity.phone,
-            preinscriptionUrl: identity.preinscriptionUrl,
-            reglementFinancier: identity.reglementFinancier,
+            address: {
+              ...identity.address,
+              ...(latitude != null && longitude != null ? { latitude, longitude } : {}),
+            },
           },
           next,
         );
-      } else if (step === 6) {
+      } else if (step === 5) {
         await saveSite({ assistanceEmail: PLATFORM_ASSISTANCE_EMAIL }, next);
         await saveNotificationsApi(
           {
@@ -274,27 +319,28 @@ export default function OnboardingWizard() {
           },
           next,
         );
-      } else if (step === 7) {
+      } else if (step === 6) {
         await saveNotificationsApi({
           travelsCompta: notifications.travelsCompta,
           travelsCuisine: notifications.travelsCuisine,
         });
         await saveTravelsApi({ transportProviders: travels.transportProviders || [] }, next);
-      } else if (step === 8) {
+      } else if (step === 7) {
         await saveIntegrationsApi({ zeendoc: integrations.zeendoc }, next);
         if (integrations.zeendoc?.destinationEmail) {
           await saveNotificationsApi({ travelsZeendoc: integrations.zeendoc.destinationEmail });
         }
-      } else if (step === 9) {
+      } else if (step === 8) {
         await saveNotificationsApi(
           {
             absencesNotifyProfEcole: notifications.absencesNotifyProfEcole,
-            absencesNotifyProfCollegeLycee: notifications.absencesNotifyProfCollegeLycee,
+            absencesNotifyProfCollege: notifications.absencesNotifyProfCollege,
+            absencesNotifyProfLycee: notifications.absencesNotifyProfLycee,
             absencesNotifyOgecCompta: notifications.absencesNotifyOgecCompta,
           },
           next,
         );
-      } else if (step === 10) {
+      } else if (step === 9) {
         if (hasInternat) {
           await saveNotificationsApi(
             {
@@ -306,10 +352,9 @@ export default function OnboardingWizard() {
         } else {
           await saveSite({}, next);
         }
+      } else if (step === 10) {
+        await saveExternalLinksApi(wantQuickLinks ? externalLinks : [], next);
       } else if (step === 11) {
-        await saveIntegrationsApi({ ecoleDirecte: integrations.ecoleDirecte });
-        await saveExternalLinksApi(externalLinks, next);
-      } else if (step === 12) {
         await saveIntegrationsApi(
           {
             microsoftOneDrive: {
@@ -318,13 +363,11 @@ export default function OnboardingWizard() {
           },
           next,
         );
-      } else if (step === 13) {
-        await saveSite({}, next);
-      } else if (step === 14) {
+      } else if (step === 12) {
         const res = await fetch("/api/settings/onboarding/complete", { method: "PUT" });
         const j = await res.json();
         if (!res.ok) throw new Error(j.error || "Finalisation impossible");
-        router.push("/dashboard");
+        router.push(reviewMode ? "/parametres" : "/dashboard");
         return;
       }
       setStep(next);
@@ -339,6 +382,7 @@ export default function OnboardingWizard() {
 
   const addPresetEstablishment = (preset: (typeof ESTABLISHMENT_PRESETS)[number]) => {
     if (establishments.some((e) => e.id === preset.id)) return;
+    if (identity.organizationKind === "standalone" && establishments.length >= 1) return;
     setEstablishments((prev) => [
       ...prev,
       {
@@ -360,16 +404,14 @@ export default function OnboardingWizard() {
       2: "Identité visuelle",
       3: "Établissements",
       4: "Adresse & météo",
-      5: "Contacts & liens utiles",
-      6: "Alertes HSE & photocopies",
-      7: "Sorties scolaires",
-      8: "Envoi documents (Zeendoc / mail)",
-      9: "Absences",
-      10: "Internat",
-      11: "Liens externes",
-      12: "OneDrive / OCR",
-      13: "Demandes internes",
-      14: "Récapitulatif",
+      5: "Alertes HSE & photocopies",
+      6: "Sorties scolaires",
+      7: "Envoi documents (Zeendoc / mail)",
+      8: "Absences",
+      9: "Internat",
+      10: "Raccourcis tableau de bord",
+      11: "OneDrive / OCR",
+      12: "Récapitulatif",
     };
     return titles[step] || "";
   }, [step]);
@@ -426,7 +468,10 @@ export default function OnboardingWizard() {
 
           {step === 2 && (
             <>
-              <Help>Personnalisez l'apparence du tableau de bord. Le logo peut être ajouté plus tard dans Paramètres.</Help>
+              <Help>
+                Personnalisez l&apos;apparence du tableau de bord. Le logo de l&apos;établissement est
+                configuré par l&apos;administrateur Scola (portail plateforme).
+              </Help>
               <Field label="Nom court">
                 <input className={inputClass} value={identity.shortName || ""} onChange={(e) => setIdentity({ ...identity, shortName: e.target.value })} />
               </Field>
@@ -453,17 +498,23 @@ export default function OnboardingWizard() {
                 e-mails de direction serviront aux validations et notifications.
               </Help>
               <div className="flex flex-wrap gap-2 mb-4">
-                {ESTABLISHMENT_PRESETS.map((p) => (
+                {ESTABLISHMENT_PRESETS.filter((p) => !establishments.some((e) => e.id === p.id)).map((p) => (
                   <button
                     key={p.id}
                     type="button"
-                    className="text-sm px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    disabled={identity.organizationKind === "standalone" && establishments.length >= 1}
+                    className="text-sm px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
                     onClick={() => addPresetEstablishment(p)}
                   >
                     + {p.label}
                   </button>
                 ))}
               </div>
+              {identity.organizationKind === "standalone" && (
+                <p className="text-xs text-slate-500 mb-4">
+                  Établissement unique : un seul niveau (école, collège ou lycée).
+                </p>
+              )}
               {establishments.map((e, idx) => (
                 <div key={e.id} className="mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
                   <div className="flex justify-between items-center mb-2">
@@ -518,34 +569,20 @@ export default function OnboardingWizard() {
 
           {step === 5 && (
             <>
-              <Help>Téléphone et liens affichés aux utilisateurs (préinscription, règlement financier).</Help>
-              <Field label="Téléphone (affichage)">
-                <input className={inputClass} value={identity.phone?.display || ""} onChange={(e) => setIdentity({ ...identity, phone: { ...identity.phone, display: e.target.value } })} />
-              </Field>
-              <Field label="URL préinscription">
-                <input className={inputClass} value={identity.preinscriptionUrl || ""} onChange={(e) => setIdentity({ ...identity, preinscriptionUrl: e.target.value })} />
-              </Field>
-              <Field label="Règlement financier (URL PDF)">
-                <input className={inputClass} value={identity.reglementFinancier || ""} onChange={(e) => setIdentity({ ...identity, reglementFinancier: e.target.value })} />
-              </Field>
-            </>
-          )}
-
-          {step === 6 && (
-            <>
               <Help>
-                Indiquez les responsables qui recevront les alertes HSE et les demandes de photocopies couleur.
+                Indiquez qui reçoit les e-mails après validation de la direction (demandes HSE et photocopies
+                couleur). Ce ne sont pas nécessairement des « responsables » de service.
               </Help>
-              <Field label="Responsable HSE (e-mail)">
+              <Field label="Gestionnaire HSE (e-mail)">
                 <input className={inputClass} type="email" value={notifications.hseOps || ""} onChange={(e) => setNotifications({ ...notifications, hseOps: e.target.value })} />
               </Field>
-              <Field label="Responsable photocopies couleur (e-mail)">
+              <Field label="Gestionnaire photocopies couleur (e-mail)">
                 <input className={inputClass} type="email" value={notifications.photocopiesOps || ""} onChange={(e) => setNotifications({ ...notifications, photocopiesOps: e.target.value })} />
               </Field>
             </>
           )}
 
-          {step === 7 && (
+          {step === 6 && (
             <>
               <Help>
                 Pour les sorties scolaires : compta reçoit les devis signés, la cuisine reçoit les commandes
@@ -587,7 +624,7 @@ export default function OnboardingWizard() {
             </>
           )}
 
-          {step === 8 && (
+          {step === 7 && (
             <>
               <Help>
                 Si vous utilisez Zeendoc, le bouton du module voyages portera ce nom et enverra les PDF à l'adresse
@@ -622,24 +659,44 @@ export default function OnboardingWizard() {
             </>
           )}
 
-          {step === 9 && (
+          {step === 8 && (
             <>
-              <Help>Ces destinataires reçoivent les notifications après validation des absences déclarées par les professeurs ou l'OGEC.</Help>
-              <Field label="Professeurs — école (nom + e-mail)">
-                <input className={`${inputClass} mb-2`} placeholder="Nom" value={notifications.absencesNotifyProfEcole?.label || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfEcole: { ...notifications.absencesNotifyProfEcole, label: e.target.value, email: notifications.absencesNotifyProfEcole?.email || "" } })} />
-                <input className={inputClass} placeholder="E-mail" type="email" value={notifications.absencesNotifyProfEcole?.email || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfEcole: { label: notifications.absencesNotifyProfEcole?.label, email: e.target.value } })} />
-              </Field>
-              <Field label="Professeurs — collège / lycée (nom + e-mail)">
-                <input className={`${inputClass} mb-2`} placeholder="Nom" value={notifications.absencesNotifyProfCollegeLycee?.label || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfCollegeLycee: { ...notifications.absencesNotifyProfCollegeLycee, label: e.target.value, email: notifications.absencesNotifyProfCollegeLycee?.email || "" } })} />
-                <input className={inputClass} placeholder="E-mail" type="email" value={notifications.absencesNotifyProfCollegeLycee?.email || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfCollegeLycee: { label: notifications.absencesNotifyProfCollegeLycee?.label, email: e.target.value } })} />
-              </Field>
-              <Field label="OGEC / compta (e-mails séparés par des virgules)">
+              <Help>
+                Après validation par la direction, ces personnes reçoivent les notifications finales. Les champs
+                affichés correspondent à vos établissements configurés à l&apos;étape 3.
+              </Help>
+              {activeEstablishmentKinds.has("ecole") && (
+                <Field label="Professeurs — école (nom + e-mail)">
+                  <input className={`${inputClass} mb-2`} placeholder="Nom" value={notifications.absencesNotifyProfEcole?.label || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfEcole: { ...notifications.absencesNotifyProfEcole, label: e.target.value, email: notifications.absencesNotifyProfEcole?.email || "" } })} />
+                  <input className={inputClass} placeholder="E-mail" type="email" value={notifications.absencesNotifyProfEcole?.email || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfEcole: { label: notifications.absencesNotifyProfEcole?.label, email: e.target.value } })} />
+                </Field>
+              )}
+              {activeEstablishmentKinds.has("college") && (
+                <Field label="Professeurs — collège (nom + e-mail)">
+                  <input className={`${inputClass} mb-2`} placeholder="Nom" value={notifications.absencesNotifyProfCollege?.label || notifications.absencesNotifyProfCollegeLycee?.label || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfCollege: { ...notifications.absencesNotifyProfCollege, label: e.target.value, email: notifications.absencesNotifyProfCollege?.email || notifications.absencesNotifyProfCollegeLycee?.email || "" } })} />
+                  <input className={inputClass} placeholder="E-mail" type="email" value={notifications.absencesNotifyProfCollege?.email || notifications.absencesNotifyProfCollegeLycee?.email || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfCollege: { label: notifications.absencesNotifyProfCollege?.label || notifications.absencesNotifyProfCollegeLycee?.label, email: e.target.value } })} />
+                </Field>
+              )}
+              {activeEstablishmentKinds.has("lycee") && (
+                <Field label="Professeurs — lycée (nom + e-mail)">
+                  <input className={`${inputClass} mb-2`} placeholder="Nom" value={notifications.absencesNotifyProfLycee?.label || notifications.absencesNotifyProfCollegeLycee?.label || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfLycee: { ...notifications.absencesNotifyProfLycee, label: e.target.value, email: notifications.absencesNotifyProfLycee?.email || notifications.absencesNotifyProfCollegeLycee?.email || "" } })} />
+                  <input className={inputClass} placeholder="E-mail" type="email" value={notifications.absencesNotifyProfLycee?.email || notifications.absencesNotifyProfCollegeLycee?.email || ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyProfLycee: { label: notifications.absencesNotifyProfLycee?.label || notifications.absencesNotifyProfCollegeLycee?.label, email: e.target.value } })} />
+                </Field>
+              )}
+              {!activeEstablishmentKinds.has("ecole") &&
+                !activeEstablishmentKinds.has("college") &&
+                !activeEstablishmentKinds.has("lycee") && (
+                  <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    Ajoutez au moins un établissement (étape 3) pour configurer les notifications professeurs.
+                  </p>
+                )}
+              <Field label="Personnel OGEC, administratif & RH (e-mails séparés par des virgules)">
                 <input className={inputClass} value={Array.isArray(notifications.absencesNotifyOgecCompta) ? notifications.absencesNotifyOgecCompta.join(", ") : ""} onChange={(e) => setNotifications({ ...notifications, absencesNotifyOgecCompta: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
               </Field>
             </>
           )}
 
-          {step === 10 && (
+          {step === 9 && (
             <>
               <Help>Configurez l'internat si vous hébergez des élèves. Sinon, passez à l'étape suivante.</Help>
               <label className="flex items-center gap-2 mb-4 text-sm">
@@ -648,8 +705,25 @@ export default function OnboardingWizard() {
               </label>
               {hasInternat && (
                 <>
-                  <Field label="Direction lycée (appel)">
-                    <input className={inputClass} type="email" value={notifications.internatRollCallRecipients?.directionLycee || ""} onChange={(e) => setNotifications({ ...notifications, internatRollCallRecipients: { ...notifications.internatRollCallRecipients, directionLycee: e.target.value } })} />
+                  <Field label="Qui reçoit l'appel ? (e-mail)">
+                    <input
+                      className={inputClass}
+                      type="email"
+                      value={
+                        notifications.internatRollCallRecipients?.appelContact ||
+                        notifications.internatRollCallRecipients?.directionLycee ||
+                        ""
+                      }
+                      onChange={(e) =>
+                        setNotifications({
+                          ...notifications,
+                          internatRollCallRecipients: {
+                            ...notifications.internatRollCallRecipients,
+                            appelContact: e.target.value,
+                          },
+                        })
+                      }
+                    />
                   </Field>
                   <Field label="Urgences internat (e-mails séparés par des virgules)">
                     <input className={inputClass} value={Array.isArray(notifications.internatEmergencyRecipients) ? notifications.internatEmergencyRecipients.join(", ") : ""} onChange={(e) => setNotifications({ ...notifications, internatEmergencyRecipients: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
@@ -659,59 +733,95 @@ export default function OnboardingWizard() {
             </>
           )}
 
-          {step === 11 && (
+          {step === 10 && (
             <>
-              <Help>Liens rapides sous le tableau de bord (EcoleDirecte, Zeendoc, etc.). Vous pourrez en ajouter d'autres dans Paramètres.</Help>
-              <label className="flex items-center gap-2 mb-3 text-sm">
+              <Help>
+                Ajoutez des raccourcis sous le tableau de bord (nom, URL, image). Utile pour ÉcoleDirecte, Zeendoc,
+                Arena… ou laissez vide si vous n&apos;en avez pas besoin.
+              </Help>
+              <label className="flex items-center gap-2 mb-4 text-sm">
                 <input
                   type="checkbox"
-                  checked={integrations.ecoleDirecte?.enabled ?? false}
-                  onChange={(e) =>
-                    setIntegrations({
-                      ...integrations,
-                      ecoleDirecte: {
-                        enabled: e.target.checked,
-                        label: "École Directe",
-                        loginUrl: integrations.ecoleDirecte?.loginUrl || "https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
-                      },
-                    })
-                  }
+                  checked={wantQuickLinks}
+                  onChange={(e) => {
+                    setWantQuickLinks(e.target.checked);
+                    if (!e.target.checked) setExternalLinks([]);
+                  }}
                 />
-                Afficher le raccourci École Directe
+                Souhaitez-vous ajouter des raccourcis ?
               </label>
-              {integrations.ecoleDirecte?.enabled && (
-                <Field label="URL de connexion École Directe">
-                  <input className={inputClass} value={integrations.ecoleDirecte.loginUrl || ""} onChange={(e) => setIntegrations({ ...integrations, ecoleDirecte: { ...integrations.ecoleDirecte, enabled: true, loginUrl: e.target.value } })} />
-                </Field>
-              )}
-              {integrations.zeendoc?.enabled && (
-                <label className="flex items-center gap-2 mb-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={externalLinks.some((l) => l.id === "zeendoc")}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setExternalLinks((prev) => [
-                          ...prev.filter((l) => l.id !== "zeendoc"),
-                          {
-                            id: "zeendoc",
-                            name: "ZeenDoc",
-                            link: integrations.zeendoc?.loginUrl || "",
-                            allowedRoles: ["administratif", "comptabilite"],
-                          },
-                        ]);
-                      } else {
-                        setExternalLinks((prev) => prev.filter((l) => l.id !== "zeendoc"));
-                      }
-                    }}
-                  />
-                  Raccourci Zeendoc sur le tableau de bord
-                </label>
+              {wantQuickLinks && (
+                <div className="space-y-4">
+                  {externalLinks.map((link, idx) => (
+                    <div key={link.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-500">Raccourci {idx + 1}</span>
+                        <button
+                          type="button"
+                          className="text-xs text-red-600"
+                          onClick={() => setExternalLinks((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                      <input
+                        className={inputClass}
+                        placeholder="Nom (ex. École Directe)"
+                        value={link.name}
+                        onChange={(e) => {
+                          const copy = [...externalLinks];
+                          copy[idx] = { ...copy[idx], name: e.target.value };
+                          setExternalLinks(copy);
+                        }}
+                      />
+                      <input
+                        className={inputClass}
+                        placeholder="URL du lien"
+                        type="url"
+                        value={link.link}
+                        onChange={(e) => {
+                          const copy = [...externalLinks];
+                          copy[idx] = { ...copy[idx], link: e.target.value };
+                          setExternalLinks(copy);
+                        }}
+                      />
+                      <input
+                        className={inputClass}
+                        placeholder="URL de l'image (optionnel)"
+                        type="url"
+                        value={link.img || ""}
+                        onChange={(e) => {
+                          const copy = [...externalLinks];
+                          copy[idx] = { ...copy[idx], img: e.target.value };
+                          setExternalLinks(copy);
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-sm text-indigo-600"
+                    onClick={() =>
+                      setExternalLinks((prev) => [
+                        ...prev,
+                        {
+                          id: `link-${Date.now()}`,
+                          name: "",
+                          link: "",
+                          img: "",
+                          allowedRoles: DEFAULT_QUICK_LINK_ROLES,
+                        },
+                      ])
+                    }
+                  >
+                    + Ajouter un raccourci
+                  </button>
+                </div>
               )}
             </>
           )}
 
-          {step === 12 && (
+          {step === 11 && (
             <>
               <Help>
                 Le module « Ajout documents IA » utilise OneDrive. Activez-le si vous déposez les dossiers élèves sur
@@ -733,20 +843,7 @@ export default function OnboardingWizard() {
             </>
           )}
 
-          {step === 13 && (
-            <>
-              <Help>
-                Le routage des demandes internes (chatbot) se configure en détail dans Paramètres → Routage demandes.
-                Vous pourrez y assigner chaque tâche à un collaborateur.
-              </Help>
-              <p className="text-sm text-slate-600">
-                Aucune action obligatoire ici. Passez à l'étape suivante pour accéder à la plateforme, puis affinez le
-                routage quand vous le souhaitez.
-              </p>
-            </>
-          )}
-
-          {step === 14 && (
+          {step === 12 && (
             <>
               <Help>Vérifiez les informations saisies. Vous pourrez tout modifier ultérieurement dans Paramètres généraux.</Help>
               <ul className="text-sm text-slate-700 space-y-2">
@@ -754,6 +851,7 @@ export default function OnboardingWizard() {
                 <li><strong>Établissements :</strong> {establishments.map((e) => e.label).join(", ") || "—"}</li>
                 <li><strong>Adresse :</strong> {identity.address?.street}, {identity.address?.zip} {identity.address?.city}</li>
                 <li><strong>Transporteurs :</strong> {(travels.transportProviders || []).length}</li>
+                <li><strong>Raccourcis :</strong> {wantQuickLinks ? externalLinks.filter((l) => l.name && l.link).length : 0}</li>
               </ul>
             </>
           )}

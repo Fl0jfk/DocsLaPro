@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RequireOrgAdmin from "@/app/components/RequireOrgAdmin";
 import ProfRoomAdminPicker, { type ClerkMemberOption } from "@/app/components/prof-room/ProfRoomAdminPicker";
 import RequestsRoutingEditor from "@/app/components/settings/RequestsRoutingEditor";
 import type { RequestsRoutingConfig } from "@/app/lib/app-config-schemas";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
+import { useIsPlatformMaster } from "@/app/hooks/useIsPlatformMaster";
 import { DASHBOARD_ACCENT_OPTIONS } from "@/app/lib/dashboard-brand-presets";
 import { PLATFORM_ASSISTANCE_EMAIL } from "@/app/lib/platform-assistance-email";
 
-type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing" | "travels" | "integrations";
+type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing" | "travels" | "integrations" | "toolbox";
 
 type MefSecteursConfig = { lycee: string[]; college: string[]; ecole: string[] };
 
@@ -26,6 +27,7 @@ function listToLines(arr: string[]): string {
 
 export default function ParametresPage() {
   const isOrgAdmin = useIsOrgAdmin();
+  const isPlatformMaster = useIsPlatformMaster();
   const [tab, setTab] = useState<Tab>("site");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +37,7 @@ export default function ParametresPage() {
     Array<{
       id: string;
       label: string;
+      kind?: string;
       directorName: string;
       directorEmail: string;
       clerkRoleSlugs: string;
@@ -69,6 +72,7 @@ export default function ParametresPage() {
           (j.config?.establishments || []).map((e: Record<string, unknown>) => ({
             id: String(e.id || ""),
             label: String(e.label || ""),
+            kind: String(e.kind || e.id || ""),
             directorName: String(e.directorName || ""),
             directorEmail: String(e.directorEmail || ""),
             clerkRoleSlugs: Array.isArray(e.clerkRoleSlugs) ? (e.clerkRoleSlugs as string[]).join(", ") : "",
@@ -130,6 +134,15 @@ export default function ParametresPage() {
       cancelled = true;
     };
   }, [isOrgAdmin, tab]);
+
+  const activeEstablishmentKinds = useMemo(() => {
+    return new Set(
+      establishments
+        .filter((e) => e.active)
+        .map((e) => (e.kind || e.id).toLowerCase())
+        .filter((k) => k === "ecole" || k === "college" || k === "lycee"),
+    );
+  }, [establishments]);
 
   const uploadHeaderLogo = async (file: File) => {
     setUploadingLogo(true);
@@ -202,9 +215,16 @@ export default function ParametresPage() {
     <RequireOrgAdmin>
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Paramètres généraux</h1>
-      <a href="/onboarding?review=1" className="text-sm text-indigo-600 font-medium hover:underline">
-        Relancer l&apos;assistant de configuration
-      </a>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        <a href="/onboarding?review=1" className="text-sm text-indigo-600 font-medium hover:underline">
+          Relancer l&apos;assistant de configuration
+        </a>
+        {isPlatformMaster && (
+          <a href="/platform/setup" className="text-sm text-violet-700 font-medium hover:underline">
+            Configuration plateforme (Master)
+          </a>
+        )}
+      </div>
       {error && <p className="text-red-600 text-sm">{error}</p>}
       <div className="flex flex-wrap gap-2">
         {(
@@ -214,6 +234,7 @@ export default function ParametresPage() {
             ["notifications", "Notifications"],
             ["travels", "Sorties scolaires"],
             ["integrations", "Intégrations"],
+            ["toolbox", "Boîte à outils"],
             ["mef", "Formations MEF"],
             ["prof-room", "Réservation salles"],
             ["requests-routing", "Routage demandes"],
@@ -290,6 +311,23 @@ export default function ParametresPage() {
               />
             </div>
           </div>
+
+          <p className="text-xs text-slate-500">
+            Le widget météo du tableau de bord utilise cette adresse. Les coordonnées GPS sont calculées
+            automatiquement à l&apos;enregistrement.
+          </p>
+          {(identity.address as { latitude?: number; longitude?: number })?.latitude != null &&
+          (identity.address as { latitude?: number; longitude?: number })?.longitude != null ? (
+            <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              Coordonnées GPS :{" "}
+              {(identity.address as { latitude: number }).latitude.toFixed(4)},{" "}
+              {(identity.address as { longitude: number }).longitude.toFixed(4)} — météo active
+            </p>
+          ) : (
+            <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Coordonnées GPS manquantes — enregistrez l&apos;identité du site pour activer la météo.
+            </p>
+          )}
 
           <div className="pt-2 border-t border-slate-100 space-y-3">
             <label className="block text-sm font-bold text-slate-600">Logo du header (haut gauche)</label>
@@ -492,13 +530,13 @@ export default function ParametresPage() {
             value={String(notifications.travelsCuisine || "")}
             onChange={(e) => setNotifications({ ...notifications, travelsCuisine: e.target.value })}
           />
-          <label className="block text-sm font-bold">Email ops HSE</label>
+          <label className="block text-sm font-bold">Gestionnaire HSE (e-mail)</label>
           <input
             className="w-full border rounded-xl p-3"
             value={String(notifications.hseOps || "")}
             onChange={(e) => setNotifications({ ...notifications, hseOps: e.target.value })}
           />
-          <label className="block text-sm font-bold">Email ops photocopies couleur</label>
+          <label className="block text-sm font-bold">Gestionnaire photocopies couleur (e-mail)</label>
           <input
             className="w-full border rounded-xl p-3"
             value={String(notifications.photocopiesOps || "")}
@@ -511,22 +549,143 @@ export default function ParametresPage() {
             onChange={(e) => setNotifications({ ...notifications, travelsZeendoc: e.target.value })}
           />
           <hr className="border-slate-200" />
-          <p className="text-sm font-black text-slate-800">Internat — appel du soir (validation)</p>
-          <label className="block text-sm font-bold">Direction lycée</label>
+          <p className="text-sm font-black text-slate-800">Absences — notifications après validation direction</p>
+          {activeEstablishmentKinds.has("ecole") && (
+            <>
+              <label className="block text-sm font-bold">Professeurs — école (nom)</label>
+              <input
+                className="w-full border rounded-xl p-3 mb-2"
+                value={String((notifications.absencesNotifyProfEcole as { label?: string })?.label || "")}
+                onChange={(e) =>
+                  setNotifications({
+                    ...notifications,
+                    absencesNotifyProfEcole: {
+                      ...((notifications.absencesNotifyProfEcole as object) || {}),
+                      label: e.target.value,
+                      email: String((notifications.absencesNotifyProfEcole as { email?: string })?.email || ""),
+                    },
+                  })
+                }
+              />
+              <label className="block text-sm font-bold">Professeurs — école (e-mail)</label>
+              <input
+                className="w-full border rounded-xl p-3"
+                type="email"
+                value={String((notifications.absencesNotifyProfEcole as { email?: string })?.email || "")}
+                onChange={(e) =>
+                  setNotifications({
+                    ...notifications,
+                    absencesNotifyProfEcole: {
+                      label: String((notifications.absencesNotifyProfEcole as { label?: string })?.label || ""),
+                      email: e.target.value,
+                    },
+                  })
+                }
+              />
+            </>
+          )}
+          {activeEstablishmentKinds.has("college") && (
+            <>
+              <label className="block text-sm font-bold">Professeurs — collège (nom)</label>
+              <input
+                className="w-full border rounded-xl p-3 mb-2"
+                value={String((notifications.absencesNotifyProfCollege as { label?: string })?.label || (notifications.absencesNotifyProfCollegeLycee as { label?: string })?.label || "")}
+                onChange={(e) =>
+                  setNotifications({
+                    ...notifications,
+                    absencesNotifyProfCollege: {
+                      label: e.target.value,
+                      email: String((notifications.absencesNotifyProfCollege as { email?: string })?.email || (notifications.absencesNotifyProfCollegeLycee as { email?: string })?.email || ""),
+                    },
+                  })
+                }
+              />
+              <label className="block text-sm font-bold">Professeurs — collège (e-mail)</label>
+              <input
+                className="w-full border rounded-xl p-3"
+                type="email"
+                value={String((notifications.absencesNotifyProfCollege as { email?: string })?.email || (notifications.absencesNotifyProfCollegeLycee as { email?: string })?.email || "")}
+                onChange={(e) =>
+                  setNotifications({
+                    ...notifications,
+                    absencesNotifyProfCollege: {
+                      label: String((notifications.absencesNotifyProfCollege as { label?: string })?.label || (notifications.absencesNotifyProfCollegeLycee as { label?: string })?.label || ""),
+                      email: e.target.value,
+                    },
+                  })
+                }
+              />
+            </>
+          )}
+          {activeEstablishmentKinds.has("lycee") && (
+            <>
+              <label className="block text-sm font-bold">Professeurs — lycée (nom)</label>
+              <input
+                className="w-full border rounded-xl p-3 mb-2"
+                value={String((notifications.absencesNotifyProfLycee as { label?: string })?.label || (notifications.absencesNotifyProfCollegeLycee as { label?: string })?.label || "")}
+                onChange={(e) =>
+                  setNotifications({
+                    ...notifications,
+                    absencesNotifyProfLycee: {
+                      label: e.target.value,
+                      email: String((notifications.absencesNotifyProfLycee as { email?: string })?.email || (notifications.absencesNotifyProfCollegeLycee as { email?: string })?.email || ""),
+                    },
+                  })
+                }
+              />
+              <label className="block text-sm font-bold">Professeurs — lycée (e-mail)</label>
+              <input
+                className="w-full border rounded-xl p-3"
+                type="email"
+                value={String((notifications.absencesNotifyProfLycee as { email?: string })?.email || (notifications.absencesNotifyProfCollegeLycee as { email?: string })?.email || "")}
+                onChange={(e) =>
+                  setNotifications({
+                    ...notifications,
+                    absencesNotifyProfLycee: {
+                      label: String((notifications.absencesNotifyProfLycee as { label?: string })?.label || (notifications.absencesNotifyProfCollegeLycee as { label?: string })?.label || ""),
+                      email: e.target.value,
+                    },
+                  })
+                }
+              />
+            </>
+          )}
+          <label className="block text-sm font-bold">Personnel OGEC, administratif & RH (e-mails séparés par virgule)</label>
           <input
             className="w-full border rounded-xl p-3"
-            value={String((notifications.internatRollCallRecipients as { directionLycee?: string })?.directionLycee || "")}
+            value={
+              Array.isArray(notifications.absencesNotifyOgecCompta)
+                ? (notifications.absencesNotifyOgecCompta as string[]).join(", ")
+                : ""
+            }
+            onChange={(e) =>
+              setNotifications({
+                ...notifications,
+                absencesNotifyOgecCompta: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+              })
+            }
+          />
+          <hr className="border-slate-200" />
+          <p className="text-sm font-black text-slate-800">Internat — appel du soir (validation)</p>
+          <label className="block text-sm font-bold">Qui reçoit l&apos;appel ? (e-mail)</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={String(
+              (notifications.internatRollCallRecipients as { appelContact?: string; directionLycee?: string })?.appelContact ||
+                (notifications.internatRollCallRecipients as { directionLycee?: string })?.directionLycee ||
+                "",
+            )}
             onChange={(e) =>
               setNotifications({
                 ...notifications,
                 internatRollCallRecipients: {
                   ...((notifications.internatRollCallRecipients as object) || {}),
-                  directionLycee: e.target.value,
+                  appelContact: e.target.value,
                 },
               })
             }
           />
-          <label className="block text-sm font-bold">CPE lycée</label>
+          <label className="block text-sm font-bold">CPE lycée (optionnel)</label>
           <input
             className="w-full border rounded-xl p-3"
             value={String((notifications.internatRollCallRecipients as { cpeLycee?: string })?.cpeLycee || "")}
@@ -540,7 +699,7 @@ export default function ParametresPage() {
               })
             }
           />
-          <label className="block text-sm font-bold">CPE collège</label>
+          <label className="block text-sm font-bold">CPE collège (optionnel)</label>
           <input
             className="w-full border rounded-xl p-3"
             value={String((notifications.internatRollCallRecipients as { cpeCollege?: string })?.cpeCollege || "")}
@@ -861,6 +1020,22 @@ export default function ParametresPage() {
 
       {tab === "requests-routing" && !requestsRouting && (
         <p className="text-slate-500 text-sm">Chargement du catalogue de routage…</p>
+      )}
+
+      {tab === "toolbox" && (
+        <div className="bg-white rounded-2xl border p-6 space-y-4">
+          <h2 className="text-lg font-black text-slate-900">Boîte à outils saisonnière</h2>
+          <p className="text-sm text-slate-600 max-w-xl">
+            QR code, rentrée digitale, simulateur de tarifs, portes ouvertes, Secret Santa — activables par établissement.
+            Les outils activés apparaissent dans la tuile <strong>Boîte à outils</strong> du dashboard (style dossier iPhone).
+          </p>
+          <a
+            href="/toolbox"
+            className="inline-flex rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+          >
+            Ouvrir la configuration →
+          </a>
+        </div>
       )}
     </div>
     </RequireOrgAdmin>
