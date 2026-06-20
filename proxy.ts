@@ -5,7 +5,7 @@ import {
   type ClerkMiddlewareAuth,
 } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextRequest, NextFetchEvent } from 'next/server';
 import { TENANT_SLUG_HEADER, TENANT_REQUEST_URL_HEADER, type TenantConfig } from '@/app/lib/tenant-types';
 import {
   defaultTenantFromEnv,
@@ -335,9 +335,38 @@ const clerkOptionsForTenant = async (request: NextRequest) => {
   return {};
 };
 
-export default isMultiTenantEnabled()
-  ? clerkMiddleware(clerkAuthHandler, clerkOptionsForTenant)
-  : clerkMiddleware(clerkAuthHandler);
+const clerkMw = clerkMiddleware(clerkAuthHandler, clerkOptionsForTenant);
+
+/**
+ * Multi-tenant :
+ * - Routes API → handler natif (auth via clé secrète tenant). Elles n'affichent
+ *   pas <ClerkProvider>, donc pas besoin de clerkMiddleware ni de
+ *   CLERK_ENCRYPTION_KEY (absent au runtime Amplify) — ce qui causait des 500
+ *   sur toutes les API une fois connecté.
+ * - Routes pages → clerkMiddleware (nécessaire au rendu des Server Components).
+ */
+async function multiTenantMiddleware(
+  request: NextRequest,
+  event: NextFetchEvent,
+): Promise<NextResponse> {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    try {
+      return await handleProxyRequest(request);
+    } catch (error) {
+      console.error("[proxy:api]", error);
+      return NextResponse.json(
+        {
+          error: "Erreur middleware tenant.",
+          detail: error instanceof Error ? error.message : String(error),
+        },
+        { status: 500 },
+      );
+    }
+  }
+  return (await clerkMw(request, event)) as NextResponse;
+}
+
+export default isMultiTenantEnabled() ? multiTenantMiddleware : clerkMw;
 
 export const config = {
   matcher: [
