@@ -110,7 +110,7 @@ function withTenantHeaders(response: NextResponse, tenant: TenantConfig): NextRe
 function nextWithTenant(request: NextRequest, tenant: TenantConfig): NextResponse {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(TENANT_SLUG_HEADER, tenant.slug);
-  requestHeaders.set(TENANT_REQUEST_URL_HEADER, request.url);
+  requestHeaders.set(TENANT_REQUEST_URL_HEADER, request.nextUrl.pathname + request.nextUrl.search);
   return withTenantHeaders(
     NextResponse.next({
       request: { headers: requestHeaders },
@@ -189,7 +189,10 @@ function platformAppOriginFromEnv(): string {
   }
 }
 
-async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest) {
+async function handleProxyRequest(
+  request: NextRequest,
+  auth?: ClerkMiddlewareAuth,
+): Promise<NextResponse> {
   let tenant: TenantConfig;
   try {
     tenant = await resolveTenantForProxy(request);
@@ -252,6 +255,12 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
     }
     authState = { userId: tenantSession.userId, orgRole: null, sessionClaims: undefined };
   } else {
+    if (!auth) {
+      return withTenantHeaders(
+        NextResponse.json({ error: "Auth middleware indisponible." }, { status: 500 }),
+        tenant,
+      );
+    }
     const protectedAuth = await auth.protect();
     authState = {
       userId: protectedAuth.userId,
@@ -288,7 +297,23 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
   return nextWithTenant(request, tenant);
 }
 
-export default clerkMiddleware(clerkAuthHandler);
+/** Multi-tenant : auth Clerk via clé secrète tenant (pas clerkMiddleware — évite CLERK_ENCRYPTION_KEY). */
+async function tenantMiddleware(request: NextRequest): Promise<NextResponse> {
+  try {
+    return await handleProxyRequest(request);
+  } catch (error) {
+    console.error("[proxy:tenant]", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
+  }
+}
+
+async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest) {
+  return handleProxyRequest(request, auth);
+}
+
+export default isMultiTenantEnabled()
+  ? tenantMiddleware
+  : clerkMiddleware(clerkAuthHandler);
 
 export const config = {
   matcher: [

@@ -16,7 +16,12 @@ function clerkRequestFromHeaders(hdrs: Headers, fallbackUrl?: string): Request {
 
   const explicitUrl = hdrs.get(TENANT_REQUEST_URL_HEADER)?.trim();
   if (explicitUrl) {
-    return new Request(explicitUrl, { headers: headerInit });
+    const host = normalizeHostname(hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost");
+    const proto = hdrs.get("x-forwarded-proto") || "https";
+    const absolutePath = explicitUrl.startsWith("http")
+      ? explicitUrl
+      : `${proto}://${host}${explicitUrl.startsWith("/") ? explicitUrl : `/${explicitUrl}`}`;
+    return new Request(absolutePath, { headers: headerInit });
   }
 
   const host = normalizeHostname(hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost");
