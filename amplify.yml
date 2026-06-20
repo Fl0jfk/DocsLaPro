@@ -19,6 +19,7 @@ applications:
             - echo "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=$NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL" >> .env.production
             - echo "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL" >> .env.production
             - echo "PLATFORM_APP_URL=$PLATFORM_APP_URL" >> .env.production
+            - echo "NEXT_PUBLIC_PLATFORM_APP_URL=$PLATFORM_APP_URL" >> .env.production
             - echo "PLATFORM_HOSTNAMES=$PLATFORM_HOSTNAMES" >> .env.production
             - echo "PLATFORM_CLERK_PUBLISHABLE_KEY=$PLATFORM_CLERK_PUBLISHABLE_KEY" >> .env.production
             - echo "PLATFORM_CLERK_SECRET_KEY=$PLATFORM_CLERK_SECRET_KEY" >> .env.production

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { useIsPlatformMaster } from "@/app/hooks/useIsPlatformMaster";
+import { platformConnexionUrl } from "@/app/lib/platform-portal-url";
 
 /** Bouton connexion / espace Master dans le header marketing. */
 export default function PlatformMasterNav() {
@@ -16,7 +17,7 @@ export default function PlatformMasterNav() {
   if (!isSignedIn) {
     return (
       <Link
-        href="/connexion"
+        href={platformConnexionUrl()}
         className="rounded-full bg-gradient-to-r from-[#2F6B4A] via-[#25633F] to-[#1E4A32] px-4 py-2 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 transition hover:scale-[1.02] hover:brightness-110"
       >
         Se connecter

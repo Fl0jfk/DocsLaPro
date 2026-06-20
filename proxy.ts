@@ -146,6 +146,19 @@ async function resolveIntranetRolesForProxy(
   return { roles, publicMetadata };
 }
 
+function platformAppOriginFromEnv(): string {
+  const raw =
+    process.env.PLATFORM_APP_URL?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    "https://scola.fr";
+  try {
+    const withScheme = raw.startsWith("http") ? raw : `https://${raw}`;
+    return new URL(withScheme).origin;
+  } catch {
+    return "https://scola.fr";
+  }
+}
+
 async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest) {
   let tenant: TenantConfig;
   try {
@@ -157,7 +170,28 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
     }
     return new NextResponse(message, { status: 404 });
   }
+  const pathname = request.nextUrl.pathname;
+  const host = normalizeHostname(
+    request.headers.get("x-forwarded-host") ||
+      request.headers.get("host") ||
+      request.nextUrl.hostname,
+  );
+
+  if (pathname === "/connexion" && !isPlatformHostname(host)) {
+    return NextResponse.redirect(new URL("/connexion", platformAppOriginFromEnv()));
+  }
+
+  if (pathname.startsWith("/sign-in") && !isPlatformHostname(host)) {
+    const redirectTarget = request.nextUrl.searchParams.get("redirect_url") ?? "";
+    if (redirectTarget.includes("/plateforme")) {
+      const dest = new URL("/sign-in", platformAppOriginFromEnv());
+      dest.searchParams.set("redirect_url", "/plateforme");
+      return NextResponse.redirect(dest);
+    }
+  }
+
   if (isPublicRoute(request)) { return withTenantHeaders(NextResponse.next(), tenant)}
+
   const authState = await auth.protect();
   const { roles, publicMetadata } = await resolveIntranetRolesForProxy(
     authState,
@@ -165,12 +199,6 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
     request.nextUrl.hostname,
   );
   const isOrgAdmin = isOrgAdminFromSession(authState.orgRole, publicMetadata);
-  const pathname = request.nextUrl.pathname;
-  const host = normalizeHostname(
-    request.headers.get("x-forwarded-host") ||
-      request.headers.get("host") ||
-      request.nextUrl.hostname,
-  );
 
   if (isPlatformHostname(host) && pathname === "/dashboard") {
     const dest = hasMasterRole(roles) ? "/plateforme" : "/";

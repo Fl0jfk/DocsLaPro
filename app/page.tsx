@@ -8,8 +8,7 @@ import { isPlatformMasterFromPublicMetadata } from "@/app/lib/intranet-session";
 
 export const metadata: Metadata = {
   title: "Scola — Intranet tout-en-un pour établissements scolaires",
-  description:
-    "Workflows documents élèves, sorties, absences, RH, internat… Un abonnement tout inclus. Hébergement France.",
+  description:"Workflows documents élèves, sorties, absences, RH, internat… Un abonnement tout inclus. Hébergement France.",
 };
 
 export default async function HomePage() {

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import MarketingShell from "@/app/components/landing/MarketingShell";
 import { SCOLA_GRADIENT_TEXT } from "@/app/lib/marketing-theme";
 import {
@@ -12,6 +11,7 @@ import {
   saveLastPortalTenant,
   syncSavedPortalTenantFromCatalog,
 } from "@/app/lib/tenant-portal-client";
+import { platformAdminSignInUrl } from "@/app/lib/platform-portal-url";
 
 type TenantEntry = {
   slug: string;
@@ -224,9 +224,12 @@ export default function ConnexionPage() {
 
         <p className="mt-12 text-center text-xs text-stone-500">
           Vous gérez la plateforme Scola ?{" "}
-          <Link href="/sign-in?redirect_url=/plateforme" className="font-semibold text-violet-700 hover:underline">
+          <a
+            href={platformAdminSignInUrl()}
+            className="font-semibold text-violet-700 hover:underline"
+          >
             Administration
-          </Link>
+          </a>
         </p>
       </main>
     </MarketingShell>
