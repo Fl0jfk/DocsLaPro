@@ -8,7 +8,8 @@ import {
   resolveClerkKeysForHostname,
 } from "@/app/lib/clerk-tenant-keys";
 import { getTenant } from "@/app/lib/tenant-context";
-import { isMultiTenantEnabled } from "@/app/lib/tenant-registry";
+import { isMultiTenantEnabled, normalizeHostname } from "@/app/lib/tenant-registry";
+import { isPlatformHostname } from "@/app/lib/platform-hostname";
 
 type Props = {
   children: React.ReactNode;
@@ -51,6 +52,8 @@ export default async function TenantClerkProvider({ children }: Props) {
     clerkDevPublishableKey: tenant.secrets?.clerkDevPublishableKey,
     clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
   });
+  const normalizedHost = normalizeHostname(host);
+  const afterAuthUrl = isPlatformHostname(normalizedHost) ? "/plateforme" : "/dashboard";
 
   if (needsLocalClerkDevKeys(host, keys.publishableKey)) {
     return (
@@ -62,7 +65,14 @@ export default async function TenantClerkProvider({ children }: Props) {
   }
 
   return (
-    <ClerkProvider publishableKey={keys.publishableKey} localization={frFR}>
+    <ClerkProvider
+      publishableKey={keys.publishableKey}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      afterSignInUrl={afterAuthUrl}
+      afterSignUpUrl={afterAuthUrl}
+      localization={frFR}
+    >
       {children}
     </ClerkProvider>
   );

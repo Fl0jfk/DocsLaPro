@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { clerkFrontendDomainFromPublishableKey } from "@/app/lib/clerk-pk-domain";
 
 export type TenantFormSecrets = {
   clerkSecretKey: string;
@@ -250,6 +251,11 @@ export default function PlatformTenantEditor({ mode, slug, writable, onClose, on
     setForm((f) => ({ ...f, secrets: { ...f.secrets, [key]: value } }));
   };
 
+  const clerkFrontendDomain = useMemo(
+    () => clerkFrontendDomainFromPublishableKey(form.clerkPublishableKey),
+    [form.clerkPublishableKey],
+  );
+
   if (loading) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -407,6 +413,18 @@ export default function PlatformTenantEditor({ mode, slug, writable, onClose, on
                 onChange={(e) => set("clerkPublishableKey", e.target.value)}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
               />
+              {clerkFrontendDomain && (
+                <span className="text-xs text-slate-600">
+                  Domaine Clerk détecté : <code className="font-mono">{clerkFrontendDomain}</code>
+                  {form.hostnames.includes("lp.docslapro.com") &&
+                    clerkFrontendDomain !== "clerk.lp.docslapro.com" && (
+                      <span className="block mt-1 text-amber-800">
+                        Attention : pour LP, attendu <code>clerk.lp.docslapro.com</code> (clé de
+                        l&apos;app Clerk La Providence).
+                      </span>
+                    )}
+                </span>
+              )}
             </label>
             <div className="sm:col-span-2">
               <SecretField

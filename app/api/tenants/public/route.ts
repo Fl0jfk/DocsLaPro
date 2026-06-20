@@ -9,7 +9,14 @@ export async function GET() {
     const h = await headers();
     const portalHost = normalizeHostname(h.get("x-forwarded-host") || h.get("host") || "");
     const tenants = await loadPublicTenantCatalog(portalHost);
-    return NextResponse.json({ tenants });
+    return NextResponse.json(
+      { tenants },
+      {
+        headers: {
+          "Cache-Control": "private, no-store, no-cache, must-revalidate",
+        },
+      },
+    );
   } catch (e) {
     console.error("[tenants/public]", e);
     return NextResponse.json({ error: "Catalogue indisponible." }, { status: 500 });

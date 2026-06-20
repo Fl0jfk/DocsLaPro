@@ -1,5 +1,29 @@
 const STORAGE_KEY = "scola.portal.lastTenant";
 
+/** URL sign-in fiable : priorité au sous-domaine de l'établissement (évite un signInUrl catalogue périmé). */
+export function catalogEntrySignInUrl(entry: {
+  signInUrl: string;
+  primaryHostname?: string | null;
+  appUrl?: string;
+}): string {
+  const host = entry.primaryHostname?.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
+  if (host && host !== "localhost" && host !== "127.0.0.1") {
+    return `https://${host}/sign-in`;
+  }
+
+  const appUrl = entry.appUrl?.trim().replace(/\/$/, "");
+  if (appUrl) {
+    try {
+      const origin = appUrl.startsWith("http") ? appUrl : `https://${appUrl}`;
+      return `${new URL(origin).origin}/sign-in`;
+    } catch {
+      /* fall through */
+    }
+  }
+
+  return entry.signInUrl;
+}
+
 export type SavedPortalTenant = {
   slug: string;
   label: string;
@@ -43,6 +67,34 @@ export function clearLastPortalTenant(): void {
   }
 }
 
+type CatalogSignInEntry = {
+  slug: string;
+  label: string;
+  signInUrl: string;
+  primaryHostname?: string | null;
+  appUrl?: string;
+};
+
+/** Met à jour le tenant mémorisé avec les URLs fraîches du catalogue. */
+export function syncSavedPortalTenantFromCatalog(
+  catalog: CatalogSignInEntry[],
+): SavedPortalTenant | null {
+  const saved = readLastPortalTenant();
+  if (!saved?.slug) return null;
+  const hit = catalog.find((t) => t.slug === saved.slug);
+  if (!hit) return null;
+
+  const signInUrl = catalogEntrySignInUrl(hit);
+  const refreshed: SavedPortalTenant = {
+    slug: hit.slug,
+    label: hit.label,
+    signInUrl,
+    savedAt: saved.savedAt,
+  };
+  saveLastPortalTenant(refreshed);
+  return refreshed;
+}
+
 /** Vérifie que le tenant mémorisé existe encore dans le catalogue. */
 export async function resolveSavedPortalTenantSignIn(): Promise<string | null> {
   const saved = readLastPortalTenant();
@@ -51,11 +103,10 @@ export async function resolveSavedPortalTenantSignIn(): Promise<string | null> {
     const res = await fetch("/api/tenants/public", { cache: "no-store" });
     const j = await res.json();
     if (!res.ok) return null;
-    const hit = (j.tenants as { slug: string; signInUrl: string }[] | undefined)?.find(
-      (t) => t.slug === saved.slug,
-    );
-    return hit?.signInUrl ?? null;
+    const catalog = (j.tenants as CatalogSignInEntry[] | undefined) ?? [];
+    const refreshed = syncSavedPortalTenantFromCatalog(catalog);
+    return refreshed?.signInUrl ?? null;
   } catch {
-    return saved.signInUrl;
+    return null;
   }
 }

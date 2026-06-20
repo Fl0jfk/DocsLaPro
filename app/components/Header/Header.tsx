@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
+import { useSignOutWithPortalReset } from "@/app/hooks/useSignOutWithPortalReset";
 import { useAdminBootstrap } from "@/app/contexts/admin-bootstrap";
 import { dashboardBrandCssVars, parseDashboardAccent } from "@/app/lib/dashboard-brand-presets";
 import { SCOLA_HEADER_ACCENT } from "@/app/lib/marketing-theme";
@@ -19,7 +20,8 @@ const MOBILE_MODULE_LINKS = [
 
 function UserPopover({ onClose }: { onClose: () => void }) {
   const { user } = useUser();
-  const { signOut, openUserProfile } = useClerk();
+  const { openUserProfile } = useClerk();
+  const signOutWithPortalReset = useSignOutWithPortalReset();
   return (
     <div className="absolute top-12 right-0 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in">
       <div className="px-4 py-4 flex items-center gap-3 border-b border-slate-100">
@@ -51,7 +53,7 @@ function UserPopover({ onClose }: { onClose: () => void }) {
         </Link>
         <div className="h-px bg-slate-100 my-1" />
         <button
-          onClick={() => { signOut({ redirectUrl: "/" }); onClose(); }}
+          onClick={() => { signOutWithPortalReset("/"); onClose(); }}
           className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 transition-colors text-sm text-red-500 font-medium"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -70,7 +72,8 @@ export default function Header() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { isSignedIn } = useUser();
-  const { signOut, openUserProfile } = useClerk();
+  const { openUserProfile } = useClerk();
+  const signOutWithPortalReset = useSignOutWithPortalReset();
   const { appContext, sitePublic: siteIdentity, loading: bootstrapLoading } = useAdminBootstrap();
 
   useEffect(() => { setMobileOpen(false); setPopoverOpen(false); }, [pathname]);
@@ -301,7 +304,7 @@ export default function Header() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => signOut({ redirectUrl: "/" })}
+                  onClick={() => signOutWithPortalReset("/")}
                   className="w-full bg-red-50 text-red-500 font-bold text-center py-3.5 rounded-2xl text-sm hover:bg-red-100 transition"
                 >
                   Se déconnecter

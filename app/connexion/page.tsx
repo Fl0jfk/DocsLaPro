@@ -6,9 +6,11 @@ import Link from "next/link";
 import MarketingShell from "@/app/components/landing/MarketingShell";
 import { SCOLA_GRADIENT_TEXT } from "@/app/lib/marketing-theme";
 import {
+  catalogEntrySignInUrl,
   clearLastPortalTenant,
   readLastPortalTenant,
   saveLastPortalTenant,
+  syncSavedPortalTenantFromCatalog,
 } from "@/app/lib/tenant-portal-client";
 
 type TenantEntry = {
@@ -20,22 +22,25 @@ type TenantEntry = {
   logoUrl: string | null;
   signInUrl: string;
   primaryHostname: string | null;
+  appUrl: string;
 };
 
 function EstablishmentCard({
   tenant,
   isLastUsed,
-  onConnect,
+  signInHref,
+  onBeforeNavigate,
 }: {
   tenant: TenantEntry;
   isLastUsed: boolean;
-  onConnect: (t: TenantEntry) => void;
+  signInHref: string;
+  onBeforeNavigate: (t: TenantEntry) => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onConnect(tenant)}
-      className={`group relative w-full overflow-hidden rounded-2xl border-2 bg-white text-left shadow-sm transition-all hover:border-[#2F6B4A]/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6B4A] focus-visible:ring-offset-2 ${
+    <a
+      href={signInHref}
+      onClick={() => onBeforeNavigate(tenant)}
+      className={`group relative block w-full overflow-hidden rounded-2xl border-2 bg-white text-left shadow-sm no-underline transition-all hover:border-[#2F6B4A]/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6B4A] focus-visible:ring-offset-2 ${
         isLastUsed ? "border-[#2F6B4A]/35 ring-1 ring-[#2F6B4A]/20" : "border-stone-200/80"
       }`}
     >
@@ -84,7 +89,7 @@ function EstablishmentCard({
           <span aria-hidden>→</span>
         </span>
       </div>
-    </button>
+    </a>
   );
 }
 
@@ -94,13 +99,12 @@ export default function ConnexionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const connectTo = useCallback((t: TenantEntry) => {
+  const rememberTenant = useCallback((t: TenantEntry) => {
     saveLastPortalTenant({
       slug: t.slug,
       label: t.label,
-      signInUrl: t.signInUrl,
+      signInUrl: catalogEntrySignInUrl(t),
     });
-    window.location.href = t.signInUrl;
   }, []);
 
   useEffect(() => {
@@ -113,9 +117,14 @@ export default function ConnexionPage() {
         const list = (j.tenants ?? []) as TenantEntry[];
         if (!cancelled) {
           setTenants(list);
-          const saved = readLastPortalTenant();
-          if (saved?.slug && list.some((t) => t.slug === saved.slug)) {
-            setLastSlug(saved.slug);
+          const refreshed = syncSavedPortalTenantFromCatalog(list);
+          if (refreshed?.slug) {
+            setLastSlug(refreshed.slug);
+          } else {
+            const saved = readLastPortalTenant();
+            if (saved?.slug && list.some((t) => t.slug === saved.slug)) {
+              setLastSlug(saved.slug);
+            }
           }
         }
       } catch (e) {
@@ -140,6 +149,9 @@ export default function ConnexionPage() {
     return a.label.localeCompare(b.label, "fr", { sensitivity: "base" });
   });
 
+  const lastTenant = sortedTenants.find((t) => t.slug === lastSlug) ?? null;
+  const lastSignInHref = lastTenant ? catalogEntrySignInUrl(lastTenant) : null;
+
   return (
     <MarketingShell>
       <main className="mx-auto max-w-3xl px-6 py-12">
@@ -157,13 +169,37 @@ export default function ConnexionPage() {
 
         {!loading && !error && tenants.length > 0 && (
           <div className="mt-10 space-y-4">
+            {lastTenant && lastSignInHref && (
+              <a
+                href={lastSignInHref}
+                onClick={() => rememberTenant(lastTenant)}
+                className="flex w-full items-center justify-between gap-4 rounded-2xl border-2 border-[#2F6B4A] bg-gradient-to-r from-emerald-50 to-white px-5 py-4 text-left no-underline shadow-sm transition hover:shadow-md"
+              >
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#1E4A32]">
+                    Reprendre la connexion
+                  </p>
+                  <p className="mt-1 font-bold text-[#14231A]">{lastTenant.label}</p>
+                  {lastTenant.primaryHostname && (
+                    <p className="mt-1 font-mono text-[11px] text-stone-500">
+                      {lastTenant.primaryHostname}
+                    </p>
+                  )}
+                </div>
+                <span className="shrink-0 rounded-full bg-[#2F6B4A] px-4 py-2 text-sm font-bold text-white">
+                  Connexion →
+                </span>
+              </a>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-1">
               {sortedTenants.map((t) => (
                 <EstablishmentCard
                   key={t.slug}
                   tenant={t}
                   isLastUsed={t.slug === lastSlug}
-                  onConnect={connectTo}
+                  signInHref={catalogEntrySignInUrl(t)}
+                  onBeforeNavigate={rememberTenant}
                 />
               ))}
             </div>
