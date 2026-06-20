@@ -1,11 +1,13 @@
 import { SignIn } from "@clerk/nextjs";
 import { headers } from "next/headers";
-import { isPlatformHostname } from "@/app/lib/platform-hostname";
+import { getTenant } from "@/app/lib/tenant-context";
+import { clerkAfterSignInUrl } from "@/app/lib/tenant-auth-urls";
 
 export default async function SignInPage() {
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "";
-  const afterSignIn = isPlatformHostname(host) ? "/plateforme" : "/dashboard";
+  const tenant = await getTenant();
+  const afterSignIn = clerkAfterSignInUrl(tenant, host);
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-10">

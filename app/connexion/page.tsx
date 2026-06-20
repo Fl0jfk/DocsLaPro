@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import MarketingShell from "@/app/components/landing/MarketingShell";
+import ConnexionPlatformSessionBanner from "@/app/components/ConnexionPlatformSessionBanner";
 import { SCOLA_GRADIENT_TEXT } from "@/app/lib/marketing-theme";
 import {
   catalogEntrySignInUrl,
@@ -160,9 +161,12 @@ export default function ConnexionPage() {
             Connexion à votre <span className={SCOLA_GRADIENT_TEXT}>intranet</span>
           </h1>
           <p className="mt-3 text-sm text-stone-600 max-w-lg mx-auto">
-            Cliquez sur votre établissement pour accéder à la page de connexion dédiée.
+            Choisissez votre établissement : vous serez redirigé vers son intranet dédié
+            (ex. <span className="font-mono text-xs">lp.docslapro.com</span>).
           </p>
         </div>
+
+        <ConnexionPlatformSessionBanner />
 
         {loading && <p className="mt-12 text-center text-sm text-stone-500">Chargement des établissements…</p>}
         {error && <p className="mt-12 text-center text-sm text-red-600">{error}</p>}

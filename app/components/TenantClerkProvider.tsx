@@ -8,8 +8,8 @@ import {
   resolveClerkKeysForHostname,
 } from "@/app/lib/clerk-tenant-keys";
 import { getTenant } from "@/app/lib/tenant-context";
-import { isMultiTenantEnabled, normalizeHostname } from "@/app/lib/tenant-registry";
-import { isPlatformHostname } from "@/app/lib/platform-hostname";
+import { clerkAfterSignInUrl, clerkSignInPageUrl } from "@/app/lib/tenant-auth-urls";
+import { isMultiTenantEnabled } from "@/app/lib/tenant-registry";
 
 type Props = {
   children: React.ReactNode;
@@ -52,8 +52,8 @@ export default async function TenantClerkProvider({ children }: Props) {
     clerkDevPublishableKey: tenant.secrets?.clerkDevPublishableKey,
     clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
   });
-  const normalizedHost = normalizeHostname(host);
-  const afterAuthUrl = isPlatformHostname(normalizedHost) ? "/plateforme" : "/dashboard";
+  const afterAuthUrl = clerkAfterSignInUrl(tenant, host);
+  const signInUrl = clerkSignInPageUrl(tenant, host);
 
   if (needsLocalClerkDevKeys(host, keys.publishableKey)) {
     return (
@@ -67,8 +67,8 @@ export default async function TenantClerkProvider({ children }: Props) {
   return (
     <ClerkProvider
       publishableKey={keys.publishableKey}
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
+      signInUrl={signInUrl}
+      signUpUrl={signInUrl.replace(/\/sign-in$/, "/sign-up")}
       afterSignInUrl={afterAuthUrl}
       afterSignUpUrl={afterAuthUrl}
       localization={frFR}
