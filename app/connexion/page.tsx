@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import MarketingShell from "@/app/components/landing/MarketingShell";
@@ -19,14 +19,89 @@ type TenantEntry = {
   postalAddressLabel: string;
   logoUrl: string | null;
   signInUrl: string;
+  primaryHostname: string | null;
 };
+
+function EstablishmentCard({
+  tenant,
+  isLastUsed,
+  onConnect,
+}: {
+  tenant: TenantEntry;
+  isLastUsed: boolean;
+  onConnect: (t: TenantEntry) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onConnect(tenant)}
+      className={`group relative w-full overflow-hidden rounded-2xl border-2 bg-white text-left shadow-sm transition-all hover:border-[#2F6B4A]/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6B4A] focus-visible:ring-offset-2 ${
+        isLastUsed ? "border-[#2F6B4A]/35 ring-1 ring-[#2F6B4A]/20" : "border-stone-200/80"
+      }`}
+    >
+      {isLastUsed && (
+        <span className="absolute left-3 top-3 z-10 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1E4A32]">
+          Dernier choix
+        </span>
+      )}
+
+      <div className="flex items-start gap-4 p-5">
+        {tenant.logoUrl ? (
+          <Image
+            src={tenant.logoUrl}
+            alt=""
+            width={64}
+            height={64}
+            className="h-16 w-16 shrink-0 rounded-xl object-contain bg-stone-50 p-1"
+            unoptimized
+          />
+        ) : (
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-2xl font-black text-[#2F6B4A]">
+            {tenant.label.charAt(0)}
+          </div>
+        )}
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="font-bold text-[#14231A] text-lg leading-tight">{tenant.label}</p>
+          <p className="mt-1 text-sm text-stone-500">{tenant.kindLabel}</p>
+          {tenant.postalAddressLabel ? (
+            <p className="mt-2 text-sm text-stone-600 line-clamp-2">{tenant.postalAddressLabel}</p>
+          ) : (
+            <p className="mt-2 text-sm text-stone-400 italic">Adresse non renseignée</p>
+          )}
+          {tenant.primaryHostname && (
+            <p className="mt-2 font-mono text-[11px] text-stone-400">{tenant.primaryHostname}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Overlay connexion au survol / focus */}
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#1F3D2B]/88 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+        aria-hidden
+      >
+        <span className="flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-[#1F3D2B] shadow-lg">
+          Connexion
+          <span aria-hidden>→</span>
+        </span>
+      </div>
+    </button>
+  );
+}
 
 export default function ConnexionPage() {
   const [tenants, setTenants] = useState<TenantEntry[]>([]);
-  const [selectedSlug, setSelectedSlug] = useState("");
-  const [savedLabel, setSavedLabel] = useState<string | null>(null);
+  const [lastSlug, setLastSlug] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const connectTo = useCallback((t: TenantEntry) => {
+    saveLastPortalTenant({
+      slug: t.slug,
+      label: t.label,
+      signInUrl: t.signInUrl,
+    });
+    window.location.href = t.signInUrl;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,14 +114,8 @@ export default function ConnexionPage() {
         if (!cancelled) {
           setTenants(list);
           const saved = readLastPortalTenant();
-          if (saved) {
-            const hit = list.find((t) => t.slug === saved.slug);
-            if (hit) {
-              setSelectedSlug(hit.slug);
-              setSavedLabel(hit.label);
-            }
-          } else if (list.length === 1) {
-            setSelectedSlug(list[0].slug);
+          if (saved?.slug && list.some((t) => t.slug === saved.slug)) {
+            setLastSlug(saved.slug);
           }
         }
       } catch (e) {
@@ -60,137 +129,64 @@ export default function ConnexionPage() {
     };
   }, []);
 
-  const selected = useMemo(
-    () => tenants.find((t) => t.slug === selectedSlug) ?? null,
-    [tenants, selectedSlug],
-  );
-
-  const continueToSignIn = () => {
-    if (!selected) return;
-    saveLastPortalTenant({
-      slug: selected.slug,
-      label: selected.label,
-      signInUrl: selected.signInUrl,
-    });
-    window.location.href = selected.signInUrl;
-  };
-
-  const quickReconnect = () => {
-    if (!selected) return;
-    saveLastPortalTenant({
-      slug: selected.slug,
-      label: selected.label,
-      signInUrl: selected.signInUrl,
-    });
-    window.location.href = selected.signInUrl;
-  };
-
-  const forgetEstablishment = () => {
+  const forgetLast = () => {
     clearLastPortalTenant();
-    setSavedLabel(null);
-    setSelectedSlug("");
+    setLastSlug(null);
   };
+
+  const sortedTenants = [...tenants].sort((a, b) => {
+    if (a.slug === lastSlug) return -1;
+    if (b.slug === lastSlug) return 1;
+    return a.label.localeCompare(b.label, "fr", { sensitivity: "base" });
+  });
 
   return (
     <MarketingShell>
-      <main className="mx-auto max-w-xl px-6 py-12">
+      <main className="mx-auto max-w-3xl px-6 py-12">
         <div className="text-center">
           <h1 className="text-3xl font-black text-[#14231A]">
             Connexion à votre <span className={SCOLA_GRADIENT_TEXT}>intranet</span>
           </h1>
-          <p className="mt-3 text-sm text-stone-600">
-            Sélectionnez votre établissement. Votre dernier choix est mémorisé sur cet appareil
-            (stockage local, pas de cookie).
+          <p className="mt-3 text-sm text-stone-600 max-w-lg mx-auto">
+            Cliquez sur votre établissement pour accéder à la page de connexion dédiée.
           </p>
         </div>
 
-        {loading && <p className="mt-10 text-center text-sm text-stone-500">Chargement…</p>}
-        {error && <p className="mt-10 text-center text-sm text-red-600">{error}</p>}
-
-        {!loading && !error && savedLabel && selected && (
-          <div className="mt-8 rounded-2xl border border-[#2F6B4A]/20 bg-emerald-50/80 p-4">
-            <p className="text-sm text-stone-700">
-              Dernier établissement : <strong>{savedLabel}</strong>
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={quickReconnect}
-                className="rounded-full bg-gradient-to-r from-[#2F6B4A] to-[#1E4A32] px-4 py-2 text-xs font-bold text-white"
-              >
-                Reprendre la connexion
-              </button>
-              <button
-                type="button"
-                onClick={forgetEstablishment}
-                className="rounded-full border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-stone-600"
-              >
-                Changer d&apos;établissement
-              </button>
-            </div>
-          </div>
-        )}
+        {loading && <p className="mt-12 text-center text-sm text-stone-500">Chargement des établissements…</p>}
+        {error && <p className="mt-12 text-center text-sm text-red-600">{error}</p>}
 
         {!loading && !error && tenants.length > 0 && (
-          <div className="mt-8 space-y-6">
-            <label className="block space-y-2">
-              <span className="text-sm font-bold text-stone-700">Établissement</span>
-              <select
-                value={selectedSlug}
-                onChange={(e) => setSelectedSlug(e.target.value)}
-                className="w-full rounded-2xl border-2 border-[#2F6B4A]/15 bg-white/90 px-4 py-3.5 text-sm shadow-sm outline-none focus:border-[#2F6B4A]/40"
-              >
-                <option value="">— Choisir un établissement —</option>
-                {tenants.map((t) => (
-                  <option key={t.slug} value={t.slug}>
-                    {t.label} — {t.kindLabel} — {t.postalAddressLabel || "Adresse non renseignée"}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="mt-10 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-1">
+              {sortedTenants.map((t) => (
+                <EstablishmentCard
+                  key={t.slug}
+                  tenant={t}
+                  isLastUsed={t.slug === lastSlug}
+                  onConnect={connectTo}
+                />
+              ))}
+            </div>
 
-            {selected && (
-              <div className="flex items-start gap-4 rounded-2xl border border-[#2F6B4A]/15 bg-white/90 p-4">
-                {selected.logoUrl ? (
-                  <Image
-                    src={selected.logoUrl}
-                    alt=""
-                    width={56}
-                    height={56}
-                    className="h-14 w-14 shrink-0 rounded-xl object-contain bg-white"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-lg font-black text-[#2F6B4A]">
-                    {selected.label.charAt(0)}
-                  </div>
-                )}
-                <div className="min-w-0 text-sm">
-                  <p className="font-bold text-[#14231A]">{selected.label}</p>
-                  <p className="text-stone-500">{selected.kindLabel}</p>
-                  <p className="mt-1 text-stone-600">
-                    {selected.postalAddressLabel || "Adresse postale non renseignée"}
-                  </p>
-                </div>
-              </div>
+            {lastSlug && (
+              <p className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={forgetLast}
+                  className="text-xs font-medium text-stone-500 underline-offset-2 hover:text-stone-700 hover:underline"
+                >
+                  Oublier mon dernier établissement sur cet appareil
+                </button>
+              </p>
             )}
-
-            <button
-              type="button"
-              onClick={continueToSignIn}
-              disabled={!selected}
-              className="w-full rounded-full bg-gradient-to-r from-[#2F6B4A] to-[#1E4A32] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 disabled:opacity-50"
-            >
-              Continuer vers la connexion
-            </button>
           </div>
         )}
 
         {!loading && !error && tenants.length === 0 && (
-          <p className="mt-10 text-center text-sm text-stone-500">Aucun établissement disponible.</p>
+          <p className="mt-12 text-center text-sm text-stone-500">Aucun établissement disponible.</p>
         )}
 
-        <p className="mt-10 text-center text-xs text-stone-500">
+        <p className="mt-12 text-center text-xs text-stone-500">
           Vous gérez la plateforme Scola ?{" "}
           <Link href="/sign-in?redirect_url=/plateforme" className="font-semibold text-violet-700 hover:underline">
             Administration
