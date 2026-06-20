@@ -1,7 +1,8 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? rolesRaw.map(String) : rolesRaw ? [String(rolesRaw)] : [];
   if (!canAccessPersonnelModule(roles)) {

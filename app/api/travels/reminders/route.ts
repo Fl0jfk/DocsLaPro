@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";
 import { computeTripReminders } from "@/app/lib/travels-trip-helpers";
@@ -59,7 +59,8 @@ export async function POST(req: Request) {
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
   } else {
-    const { userId } = await auth();
+    const session = await resolveSession();
+  const userId = session?.userId;
     if (!userId && !isCron) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 

@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { canModerateOffers } from "@/app/lib/stage-access";
@@ -7,7 +8,7 @@ import { ensureOfferCandidatureToken } from "@/app/lib/stage-candidature";
 import { getStageOffer, saveStageOffer } from "@/app/lib/stage-storage";
 import type { StageOfferStatus } from "@/app/lib/stage-types";
 
-function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
+function displayName(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   const first = user?.firstName?.trim() || "";
   const last = user?.lastName?.trim() || "";
   return `${first} ${last}`.trim() || "Direction";
@@ -31,7 +32,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const roles = intranetRolesFromMetadata(user?.publicMetadata);
     if (!canModerateOffers(roles)) {
       return NextResponse.json({ error: "Réservé à la direction." }, { status: 403 });

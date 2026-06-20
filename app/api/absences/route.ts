@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
   createTenantTransporter,
@@ -116,7 +117,7 @@ export async function GET(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
 
@@ -154,7 +155,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
 
@@ -309,7 +310,7 @@ export async function PATCH(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
 
@@ -717,7 +718,7 @@ export async function DELETE(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
   if (!canViewCalendar(roles)) return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });

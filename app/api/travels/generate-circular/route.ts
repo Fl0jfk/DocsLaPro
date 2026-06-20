@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from "@clerk/nextjs/server";
+
 import { jsPDF } from 'jspdf';
 import fs from 'fs/promises';
 import path from 'path';
@@ -13,7 +13,8 @@ const textractClient = new TextractClient({
 });
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const session = await resolveSession();
+  const userId = session?.userId;
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
   try {
     const { tripData } = await req.json();

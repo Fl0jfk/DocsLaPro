@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { canViewAllConventions } from "@/app/lib/stage-access";
@@ -11,7 +12,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const roles = intranetRolesFromMetadata(user?.publicMetadata);
     if (!canViewAllConventions(roles) && !roles.includes("parent")) {
       return NextResponse.json({ error: "Accès réservé." }, { status: 403 });

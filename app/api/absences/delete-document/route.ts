@@ -1,6 +1,7 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { getAbsenceDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/absences-documents";
 import { isDocumentKeyReferencedInLegacy } from "@/app/lib/absences-legacy-convocations";
 import { canManageAbsenceAttachment } from "@/app/lib/absences-types";
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
 

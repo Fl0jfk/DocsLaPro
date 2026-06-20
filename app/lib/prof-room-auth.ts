@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { loadAppConfig } from "@/app/lib/app-config";
 import { requireAuth, isIntranetAdmin, type AuthContext } from "@/app/lib/intranet-auth";
 
@@ -9,7 +10,7 @@ export function normalizeProfRoomAdminClerkIds(ids: unknown[]): string[] {
 
 export async function isProfRoomModuleAdmin(): Promise<boolean> {
   if (await isIntranetAdmin()) return true;
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   if (!user) return false;
 
   const config = await loadAppConfig();

@@ -95,6 +95,32 @@ export function syncSavedPortalTenantFromCatalog(
   return refreshed;
 }
 
+/** Origine intranet établissement (dernier choix mémorisé ou unique tenant du catalogue). */
+export async function resolveEstablishmentPortalOrigin(): Promise<string | null> {
+  const saved = await resolveSavedPortalTenantSignIn();
+  if (saved) {
+    try {
+      return new URL(saved).origin;
+    } catch {
+      /* fall through */
+    }
+  }
+
+  try {
+    const res = await fetch("/api/tenants/public", { cache: "no-store" });
+    const j = await res.json();
+    if (!res.ok) return null;
+    const catalog = (j.tenants as CatalogSignInEntry[] | undefined) ?? [];
+    if (catalog.length === 1) {
+      return new URL(catalogEntrySignInUrl(catalog[0])).origin;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 /** Vérifie que le tenant mémorisé existe encore dans le catalogue. */
 export async function resolveSavedPortalTenantSignIn(): Promise<string | null> {
   const saved = readLastPortalTenant();

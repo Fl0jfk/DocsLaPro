@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import {
   createTenantTransporter,
   getTenantSmtpConfig,
@@ -128,7 +129,7 @@ export async function GET() {
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
 
   if (!canCreateDemand(roles)) {
@@ -154,7 +155,7 @@ export async function POST(req: Request) {
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
 
   if (!canCreateDemand(roles)) {
@@ -282,7 +283,7 @@ export async function PATCH(req: Request) {
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
 
   let body: { id?: string; status?: string; directionNote?: string };

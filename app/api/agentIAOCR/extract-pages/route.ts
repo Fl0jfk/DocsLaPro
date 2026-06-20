@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PDFDocument } from "pdf-lib";
@@ -9,7 +9,8 @@ import { getBucketName } from "@/app/lib/s3-storage";
 export async function POST(req: Request) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { userId } = getAuth(req as any);
+    const session = await resolveSession();
+    const userId = session?.userId;
     if (!userId) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }

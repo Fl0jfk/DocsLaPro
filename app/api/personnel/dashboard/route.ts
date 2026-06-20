@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { buildPersonnelDashboard } from "@/app/lib/personnel-dashboard";
 import { getAllPersonnelRecords } from "@/app/lib/personnel-storage";
@@ -9,7 +10,7 @@ export async function GET() {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? rolesRaw.map(String) : rolesRaw ? [String(rolesRaw)] : [];
 

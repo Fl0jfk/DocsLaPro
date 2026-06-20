@@ -1,4 +1,5 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { safeCurrentUser } from "@/app/lib/intranet-session";
+
 import { NextResponse } from "next/server";
 import {
   canAccessInternatFromMetadata,
@@ -12,7 +13,7 @@ export async function requireInternatAccess() {
   const gate = await requireAuth();
   if (!gate.ok) return { ok: false as const, response: gate.response };
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = rolesFromMetadata(user?.publicMetadata);
   if (!canAccessInternatFromMetadata(user?.publicMetadata)) {
     return {

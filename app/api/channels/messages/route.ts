@@ -1,7 +1,8 @@
+import { resolveSession } from "@/app/lib/intranet-session";
 import { NextRequest } from "next/server";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getAuth } from "@clerk/nextjs/server";
+
 import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import {
@@ -74,7 +75,8 @@ export async function POST(req: NextRequest) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
-  const { userId: authUserId } = getAuth(req);
+  const session = await resolveSession();
+  const authUserId = session?.userId;
   if (!authUserId) return new Response("Non autorisé", { status: 401 });
   try {
     const client = await getClerkClientForTenant();
@@ -102,7 +104,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
-    const { userId } = getAuth(req);
+    const session = await resolveSession();
+    const userId = session?.userId;
   if (!userId) return new Response("Non autorisé", { status: 401 });
   const { searchParams } = new URL(req.url);
   const messageId = searchParams.get("id");

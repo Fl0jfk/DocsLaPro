@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { loadAppConfig } from "@/app/lib/app-config";
 import {
   applyMatchAcceptance,
@@ -27,7 +28,7 @@ import {
 } from "@/app/lib/covoiturage-types";
 import { requireAuth } from "@/app/lib/intranet-auth";
 
-function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
+function displayName(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   const first = user?.firstName?.trim() || "";
   const last = user?.lastName?.trim() || "";
   const full = `${first} ${last}`.trim();
@@ -35,7 +36,7 @@ function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
   return user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Utilisateur";
 }
 
-function userEmail(user: Awaited<ReturnType<typeof currentUser>>) {
+function userEmail(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   return user?.primaryEmailAddress?.emailAddress?.trim().toLowerCase() || "";
 }
 
@@ -148,7 +149,7 @@ export async function POST(req: Request) {
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   if (!user) return NextResponse.json({ error: "Utilisateur introuvable." }, { status: 401 });
 
   const body = (await req.json()) as Record<string, unknown>;

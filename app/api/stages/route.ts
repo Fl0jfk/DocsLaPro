@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import {
@@ -24,7 +25,7 @@ export async function GET() {
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const roles = intranetRolesFromMetadata(user?.publicMetadata);
     const viewer = resolveStageViewerRole(roles);
     if (!viewer) {

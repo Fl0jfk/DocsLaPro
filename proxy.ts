@@ -19,7 +19,10 @@ import {
 } from '@/app/lib/tenant-registry';
 import { isLocalDevHostname, clerkKeysFromEnv, resolveClerkKeysForHostname } from '@/app/lib/clerk-tenant-keys';
 import { isPlatformHostname } from '@/app/lib/platform-hostname';
-import { platformTenantFromEnv } from '@/app/lib/platform-tenant';
+import { isPlatformTenantSlug, platformTenantFromEnv } from '@/app/lib/platform-tenant';
+import { clerkSignInPageUrl } from '@/app/lib/tenant-auth-urls';
+import { resolveTenantSessionFromRequest } from '@/app/lib/tenant-session';
+import { tenantCanonicalHostname, tenantCanonicalOrigin } from '@/app/lib/tenant-auth-urls';
 import {
   canAccessIntranetPath,
   isOrgAdminFromSession,
@@ -146,6 +149,20 @@ async function resolveIntranetRolesForProxy(
   return { roles, publicMetadata };
 }
 
+function redirectToTenantCanonicalHost(
+  request: NextRequest,
+  tenant: TenantConfig,
+  host: string,
+): NextResponse | null {
+  if (isLocalDevHostname(host)) return null;
+
+  const canonicalHost = tenantCanonicalHostname(tenant);
+  if (!canonicalHost || normalizeHostname(host) === canonicalHost) return null;
+
+  const dest = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, tenantCanonicalOrigin(tenant));
+  return NextResponse.redirect(dest);
+}
+
 function platformAppOriginFromEnv(): string {
   const raw =
     process.env.PLATFORM_APP_URL?.trim() ||
@@ -190,15 +207,50 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
     }
   }
 
+  if (
+    (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")) &&
+    !isPlatformTenantSlug(tenant.slug)
+  ) {
+    const canonicalRedirect = redirectToTenantCanonicalHost(request, tenant, host);
+    if (canonicalRedirect) return withTenantHeaders(canonicalRedirect, tenant);
+  }
+
   if (isPublicRoute(request)) { return withTenantHeaders(NextResponse.next(), tenant)}
 
-  const authState = await auth.protect();
+  let authState: ProxyAuthState;
+  if (isMultiTenantEnabled()) {
+    const tenantSession = await resolveTenantSessionFromRequest(request, tenant);
+    if (!tenantSession) {
+      if (pathname.startsWith("/api/")) {
+        return withTenantHeaders(
+          NextResponse.json({ error: "Non autorisé.", code: "AUTH_REQUIRED" }, { status: 401 }),
+          tenant,
+        );
+      }
+      return withTenantHeaders(
+        NextResponse.redirect(new URL(clerkSignInPageUrl(tenant, host))),
+        tenant,
+      );
+    }
+    authState = { userId: tenantSession.userId, orgRole: null, sessionClaims: undefined };
+  } else {
+    const protectedAuth = await auth.protect();
+    authState = {
+      userId: protectedAuth.userId,
+      orgRole: protectedAuth.orgRole,
+      sessionClaims: protectedAuth.sessionClaims,
+    };
+  }
+
   const { roles, publicMetadata } = await resolveIntranetRolesForProxy(
     authState,
     tenant,
     request.nextUrl.hostname,
   );
   const isOrgAdmin = isOrgAdminFromSession(authState.orgRole, publicMetadata);
+
+  const canonicalRedirect = redirectToTenantCanonicalHost(request, tenant, host);
+  if (canonicalRedirect) return withTenantHeaders(canonicalRedirect, tenant);
 
   if (isPlatformHostname(host) && pathname === "/dashboard") {
     const dest = hasMasterRole(roles) ? "/plateforme" : "/";
@@ -218,32 +270,7 @@ async function clerkAuthHandler(auth: ClerkMiddlewareAuth, request: NextRequest)
   return withTenantHeaders(NextResponse.next(), tenant);
 }
 
-async function clerkOptionsForTenant(request: NextRequest) {
-  try {
-    const tenant = await resolveTenantForProxy(request);
-    return resolveClerkKeysForHostname(request.nextUrl.hostname, {
-      clerkPublishableKey: tenant.clerkPublishableKey,
-      clerkSecretKey: tenant.clerkSecretKey,
-      clerkDevPublishableKey: tenant.secrets?.clerkDevPublishableKey,
-      clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
-    });
-  } catch {
-    const keys = clerkKeysFromEnv();
-    if (keys) {
-      return keys;
-    }
-    try {
-      return resolveClerkKeysForHostname(request.nextUrl.hostname, platformTenantFromEnv());
-    } catch {
-      const fallback = defaultTenantFromEnv();
-      return resolveClerkKeysForHostname(request.nextUrl.hostname, fallback);
-    }
-  }
-}
-
-export default isMultiTenantEnabled()
-  ? clerkMiddleware(clerkAuthHandler, clerkOptionsForTenant)
-  : clerkMiddleware(clerkAuthHandler);
+export default clerkMiddleware(clerkAuthHandler);
 
 export const config = {
   matcher: [

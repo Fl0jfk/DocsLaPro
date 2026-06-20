@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { canReviewPreconvention } from "@/app/lib/stage-access";
@@ -12,7 +13,7 @@ import {
 } from "@/app/lib/stage-referents-config";
 import { currentStageSchoolYear } from "@/app/lib/stage-types";
 
-function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
+function displayName(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   const first = user?.firstName?.trim() || "";
   const last = user?.lastName?.trim() || "";
   return `${first} ${last}`.trim() || "Administratif";
@@ -39,7 +40,7 @@ export async function GET(req: Request) {
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const roles = intranetRolesFromMetadata(user?.publicMetadata);
     if (!canReviewPreconvention(roles)) {
       return NextResponse.json({ error: "Réservé à l'administratif." }, { status: 403 });
@@ -74,7 +75,7 @@ export async function PUT(req: Request) {
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const roles = intranetRolesFromMetadata(user?.publicMetadata);
     if (!canReviewPreconvention(roles)) {
       return NextResponse.json({ error: "Réservé à l'administratif." }, { status: 403 });

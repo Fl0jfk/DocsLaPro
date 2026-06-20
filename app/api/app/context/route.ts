@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { loadAppConfig } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { isOrgAdminFromPublicMetadata, isPlatformMasterFromPublicMetadata } from "@/app/lib/intranet-session";
@@ -10,7 +11,7 @@ export async function GET() {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   try {
-    const [config, user] = await Promise.all([loadAppConfig(), currentUser()]);
+    const [config, user] = await Promise.all([loadAppConfig(), safeCurrentUser()]);
     const intranetRoles = intranetRolesFromMetadata(user?.publicMetadata);
     return NextResponse.json({
       identity: {

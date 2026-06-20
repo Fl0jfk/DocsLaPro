@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { REQUEST_STATUSES, RequestAttachment, RequestComment, RequestRecord, RequestStatus, assertEligibleRequestAttachment, finalizeRequestPurgeMetadata, getDefaultRequestBranchForStaffEmail, getRequestPoolEmails, getRequestsIndex, isLeaderForRequestBranch, isUserInRequestPool, notifyRequesterOnly, notifyRequestStatusMilestone, resolveRequestRouteById, saveRequestFile, saveRequestsIndex, uploadBuffersAsRequestAttachments, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD, MANUAL_ONLY_DIRECTION_IDS} from "@/app/lib/requests";
 import { isCorbeilleBranchId, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
@@ -12,7 +13,7 @@ export async function PATCH(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const actorName = user?.fullName || user?.firstName || "Équipe";
     const actorEmail = user?.primaryEmailAddress?.emailAddress || "";
     const roleRaw = user?.publicMetadata?.role;

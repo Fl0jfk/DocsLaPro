@@ -1,4 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
+import type { User } from "@clerk/backend";
 import { auth } from "@clerk/nextjs/server";
 import { isClerkDynamicKeyError } from "@/app/lib/clerk-request-error";
 import { hasGlobalAdminRole, hasMasterRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
@@ -52,8 +52,10 @@ export async function resolveSession(): Promise<ResolvedSession | null> {
   }
 }
 
+export type IntranetClerkUser = User;
+
 /** Profil Clerk courant — en multi-tenant, via la clé secrète du tenant (pas auth() Next). */
-export async function safeCurrentUser() {
+export async function safeCurrentUser(): Promise<User | null> {
   if (isMultiTenantEnabled()) {
     try {
       return await resolveTenantCurrentUser();
@@ -64,6 +66,7 @@ export async function safeCurrentUser() {
   }
 
   try {
+    const { currentUser } = await import("@clerk/nextjs/server");
     return await currentUser();
   } catch (error) {
     if (isClerkDynamicKeyError(error)) throw error;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { RequestRecord, getPublicAppBaseUrl, notifyRequestCreated, notifyRequestPendingVerification, resolveRequestRouting, saveRequestFile, saveRequestsIndex, getRequestsIndex, validateRequestInput, uploadBuffersAsRequestAttachments, assertEligibleRequestAttachment, MAX_REQUEST_ATTACHMENTS_PER_UPLOAD} from "@/app/lib/requests";
 import { deletePendingRequestPrefix, generatePendingRequestToken, savePendingRequestWithFiles} from "@/app/lib/request-pending-verify";
@@ -53,7 +53,8 @@ function parseCreatePayload(
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    const session = await resolveSession();
+  const userId = session?.userId;
     const contentType = req.headers.get("content-type") || "";
     let payload: ReturnType<typeof parseCreatePayload>;
     if (contentType.includes("multipart/form-data")) {

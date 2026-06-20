@@ -1,10 +1,10 @@
+import { resolveSession } from "@/app/lib/intranet-session";
 import { NextResponse } from 'next/server';
 import {
   TextractClient,
   GetDocumentTextDetectionCommand,
   type Block,
 } from '@aws-sdk/client-textract';
-import { getAuth } from '@clerk/nextjs/server';
 
 const textract = new TextractClient({
   region: process.env.REGION,
@@ -75,7 +75,8 @@ function blocksToPageTexts(blocks: Block[]): Record<string, string> {
 export async function POST(req: Request) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { userId } = getAuth(req as any);
+    const session = await resolveSession();
+    const userId = session?.userId;
     if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     const { jobId } = await req.json();
     if (!jobId) return NextResponse.json({ error: 'jobId requis' }, { status: 400 });

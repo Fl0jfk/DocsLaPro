@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from 'next/server';
-import { currentUser } from "@clerk/nextjs/server";
+
 import { isValidTravelsReopenFromValideStatus } from "@/app/lib/travels-direction-permissions";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
 import {
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
       if (!isValidTravelsReopenFromValideStatus(newStatus)) {
         return NextResponse.json({ error: "Étape de réouverture invalide." }, { status: 400 });
       }
-      const me = await currentUser();
+      const me = await safeCurrentUser();
       const innerForPerm = (objectToSave.data as { etablissement?: string } | undefined) || {};
       const etab =
         typeof innerForPerm.etablissement === "string"

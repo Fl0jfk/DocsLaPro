@@ -1,14 +1,16 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+
 import { readIngestJob, canIngestFromUser } from "../ingest-job";
 
 export const maxDuration = 10;
 
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const session = await resolveSession();
+  const userId = session?.userId;
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
   if (!canIngestFromUser(roles)) {

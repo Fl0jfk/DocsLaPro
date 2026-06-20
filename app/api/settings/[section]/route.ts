@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import {
   loadAppConfig,
   saveEstablishments,
@@ -39,7 +40,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ section: string
   }
   try {
     const body = await req.json();
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const audit = { updatedAt: new Date().toISOString(), updatedBy: user?.fullName || user?.id || "admin" };
 
     if (section === "site") {

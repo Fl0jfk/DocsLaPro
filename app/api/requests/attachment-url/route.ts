@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const roleRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];

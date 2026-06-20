@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+
 import { loadAppConfig } from "@/app/lib/app-config";
 import { defaultNotifications } from "@/app/lib/app-config-defaults";
 import { getJson, putJson } from "@/app/lib/s3-storage";
@@ -31,7 +32,8 @@ function buildCuisineSnapshot(trip: TripRecord) {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const session = await resolveSession();
+  const userId = session?.userId;
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
 
   try {
@@ -63,7 +65,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const userName = body.userName || trip.ownerName || user?.fullName || "La Providence";
     const userEmail = body.userEmail || user?.primaryEmailAddress?.emailAddress;
     const organizerEmail = body.organizerEmail || trip.ownerEmail;

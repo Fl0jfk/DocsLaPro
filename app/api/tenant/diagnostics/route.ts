@@ -1,5 +1,6 @@
+import { resolveSession } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { resolveTenantCurrentUser, resolveTenantSession } from "@/app/lib/tenant-session";
 import { getJson } from "@/app/lib/s3-storage";
@@ -55,11 +56,11 @@ export async function GET() {
 
   if (isMultiTenantEnabled()) {
     try {
-      const nextAuth = await auth();
-      (report.checks as Record<string, unknown>).nextAuth = nextAuth.userId ? "ok" : "null";
+      const session = await resolveSession();
+      (report.checks as Record<string, unknown>).nextAuth = session?.userId ? "ok (tenant-session)" : "null";
     } catch (e) {
       (report.checks as Record<string, unknown>).nextAuth =
-        e instanceof Error ? e.message : "erreur (clés dynamiques Clerk)";
+        e instanceof Error ? e.message : "erreur session tenant";
     }
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+
 import { loadAppConfig } from "@/app/lib/app-config";
 import { fetchTravelsPdfBytes } from "@/app/lib/travels-s3";
 import { zeendocDestinationEmail } from "@/app/lib/travels-establishments";
@@ -9,7 +9,8 @@ import {
 } from "@/app/lib/tenant-mail";
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const session = await resolveSession();
+  const userId = session?.userId;
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
   const smtp = await getTenantSmtpConfig();
   if (!smtp) {

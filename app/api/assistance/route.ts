@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import {
   assertEligibleRequestAttachment,
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress?.trim() || "";
   const userName =
     user?.fullName?.trim() ||

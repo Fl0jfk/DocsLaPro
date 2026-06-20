@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+
 import { ensureFolderPath } from "@/app/lib/graph-onedrive-folders";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
@@ -7,7 +7,8 @@ const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 export async function POST(req: Request) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { userId } = getAuth(req as any);
+    const session = await resolveSession();
+    const userId = session?.userId;
     if (!userId) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }

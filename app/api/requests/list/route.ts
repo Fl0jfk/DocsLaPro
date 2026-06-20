@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { computeStaffBoardColumn, isCorbeilleBranchId, isVisibleOnStaffBoard, normalizeRequestBranchId, normalizeRequestEmail} from "@/app/lib/requests-board";
 import { getDelegateTargetEmailsForRequest, getRequestsIndex, isLeaderForRequestBranch, purgeExpiredRequests,} from "@/app/lib/requests";
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
   const { userId } = gate.ctx;
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roleRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
   const scopeParam = req.nextUrl.searchParams.get("scope");

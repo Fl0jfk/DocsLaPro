@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+
 import { canAccessRequestsStaffBoard } from "@/app/lib/requests-staff-access";
 import {
   getRequestsRoutingConfig,
@@ -8,9 +9,10 @@ import {
 } from "@/app/lib/requests-routing-config";
 
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const session = await resolveSession();
+  const userId = session?.userId;
   if (!userId) return new NextResponse("Non autorisé", { status: 401 });
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roleRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(roleRaw) ? roleRaw.map(String) : roleRaw ? [String(roleRaw)] : [];
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";

@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { isTripOwner } from "@/app/lib/travels-direction-permissions";
 import { notifyComptaTravelsPhase } from "@/app/lib/travels-notify";
 import { requireAuth } from "@/app/lib/intranet-auth";
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
       if (ids.length === 0) {
         return NextResponse.json({ error: "Aucun dossier de la série en attente pédagogie.", updated: 0 }, { status: 404 });
       }
-      const me = await currentUser();
+      const me = await safeCurrentUser();
       if (!me?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
       const firstHit = await getJson<{ data?: { etablissement?: string } }>( `travels/${ids[0]}.json`);
       if (!firstHit?.data) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
@@ -144,7 +145,7 @@ export async function POST(req: Request) {
         data?: { recurrenceSeriesId?: string; etablissement?: string };
         history?: unknown[];
       };
-      const me = await currentUser();
+      const me = await safeCurrentUser();
       if (!me?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
       if (
         !isTripOwner(trip.ownerId as string, me.id) &&

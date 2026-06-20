@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const profile = user ? getOneDriveProfileForClerkUser(user) : null;
     if (!profile) {
       return NextResponse.json(

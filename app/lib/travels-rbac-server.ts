@@ -1,4 +1,5 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { safeCurrentUser } from "@/app/lib/intranet-session";
+
 import { canSignTravelsDirectionForEtab } from "@/app/lib/establishments";
 import { isTripOwner, isTripOwnerOrCreator } from "@/app/lib/travels-direction-permissions";
 import type { TravelsTrip } from "@/app/lib/travels-types";
@@ -21,8 +22,8 @@ export function userHasAdministratifRole(user: { publicMetadata?: Record<string,
 export async function assertTravelsTripAccess(
   trip: TravelsTrip,
   opts?: { requireOwnerOrDirection?: boolean; requireDirection?: boolean },
-): Promise<{ ok: true; user: NonNullable<Awaited<ReturnType<typeof currentUser>>> } | { ok: false; status: number; error: string }> {
-  const user = await currentUser();
+): Promise<{ ok: true; user: NonNullable<NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>> } | { ok: false; status: number; error: string }> {
+  const user = await safeCurrentUser();
   if (!user) return { ok: false, status: 401, error: "Non autorisé" };
 
   const etab = trip.data?.etablissement;

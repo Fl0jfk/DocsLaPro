@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { getAbsenceDocumentKeys } from "@/app/lib/absences-documents";
 import { canManageAbsenceAttachment, canViewCalendar } from "@/app/lib/absences-types";
 import { getAbsenceIndex, getAbsenceRecord, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const rolesRaw = user?.publicMetadata?.role;
   const roles = Array.isArray(rolesRaw) ? (rolesRaw as string[]) : rolesRaw ? [String(rolesRaw)] : [];
   if (!canViewCalendar(roles)) {

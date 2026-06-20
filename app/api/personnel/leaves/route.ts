@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getPersonnelLeaveRequests, upsertPersonnelLeaveRequest } from "@/app/lib/personnel-leave-storage";
 import { getPersonnelRecord } from "@/app/lib/personnel-storage";
@@ -11,7 +12,7 @@ import {
   uid,
 } from "@/app/lib/personnel-types";
 
-function rolesFromUser(user: Awaited<ReturnType<typeof currentUser>>) {
+function rolesFromUser(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   const rolesRaw = user?.publicMetadata?.role;
   return Array.isArray(rolesRaw) ? rolesRaw.map(String) : rolesRaw ? [String(rolesRaw)] : [];
 }
@@ -20,7 +21,7 @@ export async function GET() {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = rolesFromUser(user);
   const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase() || "";
   const all = await getPersonnelLeaveRequests();
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = rolesFromUser(user);
   const body = await req.json().catch(() => ({}));
   const action = String(body.action || "create");

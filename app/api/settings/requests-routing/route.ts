@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { parseRequestsRouting } from "@/app/lib/app-config-schemas";
 import { requireAdmin } from "@/app/lib/intranet-auth";
 import {
@@ -26,7 +27,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const parsed = parseRequestsRouting(body);
     await saveRequestsRoutingConfig(parsed);
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     return NextResponse.json({
       success: true,
       audit: {

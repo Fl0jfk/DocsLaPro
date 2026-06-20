@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+
 import { getTransportProviders } from "@/app/lib/transport-providers";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson, putJson } from "@/app/lib/s3-storage";
@@ -18,7 +19,8 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const { userId } = await auth();
+  const session = await resolveSession();
+  const userId = session?.userId;
   if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   try {
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Ce voyage n'a pas de transport bus." }, { status: 400 });
     }
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const userName = body.userName || user?.fullName || "La Providence";
 
     const currentEffectif = {

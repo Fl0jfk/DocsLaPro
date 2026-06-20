@@ -1,6 +1,7 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import "server-only";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { loadDomains } from "@/app/lib/domain-planning-storage";
 import type { DomainPlanningBooking } from "@/app/lib/domain-planning-types";
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
@@ -22,7 +23,7 @@ export async function isAnyDomainCoordinator(userId: string): Promise<boolean> {
 
 export async function canAccessDomainPlanningSettings(userId: string): Promise<boolean> {
   if (await isIntranetAdmin()) return true;
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = intranetRolesFromMetadata(user?.publicMetadata);
   if (canAccessDomainPlanningSettingsFromRoles(roles)) return true;
   return isAnyDomainCoordinator(userId);
@@ -82,7 +83,7 @@ export async function getDomainPlanningUserDisplay(): Promise<{
   lastName: string;
   email: string;
 }> {
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   if (!user) throw new Error("Non authentifié");
   return {
     userId: user.id,

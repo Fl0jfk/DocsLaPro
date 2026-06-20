@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { extractTextFromUpload } from "@/app/lib/personnel-document-text";
@@ -30,7 +31,7 @@ import { getBucketName } from "@/app/lib/s3-storage";
 import { publicS3UrlForKey } from "@/app/lib/travels-s3";
 import { requireAuth } from "@/app/lib/intranet-auth";
 
-function rolesFromUser(user: Awaited<ReturnType<typeof currentUser>>) {
+function rolesFromUser(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   const rolesRaw = user?.publicMetadata?.role;
   return Array.isArray(rolesRaw) ? rolesRaw.map(String) : rolesRaw ? [String(rolesRaw)] : [];
 }
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const user = await currentUser();
+  const user = await safeCurrentUser();
   const roles = rolesFromUser(user);
   if (!canManagePersonnel(roles)) {
     return NextResponse.json({ error: "Réservé à la RH / comptabilité." }, { status: 403 });

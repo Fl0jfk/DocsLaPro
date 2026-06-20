@@ -26,6 +26,24 @@ type TenantEntry = {
   appUrl: string;
 };
 
+function navigateToTenantSignIn(
+  event: React.MouseEvent<HTMLAnchorElement>,
+  tenant: TenantEntry,
+  signInHref: string,
+  onBeforeNavigate: (t: TenantEntry) => void,
+) {
+  onBeforeNavigate(tenant);
+  try {
+    const targetOrigin = new URL(signInHref).origin;
+    if (targetOrigin !== window.location.origin) {
+      event.preventDefault();
+      window.location.assign(signInHref);
+    }
+  } catch {
+    /* laisser le href natif */
+  }
+}
+
 function EstablishmentCard({
   tenant,
   isLastUsed,
@@ -40,7 +58,7 @@ function EstablishmentCard({
   return (
     <a
       href={signInHref}
-      onClick={() => onBeforeNavigate(tenant)}
+      onClick={(event) => navigateToTenantSignIn(event, tenant, signInHref, onBeforeNavigate)}
       className={`group relative block w-full overflow-hidden rounded-2xl border-2 bg-white text-left shadow-sm no-underline transition-all hover:border-[#2F6B4A]/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6B4A] focus-visible:ring-offset-2 ${
         isLastUsed ? "border-[#2F6B4A]/35 ring-1 ring-[#2F6B4A]/20" : "border-stone-200/80"
       }`}
@@ -176,7 +194,9 @@ export default function ConnexionPage() {
             {lastTenant && lastSignInHref && (
               <a
                 href={lastSignInHref}
-                onClick={() => rememberTenant(lastTenant)}
+                onClick={(event) =>
+                  navigateToTenantSignIn(event, lastTenant, lastSignInHref, rememberTenant)
+                }
                 className="flex w-full items-center justify-between gap-4 rounded-2xl border-2 border-[#2F6B4A] bg-gradient-to-r from-emerald-50 to-white px-5 py-4 text-left no-underline shadow-sm transition hover:shadow-md"
               >
                 <div>

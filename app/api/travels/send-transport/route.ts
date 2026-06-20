@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+
 import { getTransportProviders } from "@/app/lib/transport-providers";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { loadBusProgramAttachments } from "@/app/lib/travels-bus-program";
@@ -10,7 +10,8 @@ import {
 } from "@/app/lib/tenant-mail";
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const session = await resolveSession();
+  const userId = session?.userId;
   if (!userId) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }

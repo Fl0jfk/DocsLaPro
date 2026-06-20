@@ -1,12 +1,13 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { canFileConventionToOneDrive } from "@/app/lib/stage-access";
 import { fileSignedConventionToOneDrive } from "@/app/lib/stage-onedrive-filing";
 import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
 
-function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
+function displayName(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   const first = user?.firstName?.trim() || "";
   const last = user?.lastName?.trim() || "";
   return `${first} ${last}`.trim() || "Administratif";
@@ -17,7 +18,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const gate = await requireAuth();
     if (!gate.ok) return gate.response;
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const roles = intranetRolesFromMetadata(user?.publicMetadata);
     if (!canFileConventionToOneDrive(roles)) {
       return NextResponse.json({ error: "Réservé à l'administratif." }, { status: 403 });

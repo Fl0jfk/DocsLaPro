@@ -1,5 +1,6 @@
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { canSignTravelsDirectionForEtab } from "@/app/lib/establishments";
 import { getJson, putJson } from "@/app/lib/s3-storage";
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Paramètres manquants." }, { status: 400 });
     }
 
-    const user = await currentUser();
+    const user = await safeCurrentUser();
     const tripHit = await getJson<TripRecord>(`travels/${tripId}.json`);
     const trip = tripHit?.data;
     if (!trip) return NextResponse.json({ error: "Dossier introuvable." }, { status: 404 });

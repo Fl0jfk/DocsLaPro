@@ -2,6 +2,7 @@ import "../globals.css";
 import Header from "../components/Header/Header";
 import ScolaAmbientBackground from "../components/ScolaAmbientBackground";
 import OnboardingGate from "../components/onboarding/OnboardingGate";
+import TenantCanonicalHostGuard from "../components/TenantCanonicalHostGuard";
 import { AdminBootstrapProvider } from "../contexts/admin-bootstrap";
 import { DataProvider } from "../contexts/data";
 import { Metadata } from "next";
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <DataProvider>
         <AdminBootstrapProvider>
           <Suspense fallback={null}>
+            <TenantCanonicalHostGuard />
             <OnboardingGate>
               <Header />
               {children}
