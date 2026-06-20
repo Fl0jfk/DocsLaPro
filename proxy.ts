@@ -53,6 +53,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/site/public',
   '/api/tenant/public',
   '/api/tenants/public',
+  '/api/diag',
   '/connexion',
   '/plateforme',
   '/sign-in(.*)',
