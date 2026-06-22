@@ -3,11 +3,14 @@ import { requireInternatManage, requireInternatAccess } from "@/app/api/internat
 import {
   getInternatBuildings,
   getInternatRooms,
+  getInternatStudents,
   saveInternatRooms,
+  countStudentsInRoom,
 } from "@/app/lib/internat-storage";
 import {
   findInternatFloor,
   newId,
+  parseInternatRoomCapacity,
   type InternatRoom,
   type InternatWing,
 } from "@/app/lib/internat-types";
@@ -67,7 +70,7 @@ export async function PUT(req: Request) {
 
   if (action === "create") {
     const label = String(body.label || "").trim();
-    const capacity = Number(body.capacity) === 3 ? 3 : 2;
+    const capacity = parseInternatRoomCapacity(body.capacity);
     if (!label) return NextResponse.json({ error: "Nom de chambre requis." }, { status: 400 });
     const placementError = await validateRoomPlacement(buildingId, floorId);
     if (placementError) return NextResponse.json({ error: placementError }, { status: 400 });
@@ -104,10 +107,25 @@ export async function PUT(req: Request) {
   const placementError = await validateRoomPlacement(nextBuildingId, nextFloorId);
   if (placementError) return NextResponse.json({ error: placementError }, { status: 400 });
 
+  const nextCapacity = parseInternatRoomCapacity(body.capacity, rooms[idx].capacity);
+  const nextLabel = String(body.label || rooms[idx].label).trim() || rooms[idx].label;
+  if (!nextLabel) return NextResponse.json({ error: "Nom de chambre requis." }, { status: 400 });
+
+  const students = await getInternatStudents();
+  const occupied = countStudentsInRoom(students, id);
+  if (occupied > nextCapacity) {
+    return NextResponse.json(
+      {
+        error: `${occupied} interne(s) dans cette chambre — impossible de passer à ${nextCapacity} place(s). Retirez des affectations ou augmentez la capacité.`,
+      },
+      { status: 400 },
+    );
+  }
+
   const updated: InternatRoom = {
     ...rooms[idx],
-    label: String(body.label || rooms[idx].label).trim() || rooms[idx].label,
-    capacity: Number(body.capacity) === 3 ? 3 : 2,
+    label: nextLabel,
+    capacity: nextCapacity,
     buildingId: nextBuildingId,
     floorId: nextFloorId,
     wing: body.wing !== undefined ? parseWing(body.wing) : rooms[idx].wing,

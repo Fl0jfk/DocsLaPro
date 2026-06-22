@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { InternatBuilding, InternatFloor, InternatRoom, InternatStudent } from "@/app/lib/internat-types";
+import type { InternatBuilding, InternatFloor, InternatRoom, InternatRoomCapacity, InternatStudent } from "@/app/lib/internat-types";
 import {
+  INTERNAT_ROOM_CAPACITY_OPTIONS,
   roomLocationLabel,
   sortInternatFloors,
   studentDisplayName,
@@ -34,13 +35,16 @@ export default function InternatRoomsPanel({
   onRefresh: () => Promise<void>;
 }) {
   const [label, setLabel] = useState("");
-  const [capacity, setCapacity] = useState<2 | 3>(2);
+  const [capacity, setCapacity] = useState<InternatRoomCapacity>(2);
   const [wing, setWing] = useState<"garcons" | "filles" | "mixte" | "">("");
   const [buildingId, setBuildingId] = useState("");
   const [floorId, setFloorId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showBuildings, setShowBuildings] = useState(true);
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editCapacity, setEditCapacity] = useState<InternatRoomCapacity>(2);
 
   const selectedBuilding = buildings.find((b) => b.id === buildingId);
   const usableFloors = selectedBuilding ? usableInternatFloors(selectedBuilding) : [];
@@ -105,6 +109,7 @@ export default function InternatRoomsPanel({
 
   const deleteRoom = async (id: string) => {
     if (!canManage || !confirm("Supprimer cette chambre ?")) return;
+    if (editingRoomId === id) setEditingRoomId(null);
     setBusy(true);
     try {
       await fetch("/api/internat/rooms", {
@@ -118,33 +123,135 @@ export default function InternatRoomsPanel({
     }
   };
 
+  const startEditRoom = (room: InternatRoom) => {
+    setEditingRoomId(room.id);
+    setEditLabel(room.label);
+    setEditCapacity(room.capacity);
+    setError(null);
+  };
+
+  const cancelEditRoom = () => {
+    setEditingRoomId(null);
+    setEditLabel("");
+    setEditCapacity(2);
+  };
+
+  const updateRoom = async (room: InternatRoom) => {
+    if (!canManage) return;
+    const trimmed = editLabel.trim();
+    if (!trimmed) {
+      setError("Nom de chambre requis.");
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/internat/rooms", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: room.id,
+          label: trimmed,
+          capacity: editCapacity,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur");
+      setEditingRoomId(null);
+      await onRefresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const renderRoomCard = (room: InternatRoom) => {
     const occ = occupants(room.id);
     const full = occ.length >= room.capacity;
+    const isEditing = editingRoomId === room.id;
     return (
       <div
         key={room.id}
-        className={`rounded-2xl border p-4 ${full ? "border-amber-300 bg-amber-50/50" : "border-slate-200 bg-white"}`}
+        className={`rounded-2xl border p-4 ${full && !isEditing ? "border-amber-300 bg-amber-50/50" : "border-slate-200 bg-white"}`}
       >
         <div className="flex justify-between items-start gap-2">
-          <div>
-            <p className="font-black text-slate-900">{room.label}</p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {room.capacity} places · {occ.length} occupant(s)
-              {wingLabel(room.wing) ? ` · ${wingLabel(room.wing)}` : ""}
-            </p>
-            {!room.buildingId && (
-              <p className="text-[10px] text-amber-700 font-semibold mt-1">Non classée</p>
-            )}
-          </div>
+          {isEditing ? (
+            <div className="flex-1 space-y-2">
+              <input
+                className="w-full border rounded-xl px-3 py-2 text-sm font-bold"
+                value={editLabel}
+                onChange={(e) => setEditLabel(e.target.value)}
+                placeholder="Nom de la chambre"
+              />
+              <select
+                className="border rounded-xl px-3 py-2 text-sm"
+                value={editCapacity}
+                onChange={(e) => setEditCapacity(Number(e.target.value) as InternatRoomCapacity)}
+              >
+                {INTERNAT_ROOM_CAPACITY_OPTIONS.map((n) => (
+                  <option key={n} value={n} disabled={occ.length > n}>
+                    {n} place{n > 1 ? "s" : ""}
+                    {occ.length > n ? " (trop d'occupants)" : ""}
+                  </option>
+                ))}
+              </select>
+              {occ.length > 0 && (
+                <p className="text-[10px] text-slate-500">{occ.length} occupant(s) actuellement</p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <p className="font-black text-slate-900">{room.label}</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {room.capacity} place{room.capacity > 1 ? "s" : ""} · {occ.length} occupant(s)
+                {wingLabel(room.wing) ? ` · ${wingLabel(room.wing)}` : ""}
+              </p>
+              {!room.buildingId && (
+                <p className="text-[10px] text-amber-700 font-semibold mt-1">Non classée</p>
+              )}
+            </div>
+          )}
           {canManage && (
-            <button
-              type="button"
-              onClick={() => deleteRoom(room.id)}
-              className="text-xs text-red-600 font-bold hover:underline"
-            >
-              Suppr.
-            </button>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => updateRoom(room)}
+                    className="text-xs text-indigo-700 font-bold hover:underline disabled:opacity-50"
+                  >
+                    Enregistrer
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={cancelEditRoom}
+                    className="text-xs text-slate-500 font-bold hover:underline"
+                  >
+                    Annuler
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => startEditRoom(room)}
+                    className="text-xs text-indigo-600 font-bold hover:underline"
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteRoom(room.id)}
+                    className="text-xs text-red-600 font-bold hover:underline"
+                  >
+                    Suppr.
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
         <ul className="mt-3 text-sm text-slate-700 space-y-1">
@@ -187,6 +294,9 @@ export default function InternatRoomsPanel({
 
   return (
     <div className="space-y-8">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
       <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <button
           type="button"
@@ -247,17 +357,20 @@ export default function InternatRoomsPanel({
             </select>
             <input
               className="border rounded-xl px-3 py-2 text-sm flex-1 min-w-[8rem]"
-              placeholder="Ex. Ch. 12"
+              placeholder="Ex. Ch. 2-3, Ch. 2-4"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
             />
             <select
               className="border rounded-xl px-3 py-2 text-sm"
               value={capacity}
-              onChange={(e) => setCapacity(Number(e.target.value) === 3 ? 3 : 2)}
+              onChange={(e) => setCapacity(Number(e.target.value) as InternatRoomCapacity)}
             >
-              <option value={2}>2 places</option>
-              <option value={3}>3 places</option>
+              {INTERNAT_ROOM_CAPACITY_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n} place{n > 1 ? "s" : ""}
+                </option>
+              ))}
             </select>
             <select
               className="border rounded-xl px-3 py-2 text-sm"
@@ -281,7 +394,6 @@ export default function InternatRoomsPanel({
           {buildings.length === 0 && (
             <p className="text-xs text-amber-700">Créez d&apos;abord un bâtiment et au moins un étage actif.</p>
           )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}
 
@@ -324,7 +436,7 @@ export default function InternatRoomsPanel({
         <section className="space-y-4">
           <h3 className="font-black text-slate-900">Chambres non classées</h3>
           <p className="text-xs text-slate-500">
-            Anciennes chambres sans bâtiment — recréez-les ou réaffectez via une future édition.
+            Anciennes chambres sans bâtiment — modifiez le nom ou la capacité ci-dessous.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {groupedRooms.unassigned.map((room) => (

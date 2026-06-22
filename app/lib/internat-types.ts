@@ -48,10 +48,20 @@ export type InternatBuilding = {
   updatedAt: string;
 };
 
+export type InternatRoomCapacity = 1 | 2 | 3 | 4;
+
+export const INTERNAT_ROOM_CAPACITY_OPTIONS: InternatRoomCapacity[] = [1, 2, 3, 4];
+
+export function parseInternatRoomCapacity(value: unknown, fallback: InternatRoomCapacity = 2): InternatRoomCapacity {
+  const n = Number(value);
+  if (n === 1 || n === 2 || n === 3 || n === 4) return n;
+  return fallback;
+}
+
 export type InternatRoom = {
   id: string;
   label: string;
-  capacity: 2 | 3;
+  capacity: InternatRoomCapacity;
   buildingId?: string;
   floorId?: string;
   wing?: InternatWing;
