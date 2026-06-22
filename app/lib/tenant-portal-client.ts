@@ -1,11 +1,25 @@
+import {
+  isBrowserLocalDev,
+  localDevSignInUrl,
+} from "@/app/lib/local-dev";
+
 const STORAGE_KEY = "scola.portal.lastTenant";
 
-/** URL sign-in fiable : priorité au sous-domaine de l'établissement (évite un signInUrl catalogue périmé). */
+/** URL sign-in fiable : en local on reste sur localhost avec le bon tenant. */
 export function catalogEntrySignInUrl(entry: {
+  slug?: string;
   signInUrl: string;
   primaryHostname?: string | null;
   appUrl?: string;
 }): string {
+  if (isBrowserLocalDev()) {
+    if (entry.signInUrl.startsWith("/")) {
+      const url = new URL(entry.signInUrl, window.location.origin);
+      return url.toString();
+    }
+    return localDevSignInUrl(window.location.origin, entry.slug);
+  }
+
   const host = entry.primaryHostname?.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
   if (host && host !== "localhost" && host !== "127.0.0.1") {
     return `https://${host}/sign-in`;

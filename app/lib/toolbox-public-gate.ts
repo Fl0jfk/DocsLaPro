@@ -1,7 +1,7 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
-import { getToolboxConfig } from "@/app/lib/toolbox-config";
+import { getToolboxConfigResolved } from "@/app/lib/toolbox-config";
 import type {
   PortesOuvertesToolConfig,
   RentreeToolConfig,
@@ -10,7 +10,7 @@ import type {
 
 /** Page /rentree — 404 si l'outil n'est pas activé dans la boîte à outils. */
 export async function requireRentreePublicPage(): Promise<RentreeToolConfig> {
-  const config = await getToolboxConfig();
+  const config = await getToolboxConfigResolved();
   if (!config.tools.rentree.enabled) notFound();
   return config.tools.rentree;
 }

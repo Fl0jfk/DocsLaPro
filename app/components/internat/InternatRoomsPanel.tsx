@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { InternatBuilding, InternatFloor, InternatRoom, InternatRoomCapacity, InternatStudent } from "@/app/lib/internat-types";
+import { useSearchParams } from "next/navigation";
+import type {
+  InternatBuilding,
+  InternatFloor,
+  InternatIncident,
+  InternatRoom,
+  InternatRoomCapacity,
+  InternatStudent,
+} from "@/app/lib/internat-types";
 import {
   INTERNAT_ROOM_CAPACITY_OPTIONS,
   roomLocationLabel,
@@ -10,6 +18,8 @@ import {
   usableInternatFloors,
 } from "@/app/lib/internat-types";
 import InternatBuildingsPanel from "@/app/components/internat/InternatBuildingsPanel";
+import InternatRoomsPlanView from "@/app/components/internat/InternatRoomsPlanView";
+import { buildRoomInsights } from "@/app/lib/internat-room-insights";
 
 const WING_LABELS: Record<string, string> = {
   garcons: "Garçons",
@@ -25,15 +35,22 @@ export default function InternatRoomsPanel({
   rooms,
   buildings,
   students,
+  incidents = [],
   canManage,
   onRefresh,
 }: {
   rooms: InternatRoom[];
   buildings: InternatBuilding[];
   students: InternatStudent[];
+  incidents?: InternatIncident[];
   canManage: boolean;
   onRefresh: () => Promise<void>;
 }) {
+  const searchParams = useSearchParams();
+  const initialView =
+    canManage && searchParams.get("view") === "config" ? "config" : "plan";
+  const filterProblem = searchParams.get("filter") === "problem";
+  const [view, setView] = useState<"plan" | "config">(initialView);
   const [label, setLabel] = useState("");
   const [capacity, setCapacity] = useState<InternatRoomCapacity>(2);
   const [wing, setWing] = useState<"garcons" | "filles" | "mixte" | "">("");
@@ -48,6 +65,12 @@ export default function InternatRoomsPanel({
 
   const selectedBuilding = buildings.find((b) => b.id === buildingId);
   const usableFloors = selectedBuilding ? usableInternatFloors(selectedBuilding) : [];
+
+  const planSummary = useMemo(
+    () => buildRoomInsights(rooms, students, incidents),
+    [rooms, students, incidents],
+  );
+  const problematicCount = planSummary.filter((r) => r.isProblematic).length;
 
   const occupants = (roomId: string) =>
     students.filter((s) => s.actif && s.roomId === roomId);
@@ -294,6 +317,62 @@ export default function InternatRoomsPanel({
 
   return (
     <div className="space-y-8">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setView("plan")}
+          className={`px-4 py-2 rounded-xl text-sm font-bold ${
+            view === "plan" ? "bg-indigo-600 text-white" : "bg-white border border-slate-200 text-slate-600"
+          }`}
+        >
+          Vue plan
+        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => setView("config")}
+            className={`px-4 py-2 rounded-xl text-sm font-bold ${
+              view === "config" ? "bg-indigo-600 text-white" : "bg-white border border-slate-200 text-slate-600"
+            }`}
+          >
+            Paramétrage
+          </button>
+        )}
+        {problematicCount > 0 && (
+          <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+            {problematicCount} chambre(s) à surveiller
+          </span>
+        )}
+      </div>
+
+      {view === "plan" && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap gap-3 text-xs">
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 text-slate-600">
+              <span className="h-2 w-2 rounded-full bg-slate-300" /> Vide
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-sky-50 text-sky-800">
+              <span className="h-2 w-2 rounded-full bg-sky-400" /> Partielle
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-50 text-amber-900">
+              <span className="h-2 w-2 rounded-full bg-amber-500" /> Pleine
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 text-red-800">
+              <span className="h-2 w-2 rounded-full bg-red-500" /> Surbooking
+            </span>
+          </div>
+          <InternatRoomsPlanView
+            rooms={rooms}
+            buildings={buildings}
+            students={students}
+            incidents={incidents}
+            filterProblematicOnly={filterProblem}
+          />
+        </section>
+      )}
+
+      {view === "config" && (
+        <>
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
@@ -451,6 +530,8 @@ export default function InternatRoomsPanel({
 
       {rooms.length === 0 && buildings.length > 0 && (
         <p className="text-slate-500 text-sm">Aucune chambre configurée.</p>
+      )}
+        </>
       )}
     </div>
   );

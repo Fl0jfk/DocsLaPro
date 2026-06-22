@@ -51,6 +51,20 @@ export default function ToolboxModal({ open, onClose }: Props) {
       router.push("/toolbox/secret-santa");
       return;
     }
+    if (isOrgAdmin && (tool.id === "rentree" || tool.id === "simulateur-tarifs" || tool.id === "simulateur-fournitures" || tool.id === "portes-ouvertes")) {
+      const tab =
+        tool.id === "rentree"
+          ? "rentree"
+          : tool.id === "simulateur-tarifs"
+            ? "tarifs"
+            : tool.id === "portes-ouvertes"
+              ? "portes-ouvertes"
+              : tool.id === "simulateur-fournitures"
+                ? "fournitures"
+              : "overview";
+      router.push(`/toolbox?tab=${tab}`);
+      return;
+    }
     if (tool.publicPath) {
       window.open(tool.publicPath, "_blank", "noopener,noreferrer");
       return;

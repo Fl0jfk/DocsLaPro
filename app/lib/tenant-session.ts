@@ -3,10 +3,40 @@ import "server-only";
 import { createClerkClient, type User } from "@clerk/backend";
 import { headers } from "next/headers";
 import type { NextRequest } from "next/server";
+import { isLocalDevHostname, resolveClerkKeysForHostname } from "@/app/lib/clerk-tenant-keys";
+import { requestOriginFromHostHeader } from "@/app/lib/local-dev";
 import { getTenant } from "@/app/lib/tenant-context";
 import { TENANT_REQUEST_URL_HEADER } from "@/app/lib/tenant-types";
 import type { TenantConfig } from "@/app/lib/tenant-types";
 import { normalizeHostname } from "@/app/lib/tenant-registry";
+
+function requestHostHeader(hdrs: Headers): string {
+  return (hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost").trim();
+}
+
+function clerkAuthorizedParties(hostHeader: string): string[] | undefined {
+  const raw = hostHeader.trim();
+  if (!raw) return undefined;
+  const normalized = normalizeHostname(raw);
+  const parties = new Set<string>();
+  if (isLocalDevHostname(normalized)) {
+    parties.add(requestOriginFromHostHeader(raw));
+  }
+  parties.add(`https://${normalized}`);
+  if (!isLocalDevHostname(normalized)) {
+    parties.add(`http://${normalized}`);
+  }
+  return [...parties];
+}
+
+function clerkKeysForTenant(tenant: TenantConfig, hostHeader: string) {
+  return resolveClerkKeysForHostname(hostHeader, {
+    clerkPublishableKey: tenant.clerkPublishableKey,
+    clerkSecretKey: tenant.clerkSecretKey,
+    clerkDevPublishableKey: tenant.secrets?.clerkDevPublishableKey,
+    clerkDevSecretKey: tenant.secrets?.clerkDevSecretKey,
+  });
+}
 
 function clerkRequestFromHeaders(hdrs: Headers, fallbackUrl?: string): Request {
   const headerInit = new Headers();
@@ -14,26 +44,23 @@ function clerkRequestFromHeaders(hdrs: Headers, fallbackUrl?: string): Request {
     headerInit.set(key, value);
   });
 
+  const hostHeader = requestHostHeader(hdrs);
+  const origin = requestOriginFromHostHeader(hostHeader);
+
   const explicitUrl = hdrs.get(TENANT_REQUEST_URL_HEADER)?.trim();
   if (explicitUrl) {
-    const host = normalizeHostname(hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost");
-    const proto = hdrs.get("x-forwarded-proto") || "https";
     const absolutePath = explicitUrl.startsWith("http")
       ? explicitUrl
-      : `${proto}://${host}${explicitUrl.startsWith("/") ? explicitUrl : `/${explicitUrl}`}`;
+      : `${origin}${explicitUrl.startsWith("/") ? explicitUrl : `/${explicitUrl}`}`;
     return new Request(absolutePath, { headers: headerInit });
   }
 
-  const host = normalizeHostname(hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost");
-  const proto = hdrs.get("x-forwarded-proto") || "https";
   const path =
     hdrs.get("x-invoke-path") ||
     hdrs.get("next-url") ||
     (fallbackUrl ? new URL(fallbackUrl).pathname + new URL(fallbackUrl).search : "/");
 
-  const absolutePath = path.startsWith("http")
-    ? path
-    : `${proto}://${host}${path.startsWith("/") ? path : `/${path}`}`;
+  const absolutePath = path.startsWith("http") ? path : `${origin}${path.startsWith("/") ? path : `/${path}`}`;
 
   return new Request(absolutePath, { headers: headerInit });
 }
@@ -56,22 +83,22 @@ async function authenticateTenantRequest(
   request: Request,
   tenant: TenantConfig,
 ): Promise<{ userId: string } | null> {
-  const secretKey = tenant.clerkSecretKey?.trim();
+  const hostHeader =
+    request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+  const keys = clerkKeysForTenant(tenant, hostHeader);
+  const secretKey = keys.secretKey?.trim();
   if (!secretKey) return null;
 
   try {
-    const host = normalizeHostname(
-      request.headers.get("x-forwarded-host") || request.headers.get("host") || "",
-    );
     const clerk = createClerkClient({
       secretKey,
-      publishableKey: tenant.clerkPublishableKey,
+      publishableKey: keys.publishableKey,
     });
 
     const state = await clerk.authenticateRequest(request, {
       secretKey,
-      publishableKey: tenant.clerkPublishableKey,
-      authorizedParties: host ? [`https://${host}`, `http://${host}`] : undefined,
+      publishableKey: keys.publishableKey,
+      authorizedParties: clerkAuthorizedParties(hostHeader),
     });
 
     if (state.isAuthenticated) {
@@ -104,8 +131,11 @@ export async function resolveTenantCurrentUser(): Promise<User | null> {
   const session = await resolveTenantSession();
   if (!session) return null;
 
+  const hdrs = await headers();
+  const hostHeader = requestHostHeader(hdrs);
   const tenant = await getTenant();
-  const clerk = createClerkClient({ secretKey: tenant.clerkSecretKey });
+  const keys = clerkKeysForTenant(tenant, hostHeader);
+  const clerk = createClerkClient({ secretKey: keys.secretKey });
   try {
     return await clerk.users.getUser(session.userId);
   } catch (error) {

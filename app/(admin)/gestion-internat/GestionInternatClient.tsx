@@ -23,7 +23,7 @@ import {
   rolesFromMetadata,
 } from "@/app/lib/internat-rbac";
 import type { InternatDashboardStats } from "@/app/lib/internat-stats";
-import type { InternatBuilding, InternatRoom, InternatStudent } from "@/app/lib/internat-types";
+import type { InternatBuilding, InternatIncident, InternatRoom, InternatStudent } from "@/app/lib/internat-types";
 
 const TAB_IDS: InternatTab[] = [
   "dashboard",
@@ -60,6 +60,7 @@ export default function GestionInternatClient() {
   const [rooms, setRooms] = useState<InternatRoom[]>([]);
   const [buildings, setBuildings] = useState<InternatBuilding[]>([]);
   const [students, setStudents] = useState<InternatStudent[]>([]);
+  const [incidents, setIncidents] = useState<InternatIncident[]>([]);
   const [stats, setStats] = useState<InternatDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -68,20 +69,23 @@ export default function GestionInternatClient() {
   };
 
   const refresh = useCallback(async () => {
-    const [roomsRes, studentsRes, statsRes] = await Promise.all([
+    const [roomsRes, studentsRes, statsRes, incidentsRes] = await Promise.all([
       fetch("/api/internat/rooms", { cache: "no-store" }),
       fetch("/api/internat/students", { cache: "no-store" }),
       fetch("/api/internat/stats", { cache: "no-store" }),
+      fetch("/api/internat/incidents", { cache: "no-store" }),
     ]);
     const roomsData = await roomsRes.json();
     const studentsData = await studentsRes.json();
     const statsData = await statsRes.json();
+    const incidentsData = await incidentsRes.json();
     if (roomsRes.ok) {
       setRooms(roomsData.rooms || []);
       setBuildings(roomsData.buildings || []);
     }
     if (studentsRes.ok) setStudents(studentsData.students || []);
     if (statsRes.ok) setStats(statsData.stats || null);
+    if (incidentsRes.ok) setIncidents(incidentsData.incidents || []);
   }, []);
 
   useEffect(() => {
@@ -123,6 +127,7 @@ export default function GestionInternatClient() {
               rooms={rooms}
               buildings={buildings}
               students={students}
+              incidents={incidents}
               canManage={canManage}
               onRefresh={refresh}
             />

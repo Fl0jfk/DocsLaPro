@@ -1,12 +1,22 @@
 import "server-only";
 
+import { loadAppConfig } from "@/app/lib/app-config";
 import { getJson, putJson } from "@/app/lib/s3-storage";
+import {
+  parseRentreeLinks,
+  parseRentreePages,
+  syncRentreePages,
+} from "@/app/lib/rentree-pages";
+import { RENTREE_LINKS } from "@/app/lib/rentree-defaults";
+import {
+  parseFournituresProfiles,
+  parseFournituresToolConfig,
+} from "@/app/lib/fournitures-config";
 import {
   defaultToolboxConfig,
   type ToolboxConfig,
   type ToolboxToolId,
 } from "@/app/lib/toolbox-types";
-import { RENTREE_LINKS, type RentreeLinksByLevel } from "@/app/(public-rentree)/rentree/rentree-links";
 
 export type {
   ToolboxConfig,
@@ -36,42 +46,6 @@ function numRecord(v: unknown): Record<string, number> {
 function numArr(v: unknown, len = 5): number[] {
   if (!Array.isArray(v)) return [];
   return v.map((x) => Number(x)).filter((n) => Number.isFinite(n)).slice(0, len);
-}
-
-function parseRentreeLinks(raw: unknown): RentreeLinksByLevel[] {
-  if (!Array.isArray(raw) || raw.length === 0) return RENTREE_LINKS;
-  return raw
-    .map((item) => {
-      const o = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-      const level: RentreeLinksByLevel["level"] =
-        o.level === "college" || o.level === "lycee" ? o.level : "ecole";
-      const accent: RentreeLinksByLevel["accent"] =
-        o.accent === "sky" || o.accent === "pink" ? o.accent : "yellow";
-      const sections = Array.isArray(o.sections)
-        ? o.sections.map((s) => {
-            const sec = s && typeof s === "object" ? (s as Record<string, unknown>) : {};
-            const items = Array.isArray(sec.items)
-              ? sec.items.map((it) => {
-                  const row = it && typeof it === "object" ? (it as Record<string, unknown>) : {};
-                  return {
-                    title: String(row.title || "").trim(),
-                    description: String(row.description || "").trim() || undefined,
-                    href: String(row.href || "").trim(),
-                    kind: row.kind === "pdf" ? ("pdf" as const) : row.kind === "link" ? ("link" as const) : undefined,
-                  };
-                })
-              : [];
-            return { title: String(sec.title || "").trim(), items };
-          })
-        : [];
-      return {
-        level,
-        label: String(o.label || level).trim(),
-        accent,
-        sections,
-      };
-    })
-    .filter((x) => x.sections.length > 0);
 }
 
 function parseSlots(raw: unknown) {
@@ -141,6 +115,7 @@ export function parseToolboxConfig(raw: unknown): ToolboxConfig {
         schoolYear: String(rentree.schoolYear || defaults.tools.rentree.schoolYear).trim(),
         showSimulateurTarifs: rentree.showSimulateurTarifs !== false,
         showSimulateurFournitures: rentree.showSimulateurFournitures !== false,
+        pages: parseRentreePages(rentree.pages),
         links: parseRentreeLinks(rentree.links),
       },
       "simulateur-tarifs": {
@@ -181,7 +156,7 @@ export function parseToolboxConfig(raw: unknown): ToolboxConfig {
           ? numRecord(tarifs.garderie)
           : defaults.tools["simulateur-tarifs"].garderie,
       },
-      "simulateur-fournitures": { enabled: fournitures.enabled === true },
+      "simulateur-fournitures": parseFournituresToolConfig(fournitures, defaults.tools["simulateur-fournitures"]),
       "portes-ouvertes": {
         enabled: po.enabled === true,
         title: String(po.title || defaults.tools["portes-ouvertes"].title).trim(),
@@ -202,8 +177,45 @@ export async function getToolboxConfig(): Promise<ToolboxConfig> {
   return parseToolboxConfig(raw.data);
 }
 
+/** Configuration boîte à outils avec pages rentrée alignées sur les établissements actifs. */
+export async function getToolboxConfigResolved(): Promise<ToolboxConfig> {
+  const [config, app] = await Promise.all([getToolboxConfig(), loadAppConfig()]);
+  return resolveToolboxRentreePages(config, app.establishments);
+}
+
+export function resolveToolboxRentreePages(
+  config: ToolboxConfig,
+  establishments: import("@/app/lib/app-config-schemas").Establishment[],
+): ToolboxConfig {
+  const rentree = config.tools.rentree;
+  const legacy = rentree.links?.length ? rentree.links : RENTREE_LINKS;
+  const pages = syncRentreePages(establishments, rentree.pages, legacy);
+  return {
+    ...config,
+    tools: {
+      ...config.tools,
+      rentree: {
+        ...rentree,
+        pages,
+      },
+    },
+  };
+}
+
 export async function saveToolboxConfig(config: ToolboxConfig): Promise<void> {
-  await putJson(TOOLBOX_KEY, config);
+  const app = await loadAppConfig();
+  const resolved = resolveToolboxRentreePages(config, app.establishments);
+  const toSave = {
+    ...resolved,
+    tools: {
+      ...resolved.tools,
+      rentree: {
+        ...resolved.tools.rentree,
+        links: undefined,
+      },
+    },
+  };
+  await putJson(TOOLBOX_KEY, toSave);
 }
 
 export function toolboxEnabledTools(config: ToolboxConfig): ToolboxToolId[] {

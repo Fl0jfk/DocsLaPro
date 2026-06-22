@@ -1,3 +1,5 @@
+import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
+import { isPlatformTenantSlug } from "@/app/lib/platform-tenant";
 import { normalizeHostname } from "@/app/lib/tenant-registry";
 
 const DEFAULT_PLATFORM_HOSTS = ["scola.fr", "www.scola.fr"];
@@ -21,7 +23,10 @@ function hostnamesFromAppUrlEnv(): string[] {
     if (!value) continue;
     try {
       const withScheme = value.startsWith("http") ? value : `https://${value}`;
-      out.push(normalizeHostname(new URL(withScheme).hostname));
+      const hostname = normalizeHostname(new URL(withScheme).hostname);
+      // NEXT_PUBLIC_APP_URL=http://localhost:3000 sert à l'app, pas à déclarer localhost vitrine plateforme.
+      if (isLocalDevHostname(hostname)) continue;
+      out.push(hostname);
     } catch {
       /* ignore */
     }
@@ -41,5 +46,9 @@ export function platformHostnames(): string[] {
 export function isPlatformHostname(hostname: string): boolean {
   const host = normalizeHostname(hostname);
   if (!host) return false;
+  // En local, vitrine plateforme seulement si PLATFORM_DEV_HOSTNAMES le demande explicitement.
+  if (isLocalDevHostname(host)) {
+    return parseHostnameList(process.env.PLATFORM_DEV_HOSTNAMES).includes(host);
+  }
   return platformHostnames().includes(host);
 }

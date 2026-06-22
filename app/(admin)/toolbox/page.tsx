@@ -4,11 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import RequireOrgAdmin from "@/app/components/RequireOrgAdmin";
 import ToolboxModal from "@/app/components/toolbox/ToolboxModal";
+import RentreeEditor from "@/app/components/toolbox/RentreeEditor";
+import FournituresEditor from "@/app/components/toolbox/FournituresEditor";
 import { renderToolboxIcon } from "@/app/components/toolbox/ToolboxIcons";
+import type { Establishment } from "@/app/lib/app-config-schemas";
 import type { ToolboxConfig, PortesOuvertesSlot, TarifsNiveau } from "@/app/lib/toolbox-types";
 import { TOOLBOX_TOOLS_META } from "@/app/lib/toolbox-tools";
 
-type Tab = "overview" | "rentree" | "tarifs" | "portes-ouvertes" | "secret-santa";
+type Tab = "overview" | "rentree" | "fournitures" | "tarifs" | "portes-ouvertes" | "secret-santa";
 
 const NIVEAUX: TarifsNiveau[] = ["maternelle", "elementaire", "college", "lycee"];
 
@@ -47,6 +50,7 @@ function emptySlot(): PortesOuvertesSlot {
 export default function ToolboxAdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [config, setConfig] = useState<ToolboxConfig | null>(null);
+  const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [stats, setStats] = useState<Record<string, number>>({});
   const [regCount, setRegCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -63,6 +67,7 @@ export default function ToolboxAdminPage() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Erreur");
       setConfig(j.config);
+      setEstablishments(j.establishments || []);
       setStats(j.portesOuvertesStats || {});
       setRegCount(j.registrationsCount || 0);
     } catch (e: unknown) {
@@ -75,6 +80,13 @@ export default function ToolboxAdminPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "rentree" || t === "fournitures" || t === "tarifs" || t === "portes-ouvertes" || t === "secret-santa") {
+      setTab(t);
+    }
+  }, []);
 
   async function save() {
     if (!config) return;
@@ -161,6 +173,7 @@ export default function ToolboxAdminPage() {
             [
               ["overview", "Vue d'ensemble"],
               ["rentree", "Rentrée"],
+              ["fournitures", "Fournitures"],
               ["tarifs", "Simulateur tarifs"],
               ["portes-ouvertes", "Portes ouvertes"],
               ["secret-santa", "Secret Santa"],
@@ -218,6 +231,24 @@ export default function ToolboxAdminPage() {
                           Page publique → {meta.publicPath}
                         </a>
                       )}
+                      {meta.id === "rentree" && enabled && (
+                        <button
+                          type="button"
+                          onClick={() => setTab("rentree")}
+                          className="mt-2 block text-xs font-bold text-amber-800 underline"
+                        >
+                          Configurer établissements & documents →
+                        </button>
+                      )}
+                      {meta.id === "simulateur-fournitures" && enabled && (
+                        <button
+                          type="button"
+                          onClick={() => setTab("fournitures")}
+                          className="mt-2 block text-xs font-bold text-emerald-800 underline"
+                        >
+                          Configurer listes par classe →
+                        </button>
+                      )}
                       {meta.id === "secret-santa" && enabled && (
                         <Link href="/toolbox/secret-santa" className="mt-2 inline-block text-xs font-bold text-blue-600 underline">
                           Lancer le tirage →
@@ -235,26 +266,8 @@ export default function ToolboxAdminPage() {
         )}
 
         {tab === "rentree" && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6">
             <Toggle checked={config.tools.rentree.enabled} onChange={(v) => patchTool("rentree", { enabled: v })} label="Activer la préparation de rentrée (page publique /rentree)" />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-xs font-bold text-slate-500 uppercase">Titre</span>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  value={config.tools.rentree.title}
-                  onChange={(e) => patchTool("rentree", { title: e.target.value })}
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-bold text-slate-500 uppercase">Année scolaire</span>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  value={config.tools.rentree.schoolYear}
-                  onChange={(e) => patchTool("rentree", { schoolYear: e.target.value })}
-                />
-              </label>
-            </div>
             <Toggle
               checked={config.tools.rentree.showSimulateurTarifs}
               onChange={(v) => patchTool("rentree", { showSimulateurTarifs: v })}
@@ -265,15 +278,41 @@ export default function ToolboxAdminPage() {
               onChange={(v) => patchTool("rentree", { showSimulateurFournitures: v })}
               label="Afficher le lien simulateur fournitures"
             />
+            <RentreeEditor
+              rentree={config.tools.rentree}
+              establishments={establishments}
+              onChange={(patch) => patchTool("rentree", patch)}
+              onPagesChange={(pages) => patchTool("rentree", { pages })}
+            />
+            <p className="text-xs text-slate-500">
+              Page publique :{" "}
+              <a href="/rentree" target="_blank" rel="noopener noreferrer" className="underline font-semibold">
+                /rentree
+              </a>
+              {" "}— un onglet par établissement actif (paramètres généraux).
+            </p>
+          </section>
+        )}
+
+        {tab === "fournitures" && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6">
             <Toggle
               checked={config.tools["simulateur-fournitures"].enabled}
               onChange={(v) => patchTool("simulateur-fournitures", { enabled: v })}
-              label="Activer la page /simulateurFournitures"
+              label="Publier le simulateur fournitures (/simulateurFournitures)"
             />
-            <p className="text-xs text-slate-500">
-              Les liens PDF par niveau utilisent la configuration par défaut (modifiable ultérieurement via JSON). Page :{" "}
-              <a href="/rentree" target="_blank" rel="noopener noreferrer" className="underline font-semibold">/rentree</a>
-            </p>
+            <FournituresEditor
+              config={config.tools["simulateur-fournitures"]}
+              onChange={(patch) => patchTool("simulateur-fournitures", patch)}
+            />
+            <a
+              href="/simulateurFournitures"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-bold text-emerald-700 underline"
+            >
+              Voir la page publique →
+            </a>
           </section>
         )}
 

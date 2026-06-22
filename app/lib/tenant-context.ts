@@ -12,6 +12,7 @@ import {
   resolveTenantBySlug,
 } from "@/app/lib/tenant-registry";
 import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
+import { requestOriginFromHostHeader } from "@/app/lib/local-dev";
 import { isPlatformHostname } from "@/app/lib/platform-hostname";
 import { platformTenantFromEnv } from "@/app/lib/platform-tenant";
 
@@ -51,6 +52,12 @@ export async function getTenantAppUrl(): Promise<string> {
   if (tenant.appUrl) return tenant.appUrl;
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host");
-  if (host) return `https://${normalizeHostname(host)}`;
+  if (host) {
+    const normalized = normalizeHostname(host);
+    if (isLocalDevHostname(normalized)) {
+      return requestOriginFromHostHeader(host);
+    }
+    return `https://${normalized}`;
+  }
   return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 }

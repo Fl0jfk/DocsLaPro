@@ -23,7 +23,6 @@ type SetupPayload = {
 export default function PlateformePage() {
   const [data, setData] = useState<SetupPayload | null>(null);
   const [loading, setLoading] = useState(true);
-
   const reload = useCallback(async () => {
     setLoading(true);
     try {
@@ -34,11 +33,9 @@ export default function PlateformePage() {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => {
     reload();
   }, [reload]);
-
   return (
     <RequirePlatformMaster redirectTo="/">
       <MarketingShell>
@@ -57,9 +54,7 @@ export default function PlateformePage() {
               profil Master.
             </p>
           </div>
-
           <PlatformQuickTenantWizard writable={data?.writable ?? false} onCreated={reload} />
-
           <section className="rounded-2xl border border-stone-200 bg-white/80 p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-bold text-[#14231A]">
@@ -108,7 +103,6 @@ export default function PlateformePage() {
               </ul>
             )}
           </section>
-
           <section className="rounded-xl border border-stone-200 bg-stone-50/80 p-4 text-xs text-stone-600 space-y-2">
             <p className="font-bold text-stone-800">Après la création</p>
             <ol className="list-decimal list-inside space-y-1">

@@ -11,6 +11,7 @@ import {
   defaultTenantFromEnv,
   isMultiTenantEnabled,
   normalizeHostname,
+  resolveLocalDevTenantBySlug,
   resolveLocalDevTenantFromList,
   resolveTenantByHostname,
   resolveTenantByHostnameSync,
@@ -18,6 +19,10 @@ import {
   getCachedTenants,
 } from '@/app/lib/tenant-registry';
 import { isLocalDevHostname, resolveClerkKeysForHostname } from '@/app/lib/clerk-tenant-keys';
+import {
+  LOCAL_DEV_TENANT_COOKIE,
+  LOCAL_DEV_TENANT_QUERY,
+} from '@/app/lib/local-dev';
 import { isPlatformHostname } from '@/app/lib/platform-hostname';
 import { isPlatformTenantSlug, platformTenantFromEnv } from '@/app/lib/platform-tenant';
 import { clerkSignInPageUrl } from '@/app/lib/tenant-auth-urls';
@@ -68,6 +73,29 @@ const isPublicRoute = createRouteMatcher([
   '/api/stages/public(.*)',
 ]);
 
+function localDevTenantSlugFromRequest(request: NextRequest): string | null {
+  const fromQuery = request.nextUrl.searchParams.get(LOCAL_DEV_TENANT_QUERY)?.trim();
+  if (fromQuery) return fromQuery;
+  return request.cookies.get(LOCAL_DEV_TENANT_COOKIE)?.value?.trim() || null;
+}
+
+function withOptionalDevTenantCookie(
+  response: NextResponse,
+  request: NextRequest,
+  host: string,
+): NextResponse {
+  if (!isLocalDevHostname(host)) return response;
+  const slug = request.nextUrl.searchParams.get(LOCAL_DEV_TENANT_QUERY)?.trim();
+  if (!slug) return response;
+  response.cookies.set(LOCAL_DEV_TENANT_COOKIE, slug, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+    sameSite: "lax",
+    httpOnly: false,
+  });
+  return response;
+}
+
 async function resolveTenantForProxy(request: NextRequest): Promise<TenantConfig> {
   await warmTenantRegistry();
 
@@ -76,11 +104,12 @@ async function resolveTenantForProxy(request: NextRequest): Promise<TenantConfig
     request.headers.get("host") ||
     request.nextUrl.hostname;
 
-  const cached = resolveTenantByHostnameSync(host);
+  const devSlug = localDevTenantSlugFromRequest(request);
+  const cached = resolveTenantByHostnameSync(host, devSlug);
   if (cached) return cached;
 
   try {
-    return await resolveTenantByHostname(host);
+    return await resolveTenantByHostname(host, devSlug);
   } catch {
     const normalized = normalizeHostname(host);
     if (isPlatformHostname(normalized)) {
@@ -89,7 +118,7 @@ async function resolveTenantForProxy(request: NextRequest): Promise<TenantConfig
     if (isLocalDevHostname(normalized)) {
       const cached = getCachedTenants();
       if (cached?.length) {
-        const devTenant = resolveLocalDevTenantFromList(cached);
+        const devTenant = resolveLocalDevTenantBySlug(cached, devSlug);
         if (devTenant) return devTenant;
       }
     }
@@ -217,11 +246,11 @@ async function handleProxyRequest(
       request.nextUrl.hostname,
   );
 
-  if (pathname === "/connexion" && !isPlatformHostname(host)) {
+  if (pathname === "/connexion" && !isPlatformHostname(host) && !isLocalDevHostname(host)) {
     return NextResponse.redirect(new URL("/connexion", platformAppOriginFromEnv()));
   }
 
-  if (pathname.startsWith("/sign-in") && !isPlatformHostname(host)) {
+  if (pathname.startsWith("/sign-in") && !isPlatformHostname(host) && !isLocalDevHostname(host)) {
     const redirectTarget = request.nextUrl.searchParams.get("redirect_url") ?? "";
     if (redirectTarget.includes("/plateforme")) {
       const dest = new URL("/sign-in", platformAppOriginFromEnv());
@@ -238,7 +267,10 @@ async function handleProxyRequest(
     if (canonicalRedirect) return withTenantHeaders(canonicalRedirect, tenant);
   }
 
-  if (isPublicRoute(request)) { return nextWithTenant(request, tenant)}
+  if (isPublicRoute(request)) {
+    const res = nextWithTenant(request, tenant);
+    return withOptionalDevTenantCookie(res, request, host);
+  }
 
   let authState: ProxyAuthState;
   if (isMultiTenantEnabled()) {
@@ -255,9 +287,13 @@ async function handleProxyRequest(
           tenant,
         );
       }
-      return withTenantHeaders(
-        NextResponse.redirect(new URL(clerkSignInPageUrl(tenant, host))),
-        tenant,
+      return withOptionalDevTenantCookie(
+        withTenantHeaders(
+          NextResponse.redirect(new URL(clerkSignInPageUrl(tenant, host))),
+          tenant,
+        ),
+        request,
+        host,
       );
     }
     authState = { userId: tenantSession.userId, orgRole: null, sessionClaims: undefined };

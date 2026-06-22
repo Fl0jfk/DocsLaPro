@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { InternatBuilding, InternatRoom, InternatStudent } from "@/app/lib/internat-types";
 import { roomLocationLabel, studentDisplayName } from "@/app/lib/internat-types";
 
@@ -37,6 +38,7 @@ export default function InternatStudentsPanel({
   canManage: boolean;
   onRefresh: () => Promise<void>;
 }) {
+  const searchParams = useSearchParams();
   const [showRoster, setShowRoster] = useState(false);
   const [rosterEntries, setRosterEntries] = useState<RosterPreviewRow[]>([]);
   const [rosterMeta, setRosterMeta] = useState<RosterMeta | null>(null);
@@ -179,6 +181,13 @@ export default function InternatStudentsPanel({
       authValidUntil: "",
     });
   };
+
+  useEffect(() => {
+    const studentId = searchParams.get("student");
+    if (!studentId) return;
+    const student = students.find((s) => s.id === studentId);
+    if (student) openDetail(student);
+  }, [searchParams, students]);
 
   const saveDetail = async () => {
     if (!detailId) return;

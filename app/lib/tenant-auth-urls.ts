@@ -1,4 +1,10 @@
 import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
+import {
+  localDevDashboardUrl,
+  localDevSignInUrl,
+  LOCAL_DEV_TENANT_QUERY,
+  requestOriginFromHostHeader,
+} from "@/app/lib/local-dev";
 import { isPlatformHostname } from "@/app/lib/platform-hostname";
 import { isPlatformTenantSlug } from "@/app/lib/platform-tenant";
 import { platformAppOrigin } from "@/app/lib/platform-portal-url";
@@ -7,6 +13,12 @@ import type { TenantConfig } from "@/app/lib/tenant-types";
 
 export function tenantOrigin(tenant: TenantConfig, host: string): string {
   const normalized = normalizeHostname(host);
+  const rawHost = (host || "").trim();
+
+  if (isLocalDevHostname(normalized)) {
+    return requestOriginFromHostHeader(rawHost);
+  }
+
   // Si on est déjà sur un hôte légitime du tenant, on y reste (évite tout saut
   // cross-origin dû à un appUrl mal renseigné).
   if (normalized && tenant.hostnames.some((h) => normalizeHostname(h) === normalized)) {
@@ -51,16 +63,32 @@ export function tenantCanonicalHostname(tenant: TenantConfig): string | null {
   }
 }
 
-/** URL absolue après connexion — toujours sur le domaine canonique du tenant. */
+/** URL absolue après connexion — sur le domaine courant en local, sinon canonique. */
 export function clerkAfterSignInUrl(tenant: TenantConfig, host: string): string {
-  if (isPlatformTenantSlug(tenant.slug) || isPlatformHostname(normalizeHostname(host))) {
+  const normalized = normalizeHostname(host);
+  if (isLocalDevHostname(normalized)) {
+    const origin = requestOriginFromHostHeader(host);
+    if (isPlatformTenantSlug(tenant.slug) || isPlatformHostname(normalized)) {
+      return `${origin}/plateforme`;
+    }
+    return localDevDashboardUrl(origin);
+  }
+  if (isPlatformTenantSlug(tenant.slug) || isPlatformHostname(normalized)) {
     return `${platformAppOrigin()}/plateforme`;
   }
   return `${tenantCanonicalOrigin(tenant)}/dashboard`;
 }
 
 export function clerkSignInPageUrl(tenant: TenantConfig, host: string): string {
-  if (isPlatformTenantSlug(tenant.slug) || isPlatformHostname(normalizeHostname(host))) {
+  const normalized = normalizeHostname(host);
+  if (isLocalDevHostname(normalized)) {
+    const origin = requestOriginFromHostHeader(host);
+    if (isPlatformTenantSlug(tenant.slug) || isPlatformHostname(normalized)) {
+      return `${origin}/sign-in`;
+    }
+    return localDevSignInUrl(origin, tenant.slug);
+  }
+  if (isPlatformTenantSlug(tenant.slug) || isPlatformHostname(normalized)) {
     return `${platformAppOrigin()}/sign-in`;
   }
   return `${tenantCanonicalOrigin(tenant)}/sign-in`;

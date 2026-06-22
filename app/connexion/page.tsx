@@ -5,13 +5,8 @@ import Image from "next/image";
 import MarketingShell from "@/app/components/landing/MarketingShell";
 import ConnexionPlatformSessionBanner from "@/app/components/ConnexionPlatformSessionBanner";
 import { SCOLA_GRADIENT_TEXT } from "@/app/lib/marketing-theme";
-import {
-  catalogEntrySignInUrl,
-  clearLastPortalTenant,
-  readLastPortalTenant,
-  saveLastPortalTenant,
-  syncSavedPortalTenantFromCatalog,
-} from "@/app/lib/tenant-portal-client";
+import { catalogEntrySignInUrl, clearLastPortalTenant, readLastPortalTenant, saveLastPortalTenant, syncSavedPortalTenantFromCatalog } from "@/app/lib/tenant-portal-client";
+import { isBrowserLocalDev } from "@/app/lib/local-dev";
 import { platformAdminSignInUrl } from "@/app/lib/platform-portal-url";
 
 type TenantEntry = {
@@ -117,6 +112,7 @@ export default function ConnexionPage() {
   const [lastSlug, setLastSlug] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLocalDev, setIsLocalDev] = useState(false);
 
   const rememberTenant = useCallback((t: TenantEntry) => {
     saveLastPortalTenant({
@@ -124,6 +120,10 @@ export default function ConnexionPage() {
       label: t.label,
       signInUrl: catalogEntrySignInUrl(t),
     });
+  }, []);
+
+  useEffect(() => {
+    setIsLocalDev(isBrowserLocalDev());
   }, []);
 
   useEffect(() => {
@@ -170,6 +170,9 @@ export default function ConnexionPage() {
 
   const lastTenant = sortedTenants.find((t) => t.slug === lastSlug) ?? null;
   const lastSignInHref = lastTenant ? catalogEntrySignInUrl(lastTenant) : null;
+  const adminSignInHref = isLocalDev
+    ? `/sign-in?redirect_url=${encodeURIComponent("/plateforme")}`
+    : platformAdminSignInUrl();
 
   return (
     <MarketingShell>
@@ -180,7 +183,12 @@ export default function ConnexionPage() {
           </h1>
           <p className="mt-3 text-sm text-stone-600 max-w-lg mx-auto">
             Choisissez votre établissement : vous serez redirigé vers son intranet dédié
-            (ex. <span className="font-mono text-xs">lp.docslapro.com</span>).
+            {isLocalDev ? (
+              <> sur <span className="font-mono text-xs">localhost</span> en développement</>
+            ) : (
+              <> (ex. <span className="font-mono text-xs">lp.docslapro.com</span>)</>
+            )}
+            .
           </p>
         </div>
 
@@ -249,7 +257,7 @@ export default function ConnexionPage() {
         <p className="mt-12 text-center text-xs text-stone-500">
           Vous gérez la plateforme Scola ?{" "}
           <a
-            href={platformAdminSignInUrl()}
+            href={adminSignInHref}
             className="font-semibold text-violet-700 hover:underline"
           >
             Administration

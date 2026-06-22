@@ -2,7 +2,7 @@ import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
 import { getPlatformS3Client } from "@/app/lib/s3-clients";
 import { isPlatformHostname } from "@/app/lib/platform-hostname";
-import { platformTenantFromEnv } from "@/app/lib/platform-tenant";
+import { isPlatformTenantSlug, platformTenantFromEnv } from "@/app/lib/platform-tenant";
 import type {
   TenantConfig,
   TenantIndexEntry,
@@ -419,31 +419,51 @@ export async function resolveTenantBySlug(slug: string): Promise<TenantConfig | 
 export function resolveLocalDevTenantFromList(tenants: TenantConfig[]): TenantConfig | null {
   if (process.env.NODE_ENV === "production" || tenants.length === 0) return null;
 
+  const establishments = tenants.filter((t) => !isPlatformTenantSlug(t.slug));
+  const pool = establishments.length > 0 ? establishments : tenants;
+
   const slug = process.env.DEFAULT_TENANT_SLUG?.trim();
   if (slug) {
-    const bySlug = tenants.find((t) => t.slug.toLowerCase() === slug.toLowerCase());
+    const bySlug = pool.find((t) => t.slug.toLowerCase() === slug.toLowerCase());
     if (bySlug) return bySlug;
   }
-  if (tenants.length === 1) return tenants[0];
-  return tenants[0] ?? null;
+  if (pool.length === 1) return pool[0];
+  return pool[0] ?? null;
 }
 
-export async function resolveTenantByHostname(hostname: string): Promise<TenantConfig> {
+/** Résout le tenant en local via ?dev_tenant=, cookie ou DEFAULT_TENANT_SLUG. */
+export function resolveLocalDevTenantBySlug(
+  tenants: TenantConfig[],
+  slug?: string | null,
+): TenantConfig | null {
+  if (process.env.NODE_ENV === "production" || tenants.length === 0) return null;
+  const wanted = slug?.trim();
+  if (wanted) {
+    const hit = tenants.find((t) => t.slug.toLowerCase() === wanted.toLowerCase());
+    if (hit) return hit;
+  }
+  return resolveLocalDevTenantFromList(tenants);
+}
+
+export async function resolveTenantByHostname(
+  hostname: string,
+  devTenantSlug?: string | null,
+): Promise<TenantConfig> {
   const host = normalizeHostname(hostname);
+  const tenants = await loadAllTenants();
+
+  if (host && isLocalDevHostname(host)) {
+    const devTenant = resolveLocalDevTenantBySlug(tenants, devTenantSlug);
+    if (devTenant) return devTenant;
+  }
+
   if (isPlatformHostname(host)) {
     return platformTenantFromEnv();
   }
 
-  const tenants = await loadAllTenants();
-
   if (host) {
     const hit = tenants.find((t) => t.hostnames.some((h) => h === host));
     if (hit) return hit;
-  }
-
-  if (host && isLocalDevHostname(host)) {
-    const devTenant = resolveLocalDevTenantFromList(tenants);
-    if (devTenant) return devTenant;
   }
 
   if (tenants.length === 1) return tenants[0];
@@ -462,8 +482,18 @@ export async function resolveTenantByHostname(hostname: string): Promise<TenantC
 }
 
 /** Résolution synchrone pour le middleware (cache mémoire uniquement). */
-export function resolveTenantByHostnameSync(hostname: string): TenantConfig | null {
+export function resolveTenantByHostnameSync(
+  hostname: string,
+  devTenantSlug?: string | null,
+): TenantConfig | null {
   const host = normalizeHostname(hostname);
+  const tenants = registryCache?.tenants;
+
+  if (host && isLocalDevHostname(host) && tenants?.length) {
+    const devTenant = resolveLocalDevTenantBySlug(tenants, devTenantSlug);
+    if (devTenant) return devTenant;
+  }
+
   if (isPlatformHostname(host)) {
     try {
       return platformTenantFromEnv();
@@ -471,14 +501,10 @@ export function resolveTenantByHostnameSync(hostname: string): TenantConfig | nu
       return null;
     }
   }
-  const tenants = registryCache?.tenants;
   if (!tenants?.length) return null;
   if (host) {
     const hit = tenants.find((t) => t.hostnames.some((h) => h === host));
     if (hit) return hit;
-  }
-  if (host && isLocalDevHostname(host)) {
-    return resolveLocalDevTenantFromList(tenants);
   }
   if (tenants.length === 1) return tenants[0];
   const fallback = process.env.DEFAULT_TENANT_SLUG?.trim();

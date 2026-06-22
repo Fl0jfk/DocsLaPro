@@ -1,4 +1,9 @@
-import { RENTREE_LINKS, type RentreeLinksByLevel } from "@/app/(public-rentree)/rentree/rentree-links";
+import type { RentreeEstablishmentPage, RentreeLinksByLevel } from "@/app/lib/rentree-types";
+import { RENTREE_LINKS } from "@/app/lib/rentree-defaults";
+import type { FournituresToolConfig } from "@/app/lib/fournitures-types";
+import { DEFAULT_FOURNITURES_CONFIG } from "@/app/lib/fournitures-types";
+
+export type { FournituresToolConfig } from "@/app/lib/fournitures-types";
 
 export type ToolboxToolId =
   | "qrcreator"
@@ -51,7 +56,9 @@ export type RentreeToolConfig = {
   schoolYear: string;
   showSimulateurTarifs: boolean;
   showSimulateurFournitures: boolean;
-  links: RentreeLinksByLevel[];
+  pages: RentreeEstablishmentPage[];
+  /** Ancien format — utilisé pour migration vers `pages`. */
+  links?: RentreeLinksByLevel[];
 };
 
 export type ToolboxConfig = {
@@ -60,7 +67,7 @@ export type ToolboxConfig = {
     "secret-santa": SecretSantaToolConfig;
     rentree: RentreeToolConfig;
     "simulateur-tarifs": SimulateurTarifsConfig;
-    "simulateur-fournitures": { enabled: boolean };
+    "simulateur-fournitures": FournituresToolConfig;
     "portes-ouvertes": PortesOuvertesToolConfig;
   };
 };
@@ -100,10 +107,11 @@ export function defaultToolboxConfig(): ToolboxConfig {
         schoolYear: "2026 / 2027",
         showSimulateurTarifs: true,
         showSimulateurFournitures: true,
+        pages: [],
         links: RENTREE_LINKS,
       },
       "simulateur-tarifs": { ...DEFAULT_TARIFS },
-      "simulateur-fournitures": { enabled: false },
+      "simulateur-fournitures": { enabled: false, ...DEFAULT_FOURNITURES_CONFIG },
       "portes-ouvertes": {
         enabled: false,
         title: "Portes ouvertes",

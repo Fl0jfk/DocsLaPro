@@ -4,45 +4,20 @@ import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import RentreePublicHeader from "@/app/components/RentreePublicHeader";
-import type { RentreeLevel, RentreeLinksByLevel } from "./rentree-links";
+import { rentreeAccentClasses } from "@/app/lib/rentree-accent-styles";
+import type { RentreeEstablishmentPage } from "@/app/lib/rentree-types";
 
-function accentClasses(accent: RentreeLinksByLevel["accent"]) {
-  if (accent === "yellow") {
-    return {
-      pillActive: "bg-yellow-500 text-white border-yellow-500",
-      pillIdle: "bg-white text-slate-700 border-slate-200 hover:border-yellow-300",
-      badge: "bg-yellow-50 text-yellow-700 border-yellow-100",
-      sectionTitle: "text-yellow-700",
-      cta: "bg-yellow-500 hover:bg-yellow-600 text-white",
-      hero: "from-yellow-500 via-yellow-500/60 to-white",
-    };
-  }
-  if (accent === "sky") {
-    return {
-      pillActive: "bg-sky-600 text-white border-sky-600",
-      pillIdle: "bg-white text-slate-700 border-slate-200 hover:border-sky-300",
-      badge: "bg-sky-50 text-sky-700 border-sky-100",
-      sectionTitle: "text-sky-700",
-      cta: "bg-sky-600 hover:bg-sky-700 text-white",
-      hero: "from-sky-600 via-sky-600/60 to-white",
-    };
-  }
-  return {
-    pillActive: "bg-pink-600 text-white border-pink-600",
-    pillIdle: "bg-white text-slate-700 border-slate-200 hover:border-pink-300",
-    badge: "bg-pink-50 text-pink-700 border-pink-100",
-    sectionTitle: "text-pink-700",
-    cta: "bg-pink-600 hover:bg-pink-700 text-white",
-    hero: "from-pink-600 via-pink-600/60 to-white",
-  };
-}
-
-function normalizeLevel(v: string | null): RentreeLevel {
-  if (v === "college" || v === "lycee" || v === "ecole") return v;
-  return "ecole";
-}
-
-function LinkCard({ title, description, href, kind }: { title: string; description?: string; href: string; kind?: "pdf" | "link" }) {
+function LinkCard({
+  title,
+  description,
+  href,
+  kind,
+}: {
+  title: string;
+  description?: string;
+  href: string;
+  kind?: "pdf" | "link";
+}) {
   const isPdf = kind === "pdf" || href.toLowerCase().endsWith(".pdf");
   const badge = isPdf ? "PDF" : "Lien";
   const icon = isPdf ? "📄" : "🔗";
@@ -69,9 +44,7 @@ function LinkCard({ title, description, href, kind }: { title: string; descripti
         </span>
       </div>
       <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="font-black text-indigo-600 group-hover:text-indigo-700 transition-colors">
-          Ouvrir →
-        </span>
+        <span className="font-black text-indigo-600 group-hover:text-indigo-700 transition-colors">Ouvrir →</span>
       </div>
     </Comp>
   );
@@ -80,7 +53,8 @@ function LinkCard({ title, description, href, kind }: { title: string; descripti
 export type RentreePageClientProps = {
   title: string;
   schoolYear: string;
-  links: RentreeLinksByLevel[];
+  pages: RentreeEstablishmentPage[];
+  initialEstablishmentId?: string | null;
   showTarifs: boolean;
   showFournitures: boolean;
   showPortesOuvertes: boolean;
@@ -89,24 +63,47 @@ export type RentreePageClientProps = {
 function RentreePageContent({
   title,
   schoolYear,
-  links,
+  pages,
+  initialEstablishmentId,
   showTarifs,
   showFournitures,
   showPortesOuvertes,
 }: RentreePageClientProps) {
   const router = useRouter();
   const params = useSearchParams();
-  const selected = normalizeLevel(params.get("level"));
-  const active = useMemo(() => links.find((x) => x.level === selected) ?? links[0], [links, selected]);
-  const a = accentClasses(active?.accent ?? "yellow");
 
-  const setLevel = (level: RentreeLevel) => {
+  const selectedId = useMemo(() => {
+    const fromEst = params.get("establishment");
+    if (fromEst && pages.some((p) => p.establishmentId === fromEst)) return fromEst;
+    if (initialEstablishmentId && pages.some((p) => p.establishmentId === initialEstablishmentId)) {
+      return initialEstablishmentId;
+    }
+    return pages[0]?.establishmentId ?? null;
+  }, [params, pages, initialEstablishmentId]);
+
+  const active = useMemo(
+    () => pages.find((p) => p.establishmentId === selectedId) ?? pages[0],
+    [pages, selectedId],
+  );
+  const a = rentreeAccentClasses(active?.accent ?? "violet");
+
+  const setEstablishment = (establishmentId: string) => {
     const url = new URL(window.location.href);
-    url.searchParams.set("level", level);
+    url.searchParams.set("establishment", establishmentId);
+    url.searchParams.delete("level");
     router.push(`${url.pathname}?${url.searchParams.toString()}`);
   };
 
-  if (!active) return null;
+  if (!active) {
+    return (
+      <div className="min-h-screen bg-white">
+        <RentreePublicHeader />
+        <main className="max-w-[1200px] mx-auto px-6 py-16 text-center text-slate-500">
+          Aucun contenu de rentrée configuré pour le moment.
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white min-h-screen">
@@ -125,7 +122,10 @@ function RentreePageContent({
                   <p className="font-black text-slate-900">Fournitures scolaires</p>
                   <p className="text-sm text-slate-600 mt-1">Accès direct au simulateur (impression par classe / options).</p>
                 </div>
-                <Link href="/simulateurFournitures" className={`px-6 py-3 rounded-full font-black text-sm transition ${a.cta} whitespace-nowrap shadow-sm`}>
+                <Link
+                  href="/simulateurFournitures"
+                  className={`px-6 py-3 rounded-full font-black text-sm transition ${a.cta} whitespace-nowrap shadow-sm`}
+                >
                   Ouvrir le simulateur →
                 </Link>
               </div>
@@ -136,67 +136,86 @@ function RentreePageContent({
                   <p className="font-black text-slate-900">Tarifs scolarité</p>
                   <p className="text-sm text-slate-600 mt-1">Estimez votre contribution selon le quotient familial.</p>
                 </div>
-                <Link href="/simulateurTarifs" className={`px-6 py-3 rounded-full font-black text-sm transition ${a.cta} whitespace-nowrap shadow-sm`}>
+                <Link
+                  href="/simulateurTarifs"
+                  className={`px-6 py-3 rounded-full font-black text-sm transition ${a.cta} whitespace-nowrap shadow-sm`}
+                >
                   Simulateur tarifs →
                 </Link>
               </div>
             )}
-            <div className="flex flex-wrap gap-2">
-              {links.map((lvl) => {
-                const isActive = lvl.level === active.level;
-                const cls = accentClasses(lvl.accent);
-                return (
-                  <button
-                    key={lvl.level}
-                    type="button"
-                    onClick={() => setLevel(lvl.level)}
-                    className={`px-4 py-2 rounded-full border text-sm font-black transition ${isActive ? cls.pillActive : cls.pillIdle}`}
-                  >
-                    {lvl.label}
-                  </button>
-                );
-              })}
-            </div>
+            {pages.length > 1 && (
+              <div className="flex flex-wrap gap-2">
+                {pages.map((page) => {
+                  const isActive = page.establishmentId === active.establishmentId;
+                  const cls = rentreeAccentClasses(page.accent);
+                  return (
+                    <button
+                      key={page.establishmentId}
+                      type="button"
+                      onClick={() => setEstablishment(page.establishmentId)}
+                      className={`px-4 py-2 rounded-full border text-sm font-black transition ${isActive ? cls.pillActive : cls.pillIdle}`}
+                    >
+                      {page.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </section>
       <main className="max-w-[1200px] mx-auto px-6 pb-12">
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-8">
-          <div>
-            <h2 className="text-3xl font-black text-slate-900">{active.label}</h2>
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-8 mt-8">
+          <h2 className="text-3xl font-black text-slate-900">{active.label}</h2>
+        </div>
+        {active.sections.length === 0 ? (
+          <p className="text-slate-500 text-sm">Contenu en cours de préparation.</p>
+        ) : (
+          <div className="space-y-10">
+            {active.sections.map((section) => (
+              <section key={section.title} className="bg-slate-50 rounded-[2.5rem] p-6 md:p-8 border border-slate-100">
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <h3 className={`text-xl md:text-2xl font-black ${a.sectionTitle}`}>{section.title}</h3>
+                  <span className="text-xs font-bold text-slate-400">{section.items.length} lien(s)</span>
+                </div>
+                {section.items.length === 0 ? (
+                  <p className="text-sm text-slate-500">Aucun document pour le moment.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {section.items.map((it) => (
+                      <LinkCard
+                        key={`${section.title}-${it.title}-${it.href}`}
+                        title={it.title}
+                        description={it.description}
+                        href={it.href}
+                        kind={it.kind}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
           </div>
-        </div>
-        <div className="space-y-10">
-          {active.sections.map((section) => (
-            <section key={section.title} className="bg-slate-50 rounded-[2.5rem] p-6 md:p-8 border border-slate-100">
-              <div className="flex items-center justify-between gap-4 mb-6">
-                <h3 className={`text-xl md:text-2xl font-black ${a.sectionTitle}`}>{section.title}</h3>
-                <span className="text-xs font-bold text-slate-400">{section.items.length} lien(s)</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {section.items.map((it) => (
-                  <LinkCard
-                    key={`${section.title}-${it.title}`}
-                    title={it.title}
-                    description={it.description}
-                    href={it.href}
-                    kind={it.kind}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        )}
       </main>
 
       <footer className="bg-slate-900 text-slate-400 py-8 text-center text-xs">
-        <p>Besoin d’aide ? Contacte l’établissement concerné ou repasse par la page du niveau.</p>
-        <div className="flex gap-6 justify-center mt-3">
-          <Link href="/rentree?level=ecole" className="hover:text-white transition">École</Link>
-          <Link href="/rentree?level=college" className="hover:text-white transition">Collège</Link>
-          <Link href="/rentree?level=lycee" className="hover:text-white transition">Lycée</Link>
+        <p>Besoin d&apos;aide ? Contactez l&apos;établissement concerné.</p>
+        <div className="flex flex-wrap gap-4 justify-center mt-3">
+          {pages.map((page) => (
+            <Link
+              key={page.establishmentId}
+              href={`/rentree?establishment=${encodeURIComponent(page.establishmentId)}`}
+              className="hover:text-white transition"
+            >
+              {page.label}
+            </Link>
+          ))}
           {showPortesOuvertes ? (
-            <Link href="/portes-ouvertes" className="hover:text-white transition">Portes ouvertes</Link>
+            <Link href="/portes-ouvertes" className="hover:text-white transition">
+              Portes ouvertes
+            </Link>
           ) : null}
         </div>
       </footer>

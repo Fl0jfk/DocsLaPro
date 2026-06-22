@@ -1,4 +1,5 @@
 import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
+import { LOCAL_DEV_TENANT_QUERY } from "@/app/lib/local-dev";
 import { isPlatformTenantSlug } from "@/app/lib/platform-tenant";
 import { loadAllTenants } from "@/app/lib/tenant-registry";
 import type { TenantConfig, TenantPostalAddress } from "@/app/lib/tenant-types";
@@ -34,7 +35,7 @@ function primaryHostname(tenant: TenantConfig): string | null {
 /** URL de connexion Clerk pour un tenant (origine du sous-domaine + /sign-in). */
 export function tenantSignInUrl(tenant: TenantConfig, portalHost: string): string {
   if (isLocalDevHostname(portalHost)) {
-    return "/sign-in";
+    return `/sign-in?${LOCAL_DEV_TENANT_QUERY}=${encodeURIComponent(tenant.slug)}`;
   }
 
   const appUrl = tenant.appUrl?.trim().replace(/\/$/, "");

@@ -6,12 +6,39 @@ import type {
   InternatStudent,
 } from "@/app/lib/internat-types";
 import { studentDisplayName } from "@/app/lib/internat-types";
+import { buildRoomInsights, buildWingOccupancy } from "@/app/lib/internat-room-insights";
 
 export type InternatDashboardStats = {
   activeStudents: number;
+  students: {
+    boys: number;
+    girls: number;
+    college: number;
+    lycee: number;
+    withoutRoom: number;
+  };
   roomCount: number;
+  occupancy: {
+    totalBeds: number;
+    occupiedBeds: number;
+    fillRate: number | null;
+    roomsFull: number;
+    roomsEmpty: number;
+    roomsPartial: number;
+  };
+  wingOccupancy: Array<{
+    wing: string;
+    label: string;
+    roomCount: number;
+    beds: number;
+    occupied: number;
+    fillRate: number | null;
+    roomsFull: number;
+    roomsEmpty: number;
+  }>;
   roomsOverCapacity: Array<{ roomId: string; label: string; count: number; capacity: number }>;
   roomsWithFreeSlots: number;
+  problematicRoomCount: number;
   tonightRollCall: {
     date: string;
     status: "non_demarre" | "en_cours" | "validee";
@@ -197,14 +224,43 @@ export function buildDashboardStats(params: {
       note: s.underWatchNote,
     }));
 
+  const totalBeds = rooms.reduce((s, r) => s + r.capacity, 0);
+  const occupiedBeds = active.filter((s) => s.roomId).length;
+  const roomInsights = buildRoomInsights(rooms, students, incidents);
+  let roomsFull = 0;
+  let roomsEmpty = 0;
+  let roomsPartial = 0;
+  for (const ri of roomInsights) {
+    if (ri.status === "empty") roomsEmpty += 1;
+    else if (ri.status === "full" || ri.status === "over") roomsFull += 1;
+    else roomsPartial += 1;
+  }
+
   const stats: InternatDashboardStats = {
     activeStudents: active.length,
+    students: {
+      boys: active.filter((s) => s.sexe === "M").length,
+      girls: active.filter((s) => s.sexe === "F").length,
+      college: active.filter((s) => s.etablissement === "Collège").length,
+      lycee: active.filter((s) => s.etablissement === "Lycée").length,
+      withoutRoom: active.filter((s) => !s.roomId).length,
+    },
     roomCount: rooms.length,
+    occupancy: {
+      totalBeds,
+      occupiedBeds,
+      fillRate: totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : null,
+      roomsFull,
+      roomsEmpty,
+      roomsPartial,
+    },
+    wingOccupancy: buildWingOccupancy(rooms, students),
     roomsOverCapacity: overCapacity,
     roomsWithFreeSlots: rooms.filter((room) => {
       const count = active.filter((s) => s.roomId === room.id).length;
       return count < room.capacity;
     }).length,
+    problematicRoomCount: roomInsights.filter((r) => r.isProblematic).length,
     tonightRollCall: {
       date: tonightRollCall.date,
       status: tonightStatus,

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getToolboxConfig, toolboxEnabledTools } from "@/app/lib/toolbox-config";
+import { getToolboxConfigResolved, toolboxEnabledTools } from "@/app/lib/toolbox-config";
 import { TOOLBOX_TOOLS_META } from "@/app/lib/toolbox-tools";
 import { loadAppConfig } from "@/app/lib/app-config";
 
 /** Config publique des outils activés (sans e-mails internes). */
 export async function GET() {
   try {
-    const [toolbox, app] = await Promise.all([getToolboxConfig(), loadAppConfig()]);
+    const [toolbox, app] = await Promise.all([getToolboxConfigResolved(), loadAppConfig()]);
     const enabled = toolboxEnabledTools(toolbox);
     const tools = TOOLBOX_TOOLS_META.filter((m) => enabled.includes(m.id)).map((m) => ({
       id: m.id,
@@ -32,7 +32,7 @@ export async function GET() {
             schoolYear: rentree.schoolYear,
             showSimulateurTarifs: rentree.showSimulateurTarifs,
             showSimulateurFournitures: rentree.showSimulateurFournitures,
-            links: rentree.links,
+            pages: rentree.pages,
           }
         : null,
       tarifs: tarifs.enabled
