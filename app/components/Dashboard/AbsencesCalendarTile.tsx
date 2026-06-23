@@ -10,6 +10,7 @@ import {
   DASHBOARD_TILE_META,
   DASHBOARD_TILE_META_STRONG,
 } from "@/app/lib/dashboard-theme";
+import { DashboardScrollList, absencesTodayCountLabel } from "@/app/components/Dashboard/DashboardScrollList";
 import TileShell from "./TileShell";
 
 export default function AbsencesCalendarTile({
@@ -66,16 +67,18 @@ export default function AbsencesCalendarTile({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <p className={`${DASHBOARD_TILE_META_STRONG} shrink-0`}>
-            {rows.length} absent{rows.length > 1 ? "s" : ""} aujourd&apos;hui
+            {absencesTodayCountLabel(rows.length)}
           </p>
-          <div className="max-h-[150px] space-y-0.5 overflow-y-auto overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {rows.map((r) => (
-              <p key={r.id} className={DASHBOARD_TILE_HIGHLIGHT}>
-                · {r.teacherName}
-                {r.examType ? ` — ${r.examType}` : ""} ({r.timeLabel})
-              </p>
-            ))}
-          </div>
+          <DashboardScrollList totalCount={rows.length} slotSize="compact">
+            <div className="space-y-0.5">
+              {rows.map((r) => (
+                <p key={r.id} className={DASHBOARD_TILE_HIGHLIGHT}>
+                  · {r.teacherName}
+                  {r.examType ? ` — ${r.examType}` : ""} ({r.timeLabel})
+                </p>
+              ))}
+            </div>
+          </DashboardScrollList>
         </div>
       ) : (
         <p className={`${DASHBOARD_TILE_META} pointer-events-none`}>

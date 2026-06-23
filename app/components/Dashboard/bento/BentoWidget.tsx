@@ -14,6 +14,7 @@ type Props = {
   headerExtra?: ReactNode;
   /** false = hauteur au contenu (ne remplit pas la cellule grille) */
   fillHeight?: boolean;
+  bodyClassName?: string;
   children: ReactNode;
 };
 
@@ -25,6 +26,7 @@ export default function BentoWidget({
   pulse,
   headerExtra,
   fillHeight = false,
+  bodyClassName = "",
   children,
 }: Props) {
   const titleClass = `truncate text-sm font-black transition sm:text-base ${dash.ink} ${dash.hoverPrimary}`;
@@ -68,7 +70,11 @@ export default function BentoWidget({
           )}
         </div>
       </header>
-      <div className={`overflow-auto p-3 sm:p-4 ${fillHeight ? "min-h-0 flex-1" : ""}`}>{children}</div>
+      <div
+        className={`p-3 sm:p-4 ${fillHeight ? "min-h-0 flex-1 overflow-auto" : "overflow-hidden"} ${bodyClassName}`.trim()}
+      >
+        {children}
+      </div>
     </article>
   );
 }

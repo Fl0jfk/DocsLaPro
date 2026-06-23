@@ -12,6 +12,11 @@ import { WeekSheetBentoWidget } from "@/app/components/Dashboard/bento/WeekSheet
 import type { BentoWidgetSize } from "@/app/lib/bento-widget-size";
 import BentoWeekGrid from "@/app/components/Dashboard/bento/BentoWeekGrid";
 import {
+  DASHBOARD_ABSENCES_MAX_SLOTS,
+  DashboardScrollList,
+  absencesTodayCountLabel,
+} from "@/app/components/Dashboard/DashboardScrollList";
+import {
   BentoScheduleEntry,
   buildAbsenceTeacherColorMap,
   formatDashboardSlotTime,
@@ -361,8 +366,8 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (cancelled || !Array.isArray(data)) return;
-        if (isLg) setWeekRows(absencesInWeek(data));
-        else setTodayRows(absencesToday(data));
+        setTodayRows(absencesToday(data));
+        setWeekRows(isLg ? absencesInWeek(data) : []);
       } catch {
         /* ignore */
       }
@@ -372,7 +377,6 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
     };
   }, [showCalendar, isLg]);
 
-  const rows = isLg ? weekRows : todayRows;
   const schoolDays = useMemo(() => schoolWeekDaysParis(), []);
 
   const teacherColorMap = useMemo(() => {
@@ -402,10 +406,13 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
     }));
   }, [schoolDays, weekRows, teacherColorMap]);
 
+  const todayCount = todayRows.length;
+  const weekHasAny = weekRows.length > 0;
+
   return (
     <BentoWidget
       {...widgetHeader(category)}
-      pulse={showCalendar && rows.length > 0}
+      pulse={showCalendar && (todayCount > 0 || weekHasAny)}
       headerExtra={
         <QuickBtn
           href="/absences?tab=se-declarer#nouvelle-absence"
@@ -418,21 +425,39 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
       {!showCalendar ? (
         <EmptyLine>Déclarer et suivre vos absences.</EmptyLine>
       ) : isLg ? (
-        <BentoWeekGrid days={absenceWeekGrid} expand />
-      ) : todayRows.length === 0 ? (
+        !weekHasAny && todayCount === 0 ? (
+          <EmptyLine>Personne d&apos;absent cette semaine.</EmptyLine>
+        ) : (
+          <>
+            {todayCount > 0 ? (
+              <p className="mb-2 text-[11px] font-bold text-stone-500">
+                {absencesTodayCountLabel(todayCount)}
+              </p>
+            ) : null}
+            <BentoWeekGrid days={absenceWeekGrid} maxVisibleSlots={DASHBOARD_ABSENCES_MAX_SLOTS} />
+          </>
+        )
+      ) : todayCount === 0 ? (
         <EmptyLine>Personne d&apos;absent aujourd&apos;hui.</EmptyLine>
       ) : (
-        <ul className="list-none space-y-1.5">
-          {todayRows.map((r) => (
-            <li key={r.id}>
-              <BentoScheduleEntry
-                primary={formatNomPrenom(r.teacherName)}
-                secondary={[r.examType, r.timeLabel].filter(Boolean).join(" · ") || undefined}
-                presentation={teacherSchedulePresentation(r.teacherName, teacherColorMap)}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="mb-2 text-[11px] font-bold text-stone-500">
+            {absencesTodayCountLabel(todayCount)}
+          </p>
+          <DashboardScrollList totalCount={todayCount} slotSize="card">
+            <ul className="list-none space-y-1.5">
+              {todayRows.map((r) => (
+                <li key={r.id}>
+                  <BentoScheduleEntry
+                    primary={formatNomPrenom(r.teacherName)}
+                    secondary={[r.examType, r.timeLabel].filter(Boolean).join(" · ") || undefined}
+                    presentation={teacherSchedulePresentation(r.teacherName, teacherColorMap)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </DashboardScrollList>
+        </>
       )}
     </BentoWidget>
   );

@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { calendarDateKeyParis } from "@/app/lib/domain-planning-dates";
+import {
+  DASHBOARD_ABSENCES_MAX_SLOTS,
+  DashboardColumnScrollHint,
+  DashboardScrollList,
+  absencesTodayCountLabel,
+  dashboardScrollListStyle,
+} from "@/app/components/Dashboard/DashboardScrollList";
 
 export type WeekDayColumn = {
   key: string;
@@ -41,11 +48,14 @@ export default function BentoWeekGrid({
   days,
   fill,
   expand,
+  maxVisibleSlots,
 }: {
   days: WeekDayColumn[];
   fill?: boolean;
   /** Tous les créneaux visibles, hauteur libre (pas de scroll ni max-height). */
   expand?: boolean;
+  /** Limite le nombre de lignes visibles par colonne (scroll interne). */
+  maxVisibleSlots?: number;
 }) {
   const isMobile = useMobileViewport();
   const todayKey = calendarDateKeyParis();
@@ -76,20 +86,28 @@ export default function BentoWeekGrid({
           <p className={bentoWeekDayLabelClass(isToday)}>
             {day.short}
           </p>
-          <div
-            className={`mt-1 space-y-1 sm:mt-1 sm:space-y-1 ${
-              fill
-                ? "min-h-0 flex-1 overflow-y-auto"
-                : expand
-                  ? ""
-                  : "min-h-[2.5rem] max-h-28 overflow-y-auto"
-            }`}
-          >
-            {day.items.length === 0 ? (
-              <span className="block pt-1 text-center text-[9px] text-stone-300">—</span>
-            ) : (
-              day.items
-            )}
+          <div className="mt-1 flex min-h-0 flex-col sm:mt-1">
+            <div
+              className={
+                fill
+                  ? "min-h-0 flex-1 overflow-y-auto"
+                  : maxVisibleSlots
+                    ? "min-h-0 space-y-1 overflow-y-auto sm:space-y-1"
+                    : expand
+                      ? "space-y-1 sm:space-y-1"
+                      : "min-h-[2.5rem] max-h-28 space-y-1 overflow-y-auto sm:space-y-1"
+              }
+              style={maxVisibleSlots ? dashboardScrollListStyle(maxVisibleSlots, "card") : undefined}
+            >
+              {day.items.length === 0 ? (
+                <span className="block pt-1 text-center text-[9px] text-stone-300">—</span>
+              ) : (
+                day.items
+              )}
+            </div>
+            {maxVisibleSlots ? (
+              <DashboardColumnScrollHint totalCount={day.items.length} maxSlots={maxVisibleSlots} />
+            ) : null}
           </div>
         </div>
         );
