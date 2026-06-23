@@ -7,8 +7,12 @@ import {
 } from "@/app/lib/tenant-mail";
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { getJson, putJson } from "@/app/lib/s3-storage";
+import { getJson, putJson, putObject } from "@/app/lib/s3-storage";
 import { tenantAbsolutePath } from "@/app/lib/tenant-context";
+import {
+  buildHseAcceptancePdf,
+  hseAcceptancePdfFilename,
+} from "@/app/lib/hse-acceptance-pdf";
 
 const INDEX_KEY = "demandes-hse/index.json";
 
@@ -32,6 +36,7 @@ type HseRecord = {
   decidedBy?: { userId: string; name: string };
   decidedAt?: string;
   directionNote?: string;
+  acceptancePdfPath?: string;
 };
 
 const norm = (s: string) =>
@@ -349,7 +354,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Décision réservée à la direction concernée." }, { status: 403 });
     }
 
-    const updated: HseRecord = {
+    let updated: HseRecord = {
       ...current,
       status: statusRaw as "ACCEPTEE" | "REFUSEE",
       updatedAt: new Date().toISOString(),
@@ -358,8 +363,20 @@ export async function PATCH(req: Request) {
       directionNote: directionNote || undefined,
     };
 
+    let acceptancePdfBuffer: Buffer | null = null;
+    if (updated.status === "ACCEPTEE") {
+      try {
+        acceptancePdfBuffer = Buffer.from(await buildHseAcceptancePdf(updated));
+        const pdfPath = `demandes-hse/acceptance/${updated.id}.pdf`;
+        await putObject(pdfPath, acceptancePdfBuffer, "application/pdf");
+        updated = { ...updated, acceptancePdfPath: pdfPath };
+      } catch (pdfErr) {
+        console.error("[demandes-hse] génération PDF attestation:", pdfErr);
+      }
+    }
+
     all[idx] = updated;
-    await saveIndex( all);
+    await saveIndex(all);
 
     const creatorEmail = updated.createdBy.email;
     const base = await tenantAbsolutePath("/demandes-hse");
@@ -369,6 +386,7 @@ export async function PATCH(req: Request) {
       const { smtp, transporter } = mail;
       try {
         if (creatorEmail) {
+          const pdfName = hseAcceptancePdfFilename(updated);
           await transporter.sendMail({
             from: `"Demandes HSE" <${smtp.user}>`,
             to: creatorEmail,
@@ -376,6 +394,16 @@ export async function PATCH(req: Request) {
               updated.status === "ACCEPTEE"
                 ? "Votre demande HSE a été acceptée"
                 : "Votre demande HSE a été refusée",
+            attachments:
+              updated.status === "ACCEPTEE" && acceptancePdfBuffer
+                ? [
+                    {
+                      filename: pdfName,
+                      content: acceptancePdfBuffer,
+                      contentType: "application/pdf",
+                    },
+                  ]
+                : undefined,
             text:
               updated.status === "ACCEPTEE"
                 ? [
@@ -389,6 +417,9 @@ export async function PATCH(req: Request) {
                     `Classe / contexte : ${updated.classe}`,
                     updated.details ? `Précisions : ${updated.details}` : "",
                     directionNote ? `Message de la direction : ${directionNote}` : "",
+                    acceptancePdfBuffer
+                      ? `Vous trouverez en piece jointe l'attestation officielle d'acceptation signee par la direction.`
+                      : "",
                     ``,
                     `Détail sur l’intranet : ${base}`,
                     ``,
@@ -421,10 +452,20 @@ export async function PATCH(req: Request) {
       const opsMail = process.env.HSE_OPS_EMAIL?.trim() || nCfg.hseOps || DEFAULT_HSE_OPS_EMAIL;
       if (updated.status === "ACCEPTEE" && opsMail) {
         try {
+          const pdfName = hseAcceptancePdfFilename(updated);
           await transporter.sendMail({
             from: `"Demandes HSE" <${smtp.user}>`,
             to: opsMail,
             subject: `[À traiter] HSE acceptée — ${updated.etablissement}`,
+            attachments: acceptancePdfBuffer
+              ? [
+                  {
+                    filename: pdfName,
+                    content: acceptancePdfBuffer,
+                    contentType: "application/pdf",
+                  },
+                ]
+              : undefined,
             text: [
               `Une demande HSE a été ACCEPTÉE par la direction.`,
               ``,

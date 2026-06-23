@@ -75,6 +75,18 @@ function formatNombreHeures(h: number): string {
   return `${text} h`;
 }
 
+function AttestationPdfLink({ id }: { id: string }) {
+  return (
+    <a
+      href={`/api/demandes-hse/${id}/pdf`}
+      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-800 font-bold text-sm hover:bg-indigo-100"
+      download
+    >
+      Télécharger l&apos;attestation PDF
+    </a>
+  );
+}
+
 export default function DemandesHsePage() {
   const { user, isLoaded } = useUser();
   const [items, setItems] = useState<HseItem[]>([]);
@@ -429,6 +441,11 @@ export default function DemandesHsePage() {
                         Décision par {item.decidedBy.name} le {item.decidedAt ? new Date(item.decidedAt).toLocaleString("fr-FR") : "—"}
                       </p>
                     )}
+                    {item.status === "ACCEPTEE" ? (
+                      <div className="mt-3">
+                        <AttestationPdfLink id={item.id} />
+                      </div>
+                    ) : null}
                   </div>
                 ))
               )}
@@ -542,6 +559,11 @@ export default function DemandesHsePage() {
                             <span className="font-bold">Note :</span> {item.directionNote}
                           </p>
                         )}
+                        {item.status === "ACCEPTEE" ? (
+                          <div className="mt-3">
+                            <AttestationPdfLink id={item.id} />
+                          </div>
+                        ) : null}
                       </div>
                     ))
                   )}
