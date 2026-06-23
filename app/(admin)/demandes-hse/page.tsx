@@ -4,7 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Etablissement = "École" | "Collège" | "Lycée";
-type HseStatus = "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE";
+type HseStatus = "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE" | "ANNULEE";
 
 type HseItem = {
   id: string;
@@ -15,6 +15,7 @@ type HseItem = {
   etablissement: Etablissement;
   resumeDemande: string;
   motif: string;
+  nombreHeures?: number;
   classe: string;
   details: string;
   decidedBy?: { userId: string; name: string };
@@ -58,13 +59,20 @@ function canManageItem(item: HseItem, roles: string[]) {
 function statusBadgeClass(s: HseStatus) {
   if (s === "ACCEPTEE") return "bg-emerald-50 text-emerald-800 border-emerald-200";
   if (s === "REFUSEE") return "bg-rose-50 text-rose-800 border-rose-200";
+  if (s === "ANNULEE") return "bg-slate-100 text-slate-600 border-slate-200";
   return "bg-amber-50 text-amber-800 border-amber-200";
 }
 
 function statusLabel(s: HseStatus) {
   if (s === "ACCEPTEE") return "Acceptée";
   if (s === "REFUSEE") return "Refusée";
+  if (s === "ANNULEE") return "Annulée";
   return "En attente";
+}
+
+function formatNombreHeures(h: number): string {
+  const text = Number.isInteger(h) ? String(h) : h.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+  return `${text} h`;
 }
 
 export default function DemandesHsePage() {
@@ -75,11 +83,12 @@ export default function DemandesHsePage() {
   const [error, setError] = useState<string | null>(null);
   const [etablissement, setEtablissement] = useState<Etablissement>("Collège");
   const [resumeDemande, setResumeDemande] = useState("");
-  const [motif, setMotif] = useState("");
+  const [nombreHeures, setNombreHeures] = useState("");
   const [classe, setClasse] = useState("");
   const [details, setDetails] = useState("");
   const [directionNotes, setDirectionNotes] = useState<Record<string, string>>({});
   const [patchingId, setPatchingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const roles = rolesFromUser(user?.publicMetadata?.role);
   const creator = canCreateDemand(roles);
@@ -132,27 +141,54 @@ export default function DemandesHsePage() {
   const directionHistory = useMemo(
     () =>
       [...items]
-        .filter((i) => i.status !== "EN_ATTENTE" && canManageItem(i, roles))
+        .filter(
+          (i) =>
+            (i.status === "ACCEPTEE" || i.status === "REFUSEE") && canManageItem(i, roles),
+        )
         .sort((a, b) => +new Date(b.decidedAt || b.updatedAt) - +new Date(a.decidedAt || a.updatedAt)),
     [items, roles],
   );
 
+  const cancelDemand = async (id: string) => {
+    const confirmed = window.confirm(
+      "Annuler cette demande HSE ? Elle disparaîtra de la file de la direction.",
+    );
+    if (!confirmed) return;
+    try {
+      setCancellingId(id);
+      setError(null);
+      const res = await fetch("/api/demandes-hse", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "ANNULEE" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Annulation impossible.");
+      await fetchItems();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   const submit = async () => {
     setError(null);
     if (!resumeDemande.trim()) {
-      setError("Renseignez un résumé de votre demande HSE.");
+      setError("Décrivez votre demande (objet et motivation).");
       return;
     }
-    if (!motif.trim()) {
-      setError("Le motif est obligatoire.");
+    const heures = Number(String(nombreHeures).trim().replace(",", "."));
+    if (!Number.isFinite(heures) || heures <= 0) {
+      setError("Indiquez le nombre d’heures demandé.");
+      return;
+    }
+    if (Math.abs(heures * 4 - Math.round(heures * 4)) > 1e-6) {
+      setError("Le nombre d’heures doit être un multiple de 0,25 (ex. 1, 1,25, 2,5…).");
       return;
     }
     if (!classe.trim()) {
       setError("Indiquez la classe ou le contexte.");
-      return;
-    }
-    if (!details.trim()) {
-      setError("Décrivez le contexte (remplacement, modalités, etc.).");
       return;
     }
     if (!userEmail) {
@@ -167,7 +203,7 @@ export default function DemandesHsePage() {
         body: JSON.stringify({
           etablissement,
           resumeDemande: resumeDemande.trim(),
-          motif: motif.trim(),
+          nombreHeures: Math.round(heures * 4) / 4,
           classe: classe.trim(),
           details: details.trim(),
         }),
@@ -177,7 +213,7 @@ export default function DemandesHsePage() {
         throw new Error(data?.error || "Enregistrement impossible.");
       }
       setResumeDemande("");
-      setMotif("");
+      setNombreHeures("");
       setClasse("");
       setDetails("");
       await fetchItems();
@@ -255,25 +291,30 @@ export default function DemandesHsePage() {
               </div>
               <div>
                 <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
-                  Votre demande (résumé)
+                  Votre demande
                 </label>
                 <textarea
                   value={resumeDemande}
                   onChange={(e) => setResumeDemande(e.target.value)}
-                  rows={3}
-                  placeholder="Ex. : HSE pour remplacement le…"
+                  rows={5}
+                  placeholder="Décrivez ce que vous demandez et pourquoi (remplacement, activité, circonstances…)"
                   className="w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">Motif</label>
-                <textarea
-                  value={motif}
-                  onChange={(e) => setMotif(e.target.value)}
-                  rows={3}
-                  placeholder="Pourquoi de cette demande…"
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
+                  Nombre d&apos;heures
+                </label>
+                <input
+                  type="number"
+                  min={0.25}
+                  step={0.25}
+                  value={nombreHeures}
+                  onChange={(e) => setNombreHeures(e.target.value)}
+                  placeholder="Ex. 2 ou 2,5"
                   className="w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
+                <p className="mt-1 text-[11px] text-slate-500">Pas de 0,25 h (ex. 1 · 1,25 · 1,5 · 2,75).</p>
               </div>
               <div>
                 <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
@@ -289,13 +330,13 @@ export default function DemandesHsePage() {
               </div>
               <div>
                 <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
-                  Précisions (contexte, remplacement, modalités…)
+                  Précisions <span className="font-bold normal-case text-slate-400">(optionnel)</span>
                 </label>
                 <textarea
                   value={details}
                   onChange={(e) => setDetails(e.target.value)}
-                  rows={5}
-                  placeholder="Tout ce qui aide la direction à comprendre : remplacement, horaires, circonstances…"
+                  rows={3}
+                  placeholder="Horaires, modalités, remplacement… si besoin"
                   className="w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
               </div>
@@ -322,7 +363,9 @@ export default function DemandesHsePage() {
             <>
               <div className="bg-white border border-slate-200 rounded-3xl p-4">
                 <h3 className="font-black text-slate-900">Mes demandes</h3>
-                <p className="text-xs text-slate-500 mt-1">Historique personnel (y compris en attente de traitement).</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Historique personnel. Une demande encore en attente peut être annulée.
+                </p>
               </div>
               {loading ? (
                 <div className="bg-white border border-slate-200 rounded-3xl p-8 text-slate-500">Chargement…</div>
@@ -333,7 +376,13 @@ export default function DemandesHsePage() {
                   <div key={item.id} className="bg-white border border-slate-200 rounded-3xl p-5">
                     <div className="flex flex-wrap gap-3 items-center justify-between mb-3">
                       <div>
-                        <p className="font-black text-slate-900">{item.etablissement} · {item.resumeDemande.slice(0, 80)}{item.resumeDemande.length > 80 ? "…" : ""}</p>
+                        <p className="font-black text-slate-900">
+                          {item.etablissement}
+                          {item.nombreHeures != null ? ` · ${formatNombreHeures(item.nombreHeures)}` : ""}
+                          {" · "}
+                          {item.resumeDemande.slice(0, 60)}
+                          {item.resumeDemande.length > 60 ? "…" : ""}
+                        </p>
                         <p className="text-xs text-slate-500">
                           Créée le {new Date(item.createdAt).toLocaleString("fr-FR")} — {item.createdBy.email}
                         </p>
@@ -342,15 +391,34 @@ export default function DemandesHsePage() {
                         {statusLabel(item.status)}
                       </span>
                     </div>
-                    <p className="text-sm text-slate-700 mb-1">
-                      <span className="font-bold">Motif :</span> {item.motif}
+                    <p className="text-sm text-slate-700 mb-1 whitespace-pre-wrap">
+                      <span className="font-bold">Demande :</span> {item.resumeDemande}
                     </p>
+                    {item.nombreHeures != null ? (
+                      <p className="text-sm text-slate-700 mb-1">
+                        <span className="font-bold">Heures :</span> {formatNombreHeures(item.nombreHeures)}
+                      </p>
+                    ) : null}
                     <p className="text-sm text-slate-700 mb-1">
                       <span className="font-bold">Classe / contexte :</span> {item.classe}
                     </p>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                      <span className="font-bold">Précisions :</span> {item.details}
-                    </p>
+                    {item.details ? (
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap">
+                        <span className="font-bold">Précisions :</span> {item.details}
+                      </p>
+                    ) : null}
+                    {item.status === "EN_ATTENTE" ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={cancellingId === item.id}
+                          onClick={() => void cancelDemand(item.id)}
+                          className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold text-sm hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          {cancellingId === item.id ? "Annulation…" : "Annuler la demande"}
+                        </button>
+                      </div>
+                    ) : null}
                     {item.directionNote && (
                       <p className="text-sm text-indigo-800 mt-2">
                         <span className="font-bold">Message direction :</span> {item.directionNote}
@@ -404,14 +472,18 @@ export default function DemandesHsePage() {
                             {statusLabel(item.status)}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-800 font-semibold mb-1">{item.resumeDemande}</p>
-                        <p className="text-sm text-slate-700 mb-1">
-                          <span className="font-bold">Motif :</span> {item.motif}
-                        </p>
+                        <p className="text-sm text-slate-800 font-semibold mb-1 whitespace-pre-wrap">{item.resumeDemande}</p>
+                        {item.nombreHeures != null ? (
+                          <p className="text-sm text-slate-700 mb-1">
+                            <span className="font-bold">Heures :</span> {formatNombreHeures(item.nombreHeures)}
+                          </p>
+                        ) : null}
                         <p className="text-sm text-slate-700 mb-3">
                           <span className="font-bold">Classe / contexte :</span> {item.classe}
                         </p>
-                        <p className="text-sm text-slate-600 whitespace-pre-wrap mb-3">{item.details}</p>
+                        {item.details ? (
+                          <p className="text-sm text-slate-600 whitespace-pre-wrap mb-3">{item.details}</p>
+                        ) : null}
                         <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
                           Note pour le demandeur (optionnel)
                         </label>
@@ -461,8 +533,10 @@ export default function DemandesHsePage() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mb-2">{new Date(item.createdAt).toLocaleDateString("fr-FR")}</p>
-                        <p className="text-sm font-semibold text-slate-800 mb-2">{item.resumeDemande}</p>
-                        <p className="text-sm text-slate-700">{item.motif}</p>
+                        <p className="text-sm font-semibold text-slate-800 mb-2 whitespace-pre-wrap">{item.resumeDemande}</p>
+                        {item.nombreHeures != null ? (
+                          <p className="text-sm text-slate-700 mb-1">{formatNombreHeures(item.nombreHeures)}</p>
+                        ) : null}
                         {item.directionNote && (
                           <p className="text-sm text-indigo-800 mt-2">
                             <span className="font-bold">Note :</span> {item.directionNote}

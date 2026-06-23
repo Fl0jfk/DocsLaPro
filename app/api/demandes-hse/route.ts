@@ -21,11 +21,12 @@ type HseRecord = {
   id: string;
   createdAt: string;
   updatedAt: string;
-  status: "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE";
+  status: "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE" | "ANNULEE";
   createdBy: { userId: string; name: string; email: string };
   etablissement: HseEtablissement;
   resumeDemande: string;
   motif: string;
+  nombreHeures?: number;
   classe: string;
   details: string;
   decidedBy?: { userId: string; name: string };
@@ -101,6 +102,29 @@ function isValidEtab(v: string): v is HseEtablissement {
   return v === "École" || v === "Collège" || v === "Lycée";
 }
 
+function parseNombreHeures(raw: unknown): { ok: true; value: number } | { ok: false; error: string } {
+  const n =
+    typeof raw === "number"
+      ? raw
+      : Number(String(raw ?? "").trim().replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) {
+    return { ok: false, error: "Indiquez le nombre d’heures demandé (supérieur à 0)." };
+  }
+  const quarters = Math.round(n * 4);
+  if (Math.abs(n * 4 - quarters) > 1e-6) {
+    return { ok: false, error: "Le nombre d’heures doit être un multiple de 0,25 (ex. 1, 1,25, 2,5…)." };
+  }
+  if (quarters > 4000) {
+    return { ok: false, error: "Nombre d’heures trop élevé." };
+  }
+  return { ok: true, value: quarters / 4 };
+}
+
+function formatNombreHeures(h: number): string {
+  const text = Number.isInteger(h) ? String(h) : h.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+  return `${text} h`;
+}
+
 export async function GET() {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
@@ -157,22 +181,25 @@ export async function POST(req: Request) {
   }
 
   const resumeDemande = String(body.resumeDemande ?? "").trim();
-  const motif = String(body.motif ?? "").trim();
   const classe = String(body.classe ?? "").trim();
   const details = String(body.details ?? "").trim();
+  const heuresParsed = parseNombreHeures(body.nombreHeures);
 
-  if (!resumeDemande || resumeDemande.length > 2000) {
-    return NextResponse.json({ error: "Renseignez un intitulé ou résumé de votre demande HSE." }, { status: 400 });
+  if (!resumeDemande || resumeDemande.length > 8000) {
+    return NextResponse.json({ error: "Décrivez votre demande (objet et motivation)." }, { status: 400 });
   }
-  if (!motif || motif.length > 8000) {
-    return NextResponse.json({ error: "Le motif est requis." }, { status: 400 });
+  if (!heuresParsed.ok) {
+    return NextResponse.json({ error: heuresParsed.error }, { status: 400 });
   }
   if (!classe || classe.length > 4000) {
     return NextResponse.json({ error: "Précisez la classe ou le contexte pédagogique." }, { status: 400 });
   }
-  if (!details || details.length > 12000) {
-    return NextResponse.json({ error: "Les précisions sur le contexte (remplacement, etc.) sont requises." }, { status: 400 });
+  if (details.length > 12000) {
+    return NextResponse.json({ error: "Les précisions sont trop longues." }, { status: 400 });
   }
+
+  const nombreHeures = heuresParsed.value;
+  const motif = resumeDemande;
 
   const record: HseRecord = {
     id: crypto.randomUUID(),
@@ -187,6 +214,7 @@ export async function POST(req: Request) {
     etablissement,
     resumeDemande,
     motif,
+    nombreHeures,
     classe,
     details,
   };
@@ -213,11 +241,11 @@ export async function POST(req: Request) {
             ``,
             `Demandeur : ${record.createdBy.name} (${record.createdBy.email})`,
             `Établissement : ${etablissement}`,
-            `Demande (résumé) : ${resumeDemande}`,
-            `Motif : ${motif}`,
+            `Nombre d’heures demandé : ${formatNombreHeures(nombreHeures)}`,
+            `Demande :`,
+            resumeDemande,
             `Classe / contexte : ${classe}`,
-            `Précisions :`,
-            details,
+            details ? `Précisions : ${details}` : "",
             ``,
             `Traiter la demande : ${hseLink}`,
             ``,
@@ -258,7 +286,7 @@ export async function PATCH(req: Request) {
   const statusRaw = String(body?.status || "").trim().toUpperCase();
   const directionNote = String(body?.directionNote || "").trim();
 
-  if (!id || !["ACCEPTEE", "REFUSEE"].includes(statusRaw)) {
+  if (!id || !["ACCEPTEE", "REFUSEE", "ANNULEE"].includes(statusRaw)) {
     return NextResponse.json({ error: "Paramètres invalides." }, { status: 400 });
   }
 
@@ -268,11 +296,57 @@ export async function PATCH(req: Request) {
     if (idx < 0) return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
 
     const current = all[idx];
-    if (!canManageDemand(current, roles)) {
-      return NextResponse.json({ error: "Décision réservée à la direction concernée." }, { status: 403 });
-    }
     if (current.status !== "EN_ATTENTE") {
       return NextResponse.json({ error: "Cette demande a déjà été traitée." }, { status: 400 });
+    }
+
+    if (statusRaw === "ANNULEE") {
+      if (current.createdBy.userId !== userId) {
+        return NextResponse.json({ error: "Seul le demandeur peut annuler sa demande." }, { status: 403 });
+      }
+
+      const updated: HseRecord = {
+        ...current,
+        status: "ANNULEE",
+        updatedAt: new Date().toISOString(),
+      };
+      all[idx] = updated;
+      await saveIndex(all);
+
+      const dir = await resolveDirectorMail(updated.etablissement);
+      const mail = await getMailer();
+      if (mail?.transporter && dir.email) {
+        try {
+          await mail.transporter.sendMail({
+            from: `"Demandes HSE" <${mail.smtp.user}>`,
+            to: dir.email,
+            subject: `HSE — demande annulée (${updated.etablissement})`,
+            text: [
+              `Bonjour ${dir.name},`,
+              ``,
+              `Le demandeur ${updated.createdBy.name} (${updated.createdBy.email}) a annulé sa demande HSE encore en attente.`,
+              ``,
+              `Établissement : ${updated.etablissement}`,
+              updated.nombreHeures != null
+                ? `Nombre d’heures : ${formatNombreHeures(updated.nombreHeures)}`
+                : "",
+              `Demande : ${updated.resumeDemande}`,
+              ``,
+              `Aucune action de votre part n’est nécessaire.`,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          });
+        } catch (e) {
+          console.error("[demandes-hse] mail annulation direction:", e);
+        }
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (!canManageDemand(current, roles)) {
+      return NextResponse.json({ error: "Décision réservée à la direction concernée." }, { status: 403 });
     }
 
     const updated: HseRecord = {
@@ -308,10 +382,12 @@ export async function PATCH(req: Request) {
                     `Bonjour ${updated.createdBy.name},`,
                     ``,
                     `Votre demande d’heures supplémentaires exceptionnelles a été acceptée par la direction (${updated.etablissement}).`,
-                    `Résumé : ${updated.resumeDemande}`,
-                    `Motif : ${updated.motif}`,
+                    updated.nombreHeures != null
+                      ? `Nombre d’heures : ${formatNombreHeures(updated.nombreHeures)}`
+                      : "",
+                    `Demande : ${updated.resumeDemande}`,
                     `Classe / contexte : ${updated.classe}`,
-                    `Précisions : ${updated.details}`,
+                    updated.details ? `Précisions : ${updated.details}` : "",
                     directionNote ? `Message de la direction : ${directionNote}` : "",
                     ``,
                     `Détail sur l’intranet : ${base}`,
@@ -354,11 +430,13 @@ export async function PATCH(req: Request) {
               ``,
               `Demandeur : ${updated.createdBy.name} (${updated.createdBy.email})`,
               `Établissement : ${updated.etablissement}`,
+              updated.nombreHeures != null
+                ? `Nombre d’heures : ${formatNombreHeures(updated.nombreHeures)}`
+                : "",
               `Décision par : ${updated.decidedBy?.name}`,
-              `Résumé : ${updated.resumeDemande}`,
-              `Motif : ${updated.motif}`,
+              `Demande : ${updated.resumeDemande}`,
               `Classe / contexte : ${updated.classe}`,
-              `Précisions : ${updated.details}`,
+              updated.details ? `Précisions : ${updated.details}` : "",
               directionNote ? `Note direction : ${directionNote}` : "",
               ``,
               `Voir sur l’intranet : ${base}`,
