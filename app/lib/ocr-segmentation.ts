@@ -116,3 +116,66 @@ export function heuristicClassSegments(
 
   return { mode: "multi", segments };
 }
+
+/** Pages couvertes par les segments (1-indexées). */
+export function maxSegmentPageEnd(segments: OcrDocumentSegment[]): number {
+  if (segments.length === 0) return 0;
+  return Math.max(...segments.map((s) => s.pageEnd));
+}
+
+/**
+ * Complète les segments si l'IA n'a vu qu'une partie du PDF (digest tronqué).
+ * Les pages manquantes reçoivent un segment chacune.
+ */
+export function ensureFullPageCoverage(
+  segments: OcrDocumentSegment[],
+  pageCount: number,
+): { segments: OcrDocumentSegment[]; coverageFixed: boolean } {
+  if (pageCount <= 0) {
+    return { segments, coverageFixed: false };
+  }
+
+  const covered = new Set<number>();
+  for (const s of segments) {
+    for (let p = s.pageStart; p <= s.pageEnd; p++) {
+      covered.add(p);
+    }
+  }
+
+  const missing: number[] = [];
+  for (let p = 1; p <= pageCount; p++) {
+    if (!covered.has(p)) missing.push(p);
+  }
+
+  if (missing.length === 0) {
+    return { segments, coverageFixed: false };
+  }
+
+  const extra: OcrDocumentSegment[] = [];
+  let start = missing[0];
+  let prev = missing[0];
+  for (let i = 1; i < missing.length; i++) {
+    if (missing[i] === prev + 1) {
+      prev = missing[i];
+      continue;
+    }
+    extra.push({
+      pageStart: start,
+      pageEnd: prev,
+      label:
+        start === prev ? `Page ${start}` : `Pages ${start}-${prev}`,
+    });
+    start = missing[i];
+    prev = missing[i];
+  }
+  extra.push({
+    pageStart: start,
+    pageEnd: prev,
+    label: start === prev ? `Page ${start}` : `Pages ${start}-${prev}`,
+  });
+
+  return {
+    segments: [...segments, ...extra].sort((a, b) => a.pageStart - b.pageStart),
+    coverageFixed: true,
+  };
+}

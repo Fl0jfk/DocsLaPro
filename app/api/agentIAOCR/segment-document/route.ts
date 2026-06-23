@@ -3,7 +3,9 @@ import { resolveSession } from "@/app/lib/intranet-session";
 
 import {
   buildPageDigestForSegmentation,
+  ensureFullPageCoverage,
   heuristicClassSegments,
+  maxSegmentPageEnd,
   type OcrDocumentSegment,
 } from "@/app/lib/ocr-segmentation";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
@@ -12,6 +14,10 @@ export const maxDuration = 60;
 
 const MISTRAL_TIMEOUT_MS = 22_000;
 const SEGMENTATION_MODEL = "mistral-small-latest";
+/** Résumé OCR envoyé à Mistral — au-delà, l'IA ne voit pas toutes les pages. */
+const DIGEST_PROMPT_LIMIT = 32_000;
+/** Au-dessus de ce seuil, on préfère l'heuristique (toutes les pages). */
+const MISTRAL_MAX_RELIABLE_PAGES = 42;
 
 export type DocumentSegment = OcrDocumentSegment;
 
@@ -105,7 +111,7 @@ JSON uniquement :
 
 Résumé OCR par page :
 ---
-${digest.slice(0, 32_000)}
+${digest.slice(0, DIGEST_PROMPT_LIMIT)}
 ---
 `;
 
@@ -177,7 +183,7 @@ export async function POST(req: Request) {
       digest = built.digest;
       resolvedPageCount = built.pageCount || pageCount;
     } else if (text) {
-      digest = text.slice(0, 32_000);
+      digest = text.slice(0, DIGEST_PROMPT_LIMIT);
       if (!resolvedPageCount) {
         const matches = text.match(/--- Page (\d+) ---/g) || [];
         resolvedPageCount = matches.length;
@@ -194,17 +200,64 @@ export async function POST(req: Request) {
     }
 
     let usedFallback = false;
-    let result =
-      (await callMistralSegmentation(digest, resolvedPageCount)) ?? null;
+    let coverageFixed = false;
+    const digestTooLongForMistral = digest.length > DIGEST_PROMPT_LIMIT;
+    const tooManyPagesForMistral =
+      resolvedPageCount > MISTRAL_MAX_RELIABLE_PAGES;
 
-    if (!result && pageTexts && resolvedPageCount > 0) {
+    let result: {
+      mode: "single" | "multi";
+      segments: DocumentSegment[];
+    } | null = null;
+
+    if (
+      pageTexts &&
+      resolvedPageCount > 0 &&
+      (digestTooLongForMistral || tooManyPagesForMistral)
+    ) {
       result = heuristicClassSegments(pageTexts, resolvedPageCount);
       usedFallback = true;
       console.warn(
-        "[segment-document] repli heuristique",
+        "[segment-document] heuristique (PDF trop long pour Mistral)",
         result.segments.length,
-        "segments",
+        "segments,",
+        resolvedPageCount,
+        "pages",
       );
+    } else {
+      result = (await callMistralSegmentation(digest, resolvedPageCount)) ?? null;
+
+      if (result && resolvedPageCount > 0) {
+        const before = maxSegmentPageEnd(result.segments);
+        const fixed = ensureFullPageCoverage(result.segments, resolvedPageCount);
+        result = {
+          ...result,
+          mode: fixed.segments.length > 1 ? "multi" : result.mode,
+          segments: fixed.segments,
+        };
+        if (fixed.coverageFixed) {
+          coverageFixed = true;
+          console.warn(
+            "[segment-document] couverture complétée",
+            before,
+            "→",
+            resolvedPageCount,
+            "pages,",
+            fixed.segments.length,
+            "segments",
+          );
+        }
+      }
+
+      if (!result && pageTexts && resolvedPageCount > 0) {
+        result = heuristicClassSegments(pageTexts, resolvedPageCount);
+        usedFallback = true;
+        console.warn(
+          "[segment-document] repli heuristique",
+          result.segments.length,
+          "segments",
+        );
+      }
     }
 
     if (!result) {
@@ -220,7 +273,12 @@ export async function POST(req: Request) {
       resolvedPageCount,
     );
 
-    return NextResponse.json({ ...finalized, usedFallback });
+    return NextResponse.json({
+      ...finalized,
+      usedFallback,
+      coverageFixed,
+      pageCount: resolvedPageCount,
+    });
   } catch (error) {
     console.error("[segment-document]", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
