@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import AbsencesCalendar from "@/app/components/absences/AbsencesCalendar";
 import AbsencesDeclareOther from "@/app/components/absences/AbsencesDeclareOther";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 import {
   canChooseDeclarationScope,
   canManageAbsenceAttachment,
@@ -440,11 +441,12 @@ export default function AbsencesPageClient() {
         <h1 className="text-4xl font-black text-slate-900">Absences</h1>
         <p className="text-slate-500 mt-2">Déclaration, suivi et calendrier des absences.</p>
       </div>
-      <nav className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 pb-3">
+      <nav data-tour="absences-tabs" className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 pb-3">
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
+            data-absences-tab={t.id}
             onClick={() => setTab(t.id)}
             className={[
               "px-4 py-2 rounded-xl text-sm font-bold transition-colors",
@@ -462,7 +464,9 @@ export default function AbsencesPageClient() {
       </nav>
 
       {activeTab === "calendrier" && showCalendar ? (
-        <AbsencesCalendar refreshKey={calendarRefresh} />
+        <div data-tour="absences-calendar">
+          <AbsencesCalendar refreshKey={calendarRefresh} />
+        </div>
       ) : null}
 
       {activeTab === "autre-personne" && showCalendar ? (
@@ -471,7 +475,7 @@ export default function AbsencesPageClient() {
 
       {activeTab === "se-declarer" ? (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div id="nouvelle-absence" className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit scroll-mt-24">
+        <div id="nouvelle-absence" data-tour="absences-declare" className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit scroll-mt-24">
           <h2 className="text-xl font-black text-slate-900 mb-4">Nouvelle absence</h2>
           <div className="space-y-4">
             {canChooseScope ? (
@@ -666,7 +670,7 @@ export default function AbsencesPageClient() {
       ) : null}
 
       {activeTab === "a-traiter" && canTreat ? (
-        <div className="space-y-4">
+        <div data-tour="absences-treat" className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-3xl p-4">
             <h3 className="font-black text-slate-900">En attente de décision</h3>
             <p className="text-xs text-slate-500">Absences à valider, refuser ou relancer pour justificatif.</p>
@@ -844,6 +848,7 @@ export default function AbsencesPageClient() {
           )}
         </div>
       ) : null}
+      <ReplayModuleTourButton moduleId="absences" />
     </div>
   );
 }

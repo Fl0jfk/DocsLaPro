@@ -8,6 +8,7 @@ import {
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson, putJson } from "@/app/lib/s3-storage";
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 const INDEX_KEY = "demandes-hse/index.json";
 
@@ -85,10 +86,6 @@ async function getMailer() {
   const transporter = await createTenantTransporter();
   if (!transporter) return null;
   return { smtp, transporter };
-}
-
-function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 }
 
 async function getIndex(): Promise<HseRecord[]> {
@@ -201,6 +198,7 @@ export async function POST(req: Request) {
 
     const dir = await resolveDirectorMail( etablissement);
     const mail = await getMailer();
+    const hseLink = await tenantAbsolutePath("/demandes-hse");
     if (mail) {
       const { smtp, transporter } = mail;
       try {
@@ -221,7 +219,7 @@ export async function POST(req: Request) {
             `Précisions :`,
             details,
             ``,
-            `Traiter la demande : ${appUrl()}/demandes-hse`,
+            `Traiter la demande : ${hseLink}`,
             ``,
             `Cordialement,`,
             `Plateforme La Providence Nicolas Barré`,
@@ -290,7 +288,7 @@ export async function PATCH(req: Request) {
     await saveIndex( all);
 
     const creatorEmail = updated.createdBy.email;
-    const base = `${appUrl()}/demandes-hse`;
+    const base = await tenantAbsolutePath("/demandes-hse");
 
     const mail = await getMailer();
     if (mail) {

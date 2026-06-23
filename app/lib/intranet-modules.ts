@@ -558,6 +558,27 @@ export function canAccessIntranetPath(
   return modules.some((m) => rolesAllowModule(roles, m, isOrgAdmin));
 }
 
+/** Module intranet correspondant à un chemin (préfixe le plus spécifique). */
+export function resolveModuleIdFromPath(pathname: string): string | null {
+  const normalized = normalizePathname(pathname);
+  const matches = findMatchingModules(normalized);
+  if (!matches.length) return null;
+
+  let best: IntranetModule = matches[0]!;
+  let bestLen = 0;
+  for (const m of matches) {
+    for (const prefix of m.pathPrefixes ?? []) {
+      if (normalized === prefix || normalized.startsWith(`${prefix}/`)) {
+        if (prefix.length > bestLen) {
+          bestLen = prefix.length;
+          best = m;
+        }
+      }
+    }
+  }
+  return best.id;
+}
+
 export function isOrgAdminFromSession(
   orgRole: string | null | undefined,
   publicMetadata: Record<string, unknown> | undefined,

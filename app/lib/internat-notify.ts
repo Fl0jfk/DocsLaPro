@@ -12,10 +12,7 @@ import { studentDisplayName } from "@/app/lib/internat-types";
 import type { InternatOuting, InternatRollCall, InternatStudent } from "@/app/lib/internat-types";
 import { rollCallAbsentStudents, rollCallStudentsByMark } from "@/app/lib/internat-stats";
 import { INTERNAT_ROLL_MARK_LABELS } from "@/app/lib/internat-types";
-
-function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-}
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 async function getInternatMailer() {
   const smtp = await getTenantSmtpConfig();
@@ -78,7 +75,7 @@ export async function notifyInternatRollCallValidated(params: {
   const activitiesCollege = activities.filter((a) => a.student.etablissement === "Collège");
   const activitiesLycee = activities.filter((a) => a.student.etablissement === "Lycée");
 
-  const link = appUrl() ? `${appUrl()}/gestion-internat?tab=appel` : "/gestion-internat?tab=appel";
+  const link = await tenantAbsolutePath("/gestion-internat?tab=appel");
   const dateLabel = new Date(params.rollCall.date).toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -200,7 +197,7 @@ export async function notifyInternatRollCallIncomplete(params: {
     return { sent: false, reason: "no_recipients" };
   }
 
-  const link = appUrl() ? `${appUrl()}/gestion-internat?tab=appel` : "/gestion-internat?tab=appel";
+  const link = await tenantAbsolutePath("/gestion-internat?tab=appel");
   const dateLabel = new Date(params.rollCall.date).toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -237,11 +234,8 @@ export async function notifyInternatRollCallIncomplete(params: {
   return { sent: true, recipients };
 }
 
-function outingAuthUrl(token: string) {
-  const base = appUrl();
-  return base
-    ? `${base}/internat/autorisation?token=${encodeURIComponent(token)}`
-    : `/internat/autorisation?token=${encodeURIComponent(token)}`;
+async function outingAuthUrl(token: string) {
+  return tenantAbsolutePath(`/internat/autorisation?token=${encodeURIComponent(token)}`);
 }
 
 export async function notifyInternatOutingDirection(params: {
@@ -262,7 +256,7 @@ export async function notifyInternatOutingDirection(params: {
   }
 
   const students = participantsForEtab(params.outing, decision.etablissement);
-  const link = outingAuthUrl(decision.token);
+  const link = await outingAuthUrl(decision.token);
   const dateLabel = outingDateTimeLabel(params.outing);
 
   const text = [
@@ -312,7 +306,7 @@ export async function notifyInternatOutingParents(params: { outing: InternatOuti
   const emails = [p.parent1Email, p.parent2Email].filter(Boolean) as string[];
   if (emails.length === 0) return { sent: false, reason: "no_recipients" };
 
-  const link = outingAuthUrl(p.parentToken);
+  const link = await outingAuthUrl(p.parentToken);
   const dateLabel = outingDateTimeLabel(params.outing);
 
   const text = [

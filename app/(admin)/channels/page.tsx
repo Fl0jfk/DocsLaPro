@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 
 type Channel = {
   id: string;
@@ -269,7 +270,9 @@ export default function ProfChatPage() {
   return (
     <main className="flex h-screen bg-gray-100 p-2 md:p-4 gap-4 relative overflow-hidden">
       
-      <div className={`
+      <div
+        data-tour="channels-list"
+        className={`
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-[110%]"} 
         md:translate-x-0 fixed md:static inset-y-4 left-4 z-40
         w-64 bg-white rounded-3xl shadow-xl md:shadow-sm border border-gray-200 
@@ -352,7 +355,7 @@ export default function ProfChatPage() {
           </div>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-gray-50/30">
+        <div ref={scrollRef} data-tour="channels-messages" className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-gray-50/30">
           {loading ? (
             <div className="space-y-6">
               {[1, 2, 3].map((i) => (
@@ -419,7 +422,7 @@ export default function ProfChatPage() {
             })
           )}
         </div>
-        <div className="p-3 md:p-4 bg-white border-t">
+        <div data-tour="channels-compose" className="p-3 md:p-4 bg-white border-t">
           <div className="bg-gray-100 rounded-2xl p-2">
             <textarea
               value={text}
@@ -536,6 +539,7 @@ export default function ProfChatPage() {
           </div>
         </div>
       )}
+      <ReplayModuleTourButton moduleId="channels" />
     </main>
   );
 }

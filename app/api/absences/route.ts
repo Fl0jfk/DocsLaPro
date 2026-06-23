@@ -30,6 +30,7 @@ import {
   type AbsenceScope,
   type Etablissement,
 } from "@/app/lib/absences-types";
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 import { getAbsenceDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/absences-documents";
 import {
   formatJustificatifMailLine,
@@ -268,6 +269,7 @@ export async function POST(req: Request) {
     try {
       const target = await resolveDecisionTarget(scope, scope === "ogec" ? null : etablissement);
       const mail = await getMailer();
+      const absencesLink = await tenantAbsolutePath("/absences");
       if (mail) {
       const { smtp, transporter } = mail;
       await transporter.sendMail({
@@ -289,7 +291,7 @@ export async function POST(req: Request) {
           ``,
           `Action attendue : Valider / Refuser / Relancer justificatif`,
           ``,
-          `Espace Absences: ${process.env.NEXT_PUBLIC_APP_URL || ""}/absences`,
+          `Espace Absences: ${absencesLink}`,
         ]
           .filter(Boolean)
           .join("\n"),
@@ -539,7 +541,7 @@ export async function PATCH(req: Request) {
           const mail = await getMailer();
           if (mail) {
           const { smtp, transporter } = mail;
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+          const absencesLink = await tenantAbsolutePath("/absences");
           await transporter.sendMail({
             from: `"Absences" <${smtp.user}>`,
             to: current.createdBy.email,
@@ -563,7 +565,7 @@ export async function PATCH(req: Request) {
               managerNote ? `Message de la direction : ${managerNote}` : "",
               ``,
               `Pour déposer votre justificatif :`,
-              appUrl ? `${appUrl}/absences` : "Espace Absences de l'intranet",
+              absencesLink || "Espace Absences de l'intranet",
               ``,
               `Cordialement,`,
               `La direction`,

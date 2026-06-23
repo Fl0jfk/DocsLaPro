@@ -6,6 +6,7 @@ import * as msal from "@azure/msal-browser";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
 import { consumeDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 
 const ONEDRIVE_SCOPES = ["Files.ReadWrite", "User.Read"];
 
@@ -62,6 +63,8 @@ function OneDriveUpDocsOCRAIContent() {
   const [isDraggingClass, setIsDraggingClass] = useState(false);
 
   const [elevesCount, setElevesCount] = useState<number | null>(null);
+  const [elevesSource, setElevesSource] = useState<"auto" | "pronote" | "ecoledirecte">("auto");
+  const [elevesReplaceAll, setElevesReplaceAll] = useState(false);
   const [elevesUploading, setElevesUploading] = useState(false);
   const [elevesMessage, setElevesMessage] = useState("");
   const [syncingFolders, setSyncingFolders] = useState(false);
@@ -833,20 +836,28 @@ function OneDriveUpDocsOCRAIContent() {
     setElevesUploading(true);
     setElevesMessage("");
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      const res = await fetch("/api/eleves", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed),
-      });
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("source", elevesSource);
+      if (elevesReplaceAll) fd.append("mode", "replace");
+      const res = await fetch("/api/eleves/import", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Échec de la mise à jour");
       setElevesCount(data.count);
-      setElevesMessage(data.message || `Liste mise à jour (${data.count} élèves).`);
+      const src =
+        data.detectedSource === "pronote"
+          ? " (Pronote)"
+          : data.detectedSource === "ecoledirecte"
+            ? " (École Directe)"
+            : "";
+      setElevesMessage(
+        (data.message || `Liste mise à jour (${data.count} élèves).`) +
+          src +
+          " — Pensez à synchroniser les dossiers OneDrive.",
+      );
     } catch (e: unknown) {
       setElevesMessage(
-        "Erreur : " + (e instanceof Error ? e.message : String(e))
+        "Erreur : " + (e instanceof Error ? e.message : String(e)),
       );
     } finally {
       setElevesUploading(false);
@@ -959,6 +970,7 @@ function OneDriveUpDocsOCRAIContent() {
       )}
 
       <div
+        data-tour="onedrive-connect"
         className={`mb-8 rounded-3xl border p-5 md:p-6 ${
           dropsAvailable
             ? "border-green-200 bg-green-50/60"
@@ -1040,6 +1052,7 @@ function OneDriveUpDocsOCRAIContent() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div
               id="ocr-drop-standard"
+              data-tour="drop-standard"
               onDragOver={
                 dropDisabled
                   ? undefined
@@ -1107,6 +1120,7 @@ function OneDriveUpDocsOCRAIContent() {
             </div>
 
             <div
+              data-tour="drop-class"
               onDragOver={
                 dropDisabled
                   ? undefined
@@ -1305,95 +1319,207 @@ function OneDriveUpDocsOCRAIContent() {
             </div>
           )}
 
-          <details className="mt-10 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden group">
+          <details
+            data-tour="eleves-import"
+            className="mt-10 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden group"
+          >
             <summary className="cursor-pointer list-none px-6 py-4 font-bold text-slate-800 hover:bg-slate-50 flex items-center justify-between gap-2">
               <span>Configuration — liste élèves & dossiers OneDrive</span>
               <span className="text-slate-400 text-sm font-normal group-open:rotate-180 transition-transform">
                 ▼
               </span>
             </summary>
-            <div className="px-6 pb-6 pt-2 border-t border-slate-100 space-y-4">
+            <div className="px-6 pb-6 pt-2 border-t border-slate-100 space-y-6">
               <p className="text-sm text-slate-600">
-                {elevesCount != null
-                  ? `${elevesCount} élève(s) enregistré(s) pour le classement automatique.`
-                  : "Chargez la liste des élèves exportée depuis votre logiciel de scolarité (fichier JSON)."}
-                {" "}
-                La table des formations (MEF) se gère dans{" "}
-                <a href="/parametres" className="text-indigo-600 font-medium hover:underline">
-                  Paramètres
-                </a>
-                .
+                Trois actions dans l&apos;ordre : importer la liste élèves, configurer la table MEF, puis créer les
+                dossiers OneDrive manquants.
+                {elevesCount != null && (
+                  <span className="block mt-1 font-medium text-slate-800">
+                    {elevesCount} élève(s) actuellement enregistré(s) pour le classement automatique.
+                  </span>
+                )}
               </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  disabled={elevesUploading}
-                  onClick={() => elevesInputRef.current?.click()}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-                >
-                  {elevesUploading ? "Envoi…" : "Mettre à jour la liste élèves"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!dropsAvailable || syncingFolders || checkingOneDrive}
-                  onClick={handleSyncOneDriveFolders}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-                >
-                  {syncingFolders ? "Synchronisation…" : "Créer les dossiers sur OneDrive"}
-                </button>
-                <button
-                  type="button"
-                  disabled={mefUploading}
-                  onClick={() => mefInputRef.current?.click()}
-                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 text-sm font-bold rounded-xl"
-                >
-                  {mefUploading ? "Envoi…" : "Importer table MEF (JSON)"}
-                </button>
-                <input
-                  ref={elevesInputRef}
-                  type="file"
-                  accept=".json,application/json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleElevesUpload(f);
-                  }}
-                />
-                <input
-                  ref={mefInputRef}
-                  type="file"
-                  accept=".json,application/json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleMefUpload(f);
-                  }}
-                />
-              </div>
-              {elevesMessage && (
-                <p
-                  className={`text-sm ${elevesMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}
-                >
-                  {elevesMessage}
+
+              <section className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                <h3 className="text-sm font-bold text-slate-800">1 — Importer la liste élèves (Excel)</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Enregistre les élèves utilisés par l&apos;IA pour reconnaître et classer les documents. À refaire
+                  quand la liste change (rentrée, arrivées…). Par défaut, l&apos;import{" "}
+                  <strong>fusionne</strong> avec la liste déjà enregistrée (mise à jour + ajouts, sans supprimer les
+                  autres).
                 </p>
-              )}
-              {mefMessage && (
-                <p className={`text-sm ${mefMessage.startsWith("Erreur") ? "text-red-600" : "text-slate-700"}`}>
-                  {mefMessage}
-                </p>
-              )}
-              {syncReport && (
-                <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-700 space-y-1">
-                  <p>
-                    <strong>{syncReport.secteurLabel}</strong> — {syncReport.basePath}
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950 leading-relaxed space-y-2">
+                  <p className="font-bold">
+                    Ligne d&apos;en-tête obligatoire : la 1re ligne du fichier doit contenir les titres des
+                    colonnes. Sans elle, l&apos;import échoue.
                   </p>
-                  <p>
-                    Dossiers créés : {syncReport.created} · Déjà existants : {syncReport.alreadyThere}
+                  <p className="font-semibold text-amber-900">Ordre des colonnes (de gauche à droite) :</p>
+                  <ol className="list-decimal list-inside space-y-0.5 pl-1">
+                    <li>Nom</li>
+                    <li>Prénom</li>
+                    <li>Classe (ou Division)</li>
+                    <li>INE / identifiant national</li>
+                    <li>Code MEF / Formation</li>
+                    <li>E-mail élève (optionnel)</li>
+                    <li>E-mail parent (optionnel)</li>
+                  </ol>
+                  <p className="text-amber-800">
+                    Pronote : Scolarité → Exports → liste élèves Excel. École Directe : export modulable — placez les
+                    colonnes dans cet ordre. Le JSON reste possible pour les cas avancés.
                   </p>
                 </div>
-              )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="text-xs font-semibold text-slate-600">
+                    Source export
+                    <select
+                      className="ml-2 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                      value={elevesSource}
+                      onChange={(e) =>
+                        setElevesSource(e.target.value as "auto" | "pronote" | "ecoledirecte")
+                      }
+                    >
+                      <option value="auto">Détection auto</option>
+                      <option value="pronote">Pronote</option>
+                      <option value="ecoledirecte">École Directe</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={elevesUploading}
+                    onClick={() => elevesInputRef.current?.click()}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+                  >
+                    {elevesUploading ? "Envoi…" : "Importer liste élèves (Excel)"}
+                  </button>
+                  <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={elevesReplaceAll}
+                      onChange={(e) => setElevesReplaceAll(e.target.checked)}
+                      className="rounded border-slate-300"
+                    />
+                    Remplacer toute la liste (au lieu de fusionner)
+                  </label>
+                </div>
+                {elevesMessage && (
+                  <p
+                    className={`text-sm ${elevesMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}
+                  >
+                    {elevesMessage}
+                  </p>
+                )}
+              </section>
+
+              <section
+                data-tour="mef-table"
+                className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3"
+              >
+                <h3 className="text-sm font-bold text-slate-800">2 — Table des formations (MEF)</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Associe chaque <strong>code ou libellé MEF</strong> (colonne E de l&apos;Excel : 3EME, 2NDE,
+                  Cycle 2…) au secteur <strong>Lycée</strong>, <strong>Collège</strong> ou{" "}
+                  <strong>École</strong>. Cela permet à chaque secrétariat de ne traiter que ses élèves et de
+                  créer les bons dossiers OneDrive.
+                </p>
+                <p className="text-xs text-slate-500">
+                  Configuration habituelle :{" "}
+                  <a href="/parametres" className="text-indigo-600 font-medium hover:underline">
+                    Paramètres → Formations MEF
+                  </a>{" "}
+                  (une fois par an ou si les formations changent). Le bouton ci-dessous est un raccourci pour
+                  importer un fichier JSON déjà préparé.
+                </p>
+                {mefCounts && mefCounts.total > 0 && (
+                  <p className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                    Table MEF active : {mefCounts.total} formation(s) — lycée {mefCounts.lycee}, collège{" "}
+                    {mefCounts.college}, école {mefCounts.ecole}.
+                  </p>
+                )}
+                <div>
+                  <button
+                    type="button"
+                    disabled={mefUploading}
+                    onClick={() => mefInputRef.current?.click()}
+                    className="px-4 py-2 border border-slate-300 hover:bg-white disabled:opacity-50 text-slate-700 text-sm font-bold rounded-xl bg-white"
+                  >
+                    {mefUploading ? "Envoi…" : "Importer table MEF (JSON)"}
+                  </button>
+                </div>
+                {mefMessage && (
+                  <p className={`text-sm ${mefMessage.startsWith("Erreur") ? "text-red-600" : "text-slate-700"}`}>
+                    {mefMessage}
+                  </p>
+                )}
+              </section>
+
+              <section
+                data-tour="sync-onedrive"
+                className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3"
+              >
+                <h3 className="text-sm font-bold text-slate-800">3 — Créer les dossiers sur OneDrive</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Crée un dossier par élève de <strong>votre secteur</strong> (format « Nom — Prénom — Classe »)
+                  dans l&apos;arborescence OneDrive connectée en haut de page.
+                </p>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-950 leading-relaxed space-y-1">
+                  <p className="font-bold">Sans risque pour les dossiers existants</p>
+                  <p>
+                    Ce bouton <strong>ne supprime ni ne modifie</strong> les dossiers déjà présents. Il ajoute
+                    uniquement les dossiers manquants pour les nouveaux élèves. Vous pouvez le relancer après
+                    chaque import : seuls les nouveaux seront créés.
+                  </p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    disabled={!dropsAvailable || syncingFolders || checkingOneDrive}
+                    onClick={handleSyncOneDriveFolders}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
+                  >
+                    {syncingFolders ? "Synchronisation…" : "Créer les dossiers sur OneDrive"}
+                  </button>
+                  {!dropsAvailable && (
+                    <p className="mt-2 text-xs text-amber-700">
+                      Connectez OneDrive en haut de page pour activer ce bouton.
+                    </p>
+                  )}
+                </div>
+                {syncReport && (
+                  <div className="p-4 bg-white rounded-xl border border-slate-200 text-sm text-slate-700 space-y-1">
+                    <p>
+                      <strong>{syncReport.secteurLabel}</strong> — {syncReport.basePath}
+                    </p>
+                    <p>
+                      Dossiers créés : {syncReport.created} · Déjà existants (inchangés) :{" "}
+                      {syncReport.alreadyThere}
+                    </p>
+                  </div>
+                )}
+              </section>
+
+              <input
+                ref={elevesInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.json,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleElevesUpload(f);
+                }}
+              />
+              <input
+                ref={mefInputRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleMefUpload(f);
+                }}
+              />
             </div>
           </details>
+          <ReplayModuleTourButton moduleId="agent-ia-ocr" />
       </>
     </div>
   );

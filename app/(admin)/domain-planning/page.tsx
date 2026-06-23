@@ -8,6 +8,7 @@ import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { canAccessDomainPlanningSettingsFromRoles } from "@/app/lib/intranet-role-utils";
 import DomainAssigneePicker, { type ClerkAssigneeOption } from "@/app/components/domain-planning/DomainAssigneePicker";
 import DomainPlanningSettingsTab from "@/app/components/domain-planning/DomainPlanningSettingsTab";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 import {
   DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS,
   DEFAULT_DOMAIN_PLANNING_DOMAINS,
@@ -337,6 +338,7 @@ function DomainPlanningPageContent() {
       <div className="flex flex-wrap gap-2 px-4 pb-4">
         <button
           type="button"
+          data-domain-planning-tab="reservation"
           onClick={() => setActiveTab("reservation")}
           className={`px-6 py-3 rounded-xl text-sm font-black ${activeTab === "reservation" ? "bg-violet-600 text-white shadow-lg" : "bg-slate-100 text-slate-700"}`}
         >
@@ -386,7 +388,7 @@ function DomainPlanningPageContent() {
           ))}
         </select>
       </div>
-      <div className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 w-full">
+      <div data-tour="domain-planning-domain" className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 w-full">
         <div className="flex items-center bg-gray-100 rounded-xl w-full md:w-1/2 justify-between">
             <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 py-3 hover:bg-white rounded-lg">◀</button>
             <div className="px-4 text-[12px] font-black uppercase text-center">
@@ -406,7 +408,7 @@ function DomainPlanningPageContent() {
           )}
         </div>
       </div>
-      <div className="bg-white rounded-3xl overflow-hidden">
+      <div data-tour="domain-planning-calendar" className="bg-white rounded-3xl overflow-hidden">
         <div className="grid grid-cols-6 bg-gray-50 border-b">
           <div className="p-4 text-[13px] font-black text-gray-400 uppercase text-center">Heure</div>
           {weekDays.map((d, i) => (
@@ -518,7 +520,7 @@ function DomainPlanningPageContent() {
           </div>
         </div>
       )}
-      <div id="form-section" className="bg-slate-900 rounded-b-none sm:rounded-b-[40px] rounded-[40px] p-4 md:p-8 text-white shadow-2xl mt-6">
+      <div id="form-section" data-tour="domain-planning-form" className="bg-slate-900 rounded-b-none sm:rounded-b-[40px] rounded-[40px] p-4 md:p-8 text-white shadow-2xl mt-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-8">
           <div className="flex items-center gap-3 min-w-0">
             <div className={`p-2 md:p-3 rounded-2xl flex-shrink-0 ${isEditing ? 'bg-orange-500' : 'bg-green-500'}`}>
@@ -643,6 +645,7 @@ function DomainPlanningPageContent() {
       </div>
       </>
       )}
+      <ReplayModuleTourButton moduleId="domain-planning" />
     </div>
   );
 }

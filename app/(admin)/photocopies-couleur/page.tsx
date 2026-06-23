@@ -2,6 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 
 type Etablissement = "École" | "Collège" | "Lycée";
 type PhotoCopieStatus = "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE";
@@ -270,7 +271,7 @@ export default function PhotocopiesCouleurPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {creator ? (
-          <div className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit">
+          <div data-tour="photocopies-new" className="xl:col-span-1 bg-white border border-slate-200 rounded-3xl p-6 h-fit">
             <h2 className="text-xl font-black text-slate-900 mb-4">Nouvelle demande</h2>
             <div className="space-y-4">
               <div>
@@ -353,7 +354,7 @@ export default function PhotocopiesCouleurPage() {
         <div className={`space-y-6 ${creator ? "xl:col-span-2" : "xl:col-span-3"}`}>
           {creator && (
             <>
-              <div className="bg-white border border-slate-200 rounded-3xl p-4">
+              <div data-tour="photocopies-mine" className="bg-white border border-slate-200 rounded-3xl p-4">
                 <h3 className="font-black text-slate-900">Mes demandes</h3>
                 <p className="text-xs text-slate-500 mt-1">Historique personnel (y compris en attente de traitement).</p>
               </div>
@@ -403,6 +404,7 @@ export default function PhotocopiesCouleurPage() {
           )}
 
           {directionAny && (
+            <div data-tour="photocopies-queue">
             <>
               <div className="bg-white border border-slate-200 rounded-3xl p-4">
                 <h3 className="font-black text-slate-900">File de votre pôle</h3>
@@ -512,6 +514,7 @@ export default function PhotocopiesCouleurPage() {
                 </>
               )}
             </>
+          </div>
           )}
 
           {!creator && !directionAny && !loading && (
@@ -521,6 +524,7 @@ export default function PhotocopiesCouleurPage() {
           )}
         </div>
       </div>
+      <ReplayModuleTourButton moduleId="photocopies-couleur" />
     </div>
   );
 }

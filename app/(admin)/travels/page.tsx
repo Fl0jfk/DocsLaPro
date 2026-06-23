@@ -14,6 +14,11 @@ import { isTripTravelDatePast } from "@/app/lib/travels-trip-helpers";
 import type { TravelsTrip } from "@/app/lib/travels-types";
 import { useAppContext } from "@/app/hooks/useAppContext";
 import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
+import {
+  MODULE_TOUR_ACTION_EVENT,
+  MODULE_TOUR_STEP_EVENT,
+} from "@/app/lib/module-tour-actions";
 
 function TripDashboardContent() {
   const { isLoaded, isSignedIn } = useUser();
@@ -28,6 +33,25 @@ function TripDashboardContent() {
   const [reminderCount, setReminderCount] = useState(0);
   const [reminders, setReminders] = useState<TravelsReminderRow[]>([]);
   const [showRemindersModal, setShowRemindersModal] = useState(false);
+  const [tourModalBoost, setTourModalBoost] = useState(false);
+
+  useEffect(() => {
+    const onAction = (e: Event) => {
+      const action = (e as CustomEvent<{ action: string }>).detail?.action;
+      if (action === "travels:open-create-modal") setShowModal(true);
+      if (action === "travels:close-create-modal") setShowModal(false);
+    };
+    const onStep = (e: Event) => {
+      const target = (e as CustomEvent<{ target?: string }>).detail?.target;
+      setTourModalBoost(target === "travels-type-modal");
+    };
+    window.addEventListener(MODULE_TOUR_ACTION_EVENT, onAction);
+    window.addEventListener(MODULE_TOUR_STEP_EVENT, onStep);
+    return () => {
+      window.removeEventListener(MODULE_TOUR_ACTION_EVENT, onAction);
+      window.removeEventListener(MODULE_TOUR_STEP_EVENT, onStep);
+    };
+  }, []);
 
   const loadTrips = useCallback(async () => {
     try {
@@ -127,7 +151,7 @@ function TripDashboardContent() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight">Module Voyage</h1>
-          <p className="text-slate-500 font-medium">
+          <p className="text-slate-500 font-medium" data-tour="travels-reminders">
             Gestion des sorties — transport, cuisine, documents et suivi.
             {reminderCount > 0 && (
               <button
@@ -141,11 +165,19 @@ function TripDashboardContent() {
             )}
           </p>
         </div>
-        <button onClick={() => setShowModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg transition-all">
+        <button
+          data-tour="travels-create"
+          onClick={() => setShowModal(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg transition-all"
+        >
           + Nouvelle demande
         </button>
       </div>
-      {directionDashboard && <TravelsDirectionDashboardPanel data={directionDashboard} />}
+      {directionDashboard && (
+        <div data-tour="travels-direction">
+          <TravelsDirectionDashboardPanel data={directionDashboard} />
+        </div>
+      )}
       <div className="flex gap-2 flex-wrap mb-6">
         {["Tous", ...etabFilterOptions.labels, ...(etabFilterOptions.showGroupe ? [GROUPE_SCOLAIRE_LABEL] : [])].map((f) => {
           const active = (f === "Tous" && !filterEtab) || filterEtab === f;
@@ -168,7 +200,7 @@ function TripDashboardContent() {
       {loading ? (
         <div className="text-center py-20">Chargement des dossiers...</div>
       ) : filteredTrips.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div data-tour="travels-list" className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {filteredTrips.map((trip) => {
             const isComplex = trip.type === "COMPLEX" || Boolean((trip.data as { transport?: unknown })?.transport);
             const imageUrl =
@@ -285,9 +317,21 @@ function TripDashboardContent() {
         </div>
       )}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-[2.5rem] shadow-2xl max-w-xl w-full p-10 transform transition-all animate-in fade-in zoom-in duration-300 border border-white/20">
+        <div
+          className={`fixed inset-0 flex items-center justify-center p-4 ${tourModalBoost ? "z-[10051]" : "z-50"}`}
+        >
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => {
+              if (!tourModalBoost) setShowModal(false);
+            }}
+          />
+          <div
+            data-tour="travels-type-modal"
+            className={`relative bg-white rounded-[2.5rem] shadow-2xl max-w-xl w-full p-10 transform transition-all animate-in fade-in zoom-in duration-300 border border-white/20 ${
+              tourModalBoost ? "pointer-events-none" : ""
+            }`}
+          >
             <div className="text-center mb-8">
               <h2 className="text-3xl font-black text-slate-900 mb-2">Nouveau Projet</h2>
               <p className="text-slate-500 font-medium">Choisissez le type de déplacement.</p>
@@ -308,7 +352,13 @@ function TripDashboardContent() {
                 </div>
               </button>
             </div>
-            <button onClick={() => setShowModal(false)} className="mt-8 w-full text-slate-400 hover:text-slate-600 font-bold text-sm uppercase tracking-[0.2em] transition">
+            <button
+              type="button"
+              onClick={() => {
+                if (!tourModalBoost) setShowModal(false);
+              }}
+              className="mt-8 w-full text-slate-400 hover:text-slate-600 font-bold text-sm uppercase tracking-[0.2em] transition"
+            >
               Fermer la fenêtre
             </button>
           </div>
@@ -319,6 +369,7 @@ function TripDashboardContent() {
         reminders={reminders}
         onClose={() => setShowRemindersModal(false)}
       />
+      <ReplayModuleTourButton moduleId="travels" />
     </div>
   );
 }

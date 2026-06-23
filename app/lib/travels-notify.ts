@@ -1,10 +1,6 @@
 import { loadAppConfig } from "@/app/lib/app-config";
-import {
-  createTenantTransporter,
-  getTenantSmtpConfig,
-} from "@/app/lib/tenant-mail";
-
-function appUrl() { return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");}
+import { createTenantTransporter, getTenantSmtpConfig } from "@/app/lib/tenant-mail";
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 export type TravelsTripForNotify = {
   ownerName?: string;
@@ -52,7 +48,7 @@ export async function notifyComptaTravelsPhase(params: {
   const transitionNote = lastHistory?.note?.trim() || "";
   const transitionBy = lastHistory?.user?.trim() || "";
   const fromStatus = params.previousStatus?.trim() || "—";
-  const link = appUrl() ? `${appUrl()}/travels/${params.tripId}` : `/travels/${params.tripId}`;
+  const link = await tenantAbsolutePath(`/travels/${params.tripId}`);
   const bundle = await loadAppConfig();
   const toList =
     bundle.travels.comptaEmails?.length > 0

@@ -65,6 +65,14 @@ export function getOneDriveProfileForUser(input: {
   return null;
 }
 
+/** Premier profil configuré pour un secteur (Lycée, Collège, École). */
+export function getOneDriveProfileForSecteur(secteur: Secteur): OneDriveUserProfile | null {
+  for (const [key, v] of Object.entries(ONEDRIVE_USER_BASES)) {
+    if (v.secteur === secteur) return { key, ...v };
+  }
+  return null;
+}
+
 export function getOneDriveProfileForClerkUser(user: {
   lastName?: string | null;
   emailAddresses?: { emailAddress: string }[];

@@ -37,7 +37,15 @@ export type TenantSecrets = {
   clerkDevSecretKey?: string;
   mistral?: { apiKey: string };
   smtp?: { user: string; pass: string; host?: string };
-  microsoft?: { tenantId: string; clientId: string; clientSecret?: string };
+  microsoft?: {
+    tenantId: string;
+    clientId: string;
+    clientSecret?: string;
+    /** Refresh tokens délégués par secteur — dépôt automatique conventions signées. */
+    oneDriveBySecteur?: Partial<
+      Record<"ecole" | "college" | "lycee", { refreshToken: string }>
+    >;
+  };
   /** Données S3 : roleArn (recommandé) ou clés dédiées ; sinon repli IAM plateforme Amplify. */
   aws?: {
     roleArn?: string;

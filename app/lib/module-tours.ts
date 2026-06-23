@@ -1,0 +1,562 @@
+/** Tutoriels « première visite » par gros module intranet. */
+
+export type ModuleTourExcelColumn = {
+  letter: string;
+  header: string;
+  optional?: boolean;
+  sampleValues: string[];
+};
+
+export type ModuleTourStep = {
+  title: string;
+  body: string;
+  /** Valeur de l'attribut data-tour sur la page (optionnel). */
+  target?: string;
+  /** Puces complémentaires. */
+  bullets?: string[];
+  /** Aperçu type grille Excel (colonnes + exemples). */
+  excelPreview?: {
+    columns: ModuleTourExcelColumn[];
+  };
+  /** Aperçu visuel module Sorties scolaires. */
+  travelsPreview?:
+    | "type-choice"
+    | "simple-form"
+    | "complex-no-bus"
+    | "complex-with-bus"
+    | "workflow"
+    | "dossier-hub";
+  /** Actions à l'entrée / sortie de l'étape (événements module-tour-actions). */
+  onEnter?: string;
+  onLeave?: string;
+  /** Modale plus large (ex. aperçu Excel / voyages). */
+  wide?: boolean;
+  /** Position du panneau tutoriel (défaut : centre). */
+  panelAnchor?: "center" | "bottom";
+};
+
+export type ModuleTourDefinition = {
+  moduleId: string;
+  title: string;
+  /** Si défini, le tuto ne s'affiche que pour ces rôles intranet. */
+  audienceRoles?: string[];
+  steps: ModuleTourStep[];
+};
+
+export const MODULE_TOURS: ModuleTourDefinition[] = [
+  {
+    moduleId: "agent-ia-ocr",
+    title: "Ajout de documents IA",
+    audienceRoles: ["administratif", "direction_ecole", "direction_college", "direction_lycee", "admin"],
+    steps: [
+      {
+        title: "Bienvenue",
+        body: "Ce module numérise vos PDF et les range automatiquement dans le dossier OneDrive de chaque élève. La première fois, suivez l'ordre : connexion OneDrive → liste élèves → table MEF → création des dossiers → dépôt des documents.",
+      },
+      {
+        target: "onedrive-connect",
+        title: "Connexion OneDrive",
+        body: "Connectez-vous avec le compte Microsoft de votre secteur (collège, lycée ou école). Sans cette étape, le dépôt et le classement sont impossibles.",
+      },
+      {
+        target: "eleves-import",
+        title: "Liste des élèves (Excel)",
+        wide: true,
+        body: "Ouvrez ce volet « Configuration », choisissez Pronote ou École Directe, puis importez votre fichier Excel (.xlsx). Sur École Directe, la liste est modulable : placez les colonnes dans cet ordre (A → G). La 1re ligne doit être la ligne d'en-tête.",
+        bullets: [
+          "OBLIGATOIRE : la ligne 1 = en-têtes. Sans elle, l'import échoue.",
+          "Pronote : Scolarité → Exports → liste des élèves (Excel).",
+          "École Directe : export liste élèves — réorganisez les colonnes pour suivre l'ordre ci-dessous.",
+          "Fusion : par défaut, le fichier s'ajoute à eleves.json (élèves reconnus mis à jour, nouveaux ajoutés, les autres conservés). Cochez « Remplacer toute la liste » pour un export complet qui efface l'ancien.",
+        ],
+        excelPreview: {
+          columns: [
+            {
+              letter: "A",
+              header: "Nom",
+              sampleValues: ["DUPONT", "MARTIN", "BERNARD", "LEROY", "PETIT"],
+            },
+            {
+              letter: "B",
+              header: "Prénom",
+              sampleValues: ["Marie", "Lucas", "Emma", "Thomas", "Chloé"],
+            },
+            {
+              letter: "C",
+              header: "Classe",
+              sampleValues: ["3ème A", "3ème B", "4ème A", "3ème A", "4ème B"],
+            },
+            {
+              letter: "D",
+              header: "INE",
+              sampleValues: [
+                "150123456AB",
+                "160234567CD",
+                "170345678EF",
+                "180456789GH",
+                "190567890IJ",
+              ],
+            },
+            {
+              letter: "E",
+              header: "Code MEF",
+              sampleValues: [
+                "14110003312",
+                "14110003312",
+                "14110003313",
+                "14110003312",
+                "14110003313",
+              ],
+            },
+            {
+              letter: "F",
+              header: "E-mail élève",
+              optional: true,
+              sampleValues: [
+                "marie.dupont@…",
+                "lucas.martin@…",
+                "—",
+                "thomas.leroy@…",
+                "—",
+              ],
+            },
+            {
+              letter: "G",
+              header: "E-mail parent",
+              optional: true,
+              sampleValues: [
+                "parent.dupont@…",
+                "parent.martin@…",
+                "parent.bernard@…",
+                "parent.leroy@…",
+                "parent.petit@…",
+              ],
+            },
+          ],
+        },
+      },
+      {
+        target: "mef-table",
+        title: "Table des formations (MEF)",
+        body: "Le code MEF (colonne E de votre Excel) indique la formation de l'élève (ex. 3EME, 2NDE…). La table MEF fait le lien entre ces codes et le secteur : Lycée, Collège ou École.",
+        bullets: [
+          "À quoi ça sert : chaque secrétariat ne traite que les élèves de son secteur. Sans table MEF, certains élèves peuvent être ignorés à la création des dossiers.",
+          "Configuration : une fois par an (ou quand les formations changent) dans Paramètres → Formations MEF — listez les codes ou libellés par secteur.",
+          "Bouton « Importer table MEF (JSON) » : raccourci pour charger un fichier JSON déjà préparé (même contenu que Paramètres).",
+          "Les codes de la colonne E de l'Excel doivent correspondre à une entrée de cette table.",
+        ],
+      },
+      {
+        target: "sync-onedrive",
+        title: "Créer les dossiers OneDrive",
+        body: "Ce bouton crée les dossiers élèves manquants dans votre arborescence OneDrive (un dossier par élève : Nom — Prénom — Classe).",
+        bullets: [
+          "Quand l'utiliser : après l'import de la liste élèves (et idéalement après configuration de la table MEF).",
+          "Sans risque : les dossiers déjà existants ne sont jamais supprimés ni modifiés — l'outil ajoute uniquement ceux des nouveaux élèves.",
+          "Vous pouvez relancer ce bouton après chaque rentrée ou import : seuls les dossiers manquants seront créés.",
+          "Le rapport indique « Dossiers créés » et « Déjà existants ». Les élèves des autres secteurs (lycée / collège / école) ne sont pas touchés.",
+        ],
+      },
+      {
+        target: "drop-standard",
+        title: "Dépôt Standard",
+        body: "Un PDF = un document pour un élève (bulletin, courrier…). Glissez-déposez ou cliquez pour choisir. L'IA lit le document et propose le classement.",
+      },
+      {
+        target: "drop-class",
+        title: "Dépôt export classe",
+        body: "Un seul PDF multi-pages exporté depuis Pronote (toute une classe). L'outil découpe et range chaque page chez le bon élève.",
+      },
+      {
+        title: "Vérification",
+        body: "Consultez les résultats en bas de page. En cas d'échec, le fichier reste dans Temp sur OneDrive — vous pouvez le classer manuellement.",
+      },
+    ],
+  },
+  {
+    moduleId: "stages",
+    title: "Stages & conventions",
+    steps: [
+      {
+        title: "Vue d'ensemble",
+        body: "Gérez les offres de stage, les conventions déposées par les élèves (PDF), les signatures prof référent + direction, et l'envoi vers OneDrive.",
+      },
+      {
+        target: "stages-board",
+        title: "Tableau de bord",
+        body: "Résumé des dossiers en attente : dépôts à valider, conventions à signer, file OneDrive.",
+      },
+      {
+        target: "stages-classe",
+        title: "Suivi classe",
+        body: "Le professeur principal voit tous les élèves de sa classe et l'état de leur stage (sans stage, en cours, validé).",
+      },
+      {
+        target: "stages-conventions",
+        title: "Conventions",
+        body: "Liste des dossiers par élève. Ouvrez une ligne pour voir le PDF, valider un dépôt ou lancer les signatures.",
+      },
+      {
+        target: "stages-deposer-link",
+        title: "Page publique élèves",
+        body: "Communiquez le lien /stages/deposer aux élèves : ils déposent leur convention signée (élève, parents, entreprise) en un clic.",
+      },
+    ],
+  },
+  {
+    moduleId: "travels",
+    title: "Sorties scolaires",
+    steps: [
+      {
+        title: "Module Voyage",
+        body: "Ce module couvre tout le cycle d'une sortie : demande du professeur, validations direction et finances, bus, cuisine, documents parents et suivi jusqu'à la sortie.",
+        bullets: [
+          "Deux types de dossiers : sortie de proximité (sans bus) ou voyage / sortie bus (logistique complète).",
+          "Chaque dossier a un fil de statuts — vous suivez l'avancement en un coup d'œil.",
+        ],
+      },
+      {
+        target: "travels-list",
+        title: "Liste des dossiers",
+        body: "Toutes vos sorties apparaissent ici sous forme de cartes. Filtrez par établissement (École, Collège, Lycée, Groupe scolaire). Cliquez sur une carte pour ouvrir le dossier complet.",
+        bullets: [
+          "Les sorties passées apparaissent grisées.",
+          "Le bandeau coloré en haut de chaque carte indique l'établissement.",
+        ],
+      },
+      {
+        target: "travels-direction",
+        title: "Pilotage direction",
+        body: "Si vous êtes direction, ce bandeau résume les dossiers à signer, les devis bus en attente et les validations pédagogiques de votre périmètre.",
+      },
+      {
+        target: "travels-create",
+        title: "Nouvelle demande",
+        body: "Point de départ de toute sortie : ce bouton ouvre le choix du type de déplacement. À l'étape suivante, la fenêtre s'ouvre automatiquement pour vous montrer les deux options.",
+      },
+      {
+        target: "travels-type-modal",
+        onEnter: "travels:open-create-modal",
+        onLeave: "travels:close-create-modal",
+        panelAnchor: "bottom",
+        title: "Choisir le type de sortie",
+        body: "Deux parcours distincts — choisissez selon le transport et la complexité logistique.",
+        bullets: [
+          "🍦 Sortie de proximité : cinéma, musée, parc… sans bus ni nuitée. Formulaire allégé, validation direction puis documents.",
+          "🚌 Voyage / sortie bus : transport, budget détaillé, éventuellement cuisine et nuitées. Parcours complet avec devis transporteurs.",
+        ],
+        travelsPreview: "type-choice",
+        wide: true,
+      },
+      {
+        title: "Sortie de proximité (sans bus)",
+        body: "Après « Sortie de proximité », vous remplissez un formulaire unique : destination, dates, effectifs, coût, pièces jointes. Option pique-nique / repas cuisine si besoin.",
+        bullets: [
+          "Récurrence possible : même sortie chaque semaine sur une période (jours fériés exclus).",
+          "Envoi → statut « Validation pédagogique » : la direction valide ou demande des modifications.",
+          "Pas d'onglet Transport dans le dossier — logistique bus désactivée.",
+        ],
+        travelsPreview: "simple-form",
+        wide: true,
+      },
+      {
+        title: "Voyage sans bus",
+        body: "Dans « Voyage / sortie bus », vous pouvez décocher « Besoin d'un bus » : le dossier reste de type voyage (budget famille / établissement, objectifs pédagogiques) mais sans demande aux transporteurs.",
+        bullets: [
+          "Utile pour un séjour en train, covoiturage organisé ou hébergement sans autocar.",
+          "L'onglet Transport n'apparaît pas dans le dossier.",
+        ],
+        travelsPreview: "complex-no-bus",
+        wide: true,
+      },
+      {
+        title: "Voyage avec bus",
+        body: "Cochez « Besoin d'un bus » : précisez le point de prise en charge, si le bus reste sur place, joignez le programme PDF/Excel. Un récapitulatif s'affiche avant envoi.",
+        bullets: [
+          "À la création : e-mail automatique aux transporteurs pour demander des devis.",
+          "Les devis reçus (e-mail ou saisie manuelle) apparaissent dans l'onglet Transport.",
+          "La direction choisit un devis, le signe numériquement, puis le dossier passe en validation finances.",
+          "Si l'effectif ou les dates changent après coup : avenant bus envoyé au transporteur retenu.",
+        ],
+        travelsPreview: "complex-with-bus",
+        wide: true,
+      },
+      {
+        title: "Parcours des statuts",
+        body: "Chaque dossier avance dans cet ordre (certaines étapes sont ignorées sans bus ou sans cuisine).",
+        travelsPreview: "workflow",
+        wide: true,
+      },
+      {
+        title: "Dossier sortie — les onglets",
+        body: "En cliquant sur une carte, vous accédez au hub du dossier. Les onglets s'adaptent au contenu (transport seulement si bus, cuisine si commande repas).",
+        travelsPreview: "dossier-hub",
+        wide: true,
+        bullets: [
+          "Vue d'ensemble : effectifs, dates, budget, actions rapides.",
+          "Documents : circulaire parents, autorisations, pièces jointes.",
+          "Messagerie interne : échanges prof / direction / compta.",
+          "Actions : valider, refuser, demander modification, annuler la séance.",
+        ],
+      },
+      {
+        target: "travels-reminders",
+        title: "Rappels automatiques",
+        body: "Le compteur de rappels (sous le titre) signale les dossiers qui nécessitent une action (signature oubliée, document manquant…). Cliquez pour voir le détail.",
+      },
+      {
+        title: "C'est parti",
+        body: "Vous pouvez relancer ce tutoriel à tout moment via le lien en bas de la page. Pour une nouvelle sortie : + Nouvelle demande → choix du type → formulaire → suivi dans la liste.",
+      },
+    ],
+  },
+  {
+    moduleId: "internat",
+    title: "Internat",
+    audienceRoles: ["administratif", "direction_ecole", "direction_college", "direction_lycee", "education", "admin"],
+    steps: [
+      {
+        title: "Gestion internat",
+        body: "Suivez les élèves internes, leurs sorties, autorisations parents et le registre.",
+      },
+      {
+        target: "internat-roster",
+        title: "Liste des internes",
+        body: "Consultez et mettez à jour la liste des élèves de l'internat.",
+      },
+      {
+        target: "internat-outings",
+        title: "Sorties internat",
+        body: "Créez une sortie, envoyez les demandes d'autorisation aux parents et suivez les réponses.",
+      },
+    ],
+  },
+  {
+    moduleId: "rh",
+    title: "Module RH",
+    audienceRoles: ["administratif", "direction_ecole", "direction_college", "direction_lycee", "comptabilite", "admin"],
+    steps: [
+      {
+        title: "Dossiers personnel",
+        body: "Centralisez les documents RH par salarié : contrats, visites médicales, formations…",
+      },
+      {
+        target: "rh-list",
+        title: "Annuaire RH",
+        body: "Recherchez un membre du personnel et ouvrez son dossier numérique.",
+      },
+      {
+        target: "rh-upload",
+        title: "Dépôt de documents",
+        body: "Déposez un Excel, PDF ou Word directement sur le dossier d'un salarié via glisser-déposer.",
+      },
+    ],
+  },
+  {
+    moduleId: "documents",
+    title: "Les documents",
+    steps: [
+      {
+        title: "Espace documents",
+        body: "Votre espace personnel et les dossiers partagés par l'établissement.",
+      },
+      {
+        target: "documents-scope",
+        title: "Personnel / Partagé",
+        body: "Basculez entre vos fichiers privés et les ressources communes de l'établissement.",
+      },
+      {
+        target: "documents-upload",
+        title: "Importer",
+        body: "Créez des dossiers, uploadez des fichiers et partagez-les avec des collègues si besoin.",
+      },
+    ],
+  },
+  {
+    moduleId: "requests-staff",
+    title: "Demandes",
+    steps: [
+      {
+        title: "Demandes internes",
+        body: "Soumettez et traitez les demandes de l'établissement (matériel, locaux, impressions…).",
+      },
+      {
+        target: "requests-inbox",
+        title: "Boîte de réception",
+        body: "Les demandes qui vous sont assignées ou celles de votre service.",
+      },
+      {
+        target: "requests-new",
+        title: "Nouvelle demande",
+        body: "Créez une demande avec pièces jointes ; les responsables sont notifiés par e-mail.",
+      },
+    ],
+  },
+  {
+    moduleId: "prof-room",
+    title: "Réservation de salle",
+    steps: [
+      {
+        title: "Bienvenue",
+        body: "Réservez les salles (informatique, labo, CDI…) pour vos cours ou activités. Le planning affiche la semaine en cours : vert = libre, couleur = déjà réservé.",
+      },
+      {
+        target: "prof-room-room-select",
+        title: "Choisir une salle",
+        body: "Sélectionnez la salle dans la liste déroulante, puis naviguez dans le calendrier (flèches ou date) pour afficher la bonne semaine.",
+      },
+      {
+        target: "prof-room-calendar",
+        title: "Planning hebdomadaire",
+        body: "Cliquez sur un créneau libre (+ LIBRE) pour pré-remplir le formulaire. Cliquez sur une réservation existante pour la modifier (si c'est la vôtre ou si vous êtes admin). Clic droit : copier / coller un créneau sur un autre jour.",
+        bullets: [
+          "Survolez une réservation pour voir le détail (matière, classe, commentaire).",
+          "Vos réservations sont entourées d'un liseré bleu.",
+        ],
+      },
+      {
+        target: "prof-room-form",
+        title: "Formulaire de réservation",
+        body: "Complétez matière, niveau, classe et commentaire. Vous pouvez réserver plusieurs heures d'affilée et programmer une récurrence (hebdo ou bi-hebdo).",
+        bullets: [
+          "Bouton « Confirmer la réservation » : enregistre le créneau.",
+          "En modification : possibilité d'appliquer les changements à toute la série.",
+        ],
+      },
+      {
+        target: "prof-room-upcoming",
+        title: "Mes prochaines réservations",
+        body: "Raccourci vers vos 5 prochains créneaux — cliquez pour rouvrir le formulaire en mode édition.",
+      },
+    ],
+  },
+  {
+    moduleId: "absences",
+    title: "Absences",
+    steps: [
+      {
+        title: "Vue d'ensemble",
+        body: "Déclarez vos absences (professeur ou personnel OGEC), déposez un justificatif si demandé, et suivez le traitement par la direction ou le secrétariat.",
+      },
+      {
+        target: "absences-tabs",
+        title: "Les onglets",
+        body: "« Se déclarer » pour votre propre absence. « Calendrier » pour la vue collective (si vous y avez accès). « À traiter » pour les responsables qui valident ou refusent. « Déclarer pour une autre personne » pour le secrétariat.",
+      },
+      {
+        target: "absences-declare",
+        title: "Déclarer une absence",
+        body: "Indiquez le type (prof / OGEC), l'établissement, les dates, le motif et éventuellement un justificatif PDF. Une fois validée, l'absence est transmise au secrétariat ou à la comptabilité selon le cas.",
+      },
+      {
+        target: "absences-treat",
+        title: "Traiter les demandes",
+        body: "Réservé aux responsables : validez, refusez ou demandez un justificatif. Pour les professeurs, précisez le traitement des heures (retenue, remplacement…) avant validation.",
+        bullets: [
+          "La validation est définitive.",
+          "Les absences OGEC validées partent vers la comptabilité.",
+        ],
+      },
+      {
+        target: "absences-calendar",
+        title: "Calendrier",
+        body: "Vue mensuelle des absences déclarées — utile pour la vie scolaire et les directions.",
+      },
+    ],
+  },
+  {
+    moduleId: "domain-planning",
+    title: "Enseignements transversaux",
+    steps: [
+      {
+        title: "Bienvenue",
+        body: "Planifiez les créneaux d'enseignements transversaux (EMI, accompagnement, projets…) par domaine et par classe, sur le même principe que la réservation de salles.",
+      },
+      {
+        target: "domain-planning-domain",
+        title: "Choisir un domaine",
+        body: "Chaque domaine (EMI, latin, etc.) a sa couleur sur le planning. Les coordinateurs du domaine peuvent réserver pour d'autres collègues.",
+      },
+      {
+        target: "domain-planning-calendar",
+        title: "Grille de planning",
+        body: "Cliquez sur un créneau libre pour réserver. Clic droit pour copier-coller un créneau. Les coordinateurs voient et modifient les créneaux de leur domaine.",
+      },
+      {
+        target: "domain-planning-form",
+        title: "Réserver un créneau",
+        body: "Libellé d'activité, niveau, classe, commentaire, récurrence. Le créneau est rattaché au domaine et au professeur concerné.",
+      },
+      {
+        title: "Paramétrage",
+        body: "Les admins et coordinateurs accèdent à l'onglet « Paramétrage » pour gérer les domaines, les classes par pôle et les coordinateurs.",
+      },
+    ],
+  },
+  {
+    moduleId: "channels",
+    title: "Salons",
+    steps: [
+      {
+        title: "Messagerie interne",
+        body: "Échangez avec vos collègues par salons de discussion (publics ou privés), partagez des fichiers et suivez les conversations en temps réel.",
+      },
+      {
+        target: "channels-list",
+        title: "Liste des salons",
+        body: "Les salons publics sont accessibles à tous. Les salons privés (cadenas) n'apparaissent que pour les membres invités. Le point rouge signale des messages non lus.",
+        bullets: [
+          "Bouton ＋ : créer un nouveau salon (public ou privé avec sélection des membres).",
+        ],
+      },
+      {
+        target: "channels-messages",
+        title: "Fil de discussion",
+        body: "Lisez les messages du salon actif. Vous pouvez supprimer vos propres messages ; les créateurs de salon peuvent gérer les membres.",
+      },
+      {
+        target: "channels-compose",
+        title: "Envoyer un message",
+        body: "Tapez votre message, joignez un fichier (📎), puis envoyez. Le mode « Anonyme » masque votre nom (utile pour des retours discrets).",
+      },
+    ],
+  },
+  {
+    moduleId: "photocopies-couleur",
+    title: "Photocopies couleur",
+    steps: [
+      {
+        title: "Demandes d'impression",
+        body: "Les enseignants et le personnel déposent une demande de photocopies couleur. La direction de l'établissement concerné accepte ou refuse avant envoi au service impressions.",
+      },
+      {
+        target: "photocopies-new",
+        title: "Nouvelle demande",
+        body: "Choisissez l'établissement, le motif, les classes ou la matière, le nombre de copies et joignez le PDF à imprimer (recommandé).",
+        bullets: [
+          "Un e-mail valide sur votre compte est requis pour recevoir la décision.",
+        ],
+      },
+      {
+        target: "photocopies-mine",
+        title: "Mes demandes",
+        body: "Suivez l'état de vos demandes : en attente, acceptée ou refusée, avec le message éventuel de la direction.",
+      },
+      {
+        target: "photocopies-queue",
+        title: "File direction",
+        body: "Pour les directions : traitez les demandes de votre pôle (école, collège ou lycée). Acceptez ou refusez — le demandeur est notifié par e-mail.",
+      },
+    ],
+  },
+];
+
+export function getModuleTour(moduleId: string): ModuleTourDefinition | undefined {
+  return MODULE_TOURS.find((t) => t.moduleId === moduleId);
+}
+
+export function tourVisibleForRoles(tour: ModuleTourDefinition, roles: string[]): boolean {
+  if (!tour.audienceRoles?.length) return true;
+  if (roles.includes("admin") || roles.includes("master")) return true;
+  return tour.audienceRoles.some((r) => roles.includes(r));
+}

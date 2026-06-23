@@ -4,8 +4,8 @@ import { RequestRecord, getPublicAppBaseUrl, getRequestsIndex, notifyRequestCrea
 
 export const runtime = "nodejs";
 
-function redirectToMerci(req: NextRequest, query: Record<string, string>) {
-  const base = getPublicAppBaseUrl() || new URL(req.url).origin;
+async function redirectToMerci(req: NextRequest, query: Record<string, string>) {
+  const base = (await getPublicAppBaseUrl()) || new URL(req.url).origin;
   const u = new URL("/demande/merci", base);
   for (const [k, v] of Object.entries(query)) { u.searchParams.set(k, v)}
   return NextResponse.redirect(u);
@@ -14,10 +14,10 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token")?.trim() ?? "";
   try {
     const meta = await loadPendingRequestMeta(token);
-    if (!meta) { return redirectToMerci(req, { erreur: "lien_invalide" })}
+    if (!meta) { return await redirectToMerci(req, { erreur: "lien_invalide" })}
     if (new Date(meta.expiresAt).getTime() < Date.now()) {
       await deletePendingRequestPrefix(token);
-      return redirectToMerci(req, { erreur: "lien_expire" });
+      return await redirectToMerci(req, { erreur: "lien_expire" });
     }
     const routing = await resolveRequestRouting(meta.subject, meta.description);
     const now = new Date().toISOString();
@@ -74,9 +74,9 @@ export async function GET(req: NextRequest) {
     try {
       await notifyRequestCreated(record);
     } catch (mailError) { console.error("Request confirm notification error:", mailError)}
-    return redirectToMerci(req, { ok: "1", id: record.id });
+    return await redirectToMerci(req, { ok: "1", id: record.id });
   } catch (error) {
     console.error("Request confirm error:", error);
-    return redirectToMerci(req, { erreur: "serveur" });
+    return await redirectToMerci(req, { erreur: "serveur" });
   }
 }

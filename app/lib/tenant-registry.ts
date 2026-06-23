@@ -150,6 +150,20 @@ export function parseTenantSecrets(raw: unknown): TenantSecrets | null {
           ? microsoft.clientSecret.trim()
           : undefined,
     };
+    const odBySecteur = microsoft.oneDriveBySecteur;
+    if (odBySecteur && typeof odBySecteur === "object") {
+      const out: NonNullable<TenantSecrets["microsoft"]>["oneDriveBySecteur"] = {};
+      for (const secteur of ["ecole", "college", "lycee"] as const) {
+        const row = (odBySecteur as Record<string, unknown>)[secteur];
+        if (row && typeof row === "object") {
+          const rt = String((row as Record<string, unknown>).refreshToken ?? "").trim();
+          if (rt) out[secteur] = { refreshToken: rt };
+        }
+      }
+      if (Object.keys(out).length > 0) {
+        secrets.microsoft!.oneDriveBySecteur = out;
+      }
+    }
   }
 
   const aws = o.aws as Record<string, unknown> | undefined;

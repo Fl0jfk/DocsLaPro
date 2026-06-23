@@ -3,6 +3,14 @@ export type EleveConfig = {
   nom: string;
   prenom: string;
   folderName: string;
+  /** Classe (ex. 3e2, 2nde A) — recommandé pour le suivi stages par classe. */
+  classe?: string;
+  /** E-mail élève (optionnel, pour notifications stages). */
+  email?: string;
+  /** E-mail responsable légal (optionnel). */
+  parentEmail?: string;
+  parent1Email?: string;
+  parent2Email?: string;
   /** Code ou libellé MEF / formation (export Pronote) — rattachement Lycée / Collège / École. */
   mef?: string;
   /** Alias de mef si l'export nomme la colonne « formation ». */
@@ -33,6 +41,11 @@ export function validateElevesJson(
     const folderName = String(o.folderName ?? "").trim();
     const mef = String(o.mef ?? o.formation ?? "").trim();
     const secteur = String(o.secteur ?? "").trim();
+    const classe = String(o.classe ?? "").trim();
+    const email = String(o.email ?? "").trim();
+    const parentEmail = String(o.parentEmail ?? "").trim();
+    const parent1Email = String(o.parent1Email ?? "").trim();
+    const parent2Email = String(o.parent2Email ?? "").trim();
     if (!nom || !prenom || !folderName) {
       return {
         ok: false,
@@ -51,6 +64,11 @@ export function validateElevesJson(
       nom,
       prenom,
       folderName,
+      ...(classe ? { classe } : {}),
+      ...(email ? { email } : {}),
+      ...(parentEmail ? { parentEmail } : {}),
+      ...(parent1Email ? { parent1Email } : {}),
+      ...(parent2Email ? { parent2Email } : {}),
       ...(mef ? { mef } : {}),
       ...(secteur ? { secteur } : {}),
     });

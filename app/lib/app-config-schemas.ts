@@ -106,6 +106,8 @@ export type NotificationsConfig = {
   stagesAdminEmails?: string[];
   /** Signature direction (repli : e-mail directeur selon niveau élève). */
   stagesDirectionEmail?: string;
+  /** PDF vierge remplissable — lien de téléchargement sur /stages/deposer */
+  stagesConventionTemplateUrl?: string;
 };
 
 export type InternatModuleConfig = {
@@ -339,6 +341,10 @@ export function parseNotifications(raw: unknown): NotificationsConfig {
     stagesDirectionEmail: (() => {
       const e = str(o.stagesDirectionEmail).trim();
       return e && isEmail(e) ? e : undefined;
+    })(),
+    stagesConventionTemplateUrl: (() => {
+      const u = str(o.stagesConventionTemplateUrl).trim();
+      return u.startsWith("http") ? u : undefined;
     })(),
   };
 }

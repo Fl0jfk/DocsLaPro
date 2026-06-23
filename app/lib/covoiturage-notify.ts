@@ -2,10 +2,7 @@ import { loadAppConfig } from "@/app/lib/app-config";
 import { establishmentLabels } from "@/app/lib/covoiturage-matching";
 import type { CovoiturageMatch, CovoiturageProfile } from "@/app/lib/covoiturage-types";
 import { createTenantTransporter, getTenantSmtpConfig } from "@/app/lib/tenant-mail";
-
-function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-}
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 async function getMailer() {
   const smtp = await getTenantSmtpConfig();
@@ -24,7 +21,7 @@ export async function notifyCovoiturageMatchPotential(params: {
 
   const bundle = await loadAppConfig();
   const estLabels = establishmentLabels(params.match.matchedEstablishments, bundle.establishments);
-  const link = `${appUrl()}/covoiturage`;
+  const link = await tenantAbsolutePath("/covoiturage");
 
   const subject = "Covoiturage — une famille correspond à votre recherche";
   const text = [

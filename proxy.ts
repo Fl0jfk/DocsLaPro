@@ -68,6 +68,7 @@ const isPublicRoute = createRouteMatcher([
   '/internat/autorisation(.*)',
   '/api/internat/outings/decision(.*)',
   '/stages/eleve(.*)',
+  '/stages/deposer(.*)',
   '/stages/signer(.*)',
   '/stages/candidater(.*)',
   '/api/stages/public(.*)',

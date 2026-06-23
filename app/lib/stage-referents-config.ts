@@ -21,7 +21,7 @@ function normalizeClassName(className: string): string {
   return className.trim();
 }
 
-function classKey(className: string): string {
+export function classKey(className: string): string {
   return normalizeClassName(className).toLowerCase();
 }
 
@@ -97,6 +97,31 @@ export async function resolveReferentForClass(
   const year = schoolYear?.trim() || currentStageSchoolYear();
   const config = await getStageReferentsConfig(year);
   return findReferentAssignment(config, className);
+}
+
+/** Classes dont l'utilisateur Clerk est professeur référent / principal. */
+export async function listClassesForReferentUser(
+  clerkUserId: string,
+  schoolYear?: string,
+): Promise<string[]> {
+  const id = clerkUserId.trim();
+  if (!id) return [];
+  const year = schoolYear?.trim() || currentStageSchoolYear();
+  const config = await getStageReferentsConfig(year);
+  if (!config) return [];
+  return config.assignments
+    .filter((a) => a.clerkUserId === id)
+    .map((a) => a.className)
+    .sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+}
+
+export function referentAssignmentMatchesUser(
+  assignment: StageClassReferentAssignment,
+  user: { userId?: string; email?: string },
+): boolean {
+  if (user.userId && assignment.clerkUserId === user.userId) return true;
+  const email = user.email?.trim().toLowerCase();
+  return Boolean(email && assignment.email === email);
 }
 
 export async function ensureConventionReferent(convention: StageConvention): Promise<StageConvention> {

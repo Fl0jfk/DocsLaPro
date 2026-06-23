@@ -35,7 +35,8 @@
     "qrcode.react": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "latest",

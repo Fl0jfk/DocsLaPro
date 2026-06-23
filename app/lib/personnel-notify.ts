@@ -3,10 +3,7 @@ import {
   createTenantTransporter,
   getTenantSmtpConfig,
 } from "@/app/lib/tenant-mail";
-
-function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-}
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 export async function notifyPersonnelSignatureLink(params: {
   to: string;
@@ -21,10 +18,9 @@ export async function notifyPersonnelSignatureLink(params: {
   if (!transporter) return { sent: false, reason: "smtp" };
 
   const bundle = await loadAppConfig();
-  const base = appUrl();
-  const link = base
-    ? `${base}/rh/signature?token=${encodeURIComponent(params.token)}`
-    : `/rh/signature?token=${encodeURIComponent(params.token)}`;
+  const link = await tenantAbsolutePath(
+    `/rh/signature?token=${encodeURIComponent(params.token)}`,
+  );
 
   const kindLabel = params.kind === "onboarding" ? "intégration" : "fin de contrat";
 

@@ -16,6 +16,7 @@ import InternatSupervisorsPanel from "@/app/components/internat/InternatSupervis
 import InternatEducationalPanel from "@/app/components/internat/InternatEducationalPanel";
 import InternatCommunicationPanel from "@/app/components/internat/InternatCommunicationPanel";
 import InternatStudentsPanel from "@/app/components/internat/InternatStudentsPanel";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import {
   canAccessInternatFromMetadata,
@@ -133,6 +134,7 @@ export default function GestionInternatClient() {
             />
           )}
           {activeTab === "internes" && (
+            <div data-tour="internat-roster">
             <InternatStudentsPanel
               students={students}
               rooms={rooms}
@@ -140,8 +142,13 @@ export default function GestionInternatClient() {
               canManage={canManage}
               onRefresh={refresh}
             />
+            </div>
           )}
-          {activeTab === "sorties" && <InternatOutingsPanel students={students} canManage={canManage} />}
+          {activeTab === "sorties" && (
+            <div data-tour="internat-outings">
+              <InternatOutingsPanel students={students} canManage={canManage} />
+            </div>
+          )}
           {activeTab === "appel" && <InternatRollCallPanel onRefresh={refresh} />}
           {activeTab === "historique" && <InternatRollCallHistoryPanel />}
           {activeTab === "etudes" && (
@@ -156,6 +163,7 @@ export default function GestionInternatClient() {
           {activeTab === "alertes" && <InternatAlertsPanel />}
         </>
       )}
+      <ReplayModuleTourButton moduleId="internat" />
     </div>
   );
 }

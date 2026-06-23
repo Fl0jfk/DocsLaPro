@@ -11,6 +11,7 @@ import { useBoardPointerDnd } from "@/app/lib/requests-board-dnd";
 import { useMobileBoardUi } from "@/app/hooks/useMobileBoardUi";
 import type { VisualColumnKey } from "@/app/lib/request-board-move";
 import { getViewerServiceLabel } from "@/app/lib/requests-view-utils";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 
 type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
 
@@ -567,6 +568,7 @@ export default function RequestsPage() {
           </p>
         </div>
         <button
+          data-tour="requests-new"
           type="button"
           onClick={() => setCreateModalOpen(true)}
           className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-200/40 hover:bg-blue-700 transition"
@@ -583,6 +585,7 @@ export default function RequestsPage() {
           void refreshBoard();
         }}
       />
+      <div data-tour="requests-inbox">
       <CorbeilleInbox
         items={items}
         serviceLabel={serviceLabel}
@@ -600,6 +603,7 @@ export default function RequestsPage() {
           setPinnedCardId((cur) => (cur === id ? null : id));
         }}
       />
+      </div>
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 relative z-0">
         {visualColumns.map((col) => {
           const colCards = kanbanItems.filter((r) => r.boardColumn && col.boardKeys.includes(r.boardColumn));
@@ -1086,6 +1090,7 @@ export default function RequestsPage() {
           intro="Demandes que vous avez déposées : statut et service qui les traite."
         />
       </div>
+      <ReplayModuleTourButton moduleId="requests-staff" />
     </main>
   );
 }

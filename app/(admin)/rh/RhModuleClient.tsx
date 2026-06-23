@@ -12,6 +12,7 @@ import RhHubNav, { type RhHubTab } from "@/app/components/personnel/RhHubNav";
 import RhLeavePanel from "@/app/components/personnel/RhLeavePanel";
 import RhNewStaffModal from "@/app/components/personnel/RhNewStaffModal";
 import RhOrganigramPanel from "@/app/components/personnel/RhOrganigramPanel";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 import type { PersonnelDashboardData } from "@/app/lib/personnel-dashboard";
 import { type PersonnelIndexEntry, type SharedPersonnelDocument } from "@/app/lib/personnel-types";
 import { PERSONNEL_DROP_ACCEPT } from "@/app/lib/personnel-upload-client";
@@ -123,7 +124,7 @@ export default function RhModuleClient() {
             {index.length === 0 ? (
               <p className="text-sm text-slate-400 italic">Aucun dossier.</p>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div data-tour="rh-list" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {index.map((p) => (
                   <PersonnelStaffCard key={p.id} person={p} canDrop={canManage} onUploaded={() => void load()} />
                 ))}
@@ -135,7 +136,7 @@ export default function RhModuleClient() {
       ) : (
         <>
           {canManage && (
-            <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 p-5 shadow-sm">
+            <div data-tour="rh-upload" className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 p-5 shadow-sm">
               <p className="text-sm font-black text-indigo-900 mb-1">Déposer un document (IA)</p>
               <p className="text-xs text-indigo-700/80 mb-3">
                 Glissez un PDF ou un fichier Office : identification automatique du collaborateur.
@@ -163,6 +164,7 @@ export default function RhModuleClient() {
           router.push(`/rh/${recordId}`);
         }}
       />
+      <ReplayModuleTourButton moduleId="rh" />
     </div>
   );
 }

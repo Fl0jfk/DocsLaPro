@@ -12,6 +12,7 @@ import {
   resolveStageViewerRole,
 } from "@/app/lib/stage-access";
 import { conventionVisibleToUser } from "@/app/lib/stage-referent";
+import { listPendingSignaturesForUser } from "@/app/lib/stage-pending-signatures";
 import {
   getConventionsIndex,
   getOffersIndex,
@@ -43,10 +44,18 @@ export async function GET() {
 
     const pendingOffers = offers.filter((o) => o.status === "pending");
     const adminQueue = conventions.filter(
-      (c) => c.status === "admin_review" || c.status === "preconvention_submitted",
+      (c) =>
+        c.status === "admin_review" ||
+        c.status === "preconvention_submitted" ||
+        c.status === "convention_deposited",
     );
     const signaturesPending = conventions.filter((c) => c.status === "signatures_pending");
     const referentOnly = canViewReferentConventions(roles) && !canViewAllConventions(roles);
+    const myPendingSignatures = listPendingSignaturesForUser(
+      conventions,
+      userEmail,
+      gate.ctx.userId,
+    );
 
     return NextResponse.json({
       viewer,
@@ -60,6 +69,7 @@ export async function GET() {
         canPurge: canReviewPreconvention(roles),
         canManageReferents: canReviewPreconvention(roles),
         referentOnly,
+        canViewClassRoster: canViewReferentConventions(roles) || canViewAllConventions(roles),
       },
       counts: {
         offers: offers.length,
@@ -67,7 +77,9 @@ export async function GET() {
         conventions: conventions.length,
         adminQueue: adminQueue.length,
         signaturesPending: signaturesPending.length,
+        myPendingSignatures: myPendingSignatures.length,
       },
+      myPendingSignatures,
       pendingOffers: pendingOffers.slice(0, 20),
       adminQueue: adminQueue.slice(0, 20),
       signaturesPending: signaturesPending.slice(0, 20),

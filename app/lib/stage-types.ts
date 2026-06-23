@@ -5,11 +5,14 @@ export const STAGE_S3 = {
   conventionsIndex: "stages/conventions-index.json",
   offer: (id: string) => `stages/offers/${id}.json`,
   convention: (id: string) => `stages/conventions/${id}.json`,
+  conventionUpload: (conventionId: string, safeFileName: string) =>
+    `stages/uploads/${conventionId}/${safeFileName}`,
   signToken: (token: string) => `stages/sign-tokens/${token}.json`,
   studentToken: (token: string) => `stages/student-tokens/${token}.json`,
   offerCandidatureToken: (token: string) => `stages/offer-candidature-tokens/${token}.json`,
   offerApplications: (offerId: string) => `stages/offer-applications/${offerId}.json`,
   referentsConfig: (schoolYear: string) => `stages/referents/${schoolYear}.json`,
+  referentSignature: (clerkUserId: string) => `stages/signatures/referents/${clerkUserId}.png`,
 } as const;
 
 export type StageOfferKind = "pfmp" | "stage_observation" | "job_ete" | "autre";
@@ -93,6 +96,7 @@ export type StageConventionStatus =
   | "preconvention_submitted"
   | "admin_review"
   | "admin_rejected"
+  | "convention_deposited"
   | "convention_ready"
   | "signatures_pending"
   | "signed"
@@ -175,6 +179,22 @@ export type StageConvention = {
     fileName: string;
     matchedFolderName?: string;
   } | null;
+  /** Dépôt auto en attente (token secteur manquant ou matching échoué). */
+  oneDriveFilingPending?: boolean;
+  oneDriveFilingError?: string;
+  /** PDF déposé par l'élève (convention papier / déjà signée). */
+  uploadedPdf?: {
+    s3Key: string;
+    fileName: string;
+    uploadedAt: string;
+  };
+  /** Métadonnées extraction OCR / IA. */
+  ocrMeta?: {
+    extractedAt: string;
+    matchedEleveIne?: string;
+    matchScore?: number;
+    raw?: Record<string, unknown>;
+  };
 };
 
 export type StageOfferIndexEntry = {
@@ -242,6 +262,7 @@ export const STAGE_CONVENTION_STATUS_LABELS: Record<StageConventionStatus, strin
   preconvention_submitted: "Préconvention déposée",
   admin_review: "En validation administratif",
   admin_rejected: "À corriger (administratif)",
+  convention_deposited: "Convention déposée (PDF)",
   convention_ready: "Convention prête",
   signatures_pending: "Signatures en cours",
   signed: "Convention signée",

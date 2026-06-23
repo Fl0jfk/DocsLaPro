@@ -93,7 +93,7 @@ export async function POST(req: Request) {
           { status: 503 },
         );
       }
-      const base = getPublicAppBaseUrl();
+      const base = await getPublicAppBaseUrl();
       if (!base) {
         return NextResponse.json({error:"Configuration incomplète (NEXT_PUBLIC_APP_URL). Les demandes anonymes ne peuvent pas être confirmées par e-mail pour le moment.",},{ status: 503 });
       }

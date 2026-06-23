@@ -1,17 +1,24 @@
-import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
-
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { canReviewPreconvention, canViewAllConventions, canViewReferentConventions } from "@/app/lib/stage-access";
 import { conventionVisibleToUser } from "@/app/lib/stage-referent";
 import {
+  approveDepositedConvention,
   normalizeConventionInput,
   reviewPreconvention,
   submitPreconvention,
 } from "@/app/lib/stage-workflow";
 import { getStageConvention, saveStageConvention } from "@/app/lib/stage-storage";
-import { notifyAllStageSignatureRequests } from "@/app/lib/stage-notify";
+import { notifyAllStageSignatureRequests, notifyStageDepositAdminRejected } from "@/app/lib/stage-notify";
+import {
+  findEleveByIne,
+  matchEleveForConvention,
+  resolveConventionSecteur,
+  resolveOneDriveProfileForConvention,
+} from "@/app/lib/stage-eleve-match";
+import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
 
 function displayName(user: NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>) {
   const first = user?.firstName?.trim() || "";
@@ -47,12 +54,31 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         link: `/stages/signer?token=${encodeURIComponent(s.signToken!)}`,
       }));
 
+    const clerkProfile = user ? getOneDriveProfileForClerkUser(user) : null;
+    const targetProfile = await resolveOneDriveProfileForConvention(convention, clerkProfile);
+    const eleveMatch = await matchEleveForConvention(convention, targetProfile);
+    const conventionSecteur = await resolveConventionSecteur(convention);
+
     return NextResponse.json({
       convention,
       studentLink: convention.studentAccessToken
         ? `/stages/eleve?token=${encodeURIComponent(convention.studentAccessToken)}`
         : null,
       signLinks,
+      eleveMatch: {
+        matchedEleve: eleveMatch.matchedEleve
+          ? {
+              ine: eleveMatch.matchedEleve.ine,
+              nom: eleveMatch.matchedEleve.nom,
+              prenom: eleveMatch.matchedEleve.prenom,
+              folderName: eleveMatch.matchedEleve.folderName,
+            }
+          : null,
+        folderPath: eleveMatch.folderPath,
+        secteur: conventionSecteur,
+        targetOneDriveLabel: targetProfile?.label ?? null,
+        debug: eleveMatch.debug,
+      },
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -91,12 +117,55 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         return NextResponse.json({ error: "Réservé à l'administratif / direction." }, { status: 403 });
       }
       const approved = body.approved === true;
+      if (convention.status === "convention_deposited" && approved) {
+        const result = await approveDepositedConvention(convention, {
+          by: gate.ctx.userId,
+          byName: displayName(user),
+          note: String(body.note ?? "").trim() || undefined,
+        });
+        if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+        const next = result.convention;
+        const signLinks = next.signatures
+          .filter((s) => s.signToken)
+          .map((s) => ({
+            role: s.role,
+            label: s.label,
+            email: s.signEmail,
+            link: `/stages/signer?token=${encodeURIComponent(s.signToken!)}`,
+          }));
+        return NextResponse.json({ success: true, convention: next, signLinks });
+      }
+      if (convention.status === "convention_deposited" && !approved) {
+        const now = new Date().toISOString();
+        const note = String(body.note ?? "").trim() || undefined;
+        const next = {
+          ...convention,
+          status: "cancelled" as const,
+          updatedAt: now,
+          adminReview: {
+            at: now,
+            by: gate.ctx.userId,
+            byName: displayName(user),
+            approved: false,
+            note,
+          },
+          history: [
+            ...convention.history,
+            { at: now, by: displayName(user), action: "DEPOT_REFUSE", note },
+          ],
+        };
+        await saveStageConvention(next);
+        void notifyStageDepositAdminRejected(next, note).catch((e) =>
+          console.error("[stages] notify depot reject:", e),
+        );
+        return NextResponse.json({ success: true, convention: next, signLinks: [] });
+      }
       const next = await reviewPreconvention(convention, {
-        by: gate.ctx.userId,
-        byName: displayName(user),
-        approved,
-        note: String(body.note ?? "").trim() || undefined,
-      });
+              by: gate.ctx.userId,
+              byName: displayName(user),
+              approved,
+              note: String(body.note ?? "").trim() || undefined,
+            });
       const signLinks = next.signatures
         .filter((s) => s.signToken)
         .map((s) => ({
@@ -106,6 +175,44 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           link: `/stages/signer?token=${encodeURIComponent(s.signToken!)}`,
         }));
       return NextResponse.json({ success: true, convention: next, signLinks });
+    }
+
+    if (action === "attach_eleve") {
+      if (!canReviewPreconvention(roles)) {
+        return NextResponse.json({ error: "Réservé à l'administratif / direction." }, { status: 403 });
+      }
+      const ine = String(body.matchedEleveIne ?? "").trim();
+      if (ine) {
+        const found = await findEleveByIne(ine);
+        if (!found) {
+          return NextResponse.json(
+            { error: `INE introuvable dans eleves.json : ${ine}` },
+            { status: 400 },
+          );
+        }
+      }
+      const now = new Date().toISOString();
+      convention = {
+        ...convention,
+        updatedAt: now,
+        ocrMeta: {
+          extractedAt: convention.ocrMeta?.extractedAt ?? now,
+          matchedEleveIne: ine || undefined,
+          matchScore: ine ? 4 : convention.ocrMeta?.matchScore,
+          raw: convention.ocrMeta?.raw,
+        },
+        history: [
+          ...convention.history,
+          {
+            at: now,
+            by: displayName(user),
+            action: "ELEVE_RATTACHE",
+            note: ine || "Rattachement retiré",
+          },
+        ],
+      };
+      await saveStageConvention(convention);
+      return NextResponse.json({ success: true, convention });
     }
 
     if (action === "resend_signatures") {

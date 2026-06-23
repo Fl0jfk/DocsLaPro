@@ -8,6 +8,7 @@ import {
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson, putJson, getObjectBytes } from "@/app/lib/s3-storage";
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 const INDEX_KEY = "photocopies-couleur/index.json";
 
@@ -90,10 +91,6 @@ async function getMailer() {
   const transporter = await createTenantTransporter();
   if (!transporter) return null;
   return { smtp, transporter };
-}
-
-function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 }
 
 async function getIndex(): Promise<PhotoCopieRecord[]> {
@@ -236,6 +233,7 @@ export async function POST(req: Request) {
     const dir = await resolveDirectorMail( etablissement);
     const mail = await getMailer();
     const docAttachment = await loadDocumentAttachment(record);
+    const photocopiesLink = await tenantAbsolutePath("/photocopies-couleur");
     if (mail) {
       const { smtp, transporter } = mail;
       try {
@@ -255,7 +253,7 @@ export async function POST(req: Request) {
             `Nombre de photocopies : ${nb}`,
             docAttachment ? `Document à imprimer : joint à cet e-mail.` : "",
             ``,
-            `Traiter la demande : ${appUrl()}/photocopies-couleur`,
+            `Traiter la demande : ${photocopiesLink}`,
             ``,
             `Cordialement,`,
             `Plateforme La Providence Nicolas Barré`,
@@ -327,7 +325,7 @@ export async function PATCH(req: Request) {
     await saveIndex( all);
 
     const creatorEmail = updated.createdBy.email;
-    const base = `${appUrl()}/photocopies-couleur`;
+    const base = await tenantAbsolutePath("/photocopies-couleur");
 
     const mail = await getMailer();
     if (mail) {

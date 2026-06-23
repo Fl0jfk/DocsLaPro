@@ -5,9 +5,16 @@ import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useOneDriveConnection } from "@/app/hooks/useOneDriveConnection";
 import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
-import type { StageConvention, StageDaySlot, StageOffer, StageScheduleMode } from "@/app/lib/stage-types";
+import type { StageConvention, StageOffer } from "@/app/lib/stage-types";
 import { STAGE_CONVENTION_STATUS_LABELS, STAGE_OFFER_KIND_LABELS } from "@/app/lib/stage-types";
 import StageReferentsEditor from "@/app/components/stages/StageReferentsEditor";
+import StageClassRosterPanel from "@/app/components/stages/StageClassRosterPanel";
+import StagePendingSignaturesPanel from "@/app/components/stages/StagePendingSignaturesPanel";
+import StageMySignatureBlock from "@/app/components/stages/StageMySignatureBlock";
+import type { PendingStageSignature } from "@/app/lib/stage-pending-signatures";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
+
+type StageTab = "board" | "classe" | "offers" | "conventions";
 
 type Board = {
   viewer: string;
@@ -21,8 +28,10 @@ type Board = {
     canPurge: boolean;
     canManageReferents: boolean;
     referentOnly: boolean;
+    canViewClassRoster: boolean;
   };
   counts: Record<string, number>;
+  myPendingSignatures?: PendingStageSignature[];
   pendingOffers: Array<{ id: string; companyName: string; kind: string; targetLevels: string[] }>;
   adminQueue: Array<{
     id: string;
@@ -107,41 +116,6 @@ function emptyOfferForm() {
   };
 }
 
-function emptyConventionForm() {
-  return {
-    internshipKind: "pfmp",
-    offerId: "",
-    student: { firstName: "", lastName: "", className: "", level: "3e", email: "", parentEmail: "" },
-    company: {
-      name: "",
-      address: "",
-      activity: "",
-      tutorName: "",
-      tutorEmail: "",
-      tutorPhone: "",
-      rhEmail: "",
-      siret: "",
-    },
-    teacherReferent: { name: "", email: "" },
-    parentSignerEmail: "",
-    schedule: {
-      mode: "uniform_week" as StageScheduleMode,
-      periodStart: "",
-      periodEnd: "",
-      days: [
-        {
-          weekday: 1,
-          hasLunchBreak: true,
-          morningStart: "08:00",
-          morningEnd: "12:00",
-          afternoonStart: "13:00",
-          afternoonEnd: "17:00",
-        },
-      ] as StageDaySlot[],
-    },
-  };
-}
-
 function StagesContent() {
   const searchParams = useSearchParams();
   const { user: clerkUser } = useUser();
@@ -159,10 +133,23 @@ function StagesContent() {
     convention: StageConvention;
     studentLink: string | null;
     signLinks: Array<{ role: string; label: string; link: string; email?: string }>;
+    eleveMatch?: {
+      matchedEleve: {
+        ine?: string;
+        nom: string;
+        prenom: string;
+        folderName: string;
+      } | null;
+      folderPath: string | null;
+      secteur: string | null;
+      targetOneDriveLabel: string | null;
+    };
   } | null>(null);
-  const [tab, setTab] = useState<"board" | "offers" | "conventions">("board");
+  const [attachIne, setAttachIne] = useState("");
+  const [tab, setTab] = useState<StageTab>(
+    (searchParams.get("tab") as StageTab) || "board",
+  );
   const [offerForm, setOfferForm] = useState(emptyOfferForm);
-  const [convForm, setConvForm] = useState(emptyConventionForm);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -171,6 +158,25 @@ function StagesContent() {
     offersArchived: number;
     conventionsArchived: number;
   } | null>(null);
+  const [hasStoredSignature, setHasStoredSignature] = useState<boolean | undefined>(undefined);
+  const [oneDrivePreview, setOneDrivePreview] = useState<{
+    totalPending: number;
+    forMySecteur: number;
+    secteurLabel: string | null;
+    bySecteur: Partial<Record<string, number>>;
+  } | null>(null);
+  const [filingConventionId, setFilingConventionId] = useState<string | null>(null);
+
+  const loadOneDrivePreview = useCallback(async () => {
+    try {
+      const res = await fetch("/api/stages/conventions/file-onedrive-batch", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) return;
+      setOneDrivePreview(data);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setError(null);
@@ -188,16 +194,27 @@ function StagesContent() {
       setOffers(o.myOffers || o.offers || []);
       setApprovedOffers(o.approvedOffers || []);
       setConventions(c.conventions || []);
+      await loadOneDrivePreview();
+      if ((b.myPendingSignatures?.length ?? 0) > 0) {
+        try {
+          const sigRes = await fetch("/api/stages/my-signature", { cache: "no-store" });
+          const sigData = await sigRes.json();
+          if (sigRes.ok) setHasStoredSignature(Boolean(sigData.hasSignature));
+        } catch {
+          /* ignore */
+        }
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur");
     }
-  }, []);
+  }, [loadOneDrivePreview]);
 
   const loadDetail = useCallback(async (id: string) => {
     const res = await fetch(`/api/stages/conventions/${id}`, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Erreur");
     setDetail(data);
+    setAttachIne(data.convention?.ocrMeta?.matchedEleveIne ?? "");
     setSelectedId(id);
   }, []);
 
@@ -206,9 +223,21 @@ function StagesContent() {
   }, [load]);
 
   useEffect(() => {
+    if (board?.permissions.referentOnly && tab === "board") {
+      setTab("classe");
+    }
+  }, [board, tab]);
+
+  useEffect(() => {
     const id = searchParams.get("convention");
     if (id) void loadDetail(id).catch(() => undefined);
   }, [searchParams, loadDetail]);
+
+  useEffect(() => {
+    if (board?.permissions.referentOnly && tab === "board") {
+      setTab("classe");
+    }
+  }, [board, tab]);
 
   const permissions = board?.permissions;
 
@@ -300,30 +329,6 @@ function StagesContent() {
     }
   }
 
-  async function createConvention(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setMsg(null);
-    try {
-      const res = await fetch("/api/stages/conventions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(convForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Erreur");
-      setMsg(`Préconvention créée. Lien élève : ${data.studentLink || "—"}`);
-      setConvForm(emptyConventionForm());
-      await load();
-      if (data.convention?.id) await loadDetail(data.convention.id);
-      setTab("conventions");
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function adminReview(approved: boolean) {
     if (!detail) return;
     setBusy(true);
@@ -338,8 +343,12 @@ function StagesContent() {
       setDetail(data);
       setMsg(
         approved
-          ? "Convention validée — e-mails de signature envoyés aux signataires (si SMTP configuré)."
-          : "Renvoyé à l'élève — e-mail de correction envoyé si possible.",
+          ? detail.convention.status === "convention_deposited"
+            ? "Dépôt validé — e-mails de signature envoyés à l'élève, l'entreprise, le prof référent et la direction."
+            : "Convention validée — e-mails de signature envoyés aux signataires (si SMTP configuré)."
+          : detail.convention.status === "convention_deposited"
+            ? "Dépôt refusé."
+            : "Renvoyé à l'élève — e-mail de correction envoyé si possible.",
       );
       await load();
     } catch (e: unknown) {
@@ -370,8 +379,78 @@ function StagesContent() {
     }
   }
 
-  async function fileToOneDrive() {
+  async function attachEleveIne() {
     if (!detail) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/stages/conventions/${detail.convention.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "attach_eleve", matchedEleveIne: attachIne.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur");
+      setMsg(attachIne.trim() ? "Élève rattaché par INE." : "Rattachement INE retiré.");
+      await loadDetail(detail.convention.id);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function batchFileToOneDrive() {
+    setBusy(true);
+    setError(null);
+    setMsg(null);
+    try {
+      const token = await od.ensureToken();
+      if (!token) {
+        setError(od.error || "Connectez-vous à OneDrive avant d'envoyer les conventions.");
+        return;
+      }
+      const res = await fetch("/api/stages/conventions/file-onedrive-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: token }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur envoi OneDrive");
+
+      const parts = [
+        `${data.filed ?? 0} convention(s) déposée(s) dans les dossiers élèves.`,
+      ];
+      if (data.skippedOtherSecteur > 0) {
+        parts.push(
+          `${data.skippedOtherSecteur} ignorée(s) (autre secteur — reconnectez-vous avec le bon compte Microsoft).`,
+        );
+      }
+      if (data.failed?.length) {
+        parts.push(`${data.failed.length} échec(s) — voir le détail ci-dessous.`);
+      }
+      setMsg(parts.join(" "));
+
+      if (data.failed?.length) {
+        setError(
+          data.failed
+            .slice(0, 5)
+            .map((f: { studentName: string; error: string }) => `${f.studentName} : ${f.error}`)
+            .join(" · "),
+        );
+      }
+
+      await load();
+      if (detail) await loadDetail(detail.convention.id);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function fileConventionToOneDrive(conventionId: string) {
+    setFilingConventionId(conventionId);
     setBusy(true);
     setError(null);
     setMsg(null);
@@ -381,26 +460,32 @@ function StagesContent() {
         setError(od.error || "Connectez-vous à OneDrive avant d'envoyer la convention.");
         return;
       }
-      const res = await fetch(`/api/stages/conventions/${detail.convention.id}/file-onedrive`, {
+      const res = await fetch(`/api/stages/conventions/${conventionId}/file-onedrive`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accessToken: token }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Erreur envoi OneDrive");
-      setDetail({
-        ...detail,
-        convention: data.convention,
-      });
+      if (detail?.convention.id === conventionId) {
+        setDetail({ ...detail, convention: data.convention });
+      }
       setMsg(
         `Convention déposée dans le dossier élève : ${data.oneDrive?.fullPath ?? data.oneDrive?.folderPath ?? "OneDrive"}.`,
       );
       await load();
+      await loadOneDrivePreview();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
       setBusy(false);
+      setFilingConventionId(null);
     }
+  }
+
+  async function fileToOneDrive() {
+    if (!detail) return;
+    await fileConventionToOneDrive(detail.convention.id);
   }
 
   const canShowOneDriveFiling =
@@ -422,10 +507,81 @@ function StagesContent() {
       <header className="mb-8">
         <h1 className="text-3xl font-black text-[#1F3D2B]">Stages & conventions</h1>
         <p className="mt-2 text-stone-600 max-w-2xl">
-          Offres parents, préconventions élèves, validation administratif et signatures multi-parties —
-          PFMP, stages et jobs d&apos;été.
+          Les élèves déposent leur convention signée en PDF sur une page publique. L&apos;IA extrait
+          entreprise, SIRET et classe — vous validez dans la file d&apos;attente.
         </p>
       </header>
+
+      {permissions?.canFileToOneDrive && od.oneDriveEnabled && (
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[#1F3D2B]">Dépôt OneDrive — conventions signées</h2>
+          <p className="mt-1 text-sm text-stone-600 max-w-3xl">
+            S3 sert de transit jusqu&apos;au dépôt OneDrive. Connectez-vous à Microsoft puis envoyez
+            en une fois les conventions finalisées — le PDF est alors rangé chez l&apos;élève et
+            retiré de S3.
+          </p>
+
+          {oneDrivePreview && oneDrivePreview.totalPending > 0 && (
+            <p className="mt-3 text-sm text-stone-800">
+              <strong>{oneDrivePreview.totalPending}</strong> convention
+              {oneDrivePreview.totalPending > 1 ? "s" : ""} signée
+              {oneDrivePreview.totalPending > 1 ? "s" : ""} en attente de dépôt OneDrive
+              {oneDrivePreview.secteurLabel && oneDrivePreview.forMySecteur > 0 ? (
+                <>
+                  {" "}
+                  — <strong>{oneDrivePreview.forMySecteur}</strong> pour le{" "}
+                  {oneDrivePreview.secteurLabel}
+                </>
+              ) : null}
+              .
+            </p>
+          )}
+
+          {oneDrivePreview && oneDrivePreview.totalPending === 0 && (
+            <p className="mt-3 text-sm text-emerald-800">Aucune convention signée en attente de dépôt.</p>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {od.connected ? (
+              <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+                OneDrive connecté{od.accountLabel ? ` (${od.accountLabel})` : ""}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void od.login()}
+                disabled={!od.msalReady || od.checking}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                Se connecter à OneDrive
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void batchFileToOneDrive()}
+              disabled={
+                busy ||
+                od.checking ||
+                !od.msalReady ||
+                !oneDrivePreview?.totalPending
+              }
+              className="rounded-lg bg-[#2F6B4A] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {busy || od.checking
+                ? "Envoi en cours…"
+                : "Envoyer les conventions signées vers OneDrive"}
+            </button>
+          </div>
+
+          {oneDriveProfile && (
+            <p className="mt-2 text-xs text-stone-600">
+              Votre secteur : <strong>{oneDriveProfile.label}</strong> — les conventions des autres
+              secteurs seront ignorées (reconnectez-vous avec le compte adapté).
+            </p>
+          )}
+          {od.error && <p className="mt-2 text-xs text-rose-700">{od.error}</p>}
+        </section>
+      )}
 
       {error && (
         <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>
@@ -434,18 +590,34 @@ function StagesContent() {
         <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 break-all">{msg}</p>
       )}
 
+      {board?.myPendingSignatures && board.myPendingSignatures.length > 0 && (
+        <StagePendingSignaturesPanel
+          items={board.myPendingSignatures}
+          hasStoredSignature={hasStoredSignature}
+        />
+      )}
+
       {permissions?.referentOnly && (
         <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <p className="font-semibold">Vue professeur référent</p>
+          <p className="font-semibold">Vue professeur principal / référent</p>
           <p className="mt-1 text-blue-800">
-            Vous voyez uniquement les conventions dont vous êtes professeur référent (e-mail Clerk = e-mail
-            référent sur la convention).
+            Consultez l&apos;onglet <strong>Suivi classe</strong>, enregistrez votre signature ci-dessous, puis
+            signez les conventions reçues par e-mail — votre paraphe sera ajouté directement sur le PDF.
           </p>
         </div>
       )}
 
+      {permissions?.canViewClassRoster && permissions.referentOnly && <StageMySignatureBlock />}
+
       <nav className="mb-6 flex flex-wrap gap-2">
-        {(["board", "offers", "conventions"] as const).map((t) => (
+        {(
+          [
+            ...(permissions?.referentOnly ? [] : (["board"] as const)),
+            ...(permissions?.canViewClassRoster ? (["classe"] as const) : []),
+            ...(permissions?.referentOnly ? [] : (["offers"] as const)),
+            ["conventions"],
+          ] as StageTab[]
+        ).map((t) => (
           <button
             key={t}
             type="button"
@@ -454,20 +626,58 @@ function StagesContent() {
               tab === t ? "bg-[#2F6B4A] text-white" : "bg-white border border-stone-200 text-stone-700"
             }`}
           >
-            {t === "board" ? "Tableau de bord" : t === "offers" ? "Offres" : "Conventions"}
+            {t === "board"
+              ? "Tableau de bord"
+              : t === "classe"
+                ? "Suivi classe"
+                : t === "offers"
+                  ? "Offres"
+                  : `Conventions${
+                      board?.counts?.myPendingSignatures
+                        ? ` (${board.counts.myPendingSignatures})`
+                        : ""
+                    }`}
           </button>
         ))}
       </nav>
 
+      {tab === "classe" && permissions?.canViewClassRoster && (
+        <section data-tour="stages-classe" className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-[#1F3D2B]">Suivi des stages par classe</h2>
+          <p className="mt-2 text-sm text-stone-600 max-w-3xl">
+            Liste de la classe : élèves avec stage validé, en cours de traitement, sans stage, ou avec
+            plusieurs conventions. Cliquez sur un dossier pour ouvrir le détail.
+          </p>
+          <div className="mt-6">
+            <StageClassRosterPanel
+              defaultSchoolYear={purgeYear}
+              onOpenConvention={(id) => {
+                void loadDetail(id);
+                setTab("conventions");
+              }}
+              canFileOneDrive={Boolean(permissions?.canFileToOneDrive && od.oneDriveEnabled)}
+              oneDriveConnected={od.connected}
+              onFileOneDrive={(id) => void fileConventionToOneDrive(id)}
+              filingConventionId={filingConventionId}
+            />
+          </div>
+        </section>
+      )}
+
       {tab === "board" && board && (
-        <div className="space-y-8">
+        <div data-tour="stages-board" className="space-y-8">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ...(permissions?.referentOnly
-                ? [["Mes conventions", board.counts.conventions]]
+                ? [
+                    ["Mes conventions", board.counts.conventions],
+                    ...(board.counts.myPendingSignatures
+                      ? [["À signer", board.counts.myPendingSignatures]]
+                      : []),
+                  ]
                 : [
                     ["Offres en attente", board.counts.pendingOffers],
-                    ["Préconventions à valider", board.counts.adminQueue],
+                    ["Dépôts à valider", board.counts.adminQueue],
                     ["Signatures en cours", board.counts.signaturesPending],
                     ["Conventions totales", board.counts.conventions],
                   ]),
@@ -478,6 +688,21 @@ function StagesContent() {
               </div>
             ))}
           </div>
+
+          {!permissions?.referentOnly && (
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
+              <h2 className="text-sm font-bold text-emerald-900">Lien public — dépôt convention PDF</h2>
+              <p className="mt-2 text-sm text-emerald-800">
+                Communiquez cette adresse aux élèves (mail, ENT, affiche…) :
+              </p>
+              <p className="mt-2 rounded-lg bg-white border border-emerald-100 px-3 py-2 text-sm font-mono break-all text-[#1F3D2B]">
+                {typeof window !== "undefined" ? window.location.origin : ""}/stages/deposer
+              </p>
+              <p className="mt-2 text-xs text-emerald-700">
+                Le PDF est lu par OCR et IA (entreprise, SIRET, élève, classe). Aucun compte requis.
+              </p>
+            </section>
+          )}
 
           {!permissions?.referentOnly && board.adminQueue.length > 0 && permissions?.canReviewPreconvention && (
             <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5">
@@ -508,10 +733,10 @@ function StagesContent() {
 
           {permissions?.canManageReferents && (
             <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-[#1F3D2B]">Professeurs référents par classe</h2>
+              <h2 className="text-lg font-bold text-[#1F3D2B]">Professeurs principaux / référents par classe</h2>
               <p className="mt-2 text-sm text-stone-600 max-w-2xl">
-                Configuration de rentrée : choisissez les professeurs Clerk référents pour chaque classe. Les
-                listes proviennent du paramétrage des classes (planning par domaines).
+                Assignez le professeur principal (ou référent stage) de chaque classe. Il verra l&apos;onglet
+                <strong> Suivi classe</strong> avec tous les élèves et l&apos;état de leurs conventions.
               </p>
               <div className="mt-4">
                 <StageReferentsEditor
@@ -680,12 +905,9 @@ function StagesContent() {
                     <button
                       type="button"
                       className="mt-2 text-xs font-semibold text-[#2F6B4A] underline"
-                      onClick={() => {
-                        setConvForm({ ...emptyConventionForm(), offerId: o.id });
-                        setTab("conventions");
-                      }}
+                      onClick={() => setTab("conventions")}
                     >
-                      Utiliser pour une préconvention →
+                      Voir les conventions déposées →
                     </button>
                   </div>
                 ))}
@@ -696,149 +918,24 @@ function StagesContent() {
       )}
 
       {tab === "conventions" && (
-        <div className="grid gap-8 lg:grid-cols-2">
-          {(permissions?.canDepositOffer ||
-            permissions?.canViewAllConventions ||
-            permissions?.canViewReferentConventions) && (
-            <form onSubmit={createConvention} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm space-y-3 text-sm">
-              <h2 className="text-lg font-bold text-[#1F3D2B]">Nouvelle préconvention</h2>
-              <p className="text-stone-500">L&apos;élève complète via un lien dédié (sans compte).</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  required
-                  placeholder="Prénom élève *"
-                  className="rounded-lg border border-stone-300 px-3 py-2"
-                  value={convForm.student.firstName}
-                  onChange={(e) =>
-                    setConvForm({ ...convForm, student: { ...convForm.student, firstName: e.target.value } })
-                  }
-                />
-                <input
-                  required
-                  placeholder="Nom élève *"
-                  className="rounded-lg border border-stone-300 px-3 py-2"
-                  value={convForm.student.lastName}
-                  onChange={(e) =>
-                    setConvForm({ ...convForm, student: { ...convForm.student, lastName: e.target.value } })
-                  }
-                />
-              </div>
-              <input
-                required
-                placeholder="Classe *"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2"
-                value={convForm.student.className}
-                onChange={(e) =>
-                  setConvForm({ ...convForm, student: { ...convForm.student, className: e.target.value } })
-                }
-              />
-              <select
-                className="w-full rounded-lg border border-stone-300 px-3 py-2"
-                value={convForm.student.level}
-                onChange={(e) =>
-                  setConvForm({ ...convForm, student: { ...convForm.student, level: e.target.value } })
-                }
-              >
-                {LEVELS.map((lv) => (
-                  <option key={lv} value={lv}>{lv}</option>
-                ))}
-              </select>
-              <input
-                placeholder="E-mail élève (optionnel)"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2"
-                value={convForm.student.email}
-                onChange={(e) =>
-                  setConvForm({ ...convForm, student: { ...convForm.student, email: e.target.value } })
-                }
-              />
-              <input
-                placeholder="E-mail parent signataire"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2"
-                value={convForm.parentSignerEmail}
-                onChange={(e) => setConvForm({ ...convForm, parentSignerEmail: e.target.value })}
-              />
-              <input
-                placeholder="Prof référent (nom)"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2"
-                value={convForm.teacherReferent.name}
-                onChange={(e) =>
-                  setConvForm({
-                    ...convForm,
-                    teacherReferent: { ...convForm.teacherReferent, name: e.target.value },
-                  })
-                }
-              />
-              <input
-                placeholder="Prof référent (e-mail)"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2"
-                value={convForm.teacherReferent.email}
-                onChange={(e) =>
-                  setConvForm({
-                    ...convForm,
-                    teacherReferent: { ...convForm.teacherReferent, email: e.target.value },
-                  })
-                }
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  className="rounded-lg border border-stone-300 px-3 py-2"
-                  value={convForm.schedule.periodStart}
-                  onChange={(e) =>
-                    setConvForm({
-                      ...convForm,
-                      schedule: { ...convForm.schedule, periodStart: e.target.value },
-                    })
-                  }
-                />
-                <input
-                  type="date"
-                  className="rounded-lg border border-stone-300 px-3 py-2"
-                  value={convForm.schedule.periodEnd}
-                  onChange={(e) =>
-                    setConvForm({
-                      ...convForm,
-                      schedule: { ...convForm.schedule, periodEnd: e.target.value },
-                    })
-                  }
-                />
-              </div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={convForm.schedule.mode === "uniform_week"}
-                  onChange={(e) =>
-                    setConvForm({
-                      ...convForm,
-                      schedule: {
-                        ...convForm.schedule,
-                        mode: e.target.checked ? "uniform_week" : "per_day",
-                      },
-                    })
-                  }
-                />
-                Mêmes horaires lun–ven
-              </label>
-              <ScheduleEditor
-                mode={convForm.schedule.mode}
-                periodStart={convForm.schedule.periodStart}
-                periodEnd={convForm.schedule.periodEnd}
-                days={convForm.schedule.days}
-                onChange={(days) =>
-                  setConvForm({ ...convForm, schedule: { ...convForm.schedule, days } })
-                }
-              />
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-lg bg-[#2F6B4A] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Créer et générer le lien élève
-              </button>
-            </form>
-          )}
+        <div data-tour="stages-conventions" className="grid gap-8 lg:grid-cols-2">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-6 shadow-sm space-y-3 text-sm" data-tour="stages-deposer-link">
+            <h2 className="text-lg font-bold text-[#1F3D2B]">Dépôt élève (PDF)</h2>
+            <p className="text-stone-600">
+              Les élèves envoient leur convention remplie et signée sur la page publique. Plus besoin de
+              remplir une préconvention en ligne.
+            </p>
+            <a
+              href="/stages/deposer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-lg bg-[#2F6B4A] px-4 py-2 text-sm font-semibold text-white"
+            >
+              Ouvrir /stages/deposer →
+            </a>
+          </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 lg:col-span-2">
             <h2 className="text-lg font-bold text-[#1F3D2B]">Dossiers élèves</h2>
             {dossiers.map(([key, list]) => {
               const first = list[0]!;
@@ -848,9 +945,9 @@ function StagesContent() {
                     {first.student.firstName} {first.student.lastName} — {first.student.className}
                   </p>
                   <p className="text-xs text-stone-500">{list.length} convention(s)</p>
-                  <ul className="mt-2 space-y-1">
+                  <ul className="mt-2 space-y-2">
                     {list.map((c) => (
-                      <li key={c.id}>
+                      <li key={c.id} className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           className="text-sm text-[#2F6B4A] font-medium underline"
@@ -858,6 +955,22 @@ function StagesContent() {
                         >
                           {c.company.name} · {STAGE_CONVENTION_STATUS_LABELS[c.status]}
                         </button>
+                        {permissions?.canFileToOneDrive && od.oneDriveEnabled && (
+                          <>
+                            {c.oneDriveFiling?.filedAt ? (
+                              <span className="text-xs font-semibold text-emerald-700">OneDrive ✓</span>
+                            ) : c.status === "signed" ? (
+                              <button
+                                type="button"
+                                disabled={!od.connected || filingConventionId === c.id || busy}
+                                onClick={() => void fileConventionToOneDrive(c.id)}
+                                className="rounded border border-[#2F6B4A]/40 px-2 py-0.5 text-xs font-semibold text-[#2F6B4A] disabled:opacity-50"
+                              >
+                                {filingConventionId === c.id ? "Envoi…" : "→ OneDrive"}
+                              </button>
+                            ) : null}
+                          </>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -886,11 +999,21 @@ function StagesContent() {
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
+            {detail.convention.uploadedPdf && (
+              <a
+                href={`/api/stages/conventions/${detail.convention.id}/uploaded-pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
+              >
+                Voir le PDF déposé
+              </a>
+            )}
             <a
               href={`/api/stages/conventions/${detail.convention.id}/pdf`}
               className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-50"
             >
-              Télécharger PDF
+              Télécharger PDF généré
             </a>
             {permissions?.canReviewPreconvention && detail.convention.status === "signatures_pending" && (
               <button
@@ -904,13 +1027,80 @@ function StagesContent() {
             )}
           </div>
 
+          {detail.convention.ocrMeta && permissions?.canReviewPreconvention && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+              <h3 className="text-sm font-bold text-[#1F3D2B]">Rattachement élève (eleves.json)</h3>
+              <p className="mt-1 text-xs text-stone-600">
+                L&apos;élève n&apos;a pas besoin de connaître son INE — le nom/prénom suffit en général. Si le
+                matching est ambigu, vous pouvez préciser l&apos;INE ici (lu sur le PDF ou dans Pronote).
+              </p>
+              {detail.eleveMatch?.matchedEleve ? (
+                <p className="mt-2 text-sm text-emerald-900">
+                  Correspondance :{" "}
+                  <strong>
+                    {detail.eleveMatch.matchedEleve.prenom} {detail.eleveMatch.matchedEleve.nom}
+                  </strong>
+                  {detail.eleveMatch.matchedEleve.ine
+                    ? ` (INE ${detail.eleveMatch.matchedEleve.ine})`
+                    : ""}
+                  {detail.eleveMatch.matchedEleve.folderName
+                    ? ` — dossier « ${detail.eleveMatch.matchedEleve.folderName} »`
+                    : ""}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-amber-900">Aucune correspondance fiable pour l&apos;instant.</p>
+              )}
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <label className="text-xs font-semibold text-stone-700">
+                  INE (optionnel)
+                  <input
+                    type="text"
+                    value={attachIne}
+                    onChange={(e) => setAttachIne(e.target.value)}
+                    placeholder="ex. 180123456AB"
+                    className="mt-1 block w-48 rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void attachEleveIne()}
+                  disabled={busy}
+                  className="rounded-lg border border-[#2F6B4A] px-4 py-2 text-sm font-semibold text-[#2F6B4A] disabled:opacity-50"
+                >
+                  Enregistrer le rattachement
+                </button>
+              </div>
+            </div>
+          )}
+
           {canShowOneDriveFiling && (
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <h3 className="text-sm font-bold text-[#1F3D2B]">Dépôt dossier élève (OneDrive)</h3>
               <p className="mt-1 text-xs text-stone-600">
-                Même flux que l&apos;agent OCR : matching élève via eleves.json, rangement dans votre arborescence
-                OneDrive.
+                Après signature complète, dépôt automatique dans le dossier OneDrive de l&apos;élève (si configuré).
+                Le PDF de transition est retiré de S3 une fois le dépôt réussi.
               </p>
+
+              {detail.convention.oneDriveFilingPending && !detail.convention.oneDriveFiling && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p className="font-semibold">Dépôt automatique en attente</p>
+                  {detail.convention.oneDriveFilingError && (
+                    <p className="mt-1 text-xs">{detail.convention.oneDriveFilingError}</p>
+                  )}
+                </div>
+              )}
+
+              {detail.eleveMatch?.targetOneDriveLabel && (
+                <p className="mt-2 text-xs text-stone-600">
+                  Arborescence cible : <strong>{detail.eleveMatch.targetOneDriveLabel}</strong>
+                  {detail.eleveMatch.folderPath ? (
+                    <>
+                      {" "}
+                      — <span className="font-mono">{detail.eleveMatch.folderPath}</span>
+                    </>
+                  ) : null}
+                </p>
+              )}
 
               {detail.convention.oneDriveFiling ? (
                 <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -928,10 +1118,14 @@ function StagesContent() {
                 </div>
               ) : (
                 <>
+                  {clerkUser && oneDriveProfile && detail.eleveMatch?.secteur && oneDriveProfile.secteur !== detail.eleveMatch.secteur && (
+                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      Cette convention concerne le secteur « {detail.eleveMatch.targetOneDriveLabel ?? detail.eleveMatch.secteur} » — connectez-vous avec le compte Microsoft correspondant.
+                    </p>
+                  )}
                   {clerkUser && !oneDriveProfile && (
                     <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                      Profil OneDrive non reconnu pour votre compte Clerk — configurez onedrive-user-profiles.ts
-                      (comme pour l&apos;agent OCR).
+                      Profil OneDrive non reconnu pour votre compte Clerk — le dépôt utilisera l&apos;arborescence du secteur élève si configurée.
                     </p>
                   )}
                   {oneDriveProfile && (
@@ -968,8 +1162,7 @@ function StagesContent() {
                           busy ||
                           od.checking ||
                           !od.msalReady ||
-                          !od.oneDriveEnabled ||
-                          !oneDriveProfile
+                          !od.oneDriveEnabled
                         }
                         className="rounded-lg bg-[#2F6B4A] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                       >
@@ -982,6 +1175,24 @@ function StagesContent() {
                   )}
                 </>
               )}
+            </div>
+          )}
+          {permissions?.canReviewPreconvention && detail.convention.status === "convention_deposited" && (
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => void adminReview(true)}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Valider → lancer les signatures
+              </button>
+              <button
+                type="button"
+                onClick={() => void adminReview(false)}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Refuser
+              </button>
             </div>
           )}
           {permissions?.canReviewPreconvention && detail.convention.status === "admin_review" && (
@@ -1020,99 +1231,8 @@ function StagesContent() {
           )}
         </section>
       )}
+      <ReplayModuleTourButton moduleId="stages" />
     </main>
-  );
-}
-
-function ScheduleEditor({
-  mode,
-  periodStart,
-  periodEnd,
-  days,
-  onChange,
-}: {
-  mode: StageScheduleMode;
-  periodStart?: string;
-  periodEnd?: string;
-  days: StageDaySlot[];
-  onChange: (days: StageDaySlot[]) => void;
-}) {
-  const day = days[0] || {
-    weekday: 1,
-    hasLunchBreak: true,
-    morningStart: "08:00",
-    morningEnd: "12:00",
-    afternoonStart: "13:00",
-    afternoonEnd: "17:00",
-  };
-
-  function patch(p: Partial<StageDaySlot>) {
-    if (mode === "per_day" && days.length > 1) {
-      onChange(days.map((d) => ({ ...d, ...p })));
-    } else {
-      onChange([{ ...day, ...p }]);
-    }
-  }
-
-  function applyPerDayTemplate() {
-    if (!periodStart || !periodEnd) return;
-    const dates: string[] = [];
-    const start = new Date(`${periodStart}T12:00:00`);
-    const end = new Date(`${periodEnd}T12:00:00`);
-    const cur = new Date(start);
-    while (cur <= end) {
-      const dow = cur.getDay();
-      if (dow >= 1 && dow <= 5) dates.push(cur.toISOString().slice(0, 10));
-      cur.setDate(cur.getDate() + 1);
-    }
-    onChange(
-      dates.map((date) => ({
-        ...day,
-        date,
-        weekday: undefined,
-      })),
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-stone-200 p-3 space-y-2">
-      <p className="text-xs font-semibold text-stone-500">
-        Horaires {mode === "uniform_week" ? "(lun–ven identiques)" : "(par jour)"}
-      </p>
-      {mode === "per_day" && periodStart && periodEnd && (
-        <button
-          type="button"
-          onClick={applyPerDayTemplate}
-          className="text-xs font-semibold text-[#2F6B4A] underline"
-        >
-          Générer les jours ouvrés ({periodStart} → {periodEnd})
-        </button>
-      )}
-      {mode === "per_day" && days.length > 1 && (
-        <p className="text-xs text-stone-500">{days.length} jour(s) configuré(s)</p>
-      )}
-      <label className="flex items-center gap-2 text-xs">
-        <input
-          type="checkbox"
-          checked={day.hasLunchBreak}
-          onChange={(e) => patch({ hasLunchBreak: e.target.checked })}
-        />
-        Pause méridienne
-      </label>
-      {day.hasLunchBreak ? (
-        <div className="grid grid-cols-2 gap-2">
-          <input type="time" value={day.morningStart || ""} onChange={(e) => patch({ morningStart: e.target.value })} />
-          <input type="time" value={day.morningEnd || ""} onChange={(e) => patch({ morningEnd: e.target.value })} />
-          <input type="time" value={day.afternoonStart || ""} onChange={(e) => patch({ afternoonStart: e.target.value })} />
-          <input type="time" value={day.afternoonEnd || ""} onChange={(e) => patch({ afternoonEnd: e.target.value })} />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <input type="time" value={day.fullDayStart || ""} onChange={(e) => patch({ fullDayStart: e.target.value })} />
-          <input type="time" value={day.fullDayEnd || ""} onChange={(e) => patch({ fullDayEnd: e.target.value })} />
-        </div>
-      )}
-    </div>
   );
 }
 

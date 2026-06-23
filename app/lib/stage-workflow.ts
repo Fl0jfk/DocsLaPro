@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { normalizeStageSchedule, validateStageSchedule } from "@/app/lib/stage-schedule";
 import { resolveStagesAdminEmails, resolveStagesDirectionEmail } from "@/app/lib/stage-config";
+import { stampSignatureOnConventionPdf, roleStampsPdf } from "@/app/lib/stage-pdf-sign";
 import {
   notifyAllStageSignatureRequests,
   notifyStageAdminRejected,
@@ -68,6 +69,56 @@ export async function buildDefaultSignatures(convention: StageConvention): Promi
     }));
 }
 
+/** Signatures après dépôt PDF : papier déjà signé (élève, parent, entreprise) + prof référent + direction en ligne. */
+export async function buildDepositedConventionSignatures(
+  convention: StageConvention,
+): Promise<StageSignature[]> {
+  const directionEmail = await resolveStagesDirectionEmail(convention.student.level);
+  const now = new Date().toISOString();
+  const paperSigned: StageSignature[] = [
+    {
+      id: stageUid("sig"),
+      role: "eleve",
+      label: STAGE_SIGNER_ROLE_LABELS.eleve,
+      status: "signe",
+      signedAt: now,
+      signedBy: "Document papier",
+    },
+    {
+      id: stageUid("sig"),
+      role: "parent",
+      label: STAGE_SIGNER_ROLE_LABELS.parent,
+      status: "signe",
+      signedAt: now,
+      signedBy: "Document papier",
+    },
+    {
+      id: stageUid("sig"),
+      role: "tuteur_entreprise",
+      label: STAGE_SIGNER_ROLE_LABELS.tuteur_entreprise,
+      status: "signe",
+      signedAt: now,
+      signedBy: "Document papier",
+    },
+  ];
+
+  const digitalRoles: Array<{ role: StageSignerRole; email?: string }> = [
+    { role: "professeur_referent", email: convention.teacherReferent.email },
+    { role: "direction", email: directionEmail },
+  ];
+  const digitalPending = digitalRoles
+    .filter((s) => s.email?.trim())
+    .map((s) => ({
+      id: stageUid("sig"),
+      role: s.role,
+      label: STAGE_SIGNER_ROLE_LABELS[s.role],
+      status: "en_attente" as const,
+      signEmail: s.email!.trim(),
+    }));
+
+  return [...paperSigned, ...digitalPending];
+}
+
 export async function ensureStudentAccessToken(convention: StageConvention): Promise<StageConvention> {
   if (convention.studentAccessToken) return convention;
   const token = generateStageToken();
@@ -79,6 +130,10 @@ export async function ensureStudentAccessToken(convention: StageConvention): Pro
 export async function attachSignTokens(convention: StageConvention): Promise<StageConvention> {
   const signatures: StageSignature[] = [];
   for (const sig of convention.signatures) {
+    if (sig.status === "signe") {
+      signatures.push(sig);
+      continue;
+    }
     const token = generateStageToken();
     const ref: StageSignTokenRef = {
       conventionId: convention.id,
@@ -180,9 +235,69 @@ export async function reviewPreconvention(
   return next;
 }
 
+/** Valide un dépôt PDF et lance les signatures prof référent + direction. */
+export async function approveDepositedConvention(
+  convention: StageConvention,
+  params: { by: string; byName: string; note?: string },
+): Promise<{ ok: true; convention: StageConvention } | { ok: false; error: string }> {
+  if (convention.status !== "convention_deposited") {
+    return { ok: false, error: "Cette convention n'est pas en attente de validation PDF." };
+  }
+
+  let prepared = await ensureConventionReferent(convention);
+  if (!prepared.teacherReferent.email?.trim()) {
+    return {
+      ok: false,
+      error:
+        "Professeur référent introuvable pour cette classe — configurez les référents dans Stages & conventions.",
+    };
+  }
+  const directionEmail = await resolveStagesDirectionEmail(prepared.student.level);
+  if (!directionEmail) {
+    return {
+      ok: false,
+      error:
+        "E-mail direction introuvable — renseignez stagesDirectionEmail ou l'e-mail du directeur dans les paramètres.",
+    };
+  }
+
+  const signatures = await buildDepositedConventionSignatures(prepared);
+  const roles = new Set(signatures.map((s) => s.role));
+  if (!roles.has("professeur_referent") || !roles.has("direction")) {
+    return {
+      ok: false,
+      error: "Impossible de préparer les signatures prof référent + direction.",
+    };
+  }
+
+  const now = new Date().toISOString();
+  let next: StageConvention = {
+    ...prepared,
+    status: "convention_ready",
+    adminReview: {
+      at: now,
+      by: params.by,
+      byName: params.byName,
+      approved: true,
+      note: params.note,
+    },
+    signatures,
+  };
+  next = pushHistory(next, params.byName, "CONVENTION_PDF_VALIDEE", params.note);
+  next = { ...next, status: "signatures_pending" };
+  next = await attachSignTokens(next);
+  next = pushHistory(next, "Système", "SIGNATURES_LANCEES", `${signatures.length} signataire(s)`);
+  await saveStageConvention(next);
+  void notifyAllStageSignatureRequests(next).catch((e) =>
+    console.error("[stages] notify signatures deposit:", e),
+  );
+  return { ok: true, convention: next };
+}
+
 export async function applyConventionSignature(params: {
   token: string;
   signerName?: string;
+  signaturePngBase64?: string;
 }): Promise<
   | { ok: true; convention: StageConvention }
   | { ok: false; error: string }
@@ -196,6 +311,15 @@ export async function applyConventionSignature(params: {
   const sig = convention.signatures.find((s) => s.id === ref.signatureId);
   if (!sig) return { ok: false, error: "Signature introuvable." };
   if (sig.status === "signe") return { ok: false, error: "Déjà signé." };
+
+  if (roleStampsPdf(sig.role)) {
+    const stamp = await stampSignatureOnConventionPdf({
+      convention,
+      role: sig.role,
+      drawnPngBase64: params.signaturePngBase64,
+    });
+    if (!stamp.ok) return { ok: false, error: stamp.error };
+  }
 
   const now = new Date().toISOString();
   const signatures = convention.signatures.map((s) =>
@@ -279,5 +403,10 @@ export function normalizeConventionInput(raw: unknown, base?: StageConvention): 
     updatedAt: new Date().toISOString(),
     createdBy: base?.createdBy ?? { role: "staff", name: "Système" },
     history: base?.history ?? [],
+    oneDriveFiling: base?.oneDriveFiling,
+    oneDriveFilingPending: base?.oneDriveFilingPending,
+    oneDriveFilingError: base?.oneDriveFilingError,
+    uploadedPdf: base?.uploadedPdf,
+    ocrMeta: base?.ocrMeta,
   };
 }

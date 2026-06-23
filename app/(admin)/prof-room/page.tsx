@@ -7,6 +7,7 @@ import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { hasGlobalAdminRole } from "@/app/lib/intranet-role-utils";
 import ProfRoomSettingsTab from "@/app/components/prof-room/ProfRoomSettingsTab";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 import { DEFAULT_PROF_ROOM_SUBJECT_COLORS } from "@/app/lib/prof-room-defaults";
 import { getSubjectColorPresentation } from "@/app/lib/prof-room-subject-colors";
 
@@ -279,6 +280,7 @@ function ProfRoomPageContent() {
       <div className="flex flex-wrap gap-2 px-4 pb-4">
         <button
           type="button"
+          data-prof-room-tab="reservation"
           onClick={() => setActiveTab("reservation")}
           className={`px-5 py-2.5 rounded-xl text-sm font-black ${activeTab === "reservation" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"}`}
         >
@@ -298,7 +300,7 @@ function ProfRoomPageContent() {
         <ProfRoomSettingsTab />
       ) : (
       <>
-      <div className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 w-full">
+      <div data-tour="prof-room-room-select" className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-1/2">
           <select
             value={selectedRoom}
@@ -350,7 +352,7 @@ function ProfRoomPageContent() {
           {isAdmin && <span className="bg-purple-600 text-white text-[15px] font-black px-3 py-1 rounded-full tracking-tighter whitespace-nowrap">ADMIN MODE</span>}
         </div>
       </div>
-      <div className="bg-white rounded-3xl overflow-hidden">
+      <div data-tour="prof-room-calendar" className="bg-white rounded-3xl overflow-hidden">
         <div className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-6"} bg-gray-50 border-b`}>
           <div className="p-4 text-[13px] font-black text-gray-400 uppercase text-center">Heure</div>
           {displayDays.map((day, i) => (
@@ -421,7 +423,7 @@ function ProfRoomPageContent() {
         </div>
       </div>
       {myUpcomingReservations.length > 0 && (
-        <div className="bg-white border-2 border-blue-100 rounded-3xl p-6 shadow-lg">
+        <div data-tour="prof-room-upcoming" className="bg-white border-2 border-blue-100 rounded-3xl p-6 shadow-lg">
           <h3 className="text-sm font-black text-blue-600 uppercase mb-4 flex items-center gap-2">📅 Mes 5 prochaines réservations</h3>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             {myUpcomingReservations.map((res) => (
@@ -447,7 +449,7 @@ function ProfRoomPageContent() {
           </div>
         </div>
       )}
-      <div id="form-section" className="bg-slate-900 rounded-b-none sm:rounded-b-[40px] rounded-[40px] p-4 md:p-8 text-white shadow-2xl mt-6">
+      <div id="form-section" data-tour="prof-room-form" className="bg-slate-900 rounded-b-none sm:rounded-b-[40px] rounded-[40px] p-4 md:p-8 text-white shadow-2xl mt-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-8">
           <div className="flex items-center gap-3 min-w-0">
             <div className={`p-2 md:p-3 rounded-2xl flex-shrink-0 ${isEditing ? 'bg-orange-500' : 'bg-green-500'}`}>
@@ -559,6 +561,7 @@ function ProfRoomPageContent() {
       </div>
       </>
       )}
+      <ReplayModuleTourButton moduleId="prof-room" />
     </div>
   );
 }

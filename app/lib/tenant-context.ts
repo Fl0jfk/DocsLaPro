@@ -12,7 +12,7 @@ import {
   resolveTenantBySlug,
 } from "@/app/lib/tenant-registry";
 import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
-import { requestOriginFromHostHeader } from "@/app/lib/local-dev";
+import { tenantOrigin } from "@/app/lib/tenant-auth-urls";
 import { isPlatformHostname } from "@/app/lib/platform-hostname";
 import { platformTenantFromEnv } from "@/app/lib/platform-tenant";
 
@@ -49,15 +49,17 @@ export const getTenant = cache(async (): Promise<TenantConfig> => {
 
 export async function getTenantAppUrl(): Promise<string> {
   const tenant = await getTenant();
-  if (tenant.appUrl) return tenant.appUrl;
   const h = await headers();
-  const host = h.get("x-forwarded-host") || h.get("host");
+  const host = h.get("x-forwarded-host") || h.get("host") || "";
   if (host) {
-    const normalized = normalizeHostname(host);
-    if (isLocalDevHostname(normalized)) {
-      return requestOriginFromHostHeader(host);
-    }
-    return `https://${normalized}`;
+    return tenantOrigin(tenant, host).replace(/\/$/, "");
   }
   return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+}
+
+/** URL absolue sur le tenant courant (e-mails, signatures, liens métier). */
+export async function tenantAbsolutePath(path: string): Promise<string> {
+  const base = await getTenantAppUrl();
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${p}`;
 }

@@ -26,3 +26,16 @@ export async function resolveStagesDirectionEmail(studentLevel: string): Promise
   const est = bundle.establishments.find((e) => e.id === estId || e.id.includes(estId));
   return est?.directorEmail?.trim() || bundle.establishments.find((e) => e.directorEmail)?.directorEmail?.trim();
 }
+
+export async function resolveStagesConventionTemplateUrl(): Promise<string | undefined> {
+  const bundle = await loadAppConfig();
+  return bundle.notifications.stagesConventionTemplateUrl?.trim() || undefined;
+}
+
+/** Image de signature direction (même config que les voyages : ecole / college / lycee). */
+export async function resolveDirectionSignatureImageUrl(studentLevel: string): Promise<string | null> {
+  const bundle = await loadAppConfig();
+  const estId = establishmentIdForStudentLevel(studentLevel);
+  const url = bundle.travels?.signatureImageUrls?.[estId]?.trim();
+  return url || null;
+}

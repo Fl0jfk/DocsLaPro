@@ -11,6 +11,7 @@ import { getFirstBranchForStaffEmailFromDirectory } from "@/app/lib/staff-direct
 import { ensureRequestRoutes, getRouteById } from "@/app/lib/requests-routes-cache";
 import type { RequestRouteDef } from "@/app/lib/requests-types";
 import { resolveRoutingFromCatalog } from "@/app/lib/requests-routing-config";
+import { getTenantAppUrl, tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 export type RequestStatus = "NOUVELLE" | "EN_COURS" | "EN_ATTENTE" | "TERMINEE";
 export type RequestAttachment = {
@@ -634,9 +635,9 @@ async function getMailer() {
   return { smtp, transporter };
 }
 
-export function getPublicAppBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
-  if (fromEnv) return fromEnv;
+export async function getPublicAppBaseUrl(): Promise<string> {
+  const fromTenant = await getTenantAppUrl();
+  if (fromTenant) return fromTenant;
   const v = process.env.VERCEL_URL?.trim();
   if (v) return `https://${v.replace(/^https?:\/\//, "")}`;
   return "";
@@ -672,6 +673,7 @@ export async function notifyRequestCreated(record: RequestRecord) {
   if (!mail) return;
   const { smtp, transporter } = mail;
   const { to, cc } = await staffMailTargets(record);
+  const requestsLink = await tenantAbsolutePath("/requests");
   await transporter.sendMail({
     from: `"Demandes" <${smtp.user}>`,
     to,
@@ -693,7 +695,7 @@ export async function notifyRequestCreated(record: RequestRecord) {
       record.attachments?.length
         ? `Pièces jointes (${record.attachments.length}): ${record.attachments.map((a) => a.fileName).join(", ")}`
         : "",
-      `Tableau des demandes: ${(process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "")}/requests`,
+      `Tableau des demandes: ${requestsLink}`,
     ].filter(Boolean).join("\n"),
   });
   await transporter.sendMail({

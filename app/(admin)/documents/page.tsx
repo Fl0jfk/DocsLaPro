@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useUser } from "@clerk/nextjs";
 import { INTRANET_ROLE_OPTIONS } from "@/app/lib/intranet-roles";
+import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 
 type DocumentScope = "personal" | "shared";
 
@@ -805,7 +806,7 @@ export default function DocumentsPage() {
             </div>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="documents-upload" className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setShowNewFolder(true)}
@@ -866,7 +867,7 @@ export default function DocumentsPage() {
       </section>
 
       <div className="flex flex-col md:flex-row gap-4 md:items-stretch">
-        <aside className="md:w-56 shrink-0 bg-white border border-gray-200 rounded-2xl p-3 flex flex-col max-h-[min(720px,calc(100vh-10rem))] md:min-h-[480px]">
+        <aside data-tour="documents-scope" className="md:w-56 shrink-0 bg-white border border-gray-200 rounded-2xl p-3 flex flex-col max-h-[min(720px,calc(100vh-10rem))] md:min-h-[480px]">
           <button
             type="button"
             onClick={goToPersonalRoot}
@@ -1264,6 +1265,7 @@ export default function DocumentsPage() {
           </div>
         </Modal>
       )}
+      <ReplayModuleTourButton moduleId="documents" />
     </main>
   );
 }

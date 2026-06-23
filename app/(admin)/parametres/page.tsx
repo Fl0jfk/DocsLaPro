@@ -728,6 +728,44 @@ export default function ParametresPage() {
               })
             }
           />
+          <label className="block text-sm font-bold">Stages — e-mails administratif (séparés par virgule)</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            value={
+              Array.isArray(notifications.stagesAdminEmails)
+                ? (notifications.stagesAdminEmails as string[]).join(", ")
+                : ""
+            }
+            onChange={(e) =>
+              setNotifications({
+                ...notifications,
+                stagesAdminEmails: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+              })
+            }
+          />
+          <label className="block text-sm font-bold">Stages — e-mail direction (signature)</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            type="email"
+            value={String(notifications.stagesDirectionEmail || "")}
+            onChange={(e) =>
+              setNotifications({ ...notifications, stagesDirectionEmail: e.target.value.trim() })
+            }
+            placeholder="directeur@… (sinon e-mail directeur par établissement)"
+          />
+          <label className="block text-sm font-bold">Stages — modèle convention vierge (URL PDF)</label>
+          <input
+            className="w-full border rounded-xl p-3"
+            type="url"
+            value={String(notifications.stagesConventionTemplateUrl || "")}
+            onChange={(e) =>
+              setNotifications({ ...notifications, stagesConventionTemplateUrl: e.target.value.trim() })
+            }
+            placeholder="https://…/convention-stage-vierge.pdf"
+          />
+          <p className="text-xs text-slate-500">
+            PDF remplissable (Adobe) hébergé sur S3 ou autre — lien affiché sur /stages/deposer.
+          </p>
           <button
             type="button"
             disabled={saving}
