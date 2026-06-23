@@ -21,5 +21,5 @@ export async function POST(req: NextRequest) {
   );
 
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, shareDeleted: result.shareDeleted === true });
 }

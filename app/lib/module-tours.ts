@@ -354,21 +354,129 @@ export const MODULE_TOURS: ModuleTourDefinition[] = [
   },
   {
     moduleId: "documents",
-    title: "Les documents",
+    title: "Mes documents — cloud personnel",
     steps: [
       {
-        title: "Espace documents",
-        body: "Votre espace personnel et les dossiers partagés par l'établissement.",
+        title: "Bienvenue dans votre cloud",
+        body: "Ce module, ce n'est pas le classement automatique des dossiers élèves sur OneDrive (ça, c'est « Ajout de documents IA »). Ici, chaque membre du personnel dispose de son propre espace de fichiers sur le cloud Scola — comme un petit disque dur en ligne, accessible depuis n'importe quel poste connecté à l'intranet.",
+        bullets: [
+          "Fichiers personnels : cours, supports, modèles, scans… ce que vous voulez garder sous la main.",
+          "Partages avec des collègues : dossiers communs ou envoi ciblé d'un fichier.",
+          "Hébergement sur AWS S3 (région France) — vos données restent dans l'écosystème Scola, pas sur votre PC.",
+        ],
+      },
+      {
+        target: "documents-quota",
+        title: "Vos 2 Go par personne",
+        body: "Chaque compte dispose de 2 Go de stockage personnel. La jauge en haut de page se met à jour après chaque envoi ou suppression. Quand vous approchez de la limite, la barre passe au rouge : il faudra faire du ménage ou archiver ailleurs avant d'importer de gros fichiers.",
+        bullets: [
+          "2 Go ≈ quelques centaines de PDF ou une dizaine de gros PowerPoint — largement suffisant pour le quotidien pédagogique.",
+          "Le quota est individuel : le contenu d'un dossier partagé compte dans l'espace du propriétaire du dossier, pas chez chaque membre.",
+          "Pas de quota « illimité » : si vous dépassez, l'upload est refusé avec un message clair.",
+        ],
       },
       {
         target: "documents-scope",
-        title: "Personnel / Partagé",
-        body: "Basculez entre vos fichiers privés et les ressources communes de l'établissement.",
+        title: "La barre latérale — trois espaces",
+        body: "À gauche, trois zones distinctes. Les dossiers partagés y sont listés : c'est souvent par là qu'on les ouvre, et c'est aussi là qu'on peut vérifier qui y a accès.",
+        bullets: [
+          "Mon cloud : votre espace privé. Personne d'autre ne le voit tant que vous ne partagez pas.",
+          "Fichiers partagés : raccourcis vers des fichiers qu'un collègue vous a envoyés individuellement (badge indigo si vous en avez en attente).",
+          "Dossiers partagés : espaces collaboratifs. 👑 = vous êtes propriétaire ; 👥 = vous êtes invité.",
+          "Clic droit sur un dossier partagé ici : Ouvrir, Voir qui a accès (fenêtre avec la liste du personnel), et Modifier les accès si vous êtes propriétaire.",
+        ],
       },
       {
         target: "documents-upload",
-        title: "Importer",
-        body: "Créez des dossiers, uploadez des fichiers et partagez-les avec des collègues si besoin.",
+        title: "Les boutons d'action",
+        body: "Barre d'outils en haut à droite. Quand un dossier partagé est ouvert, deux boutons utiles apparaissent en plus des actions habituelles.",
+        bullets: [
+          "+ Dossier / + Ajouter un fichier : dans Mon cloud ou dans un dossier partagé où vous avez les droits.",
+          "+ Dossier partagé : crée un espace commun et choisissez les collègues (personnel Clerk de l'établissement).",
+          "Voir qui a accès (bouton indigo) : visible dès qu'un dossier partagé est ouvert — propriétaire 👑, membres et rôles, pour tout le monde qui a accès (pas seulement le propriétaire).",
+          "Modifier les accès (bouton sombre, propriétaire seulement) : ajouter ou retirer des membres — remplace l'ancien « Gérer le partage ».",
+          "Supprimer le dossier partagé (propriétaire, racine du dossier) : efface tout le contenu et retire le dossier pour tous les membres.",
+          "Supprimer ce dossier / Quitter le dossier : selon que vous êtes propriétaire ou invité.",
+        ],
+      },
+      {
+        target: "documents-dropzone",
+        title: "Glisser-déposer",
+        body: "La zone en pointillés accepte un ou plusieurs fichiers, ou un dossier entier depuis votre bureau. L'arborescence des sous-dossiers est conservée à l'import.",
+        bullets: [
+          "Survolez avec des fichiers : le cadre devient bleu — lâchez pour envoyer.",
+          "Pendant l'envoi, la zone est grisée : patientez avant de relancer un dépôt.",
+          "Impossible de déposer dans « Fichiers partagés » (ce sont des raccourcis, pas un vrai dossier d'upload).",
+        ],
+      },
+      {
+        target: "documents-breadcrumb",
+        title: "Fil d'Ariane",
+        body: "Le chemin au-dessus de la grille rappelle où vous êtes : Mon cloud, un dossier partagé, ou un sous-dossier. Cliquez sur un segment pour remonter sans repasser par la barre latérale.",
+      },
+      {
+        target: "documents-grid",
+        title: "La grille de fichiers",
+        body: "Vue type bureau : icônes par type de fichier (PDF, Excel, Word…), nom en dessous, puis « Fichier · taille » ou « Dossier ». Un clic gauche ouvre le fichier (nouvel onglet) ou entre dans le dossier.",
+        bullets: [
+          "Survol : léger liseré coloré selon le type — repère visuel sans surcharge.",
+          "Les fichiers reçus par partage ciblé portent la mention « Partagé » sous le nom.",
+          "Double-clic non requis : un simple clic suffit.",
+        ],
+      },
+      {
+        title: "Voir qui a accès — trois chemins",
+        body: "Avant de déposer un document sensible dans un dossier partagé, vous pouvez toujours vérifier qui le verra. La même fenêtre s'ouvre depuis trois endroits.",
+        bullets: [
+          "Colonne de gauche : clic droit sur le dossier partagé → Voir qui a accès.",
+          "Haut de page : bouton indigo Voir qui a accès (quand le dossier est ouvert).",
+          "Grille de fichiers : clic droit sur un élément partagé → Voir qui a accès (dossier partagé ou fichier partagé ciblé).",
+          "La fenêtre liste le propriétaire 👑, chaque membre avec son rôle intranet, et (vous) si c'est votre compte.",
+          "Modifier les accès reste réservé au propriétaire — consulter la liste, c'est pour tout le monde.",
+        ],
+      },
+      {
+        title: "Clic droit — la grille de fichiers",
+        body: "Dans la zone centrale, le clic droit ouvre un menu léger : pas de boutons au survol, mais les actions essentielles à portée de main.",
+        bullets: [
+          "Ouvrir : même effet que le clic gauche.",
+          "Voir qui a accès : uniquement sur les éléments partagés — ouvre la fenêtre décrite à l'étape précédente.",
+          "Partager (Mon cloud uniquement) : envoyer ce fichier à des collègues — ils le retrouveront dans « Fichiers partagés ».",
+          "Déplacer, Supprimer, Retirer du partage : selon vos droits sur l'élément.",
+        ],
+      },
+      {
+        title: "Dossier partagé vs partage de fichier",
+        body: "Deux mécanismes complémentaires — et dans les deux cas, Voir qui a accès vous indique exactement qui est dans la boucle.",
+        bullets: [
+          "Dossier partagé : projet d'équipe (rentrée, BTS, coordination pôle…). Même arborescence pour tous ; vérifiez la liste des membres avant d'y déposer des documents confidentiels.",
+          "Partage de fichier : envoi ponctuel (convocation, Excel, modèle) — les destinataires le voient dans « Fichiers partagés » ; clic droit sur le fichier pour voir qui d'autre y a accès.",
+          "Quitter un dossier partagé : vous disparaissez de la liste des membres ; le propriétaire peut vous réinviter via Modifier les accès.",
+        ],
+      },
+      {
+        title: "Qui voit quoi ?",
+        body: "Seuls les utilisateurs du personnel inscrits sur l'intranet Clerk de votre établissement apparaissent dans les listes de partage et dans la fenêtre Voir qui a accès.",
+        bullets: [
+          "Mon cloud : strictement privé — pas d'entrée Voir qui a accès.",
+          "Dossier partagé : propriétaire + membres désignés, visibles dans la fenêtre.",
+          "Fichier partagé ciblé : expéditeur + destinataires choisis uniquement.",
+        ],
+      },
+      {
+        title: "Bonnes pratiques",
+        body: "Quelques réflexes pour que le cloud reste fluide pour tout le monde.",
+        bullets: [
+          "Nommez vos dossiers de façon explicite (« Rentrée 2025 — 3ème » plutôt que « Nouveau dossier »).",
+          "Évitez les doublons de gros PDF : préférez un lien dans un dossier partagé plutôt que d'envoyer le même fichier à dix personnes.",
+          "Avant de déposer dans un dossier partagé : Voir qui a accès — au cas où une personne en trop serait encore membre.",
+          "Avant une grosse importation (photos de sortie, archive ZIP), jetez un œil à la jauge des 2 Go.",
+          "Ce module ne remplace pas OneDrive pour les dossiers élèves : utilisez « Ajout de documents IA » pour ça.",
+        ],
+      },
+      {
+        title: "C'est parti",
+        body: "Vous pouvez relancer ce tutoriel à tout moment via le lien en bas de la page. Pour tester : ouvrez un dossier partagé (ou créez-en un), cliquez Voir qui a accès ou faites un clic droit sur son nom dans la colonne de gauche.",
       },
     ],
   },

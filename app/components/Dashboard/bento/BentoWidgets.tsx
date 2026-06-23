@@ -100,10 +100,50 @@ function tripDateLabel(t: TripIndexRow): string {
 
 type DocItem = { type: "folder" | "file"; name: string; relPath: string; ext?: string };
 
+function ModuleAccessLink({
+  href,
+  external,
+  description,
+}: {
+  href: string;
+  external?: boolean;
+  description?: string;
+}) {
+  const className =
+    "flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-[color:var(--dash-border)] bg-[color:var(--dash-soft-muted)]/40 px-3 py-4 text-center transition hover:border-[color:var(--dash-primary)]/35 hover:bg-[color:var(--dash-soft-muted)]/70 min-h-[4.5rem]";
+
+  const inner = (
+    <>
+      <span className="text-xs font-bold text-[var(--dash-primary)]">Accéder au module →</span>
+      {description ? (
+        <span className={`mt-1 line-clamp-2 ${DASHBOARD_TILE_META}`}>{description}</span>
+      ) : null}
+    </>
+  );
+
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        {inner}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {inner}
+    </Link>
+  );
+}
+
 export function DefaultBentoWidget({ category }: WidgetProps) {
   return (
     <BentoWidget {...widgetHeader(category)}>
-      <p className={DASHBOARD_TILE_META}>Accéder au module</p>
+      <ModuleAccessLink
+        href={category.link}
+        external={category.external}
+        description={category.description}
+      />
     </BentoWidget>
   );
 }

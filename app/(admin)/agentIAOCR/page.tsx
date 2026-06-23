@@ -54,9 +54,12 @@ function OneDriveUpDocsOCRAIContent() {
   const [ocrResults, setOcrResults] = useState<ProcessResult[]>([]);
   const [processingStatus, setProcessingStatus] = useState({
     total: 0,
+    done: 0,
     completed: 0,
     failed: 0,
+    label: "",
   });
+  const progressTotalRef = useRef(0);
   const [pendingStandardFiles, setPendingStandardFiles] = useState<File[]>([]);
   const [pendingClassFiles, setPendingClassFiles] = useState<File[]>([]);
   const [isDraggingStandard, setIsDraggingStandard] = useState(false);
@@ -489,14 +492,26 @@ function OneDriveUpDocsOCRAIContent() {
     }
   };
 
-  const processClassFile = async (file: File): Promise<ProcessResult[]> => {
+  const processClassFile = async (
+    file: File,
+    onStep?: (info: {
+      results: ProcessResult[];
+      label: string;
+      totalHint?: number;
+    }) => void,
+  ): Promise<ProcessResult[]> => {
     const results: ProcessResult[] = [];
     const sourceTempPath = `Temp/${file.name}`;
+    const report = (label: string, totalHint?: number) => {
+      onStep?.({ results: [...results], label, totalHint });
+    };
     try {
       const token = oneDriveTokenRef.current;
       if (!token) throw new Error("Pas de token OneDrive disponible");
+      report(`Envoi de ${file.name}…`);
       const { key } = await uploadToS3AndOneDrive(file, token);
 
+      report(`OCR de ${file.name}…`);
       const r2 = await fetch("/api/agentIAOCR/ocr-process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -508,6 +523,7 @@ function OneDriveUpDocsOCRAIContent() {
 
       const ocr = await pollOcr(jobId, 60);
 
+      report(`Découpage de ${file.name}…`);
       const segRes = await fetch("/api/agentIAOCR/segment-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -524,6 +540,7 @@ function OneDriveUpDocsOCRAIContent() {
       if (mode === "single" || segments.length <= 1) {
         const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
         const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
+        report(`Classement de ${file.name}…`, 1);
         const one = await analyzeAndMove(
           token,
           slice || ocr.text,
@@ -531,14 +548,18 @@ function OneDriveUpDocsOCRAIContent() {
           file.name
         );
         results.push(one);
+        report(`Terminé : ${file.name}`, 1);
         return results;
       }
+
+      report(`Export classe — ${segments.length} document(s) détecté(s)`, segments.length);
 
       await deleteOneDrivePath(token, sourceTempPath);
 
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         const label = `${file.name} [p.${seg.pageStart}-${seg.pageEnd}]`;
+        report(`Segment ${i + 1} / ${segments.length} — ${label}`, segments.length);
         let tempSegPath: string | undefined;
         try {
           const slice = buildTextFromPages(
@@ -643,6 +664,7 @@ function OneDriveUpDocsOCRAIContent() {
             tempOneDrivePath: tempSegPath,
           });
         }
+        report(`Segment ${i + 1} / ${segments.length} traité`, segments.length);
         await new Promise((r) => setTimeout(r, 800));
       }
 
@@ -678,11 +700,24 @@ function OneDriveUpDocsOCRAIContent() {
     return results;
   }
 
-  const updateProgress = (results: ProcessResult[]) => {
+  const applyProcessingProgress = (
+    results: ProcessResult[],
+    label: string,
+    total?: number,
+  ) => {
+    const completed = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+    const done = completed + failed;
+    if (total != null && total > 0) {
+      progressTotalRef.current = Math.max(progressTotalRef.current, total);
+    }
+    progressTotalRef.current = Math.max(progressTotalRef.current, done);
     setProcessingStatus({
-      total: results.length,
-      completed: results.filter((r) => r.success).length,
-      failed: results.filter((r) => !r.success).length,
+      total: progressTotalRef.current,
+      done,
+      completed,
+      failed,
+      label,
     });
   };
 
@@ -697,35 +732,66 @@ function OneDriveUpDocsOCRAIContent() {
     setOcrResults([]);
     const allResults: ProcessResult[] = [];
 
-    const estimatedTotal =
-      standardFiles.length +
-      classFiles.length * 5;
-    setProcessingStatus({ total: estimatedTotal, completed: 0, failed: 0 });
+    const classEstimate = classFiles.length * 12;
+    progressTotalRef.current = Math.max(
+      1,
+      standardFiles.length + classEstimate,
+    );
+    applyProcessingProgress(
+      allResults,
+      "Préparation du traitement…",
+      progressTotalRef.current,
+    );
 
     try {
       if (standardFiles.length > 0) {
         const flat = await processInBatches(
           standardFiles,
-          2,
+          1,
           processSingleFile,
-          () => {}
+          (batchResults) => {
+            applyProcessingProgress(
+              [...allResults, ...batchResults],
+              `PDF standard ${batchResults.length} / ${standardFiles.length}`,
+              Math.max(progressTotalRef.current, standardFiles.length + classEstimate),
+            );
+          },
         );
         allResults.push(...flat);
-        updateProgress(allResults);
+        applyProcessingProgress(
+          allResults,
+          `Standards terminés (${flat.length} fichier${flat.length > 1 ? "s" : ""})`,
+        );
       }
 
-      for (const file of classFiles) {
-        const segmentResults = await processClassFile(file);
+      for (let ci = 0; ci < classFiles.length; ci++) {
+        const file = classFiles[ci];
+        const classBase = allResults.length;
+        const segmentResults = await processClassFile(file, ({ results, label, totalHint }) => {
+          const merged = [...allResults, ...results];
+          const pendingClass = classFiles.length - ci - 1;
+          const projectedTotal =
+            classBase +
+            (totalHint ?? 12) +
+            pendingClass * 12;
+          applyProcessingProgress(merged, label, projectedTotal);
+        });
         allResults.push(...segmentResults);
-        updateProgress(allResults);
-        await new Promise((r) => setTimeout(r, 1500));
+        applyProcessingProgress(
+          allResults,
+          `Export classe terminé : ${file.name} (${segmentResults.length} doc.)`,
+        );
+        if (ci < classFiles.length - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
       }
 
-      setProcessingStatus({
-        total: allResults.length,
-        completed: allResults.filter((r) => r.success).length,
-        failed: allResults.filter((r) => !r.success).length,
-      });
+      progressTotalRef.current = allResults.length;
+      applyProcessingProgress(
+        allResults,
+        `Terminé — ${allResults.length} document${allResults.length > 1 ? "s" : ""} traité${allResults.length > 1 ? "s" : ""}`,
+        allResults.length,
+      );
       setOcrResults(allResults);
     } catch (err: unknown) {
       setError(
@@ -880,10 +946,15 @@ function OneDriveUpDocsOCRAIContent() {
   const dropDisabled = !dropsAvailable || ocrProcessing || checkingOneDrive;
   const progressPercent =
     processingStatus.total > 0
-      ? ((processingStatus.completed + processingStatus.failed) /
-          processingStatus.total) *
-        100
+      ? Math.min(
+          100,
+          (processingStatus.done / processingStatus.total) * 100,
+        )
       : 0;
+  const progressCaption =
+    processingStatus.total > 0
+      ? `${processingStatus.done} / ${processingStatus.total} document${processingStatus.total > 1 ? "s" : ""}`
+      : "";
 
   const dropZoneClass = (active: boolean, variant: "blue" | "violet") => {
     if (!dropsAvailable) {
@@ -1026,7 +1097,10 @@ function OneDriveUpDocsOCRAIContent() {
               <div className="w-full max-w-lg">
                 <div className="flex justify-between text-xs font-bold text-blue-700 mb-2 uppercase">
                   <span>Progression</span>
-                  <span>{Math.round(progressPercent)}%</span>
+                  <span>
+                    {progressCaption ? `${progressCaption} · ` : ""}
+                    {Math.round(progressPercent)}%
+                  </span>
                 </div>
                 <div className="w-full bg-white/80 rounded-full h-4 overflow-hidden border border-blue-200">
                   <div
@@ -1034,6 +1108,11 @@ function OneDriveUpDocsOCRAIContent() {
                     style={{ width: `${Math.min(100, progressPercent)}%` }}
                   />
                 </div>
+                {processingStatus.label ? (
+                  <p className="mt-3 text-center text-sm font-semibold text-blue-900/90 animate-pulse">
+                    {processingStatus.label}
+                  </p>
+                ) : null}
               </div>
             </div>
           )}
@@ -1193,7 +1272,13 @@ function OneDriveUpDocsOCRAIContent() {
               <div className="p-3 bg-gray-50 rounded-2xl text-center">
                 <span className="text-xs text-gray-600 block">Traités</span>
                 <span className="font-black text-lg">
-                  {processingStatus.completed + processingStatus.failed}
+                  {processingStatus.done}
+                  {processingStatus.total > 0 ? (
+                    <span className="text-sm font-bold text-gray-400">
+                      {" "}
+                      / {processingStatus.total}
+                    </span>
+                  ) : null}
                 </span>
               </div>
               <div className="p-3 bg-green-50 rounded-2xl text-center">

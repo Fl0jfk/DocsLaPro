@@ -3,6 +3,7 @@ import { requireAuth } from "@/app/lib/intranet-auth";
 import {
   createOrUpdateFileShare,
   listIncomingFileShares,
+  listOutgoingFileShares,
   updateFileShareMembers,
 } from "@/app/lib/documents-cloud";
 
@@ -10,8 +11,11 @@ export async function GET() {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  const shares = await listIncomingFileShares(gate.ctx.userId);
-  return NextResponse.json({ shares });
+  const [incoming, outgoing] = await Promise.all([
+    listIncomingFileShares(gate.ctx.userId),
+    listOutgoingFileShares(gate.ctx.userId),
+  ]);
+  return NextResponse.json({ shares: incoming, incoming, outgoing });
 }
 
 export async function POST(req: NextRequest) {

@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useUser } from "@clerk/nextjs";
 import { INTRANET_ROLE_OPTIONS } from "@/app/lib/intranet-roles";
 import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
+import { DocumentFileIcon, DocumentFolderIcon } from "@/app/components/documents/DocumentSystemIcons";
 
 type DocumentScope = "personal" | "shared";
 
@@ -28,21 +30,6 @@ function fileShareIdFromPath(relPath: string) {
   return relPath.slice(FILE_SHARE_REL_PREFIX.length).replace(/\/$/, "");
 }
 
-const FILE_EXT_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  pdf: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
-  doc: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  docx: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  xls: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  xlsx: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  ppt: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
-  pptx: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
-  txt: { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200" },
-  jpg: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
-  jpeg: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
-  png: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
-  zip: { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-200" },
-};
-
 type ShareInfo = {
   id: string;
   name: string;
@@ -59,6 +46,23 @@ type Peer = {
   roles: string[];
 };
 
+type FileShareMetaBrief = {
+  id: string;
+  ownerId: string;
+  memberIds: string[];
+  sourceRelPath: string;
+  fileName: string;
+  ext?: string;
+};
+
+type AccessPerson = {
+  userId: string;
+  name: string;
+  detail: string;
+  isOwner: boolean;
+  isYou: boolean;
+};
+
 function peerFullName(p: Peer): string {
   const name = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
   return name || "Nom non renseigné";
@@ -71,6 +75,78 @@ function peerRoleLabels(p: Peer): string {
     .join(", ");
 }
 
+function normalizeDocPath(path: string): string {
+  return path.replace(/^\/+/, "").replace(/\/+/g, "/");
+}
+
+function buildAccessPeople(
+  ownerId: string,
+  memberIds: string[],
+  peers: Peer[],
+  currentUserId: string,
+): AccessPerson[] {
+  const peerById = new Map(peers.map((p) => [p.clerkUserId, p]));
+  const people: AccessPerson[] = [];
+
+  const pushPerson = (userId: string, isOwner: boolean) => {
+    const peer = peerById.get(userId);
+    people.push({
+      userId,
+      name: peer ? peerFullName(peer) : "Membre du personnel",
+      detail: peer ? peerRoleLabels(peer) : "Hors annuaire visible",
+      isOwner,
+      isYou: userId === currentUserId,
+    });
+  };
+
+  pushPerson(ownerId, true);
+  for (const id of memberIds) {
+    if (id === ownerId) continue;
+    pushPerson(id, false);
+  }
+  return people;
+}
+
+function resolveItemAccess(
+  item: DocumentItem,
+  opts: {
+    scope: DocumentScope;
+    activeShare: ShareInfo | null;
+    isInIncomingSharedFolder: boolean;
+    incomingFileShares: FileShareMetaBrief[];
+    outgoingFileShares: FileShareMetaBrief[];
+  },
+): { ownerId: string; memberIds: string[] } | null {
+  if (item.name === INCOMING_SHARED_FILES_FOLDER) return null;
+
+  if (opts.scope === "shared" && opts.activeShare) {
+    return { ownerId: opts.activeShare.ownerId, memberIds: opts.activeShare.memberIds };
+  }
+
+  if (isVirtualFileSharePath(item.relPath)) {
+    const id = fileShareIdFromPath(item.relPath);
+    const meta =
+      opts.incomingFileShares.find((s) => s.id === id) ??
+      opts.outgoingFileShares.find((s) => s.id === id);
+    if (meta) return { ownerId: meta.ownerId, memberIds: meta.memberIds };
+  }
+
+  if (
+    opts.scope === "personal" &&
+    !opts.isInIncomingSharedFolder &&
+    item.type === "file" &&
+    !item.isVirtual
+  ) {
+    const src = normalizeDocPath(item.relPath);
+    const meta = opts.outgoingFileShares.find(
+      (s) => normalizeDocPath(s.sourceRelPath) === src,
+    );
+    if (meta) return { ownerId: meta.ownerId, memberIds: meta.memberIds };
+  }
+
+  return null;
+}
+
 type QuotaInfo = {
   used: number;
   quota: number;
@@ -81,70 +157,61 @@ type QuotaInfo = {
 
 type DropFile = { file: File; relPath: string };
 
-function FileTypeBadge({ ext }: { ext?: string }) {
-  const key = (ext || "").toLowerCase();
-  const style = FILE_EXT_STYLES[key] ?? {
-    bg: "bg-slate-50",
-    text: "text-slate-600",
-    border: "border-slate-200",
-  };
-  const label = key ? key.toUpperCase() : "FICHIER";
-  return (
-    <div
-      className={`w-12 h-14 rounded-lg border ${style.border} ${style.bg} flex items-center justify-center shadow-sm`}
-    >
-      <span className={`text-[9px] font-black tracking-wide ${style.text}`}>{label.slice(0, 5)}</span>
-    </div>
-  );
+function formatFileSize(bytes?: number): string | null {
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return null;
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) {
+    const ko = bytes / 1024;
+    return `${(ko < 10 ? ko.toFixed(1) : Math.round(ko).toString()).replace(".", ",")} Ko`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    const mo = bytes / (1024 * 1024);
+    return `${(mo < 10 ? mo.toFixed(1) : Math.round(mo).toString()).replace(".", ",")} Mo`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1).replace(".", ",")} Go`;
 }
 
-function FolderIcon({ variant }: { variant?: "shared-incoming" | "default" }) {
-  const colors =
-    variant === "shared-incoming"
-      ? "border-indigo-200 bg-indigo-50 text-indigo-600"
-      : "border-amber-200 bg-amber-50 text-amber-600";
-  return (
-    <div
-      className={`w-12 h-14 rounded-lg border ${colors} flex items-center justify-center shadow-sm`}
-    >
-      <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" aria-hidden>
-        <path d="M10 4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h6z" />
-      </svg>
-    </div>
-  );
+function documentDisplayName(item: DocumentItem): string {
+  if (item.type === "file" && item.ext) return `${item.name}.${item.ext}`;
+  return item.name;
 }
 
-function ActionIconButton({
-  label,
-  onClick,
-  tone,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  tone: "indigo" | "blue" | "red" | "amber";
-  children: ReactNode;
-}) {
-  const tones = {
-    indigo: "hover:bg-indigo-50 text-indigo-700",
-    blue: "hover:bg-blue-50 text-blue-700",
-    red: "hover:bg-red-50 text-red-600",
-    amber: "hover:bg-amber-50 text-amber-700",
+function documentKindLabel(item: DocumentItem): string {
+  if (item.name === INCOMING_SHARED_FILES_FOLDER) return "Dossier";
+  if (item.type === "folder") return item.isVirtual ? "Dossier partagé" : "Dossier";
+  return item.isVirtual ? "Fichier partagé" : "Fichier";
+}
+
+function documentAccent(item: DocumentItem, folderVariant?: "shared-incoming" | "default"): string {
+  if (item.type === "folder") {
+    if (folderVariant === "shared-incoming" || item.isVirtual) return "hover:border-indigo-300";
+    return "hover:border-amber-300";
+  }
+  const key = (item.ext || "").toLowerCase();
+  const hoverMap: Record<string, string> = {
+    pdf: "hover:border-red-300",
+    doc: "hover:border-blue-300",
+    docx: "hover:border-blue-300",
+    xls: "hover:border-emerald-300",
+    xlsx: "hover:border-emerald-300",
+    ppt: "hover:border-orange-300",
+    pptx: "hover:border-orange-300",
+    txt: "hover:border-slate-300",
+    jpg: "hover:border-violet-300",
+    jpeg: "hover:border-violet-300",
+    png: "hover:border-violet-300",
+    zip: "hover:border-amber-300",
   };
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={`p-2 rounded-lg bg-white/90 text-slate-600 transition-colors ${tones[tone]}`}
-    >
-      {children}
-    </button>
-  );
+  return hoverMap[key] ?? "hover:border-slate-300";
+}
+
+function documentMetaLine(item: DocumentItem): string {
+  const kind = documentKindLabel(item);
+  if (item.type === "file") {
+    const size = formatFileSize(item.size);
+    return size ? `${kind} · ${size}` : kind;
+  }
+  return kind;
 }
 
 function IconShare() {
@@ -179,6 +246,18 @@ function IconLeave() {
   return (
     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconPeople() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path
+        d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -244,7 +323,7 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DropFile
 }
 
 export default function DocumentsPage() {
-  const { isLoaded } = useUser();
+  const { isLoaded, user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [scope, setScope] = useState<DocumentScope>("personal");
@@ -279,6 +358,14 @@ export default function DocumentsPage() {
   const [shareFileItem, setShareFileItem] = useState<DocumentItem | null>(null);
   const [shareFileMembers, setShareFileMembers] = useState<string[]>([]);
   const [incomingFileCount, setIncomingFileCount] = useState(0);
+  const [incomingFileShares, setIncomingFileShares] = useState<FileShareMetaBrief[]>([]);
+  const [outgoingFileShares, setOutgoingFileShares] = useState<FileShareMetaBrief[]>([]);
+  const [accessModal, setAccessModal] = useState<{ title: string; people: AccessPerson[] } | null>(null);
+  const [sidebarShareMenu, setSidebarShareMenu] = useState<{
+    share: ShareInfo;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     const pathFromUrl = new URLSearchParams(window.location.search).get("path");
@@ -290,6 +377,24 @@ export default function DocumentsPage() {
   const activeShare = useMemo(
     () => shares.find((s) => s.id === shareId) ?? null,
     [shares, shareId],
+  );
+
+  const openAccessModal = useCallback(
+    (title: string, ownerId: string, memberIds: string[]) => {
+      if (!user?.id) return;
+      setAccessModal({
+        title,
+        people: buildAccessPeople(ownerId, memberIds, peers, user.id),
+      });
+    },
+    [peers, user?.id],
+  );
+
+  const openShareAccess = useCallback(
+    (share: ShareInfo) => {
+      openAccessModal(share.name, share.ownerId, share.memberIds);
+    },
+    [openAccessModal],
   );
 
   const pathSegments = useMemo(() => {
@@ -345,12 +450,16 @@ export default function DocumentsPage() {
     }
   }, [scope, shareId, currentPath]);
 
-  const refreshIncomingFileCount = useCallback(async () => {
+  const refreshFileShares = useCallback(async () => {
     try {
       const res = await fetch("/api/documents/file-shares", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
-        setIncomingFileCount(Array.isArray(data.shares) ? data.shares.length : 0);
+        const incoming = (data.incoming ?? data.shares ?? []) as FileShareMetaBrief[];
+        const outgoing = (data.outgoing ?? []) as FileShareMetaBrief[];
+        setIncomingFileShares(incoming);
+        setOutgoingFileShares(outgoing);
+        setIncomingFileCount(incoming.length);
       }
     } catch {
       /* ignore */
@@ -361,12 +470,12 @@ export default function DocumentsPage() {
     if (!isLoaded) return;
     refreshShares();
     refreshQuota();
-    refreshIncomingFileCount();
+    refreshFileShares();
     fetch("/api/documents/peers", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setPeers(d.peers ?? []))
       .catch(() => {});
-  }, [isLoaded, refreshShares, refreshQuota, refreshIncomingFileCount]);
+  }, [isLoaded, refreshShares, refreshQuota, refreshFileShares]);
 
   useEffect(() => {
     if (isLoaded) fetchDocuments();
@@ -661,7 +770,10 @@ export default function DocumentsPage() {
       }
       setShowDeleteFolder(false);
       setDeleteFolderConfirm("");
-      if (pathSegments.length > 1) {
+      if (data.shareDeleted) {
+        goToPersonalRoot();
+        await refreshShares();
+      } else if (pathSegments.length > 1) {
         navigateToSegment(pathSegments.length - 2);
       } else {
         setCurrentPath("");
@@ -693,7 +805,7 @@ export default function DocumentsPage() {
     }
     setShareFileItem(null);
     setShareFileMembers([]);
-    await refreshIncomingFileCount();
+    await refreshFileShares();
   };
 
   const handleLeaveFileShare = async (item: DocumentItem) => {
@@ -713,7 +825,7 @@ export default function DocumentsPage() {
         return;
       }
       await fetchDocuments();
-      await refreshIncomingFileCount();
+      await refreshFileShares();
     } catch {
       setError("Erreur lors du retrait du fichier partagé.");
     } finally {
@@ -763,12 +875,13 @@ export default function DocumentsPage() {
   const currentFolderRel = currentPath.replace(/\/$/, "");
   const deleteFolderLabel =
     scope === "shared" && !currentFolderRel
-      ? "Supprimer tout le contenu"
+      ? "Supprimer le dossier partagé"
       : "Supprimer ce dossier";
   const deleteFolderTargetName =
     scope === "shared" && !currentFolderRel
       ? activeShare?.name ?? "dossier partagé"
       : pathSegments[pathSegments.length - 1] ?? "ce dossier";
+  const isDeletingEntireShare = scope === "shared" && !currentFolderRel;
 
   return (
     <main className="flex flex-col gap-5 p-4 sm:p-6 w-full mx-auto max-w-[1200px] sm:pt-[6vh]">
@@ -784,13 +897,13 @@ export default function DocumentsPage() {
         }}
       />
       <section className="bg-white border border-gray-200 shadow-sm p-5 rounded-2xl flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
-        <div>
+        <div data-tour="documents-intro">
           <h1 className="text-xl font-bold text-gray-900">Mes documents</h1>
           <p className="text-sm text-gray-500 mt-1">
             Cloud personnel et dossiers partagés avec le personnel Clerk.
           </p>
           {quota && (
-            <div className="mt-3">
+            <div data-tour="documents-quota" className="mt-3">
               <div className="flex justify-between text-xs text-gray-500 mb-1">
                 <span>Espace utilisé</span>
                 <span>
@@ -830,6 +943,15 @@ export default function DocumentsPage() {
           >
             + Dossier partagé
           </button>
+          {activeShare && shareId && (
+            <button
+              type="button"
+              onClick={() => openShareAccess(activeShare)}
+              className="px-4 py-2 rounded-xl border border-indigo-200 text-indigo-700 text-sm font-semibold hover:bg-indigo-50"
+            >
+              Voir qui a accès
+            </button>
+          )}
           {activeShare?.isOwner && shareId && (
             <button
               type="button"
@@ -839,7 +961,7 @@ export default function DocumentsPage() {
               }}
               className="px-4 py-2 rounded-xl bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700"
             >
-              Gérer le partage
+              Modifier les accès
             </button>
           )}
           {canDeleteCurrentFolder && (
@@ -907,12 +1029,16 @@ export default function DocumentsPage() {
                   key={share.id}
                   type="button"
                   onClick={() => openShare(share)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setSidebarShareMenu({ share, x: e.clientX, y: e.clientY });
+                  }}
                   className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-0.5 truncate ${
                     scope === "shared" && shareId === share.id
                       ? "bg-blue-50 text-blue-700 font-semibold"
                       : "hover:bg-gray-50 text-gray-700"
                   }`}
-                  title={share.name}
+                  title={`${share.name} — clic droit pour les options`}
                 >
                   {share.isOwner ? "👑 " : "👥 "}
                   {share.name}
@@ -923,7 +1049,7 @@ export default function DocumentsPage() {
         </aside>
 
         <section className="flex-1 min-w-0 flex flex-col min-h-[480px] max-h-[min(720px,calc(100vh-10rem))]">
-          <div className="flex items-center gap-1 text-sm text-gray-500 mb-3 flex-wrap">
+          <div data-tour="documents-breadcrumb" className="flex items-center gap-1 text-sm text-gray-500 mb-3 flex-wrap">
             <button type="button" onClick={() => navigateToSegment(-1)} className="hover:text-blue-600 font-medium">
               {rootLabel}
             </button>
@@ -950,6 +1076,7 @@ export default function DocumentsPage() {
             </div>
           ) : (
             <div
+              data-tour="documents-dropzone"
               className={[
                 "relative flex flex-col flex-1 min-h-0 rounded-3xl border-2 border-dashed transition-colors",
                 dragActive ? "border-blue-500 bg-blue-50/50" : "border-gray-200 bg-gray-50/40",
@@ -995,6 +1122,7 @@ export default function DocumentsPage() {
               <div className="flex-1 min-h-0 overflow-y-auto p-4">
               {items.length > 0 ? (
                 <div
+                  data-tour="documents-grid"
                   className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 items-start"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -1005,11 +1133,28 @@ export default function DocumentsPage() {
                       !isInIncomingSharedFolder &&
                       item.type === "file" &&
                       !virtualFile;
+                    const access = resolveItemAccess(item, {
+                      scope,
+                      activeShare,
+                      isInIncomingSharedFolder,
+                      incomingFileShares,
+                      outgoingFileShares,
+                    });
+                    const accessPeople =
+                      access && user?.id
+                        ? buildAccessPeople(access.ownerId, access.memberIds, peers, user.id)
+                        : undefined;
+                    const accessTitle = documentDisplayName(item);
                     return (
                       <DocumentItemCard
                         key={item.relPath}
                         item={item}
                         busy={actionLoading === item.relPath || openingFile === item.relPath}
+                        onShowAccess={
+                          accessPeople
+                            ? () => openAccessModal(accessTitle, access!.ownerId, access!.memberIds)
+                            : undefined
+                        }
                         onOpen={() => {
                           if (item.type === "folder") {
                             enterFolder(
@@ -1048,8 +1193,18 @@ export default function DocumentsPage() {
       {showDeleteFolder && (
         <Modal title={deleteFolderLabel} onClose={() => setShowDeleteFolder(false)}>
           <p className="text-sm text-gray-600 mb-3">
-            Cette action supprime définitivement <strong>{deleteFolderTargetName}</strong> et tout son
-            contenu. Elle est irréversible.
+            {isDeletingEntireShare ? (
+              <>
+                Cette action supprime définitivement le dossier partagé{" "}
+                <strong>{deleteFolderTargetName}</strong>, tout son contenu et l&apos;accès pour tous
+                les membres. Elle est irréversible.
+              </>
+            ) : (
+              <>
+                Cette action supprime définitivement <strong>{deleteFolderTargetName}</strong> et tout son
+                contenu. Elle est irréversible.
+              </>
+            )}
           </p>
           <p className="text-sm text-gray-500 mb-2">
             Tapez <strong>supprimer</strong> pour confirmer :
@@ -1240,7 +1395,7 @@ export default function DocumentsPage() {
       )}
 
       {showShareManage && activeShare && (
-        <Modal title={`Partage — ${activeShare.name}`} onClose={() => setShowShareManage(false)} wide>
+        <Modal title={`Modifier les accès — ${activeShare.name}`} onClose={() => setShowShareManage(false)} wide>
           <p className="text-sm text-gray-500 mb-3">
             Vous êtes propriétaire. Ajoutez ou retirez des personnes du personnel Clerk.
           </p>
@@ -1265,8 +1420,291 @@ export default function DocumentsPage() {
           </div>
         </Modal>
       )}
+
+      {accessModal && (
+        <AccessModal
+          title={accessModal.title}
+          people={accessModal.people}
+          onClose={() => setAccessModal(null)}
+        />
+      )}
+
+      {sidebarShareMenu && (
+        <ShareSidebarContextMenu
+          x={sidebarShareMenu.x}
+          y={sidebarShareMenu.y}
+          share={sidebarShareMenu.share}
+          onClose={() => setSidebarShareMenu(null)}
+          onOpen={() => openShare(sidebarShareMenu.share)}
+          onShowAccess={() => openShareAccess(sidebarShareMenu.share)}
+          onManageAccess={
+            sidebarShareMenu.share.isOwner
+              ? () => {
+                  setManageMembers(sidebarShareMenu.share.memberIds);
+                  setShowShareManage(true);
+                }
+              : undefined
+          }
+        />
+      )}
       <ReplayModuleTourButton moduleId="documents" />
     </main>
+  );
+}
+
+function DocumentContextMenu({
+  x,
+  y,
+  onClose,
+  onOpen,
+  onShare,
+  onMove,
+  onDelete,
+  onLeave,
+  onShowAccess,
+}: {
+  x: number;
+  y: number;
+  onClose: () => void;
+  onOpen: () => void;
+  onShare?: () => void;
+  onMove?: () => void;
+  onDelete?: () => void;
+  onLeave?: () => void;
+  onShowAccess?: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onPointer = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("mousedown", onPointer);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onClose, true);
+    return () => {
+      window.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onClose, true);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const pad = 8;
+    let left = x;
+    let top = y;
+    if (left + rect.width > window.innerWidth - pad) left = window.innerWidth - rect.width - pad;
+    if (top + rect.height > window.innerHeight - pad) top = window.innerHeight - rect.height - pad;
+    el.style.left = `${Math.max(pad, left)}px`;
+    el.style.top = `${Math.max(pad, top)}px`;
+  }, [x, y]);
+
+  const run = (fn: () => void) => {
+    onClose();
+    fn();
+  };
+
+  const itemClass =
+    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors";
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed z-[200] min-w-[11.5rem] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-2xl shadow-slate-900/15"
+      style={{ left: x, top: y }}
+      role="menu"
+      onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <button type="button" className={itemClass} role="menuitem" onClick={() => run(onOpen)}>
+        <span className="text-base leading-none" aria-hidden>↗</span>
+        Ouvrir
+      </button>
+      {onShowAccess ? (
+        <button
+          type="button"
+          className={`${itemClass} text-indigo-700`}
+          role="menuitem"
+          onClick={() => run(onShowAccess)}
+        >
+          <IconPeople />
+          Voir qui a accès
+        </button>
+      ) : null}
+      {onShare ? (
+        <button type="button" className={`${itemClass} text-indigo-700`} role="menuitem" onClick={() => run(onShare)}>
+          <IconShare />
+          Partager
+        </button>
+      ) : null}
+      {onMove ? (
+        <button type="button" className={`${itemClass} text-blue-700`} role="menuitem" onClick={() => run(onMove)}>
+          <IconMove />
+          Déplacer
+        </button>
+      ) : null}
+      {onDelete ? (
+        <button type="button" className={`${itemClass} text-red-600`} role="menuitem" onClick={() => run(onDelete)}>
+          <IconTrash />
+          Supprimer
+        </button>
+      ) : null}
+      {onLeave ? (
+        <button type="button" className={`${itemClass} text-amber-700`} role="menuitem" onClick={() => run(onLeave)}>
+          <IconLeave />
+          Retirer du partage
+        </button>
+      ) : null}
+    </div>,
+    document.body,
+  );
+}
+
+function ShareSidebarContextMenu({
+  x,
+  y,
+  share,
+  onClose,
+  onOpen,
+  onShowAccess,
+  onManageAccess,
+}: {
+  x: number;
+  y: number;
+  share: ShareInfo;
+  onClose: () => void;
+  onOpen: () => void;
+  onShowAccess: () => void;
+  onManageAccess?: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onPointer = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("mousedown", onPointer);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onClose, true);
+    return () => {
+      window.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onClose, true);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const pad = 8;
+    let left = x;
+    let top = y;
+    if (left + rect.width > window.innerWidth - pad) left = window.innerWidth - rect.width - pad;
+    if (top + rect.height > window.innerHeight - pad) top = window.innerHeight - rect.height - pad;
+    el.style.left = `${Math.max(pad, left)}px`;
+    el.style.top = `${Math.max(pad, top)}px`;
+  }, [x, y]);
+
+  const run = (fn: () => void) => {
+    onClose();
+    fn();
+  };
+
+  const itemClass =
+    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors";
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed z-[200] min-w-[12rem] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-2xl shadow-slate-900/15"
+      style={{ left: x, top: y }}
+      role="menu"
+      onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 truncate">
+        {share.name}
+      </p>
+      <button type="button" className={itemClass} role="menuitem" onClick={() => run(onOpen)}>
+        <span className="text-base leading-none" aria-hidden>↗</span>
+        Ouvrir
+      </button>
+      <button
+        type="button"
+        className={`${itemClass} text-indigo-700`}
+        role="menuitem"
+        onClick={() => run(onShowAccess)}
+      >
+        <IconPeople />
+        Voir qui a accès
+      </button>
+      {onManageAccess ? (
+        <button
+          type="button"
+          className={`${itemClass} text-slate-800`}
+          role="menuitem"
+          onClick={() => run(onManageAccess)}
+        >
+          <IconShare />
+          Modifier les accès
+        </button>
+      ) : null}
+    </div>,
+    document.body,
+  );
+}
+
+function AccessModal({
+  title,
+  people,
+  onClose,
+}: {
+  title: string;
+  people: AccessPerson[];
+  onClose: () => void;
+}) {
+  return (
+    <Modal title={`Qui a accès — ${title}`} onClose={onClose} wide>
+      <p className="text-sm text-gray-500 mb-3">
+        Personnel Clerk autorisé à consulter ce partage.
+      </p>
+      <ul className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+        {people.map((person) => (
+          <li key={person.userId} className="px-4 py-3 bg-white">
+            <p className="text-sm font-semibold text-gray-900">
+              {person.isOwner ? "👑 " : ""}
+              {person.name}
+              {person.isYou ? <span className="text-gray-500 font-normal"> (vous)</span> : null}
+              {person.isOwner ? (
+                <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                  Propriétaire
+                </span>
+              ) : null}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">{person.detail}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="flex justify-end mt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-sm rounded-xl bg-slate-800 text-white font-semibold"
+        >
+          Fermer
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1279,6 +1717,7 @@ function DocumentItemCard({
   onShare,
   onLeave,
   folderVariant,
+  onShowAccess,
 }: {
   item: DocumentItem;
   busy?: boolean;
@@ -1288,80 +1727,67 @@ function DocumentItemCard({
   onShare?: () => void;
   onLeave?: () => void;
   folderVariant?: "shared-incoming" | "default";
+  onShowAccess?: () => void;
 }) {
-  const hasSecondaryActions = Boolean(onShare || onMove || onDelete || onLeave);
+  const metaLine = documentMetaLine(item);
+  const hoverBorder = documentAccent(item, folderVariant);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onContextMenu={(e) => {
           e.preventDefault();
-          onOpen();
-        }
-      }}
-      className="group relative flex flex-col items-center p-2.5 rounded-xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100 cursor-pointer w-full min-w-0 overflow-visible"
-    >
-      <div className="absolute -left-2 -right-2 top-0 bottom-0 rounded-xl bg-slate-900/65 opacity-0 group-hover:opacity-100 flex flex-col items-stretch justify-between z-10 transition-opacity px-2.5 py-2 shadow-lg">
-        <div className="flex-1 flex items-center justify-center min-h-[3.5rem] px-0.5">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen();
-            }}
-            className="w-full px-2 py-2.5 rounded-lg bg-white text-gray-900 text-xs font-bold hover:bg-gray-50 shadow-sm"
-          >
-            Ouvrir
-          </button>
+          e.stopPropagation();
+          setContextMenu({ x: e.clientX, y: e.clientY });
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
+        title={documentDisplayName(item)}
+        className={`group relative flex flex-col items-center p-2.5 rounded-2xl border-2 border-transparent bg-transparent transition-all cursor-pointer w-full min-w-0 hover:bg-white/70 hover:shadow-sm ${hoverBorder}`}
+      >
+        <div className="mb-1.5 shrink-0">
+          {item.type === "folder" ? (
+            <DocumentFolderIcon variant={folderVariant} />
+          ) : (
+            <DocumentFileIcon ext={item.ext} />
+          )}
         </div>
-        {hasSecondaryActions && (
-          <div className="flex items-center justify-center gap-2 pt-1.5 px-0.5">
-            {onShare && (
-              <ActionIconButton label="Partager" onClick={onShare} tone="indigo">
-                <IconShare />
-              </ActionIconButton>
-            )}
-            {onMove && (
-              <ActionIconButton label="Déplacer" onClick={onMove} tone="blue">
-                <IconMove />
-              </ActionIconButton>
-            )}
-            {onDelete && (
-              <ActionIconButton label="Supprimer" onClick={onDelete} tone="red">
-                <IconTrash />
-              </ActionIconButton>
-            )}
-            {onLeave && (
-              <ActionIconButton label="Retirer" onClick={onLeave} tone="amber">
-                <IconLeave />
-              </ActionIconButton>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="mb-1.5 group-hover:scale-[1.03] transition-transform shrink-0">
-        {item.type === "folder" ? (
-          <FolderIcon variant={folderVariant} />
-        ) : (
-          <FileTypeBadge ext={item.ext} />
-        )}
-      </div>
-      <span className="text-center text-[10px] font-medium text-gray-700 w-full leading-snug break-words px-0.5">
-        {item.name}
-      </span>
-      {item.type === "file" && item.ext && (
-        <span className="text-[9px] font-bold uppercase text-gray-400 mt-0.5">{item.ext}</span>
-      )}
-      {item.isVirtual && (
-        <span className="text-[8px] text-indigo-500 font-medium mt-0.5 text-center leading-tight">
-          Partagé
+        <span className="text-center text-[10px] font-medium text-gray-700 w-full leading-snug break-words px-0.5 line-clamp-2">
+          {item.name}
         </span>
-      )}
-      {busy && <span className="mt-0.5 text-[9px] text-blue-600 font-bold">…</span>}
-    </div>
+        <span className="mt-0.5 text-[9px] font-medium text-gray-500 text-center leading-tight">
+          {metaLine}
+        </span>
+        {item.isVirtual && item.name !== INCOMING_SHARED_FILES_FOLDER ? (
+          <span className="text-[8px] text-indigo-500 font-medium mt-0.5 text-center leading-tight">
+            Partagé
+          </span>
+        ) : null}
+        {busy ? <span className="mt-0.5 text-[9px] text-blue-600 font-bold">…</span> : null}
+      </div>
+
+      {contextMenu ? (
+        <DocumentContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onOpen={onOpen}
+          onShare={onShare}
+          onMove={onMove}
+          onDelete={onDelete}
+          onLeave={onLeave}
+          onShowAccess={onShowAccess}
+        />
+      ) : null}
+    </>
   );
 }
 

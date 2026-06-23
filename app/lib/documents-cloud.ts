@@ -232,6 +232,36 @@ export async function getFileShareMeta(fileShareId: string): Promise<FileShareMe
   return hit?.data ?? null;
 }
 
+export async function listOutgoingFileShares(userId: string): Promise<FileShareMeta[]> {
+  const client = await getS3Client();
+  const bucket = await getBucketName();
+  const prefix = s3Key("documents/file-shares/");
+  const out: FileShareMeta[] = [];
+  let token: string | undefined;
+
+  do {
+    const res = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    );
+    for (const obj of res.Contents ?? []) {
+      if (!obj.Key?.endsWith(".json")) continue;
+      const id = obj.Key
+        .replace(/^documents\/file-shares\//, "")
+        .replace(/\.json$/, "");
+      const meta = await getFileShareMeta(id);
+      if (!meta) continue;
+      if (meta.ownerId === userId) out.push(meta);
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (token);
+
+  return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
 export async function listIncomingFileShares(userId: string): Promise<FileShareMeta[]> {
   const client = await getS3Client();
   const bucket = await getBucketName();
@@ -814,7 +844,7 @@ export async function leaveSharedFolder(
   const meta = await getShareMeta(shareId);
   if (!meta) return { ok: false, error: "Dossier partagé introuvable." };
   if (meta.ownerId === userId) {
-    return { ok: false, error: "Le propriétaire ne peut pas quitter son dossier. Gérez le partage ou supprimez le contenu." };
+    return { ok: false, error: "Le propriétaire ne peut pas quitter son dossier. Supprimez le dossier partagé ou modifiez les accès." };
   }
   if (!meta.memberIds.includes(userId)) {
     return { ok: false, error: "Vous n'avez pas accès à ce dossier partagé." };
@@ -836,7 +866,7 @@ export async function deleteFolderAsOwner(
   shareId: string | null,
   folderRelPath: string,
   confirm: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; shareDeleted?: boolean } | { ok: false; error: string }> {
   if (confirm.trim().toLowerCase() !== FOLDER_DELETE_CONFIRM) {
     return { ok: false, error: `Tapez « ${FOLDER_DELETE_CONFIRM} » pour confirmer.` };
   }
@@ -855,7 +885,8 @@ export async function deleteFolderAsOwner(
       for (const fullKey of keys) {
         await deleteStorageObject(storageKeyToRelative(fullKey));
       }
-      return { ok: true };
+      await deleteStorageObject(shareMetaRel(shareId));
+      return { ok: true, shareDeleted: true };
     }
   } else if (!folderRel) {
     return { ok: false, error: "Impossible de supprimer la racine du cloud." };
