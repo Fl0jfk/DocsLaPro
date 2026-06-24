@@ -20,7 +20,7 @@ import {
 } from "@/app/lib/fournitures-engine";
 
 const DEFAULT_ARBS_URL =
-  "https://docslaproimage.s3.eu-west-3.amazonaws.com/rentree/Flyer-ARBS.pdf";
+  "https://scola-image.s3.eu-west-3.amazonaws.com/rentree/Flyer-ARBS.pdf";
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 

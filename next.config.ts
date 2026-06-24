@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
         },
         {
             protocol: 'https',
-            hostname: 'docslaproimage.s3.eu-west-3.amazonaws.com',
+            hostname: 'scola-image.s3.eu-west-3.amazonaws.com',
             pathname: '/**',
         },
         {

@@ -26,17 +26,17 @@ export const SCOLA_HEADER_ACCENT =
 
 export const WORKFLOW_IMAGES: Record<string, string> = {
   "Documents élèves":
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
   "Sorties scolaires":
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/transport.avif",
   "Réservation de salles":
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
   Absences:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
   "RH & personnel":
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Organigramme.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/Organigramme.jpg",
   Internat:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Internat.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/Internat.jpg",
 };
 
 /** Hauteur fixe des cartes animation — évite le saut de layout entre les phases. */
@@ -51,20 +51,20 @@ export const WORKFLOW_ANIMATION_BODY = "min-h-0 flex-1 overflow-hidden";
 
 export const TILE_IMAGES: Record<string, string> = {
   documents:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
   "docs-eleves":
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/add+Docs.png",
   sorties:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/transport.avif",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/transport.avif",
   absences:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
   salles:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
-  rh: "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Organigramme.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
+  rh: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/Organigramme.jpg",
   internat:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/Internat.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/Internat.jpg",
   demandes:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/demandes.jpg",
   familles:
-    "https://docslaproimage.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+    "https://scola-image.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
 };

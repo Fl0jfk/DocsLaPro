@@ -1,3 +1,5 @@
+import { SCOLA_IMAGE_CDN_HOST } from "@/app/lib/scola-image";
+
 const isDev = process.env.NODE_ENV !== "production";
 
 /** CSP partagée entre next.config.ts (assets statiques) et proxy.ts (pages dynamiques). */
@@ -9,7 +11,7 @@ export function contentSecurityPolicyHeaderValue(): string {
     https://*.s3.eu-west-3.amazonaws.com
     https://*.s3.amazonaws.com
     https://docslapro.s3.eu-west-3.amazonaws.com
-    https://docslaproimage.s3.eu-west-3.amazonaws.com
+    https://${SCOLA_IMAGE_CDN_HOST}
     https://clerk-telemetry.com
     https://*.clerk-telemetry.com
     https://api.stripe.com

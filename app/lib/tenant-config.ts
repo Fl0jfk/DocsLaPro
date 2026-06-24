@@ -1,6 +1,7 @@
 import "server-only";
 import { getTenant } from "@/app/lib/tenant-context";
 import { getBucketName } from "@/app/lib/s3-storage";
+import { SCOLA_IMAGE_BUCKET } from "@/app/lib/scola-image";
 
 /** Bucket métier du tenant courant (ou BUCKET_NAME en mono-tenant). */
 export async function getTenantBucketName(): Promise<string> {
@@ -37,7 +38,7 @@ export async function getTenantAwsRegion(): Promise<string> {
   return process.env.REGION?.trim() || "eu-west-3";
 }
 
-/** Bucket images (actualités…) — secrets tenant ou repli docslaproimage. */
+/** Bucket images (actualités…) — secrets tenant ou repli scola-image. */
 export async function getTenantImageBucket(): Promise<string> {
   try {
     const tenant = await getTenant();
@@ -46,5 +47,5 @@ export async function getTenantImageBucket(): Promise<string> {
   } catch {
     /* pas de contexte tenant */
   }
-  return process.env.IMAGE_BUCKET?.trim() || "docslaproimage";
+  return process.env.IMAGE_BUCKET?.trim() || SCOLA_IMAGE_BUCKET;
 }

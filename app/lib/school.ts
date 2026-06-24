@@ -18,7 +18,7 @@ export const SCHOOL = {
     hours: "Lun – Ven · 8h00 – 17h30",
   },
   preinscriptionUrl: "https://preinscriptions.ecoledirecte.com/fr/?RNE=0761713Z",
-  reglementFinancier:"https://docslaproimage.s3.eu-west-3.amazonaws.com/autres/R%C3%A8glement+financier+2026-2027.pdf",
+  reglementFinancier:"https://scola-image.s3.eu-west-3.amazonaws.com/autres/R%C3%A8glement+financier+2026-2027.pdf",
   ecole: {
     label: "École",
     directrice: "Mme Elise PLANTEC",
