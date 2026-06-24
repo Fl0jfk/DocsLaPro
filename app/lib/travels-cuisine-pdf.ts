@@ -2,8 +2,11 @@ import "server-only";
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import fs from "fs/promises";
-import path from "path";
+import {
+  drawPdfLetterhead,
+  getSchoolLetterhead,
+  loadSchoolLogoForPdf,
+} from "@/app/lib/pdf-branding";
 import {
   CUISINE_DAYS,
   CUISINE_ROWS,
@@ -26,18 +29,7 @@ export async function buildCuisineOrderPdfBase64(
   const details = tripData.data.piqueNiqueDetails;
   if (!details?.active) throw new Error("Aucune commande cuisine active");
 
-  let logoDataUri: string | null = null;
-  try {
-    const logoPath = path.join(
-      process.cwd(),
-      "public",
-      "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png",
-    );
-    const logoBuffer = await fs.readFile(logoPath);
-    logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
-  } catch (e) {
-    console.error("Logo load error:", e);
-  }
+  const [logo, letterhead] = await Promise.all([loadSchoolLogoForPdf(), getSchoolLetterhead()]);
 
   const doc = new jsPDF({ compress: true });
   const W = doc.internal.pageSize.getWidth();
@@ -52,21 +44,7 @@ export async function buildCuisineOrderPdfBase64(
   const chefEmail = opts?.chefEmail || "chef.0056isi@newrest.eu";
   const userName = opts?.userName || "—";
 
-  if (logoDataUri) doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(30, 41, 59);
-  doc.text("La Providence Nicolas Barré", MR, 13, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
-  doc.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
-  doc.text("02 32 86 50 90", MR, 30, { align: "right" });
-  doc.setFillColor(30, 41, 59);
-  doc.rect(0, 35, W, 1.8, "F");
-  doc.setFillColor(16, 185, 129);
-  doc.rect(0, 36.8, W, 0.6, "F");
+  drawPdfLetterhead(doc, letterhead, logo, [16, 185, 129]);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(30, 41, 59);

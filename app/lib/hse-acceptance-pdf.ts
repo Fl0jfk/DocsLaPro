@@ -1,5 +1,16 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import "server-only";
+
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { loadAppConfig, getEstablishmentByLabel } from "@/app/lib/app-config";
+import {
+  drawPdfFooter,
+  drawPdfLetterhead,
+  fitImageInBox,
+  getSchoolLetterhead,
+  loadImageForPdfFromRef,
+  loadSchoolLogoForPdf,
+} from "@/app/lib/pdf-branding";
 import { resolveDirectionSignatureImageUrl } from "@/app/lib/stage-config";
 
 export type HseEtablissement = "École" | "Collège" | "Lycée";
@@ -19,34 +30,28 @@ export type HseAcceptanceRecord = {
   decidedBy?: { name: string };
 };
 
-function sanitizePdfText(input: string): string {
-  return input
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/\u2026/g, "...")
-    .replace(/[^\x00-\xFF]/g, "?");
-}
+const SLATE: [number, number, number] = [30, 41, 59];
+const SLATE_LIGHT: [number, number, number] = [148, 163, 184];
+const SLATE_BODY: [number, number, number] = [71, 85, 105];
+const EMERALD: [number, number, number] = [5, 150, 105];
+const EMERALD_LIGHT: [number, number, number] = [236, 253, 245];
+const BORDER: [number, number, number] = [226, 232, 240];
 
-function wrapText(text: string, maxChars: number): string[] {
-  const words = sanitizePdfText(text).split(/\s+/);
-  const lines: string[] = [];
-  let line = "";
-  for (const w of words) {
-    const next = line ? `${line} ${w}` : w;
-    if (next.length > maxChars) {
-      if (line) lines.push(line);
-      line = w;
-    } else {
-      line = next;
-    }
-  }
-  if (line) lines.push(line);
-  return lines;
-}
+const FOOTER_H = 14;
+/** Zone réservée en bas pour la signature (au-dessus du pied de page). */
+const SIG_ZONE_H = 42;
 
 function formatNombreHeures(h: number): string {
   const text = Number.isInteger(h) ? String(h) : h.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
   return `${text} h`;
+}
+
+function formatDateLong(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function hseEtabToLevelHint(etab: HseEtablissement): string {
@@ -55,175 +60,276 @@ function hseEtabToLevelHint(etab: HseEtablissement): string {
   return "lycée";
 }
 
-type PdfCtx = {
-  doc: PDFDocument;
-  page: ReturnType<PDFDocument["addPage"]>;
-  font: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  bold: Awaited<ReturnType<PDFDocument["embedFont"]>>;
-  margin: number;
-  y: number;
-};
+function drawSignatureBlock(
+  doc: jsPDF,
+  opts: {
+    MR: number;
+    sigTop: number;
+    sigImage: Awaited<ReturnType<typeof loadImageForPdfFromRef>>;
+    directorName: string;
+    etablissement: string;
+    decidedBy?: string;
+  },
+) {
+  const { MR, sigTop, sigImage, directorName, etablissement, decidedBy } = opts;
+  const sigMaxW = 58;
+  const sigMaxH = 22;
+  const sigX = MR - sigMaxW;
 
-function ensureSpace(ctx: PdfCtx, needed: number) {
-  if (ctx.y - needed < 120) {
-    ctx.page = ctx.doc.addPage([595.28, 841.89]);
-    ctx.y = 800;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text("POUR LA DIRECTION", sigX + sigMaxW, sigTop, { align: "right" });
+
+  const imgTop = sigTop + 4;
+  if (sigImage) {
+    const fitted = fitImageInBox(
+      sigImage.width || sigMaxW,
+      sigImage.height || sigMaxH,
+      sigMaxW,
+      sigMaxH,
+    );
+    const imgX = sigX + sigMaxW - fitted.width;
+    doc.addImage(sigImage.dataUri, sigImage.format, imgX, imgTop, fitted.width, fitted.height);
+  } else {
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.35);
+    doc.rect(sigX, imgTop, sigMaxW, sigMaxH);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(...SLATE_LIGHT);
+    doc.text("Signature", sigX + sigMaxW / 2, imgTop + 12, { align: "center" });
   }
-}
 
-function drawLine(ctx: PdfCtx, text: string, size = 10, f?: PdfCtx["font"], indent = 0) {
-  ensureSpace(ctx, size + 8);
-  ctx.page.drawText(sanitizePdfText(text), {
-    x: ctx.margin + indent,
-    y: ctx.y,
-    size,
-    font: f || ctx.font,
-    color: rgb(0.08, 0.08, 0.08),
-  });
-  ctx.y -= size + 5;
-}
-
-function drawParagraph(ctx: PdfCtx, text: string, size = 10, indent = 0) {
-  for (const line of wrapText(text, 92)) {
-    drawLine(ctx, line, size, ctx.font, indent);
-  }
-}
-
-function drawField(ctx: PdfCtx, label: string, value: string) {
-  drawLine(ctx, `${label} :`, 9, ctx.bold, 4);
-  drawParagraph(ctx, value || "—", 9, 10);
-  ctx.y -= 2;
-}
-
-async function loadSignatureBytes(url: string): Promise<{ bytes: Uint8Array; isJpg: boolean } | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    if (!bytes.length) return null;
-    const isJpg = bytes[0] === 0xff && bytes[1] === 0xd8;
-    return { bytes, isJpg };
-  } catch {
-    return null;
+  let nameY = imgTop + sigMaxH + 5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...SLATE);
+  doc.text(directorName, MR, nameY, { align: "right" });
+  nameY += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...SLATE_BODY);
+  doc.text(`Directrice / Directeur — ${etablissement}`, MR, nameY, { align: "right" });
+  if (decidedBy && decidedBy !== directorName) {
+    nameY += 4;
+    doc.setFontSize(7);
+    doc.setTextColor(...SLATE_LIGHT);
+    doc.text(`Décision enregistrée par ${decidedBy}`, MR, nameY, { align: "right" });
   }
 }
 
 export async function buildHseAcceptancePdf(record: HseAcceptanceRecord): Promise<Uint8Array> {
-  const bundle = await loadAppConfig();
-  const schoolName = bundle.identity.name || "Établissement scolaire";
-  const schoolAddress = bundle.identity.address?.full || bundle.identity.address?.fullCompact || "";
+  const [letterhead, logo, bundle] = await Promise.all([
+    getSchoolLetterhead(),
+    loadSchoolLogoForPdf(),
+    loadAppConfig(),
+  ]);
+
   const est = getEstablishmentByLabel(bundle, record.etablissement);
   const directorName = est?.directorName?.trim() || record.decidedBy?.name || "La direction";
-  const decidedAt = record.decidedAt ? new Date(record.decidedAt) : new Date();
-  const createdAt = new Date(record.createdAt);
+  const decidedAt = record.decidedAt || new Date().toISOString();
+  const createdAt = record.createdAt;
+  const refShort = record.id.slice(-8).toUpperCase();
 
   const sigUrl = await resolveDirectionSignatureImageUrl(hseEtabToLevelHint(record.etablissement));
-  const sigLoaded = sigUrl ? await loadSignatureBytes(sigUrl) : null;
+  const sigImage = sigUrl ? await loadImageForPdfFromRef(sigUrl) : null;
 
-  const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const doc = new jsPDF({ compress: true });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const ML = 15;
+  const MR = W - 15;
+  const colB = W / 2 + 8;
+  const sigTop = H - FOOTER_H - SIG_ZONE_H;
 
-  const ctx: PdfCtx = {
-    doc,
-    page: doc.addPage([595.28, 841.89]),
-    font,
-    bold,
-    margin: 48,
-    y: 800,
-  };
+  drawPdfLetterhead(doc, letterhead, logo, EMERALD);
 
-  drawLine(ctx, "REPUBLIQUE FRANCAISE", 8, font);
-  drawLine(ctx, "Ministere de l'Education nationale", 8, font);
-  drawLine(ctx, schoolName, 13, bold);
-  if (schoolAddress) drawLine(ctx, schoolAddress, 8, font);
-  ctx.y -= 8;
+  let yA = 45;
+  let yB = 45;
 
-  drawLine(ctx, "ATTESTATION D'ACCEPTATION", 14, bold);
-  drawLine(ctx, "Heures supplementaires exceptionnelles (HSE)", 11, bold);
-  drawLine(ctx, `Reference : ${record.id}`, 9, font);
-  drawLine(ctx, `Demande deposee le ${createdAt.toLocaleDateString("fr-FR")}`, 9, font);
-  drawLine(ctx, `Decision du ${decidedAt.toLocaleDateString("fr-FR")}`, 9, font);
-  ctx.y -= 10;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text("DEMANDEUR", ML, yA);
+  yA += 4.5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...SLATE);
+  doc.text(record.createdBy.name, ML, yA);
+  yA += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...SLATE_BODY);
+  doc.text(record.createdBy.email, ML, yA);
 
-  drawLine(
-    ctx,
-    "La direction de l'etablissement atteste avoir examine la demande ci-dessous et l'ACCEPTE.",
-    10,
-    bold,
-  );
-  ctx.y -= 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text("ÉTABLISSEMENT", colB, yB);
+  yB += 4.5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...SLATE);
+  doc.text(record.etablissement, colB, yB);
+  yB += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text("DATE DE DÉCISION", colB, yB);
+  yB += 4.5;
+  doc.setFontSize(8.5);
+  doc.setTextColor(...SLATE_BODY);
+  doc.text(formatDateLong(decidedAt), colB, yB);
+  yB += 6;
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text("DÉPÔT INITIAL", colB, yB);
+  yB += 4.5;
+  doc.setFontSize(8);
+  doc.setTextColor(...SLATE_BODY);
+  doc.text(formatDateLong(createdAt), colB, yB);
 
-  drawField(ctx, "Demandeur", `${record.createdBy.name} (${record.createdBy.email})`);
-  drawField(ctx, "Etablissement", record.etablissement);
+  const sepY = Math.max(yA, yB) + 9;
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.4);
+  doc.line(ML, sepY, MR, sepY);
+
+  let sy = sepY + 10;
+  doc.setFillColor(...EMERALD);
+  doc.rect(ML, sy - 5, 2.5, 13, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text("OBJET", ML + 7, sy - 0.5);
+  sy += 5.5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...SLATE);
+  doc.text("Attestation d'acceptation — HSE", ML + 7, sy);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text(`Réf. HSE-${refShort}`, MR, sy, { align: "right" });
+  sy += 9;
+
+  const badgeW = 52;
+  doc.setFillColor(...EMERALD_LIGHT);
+  doc.setDrawColor(...EMERALD);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(ML, sy - 5.5, badgeW, 8, 1.5, 1.5, "FD");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...EMERALD);
+  doc.text("ACCEPTÉE PAR LA DIRECTION", ML + badgeW / 2, sy, { align: "center" });
+  sy += 12;
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...SLATE_BODY);
+  const intro =
+    "La direction de l'établissement atteste avoir examiné la demande d'heures supplémentaires exceptionnelles (HSE) " +
+    "présentée ci-dessous et l'accepte dans les conditions détaillées. Le présent document vaut attestation officielle " +
+    "pour les services administratifs et le suivi RH.";
+  const introLines = doc.splitTextToSize(intro, MR - ML);
+  doc.text(introLines, ML, sy);
+  sy += introLines.length * 4.5 + 9;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE_LIGHT);
+  doc.text("DÉTAIL DE LA DEMANDE", ML, sy);
+  sy += 3.5;
+
+  const tableBody: string[][] = [
+    ["Enseignant demandeur", record.createdBy.name],
+    ["Adresse e-mail", record.createdBy.email],
+    ["Établissement", record.etablissement],
+    ["Classe / contexte pédagogique", record.classe || "—"],
+  ];
   if (record.nombreHeures != null) {
-    drawField(ctx, "Nombre d'heures accordees", formatNombreHeures(record.nombreHeures));
+    tableBody.push(["Nombre d'heures accordées", formatNombreHeures(record.nombreHeures)]);
   }
-  drawField(ctx, "Objet de la demande", record.resumeDemande);
-  if (record.motif && record.motif !== record.resumeDemande) {
-    drawField(ctx, "Motif", record.motif);
+  tableBody.push(["Objet de la demande", record.resumeDemande || "—"]);
+  if (record.motif?.trim() && record.motif !== record.resumeDemande) {
+    tableBody.push(["Motif", record.motif]);
   }
-  drawField(ctx, "Classe / contexte pedagogique", record.classe);
   if (record.details?.trim()) {
-    drawField(ctx, "Precisions", record.details);
+    tableBody.push(["Précisions du demandeur", record.details]);
   }
+  tableBody.push(["Date de dépôt", formatDateLong(createdAt)]);
+  tableBody.push(["Date de décision", formatDateLong(decidedAt)]);
+
+  autoTable(doc, {
+    startY: sy,
+    body: tableBody,
+    theme: "plain",
+    styles: {
+      fontSize: 8.5,
+      cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 },
+      lineColor: BORDER,
+      lineWidth: 0.2,
+      overflow: "linebreak",
+      valign: "top",
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 58, fontStyle: "bold", textColor: SLATE },
+      1: { textColor: SLATE_BODY },
+    },
+    tableLineColor: BORDER,
+    tableLineWidth: 0.2,
+    margin: { left: ML, right: ML },
+  });
+
+  let afterY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+
   if (record.directionNote?.trim()) {
-    drawField(ctx, "Message de la direction", record.directionNote);
+    const noteLines = doc.splitTextToSize(record.directionNote.trim(), MR - ML - 10);
+    const boxH = noteLines.length * 4.2 + 14;
+    if (afterY + boxH > sigTop - 4) {
+      doc.addPage();
+      drawPdfLetterhead(doc, letterhead, logo, EMERALD);
+      afterY = 45;
+    }
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(ML, afterY, MR - ML, boxH, 2, 2, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(...SLATE_LIGHT);
+    doc.text("MESSAGE DE LA DIRECTION", ML + 5, afterY + 7);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...SLATE_BODY);
+    doc.text(noteLines, ML + 5, afterY + 13);
+    afterY += boxH + 8;
   }
 
-  ctx.y -= 12;
-  ensureSpace(ctx, 130);
-  drawLine(ctx, "Pour la direction,", 10, font);
-  ctx.y -= 4;
-
-  const sigW = 150;
-  const sigH = 58;
-  if (sigLoaded) {
-    const sigImage = sigLoaded.isJpg
-      ? await doc.embedJpg(sigLoaded.bytes)
-      : await doc.embedPng(sigLoaded.bytes);
-    ensureSpace(ctx, sigH + 40);
-    ctx.page.drawImage(sigImage, {
-      x: ctx.margin,
-      y: ctx.y - sigH,
-      width: sigW,
-      height: sigH,
-    });
-    ctx.y -= sigH + 8;
-  } else {
-    ensureSpace(ctx, 40);
-    ctx.page.drawRectangle({
-      x: ctx.margin,
-      y: ctx.y - 28,
-      width: sigW,
-      height: 28,
-      borderColor: rgb(0.75, 0.75, 0.75),
-      borderWidth: 0.5,
-    });
-    ctx.y -= 36;
+  const sigBlockH = 48;
+  if (afterY + sigBlockH > H - FOOTER_H - 4) {
+    doc.addPage();
+    drawPdfLetterhead(doc, letterhead, logo, EMERALD);
+    afterY = 45;
   }
 
-  drawLine(ctx, directorName, 10, bold);
-  drawLine(ctx, `Directrice / Directeur — ${record.etablissement}`, 9, font);
-  if (record.decidedBy?.name && record.decidedBy.name !== directorName) {
-    drawLine(ctx, `Decision enregistree par ${record.decidedBy.name}`, 8, font);
+  drawSignatureBlock(doc, {
+    MR,
+    sigTop: afterY,
+    sigImage,
+    directorName,
+    etablissement: record.etablissement,
+    decidedBy: record.decidedBy?.name,
+  });
+
+  const pageCount = doc.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    drawPdfFooter(doc, letterhead, `Réf. HSE-${refShort}`);
   }
 
-  const footer = sanitizePdfText(
-    `Document genere par l'intranet — ${new Date().toLocaleString("fr-FR")} — HSE ${record.id}`,
-  );
-  const pages = doc.getPages();
-  for (const p of pages) {
-    p.drawText(footer, {
-      x: ctx.margin,
-      y: 28,
-      size: 7,
-      font,
-      color: rgb(0.45, 0.45, 0.45),
-    });
-  }
-
-  return doc.save();
+  return new Uint8Array(doc.output("arraybuffer"));
 }
 
 export function hseAcceptancePdfFilename(record: HseAcceptanceRecord): string {

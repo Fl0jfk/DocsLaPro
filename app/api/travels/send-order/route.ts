@@ -3,8 +3,13 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import fs from "fs/promises";
-import path from "path";
+import {
+  drawPdfFooter,
+  drawPdfLetterhead,
+  getSchoolLetterhead,
+  loadSchoolLogoForPdf,
+  type PdfLogo,
+} from "@/app/lib/pdf-branding";
 import { extractDevisMetadataWithMistral, ocrS3Key } from "@/app/lib/travel-devis-ocr";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getTenantBucketName } from "@/app/lib/tenant-config";
@@ -21,10 +26,11 @@ function buildConfirmationPDF(opts: {
   amount?: string;
   reference?: string;
   extractedPrice?: string | null;
-  logoDataUri: string | null;
+  logo: PdfLogo | null;
+  letterhead: Awaited<ReturnType<typeof getSchoolLetterhead>>;
   tripData?: any;
 }): Buffer {
-  const { providerName, tripTitle, amount, reference, extractedPrice, logoDataUri, tripData } = opts;
+  const { providerName, tripTitle, amount, reference, extractedPrice, logo, letterhead, tripData } = opts;
   const d = tripData || {};
   const effectifTotal = (Number(d.nbEleves) || 0) + (Number(d.nbAccompagnateurs) || 0);
   const effectifStr = effectifTotal > 0 ? `${effectifTotal} personnes (dont ${d.nbAccompagnateurs || 0} adultes)` : null;
@@ -36,21 +42,7 @@ function buildConfirmationPDF(opts: {
   const ML = 15;
   const MR = W - 15;
   const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
-  if (logoDataUri) { doc.addImage(logoDataUri, "PNG", ML, 6, 24, 24)}
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(30, 41, 59);
-  doc.text("La Providence Nicolas Barré", MR, 13, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
-  doc.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
-  doc.text("02 32 86 50 90", MR, 30, { align: "right" });
-  doc.setFillColor(30, 41, 59);
-  doc.rect(0, 35, W, 1.8, "F");
-  doc.setFillColor(37, 99, 235);
-  doc.rect(0, 36.8, W, 0.6, "F");
+  drawPdfLetterhead(doc, letterhead, logo, [37, 99, 235]);
   const colA = ML;
   const colB = W / 2 + 8;
   let yA = 45;
@@ -140,16 +132,7 @@ function buildConfirmationPDF(opts: {
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
   doc.text("Dans l'attente de vous lire, nous vous adressons nos cordiales salutations.", ML, closingY);
-  doc.setFillColor(241, 245, 249);
-  doc.rect(0, H - 14, W, 14, "F");
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(0, H - 14, W, H - 14);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text("Groupe Scolaire La Providence Nicolas Barré  ·  Établissement catholique sous contrat avec l'État", ML, H - 7);
-  doc.text("76240 Le Mesnil-Esnard", MR, H - 7, { align: "right" });
+  drawPdfFooter(doc, letterhead);
   return Buffer.from(doc.output("arraybuffer"));
 }
 
@@ -157,14 +140,7 @@ export async function POST(req: Request) {
   try {
     const { providerEmail, signedQuoteUrl, providerName, tripTitle, tripData, amount, reference } = await req.json();
     let toEmail = typeof providerEmail === "string" ? providerEmail.trim() : "";
-    let logoDataUri: string | null = null;
-    try {
-      const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
-      const logoBuffer = await fs.readFile(logoPath);
-      logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
-    } catch (e) {
-      console.error("Logo load error (send-order):", e);
-    }
+    const [logo, letterhead] = await Promise.all([loadSchoolLogoForPdf(), getSchoolLetterhead()]);
     const urlObj = new URL(signedQuoteUrl);
     const fileKey = decodeURIComponent(urlObj.pathname.substring(1));
     let extractedPrice: string | null = null;
@@ -212,7 +188,8 @@ export async function POST(req: Request) {
       amount: amount ?? undefined,
       reference: reference ?? undefined,
       extractedPrice,
-      logoDataUri,
+      logo,
+      letterhead,
     });
     const mailOptions = {
       from: `"Gestion Voyages" <${smtp.user}>`,

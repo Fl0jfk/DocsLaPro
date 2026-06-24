@@ -1,6 +1,7 @@
 import { isLocalDevHostname } from "@/app/lib/clerk-tenant-keys";
 import { LOCAL_DEV_TENANT_QUERY } from "@/app/lib/local-dev";
 import { isPlatformTenantSlug } from "@/app/lib/platform-tenant";
+import { resolveTenantCatalogLogo } from "@/app/lib/tenant-catalog-logos";
 import { loadAllTenants } from "@/app/lib/tenant-registry";
 import type { TenantConfig, TenantPostalAddress } from "@/app/lib/tenant-types";
 
@@ -83,9 +84,17 @@ export function tenantSelectLabel(entry: PublicTenantCatalogEntry): string {
 
 /** Établissements visibles sur le portail scola.fr (hors tenant plateforme). */
 export async function loadPublicTenantCatalog(portalHost: string): Promise<PublicTenantCatalogEntry[]> {
-  const tenants = await loadAllTenants();
-  return tenants
-    .filter((t) => !isPlatformTenantSlug(t.slug))
-    .map((t) => tenantToCatalogEntry(t, portalHost))
-    .sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
+  const tenants = await loadAllTenants().then((list) =>
+    list.filter((t) => !isPlatformTenantSlug(t.slug)),
+  );
+
+  const entries = await Promise.all(
+    tenants.map(async (tenant) => {
+      const entry = tenantToCatalogEntry(tenant, portalHost);
+      entry.logoUrl = await resolveTenantCatalogLogo(tenant);
+      return entry;
+    }),
+  );
+
+  return entries.sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
 }

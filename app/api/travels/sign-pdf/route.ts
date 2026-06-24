@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
+import { DEFAULT_DIRECTION_SIGNATURE_URLS } from "@/app/lib/stage-config";
 import { findSignatureFieldBBoxFromTextract,textractSignatureBBoxToPdfLibDrawCoords} from "@/app/lib/travel-devis-ocr";
 import { fetchTravelsPdfBytes } from "@/app/lib/travels-s3";
 
@@ -9,12 +10,7 @@ const FALLBACK_SIG_H = 75;
 export async function POST(req: Request) {
   try {
     const { quoteUrl, signatureType } = await req.json();
-    const sigMapping: Record<string, string> = {
-      ecole: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/Sans+titre.jpg",
-      college: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
-      lycee: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signature_AMD.png"
-    };
-    const selectedSigUrl = sigMapping[signatureType as keyof typeof sigMapping];
+    const selectedSigUrl = DEFAULT_DIRECTION_SIGNATURE_URLS[String(signatureType || "").trim()];
     if (!selectedSigUrl) { return NextResponse.json({ error: "Type de signature invalide ou non configuré" }, { status: 400 })}
     const pdfBuffer = await fetchTravelsPdfBytes(quoteUrl);
     const pdfDoc = await PDFDocument.load(pdfBuffer);

@@ -72,6 +72,15 @@ export function readLastPortalTenant(): SavedPortalTenant | null {
   }
 }
 
+export function tenantSelectLabel(entry: {
+  label: string;
+  kindLabel: string;
+  postalAddressLabel: string;
+}): string {
+  const address = entry.postalAddressLabel || "Adresse non renseignée";
+  return `${entry.label} — ${entry.kindLabel} — ${address}`;
+}
+
 export function clearLastPortalTenant(): void {
   if (typeof window === "undefined") return;
   try {

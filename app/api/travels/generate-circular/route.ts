@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { resolveSession } from "@/app/lib/intranet-session";
 
 import { jsPDF } from 'jspdf';
-import fs from 'fs/promises';
-import path from 'path';
+import { drawPdfLetterhead, getSchoolLetterhead, loadSchoolLogoForPdf } from "@/app/lib/pdf-branding";
 import { parseTravelsS3KeyFromUrl } from "@/app/lib/travels-s3";
 import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
 import {  TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand} from "@aws-sdk/client-textract";
@@ -110,12 +109,7 @@ export async function POST(req: Request) {
     const resData = await mistralResponse.json();
     let generatedText = resData.choices?.[0]?.message?.content || "Détails du voyage à venir...";
     generatedText = generatedText.replace(/[*#]/g, '').trim();
-    let logoDataUri: string | null = null;
-    try {
-      const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
-      const logoBuf = await fs.readFile(logoPath);
-      logoDataUri = `data:image/png;base64,${logoBuf.toString("base64")}`;
-    } catch (e) { console.error("Logo load error:", e)}
+    const [logo, letterhead] = await Promise.all([loadSchoolLogoForPdf(), getSchoolLetterhead()]);
     const docPdf = new jsPDF({ compress: true });
     const W  = docPdf.internal.pageSize.getWidth();  
     const H  = docPdf.internal.pageSize.getHeight();
@@ -131,21 +125,7 @@ export async function POST(req: Request) {
     const dateLine  = (d.endDate && d.endDate !== d.startDate) ? `du ${startDate} au ${endDate}` : `le ${startDate}`;
     const transportLine = d.needsBus ? `Autocar — RDV : ${d.transportRequest?.pickupPoint || "à préciser"}`: "Non précisé";
     const renderLetterhead = () => {
-      if (logoDataUri) docPdf.addImage(logoDataUri, "PNG", ML, 6, 24, 24);
-      docPdf.setFont("helvetica", "bold");
-      docPdf.setFontSize(13);
-      docPdf.setTextColor(30, 41, 59);
-      docPdf.text("La Providence Nicolas Barré", MR, 13, { align: "right" });
-      docPdf.setFont("helvetica", "normal");
-      docPdf.setFontSize(7.5);
-      docPdf.setTextColor(100, 116, 139);
-      docPdf.text("Groupe scolaire catholique sous contrat", MR, 19, { align: "right" });
-      docPdf.text("6, rue de Neuvillette — 76240 Le Mesnil-Esnard", MR, 24.5, { align: "right" });
-      docPdf.text("02 32 86 50 90", MR, 30, { align: "right" });
-      docPdf.setFillColor(30, 41, 59);
-      docPdf.rect(0, 35, W, 1.8, "F");
-      docPdf.setFillColor(37, 99, 235);
-      docPdf.rect(0, 36.8, W, 0.6, "F");
+      drawPdfLetterhead(docPdf, letterhead, logo, [37, 99, 235]);
     };
     renderLetterhead();
     let currentY = HEADER_H + 2;
@@ -269,7 +249,7 @@ export async function POST(req: Request) {
     docPdf.setFont("helvetica", "normal");
     docPdf.setFontSize(7);
     docPdf.setTextColor(180, 190, 200);
-    docPdf.text(`Document généré le ${nowStr} — La Providence Nicolas Barré`, W / 2, H - 2, { align: "center" });
+    docPdf.text(`Document généré le ${nowStr} — ${letterhead.name}`, W / 2, H - 2, { align: "center" });
     const pdfBase64 = docPdf.output('datauristring');
     return NextResponse.json({ pdf: pdfBase64 });
   } catch (error) {

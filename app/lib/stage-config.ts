@@ -1,4 +1,11 @@
-import { loadAppConfig } from "@/app/lib/app-config";
+import { loadAppConfig, looksLikeLaProvidenceTenant } from "@/app/lib/app-config";
+
+/** Signatures direction La Providence (même source que /api/travels/sign-pdf). */
+export const DEFAULT_DIRECTION_SIGNATURE_URLS: Record<string, string> = {
+  ecole: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/Sans+titre.jpg",
+  college: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signas.png",
+  lycee: "https://docslaproimage.s3.eu-west-3.amazonaws.com/signatures/signature_AMD.png",
+};
 
 /** college | lycee | ecole */
 export function establishmentIdForStudentLevel(level: string): string {
@@ -32,10 +39,14 @@ export async function resolveStagesConventionTemplateUrl(): Promise<string | und
   return bundle.notifications.stagesConventionTemplateUrl?.trim() || undefined;
 }
 
-/** Image de signature direction (même config que les voyages : ecole / college / lycee). */
+/** Image de signature direction (config voyages, ou défaut La Providence). */
 export async function resolveDirectionSignatureImageUrl(studentLevel: string): Promise<string | null> {
   const bundle = await loadAppConfig();
   const estId = establishmentIdForStudentLevel(studentLevel);
-  const url = bundle.travels?.signatureImageUrls?.[estId]?.trim();
-  return url || null;
+  const fromConfig = bundle.travels?.signatureImageUrls?.[estId]?.trim();
+  if (fromConfig) return fromConfig;
+  if (looksLikeLaProvidenceTenant(bundle.identity)) {
+    return DEFAULT_DIRECTION_SIGNATURE_URLS[estId] ?? null;
+  }
+  return null;
 }

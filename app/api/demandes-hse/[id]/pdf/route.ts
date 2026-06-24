@@ -6,7 +6,7 @@ import {
   hseAcceptancePdfFilename,
   type HseAcceptanceRecord,
 } from "@/app/lib/hse-acceptance-pdf";
-import { getJson, getObjectBytes } from "@/app/lib/s3-storage";
+import { getJson } from "@/app/lib/s3-storage";
 
 const INDEX_KEY = "demandes-hse/index.json";
 
@@ -78,13 +78,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       );
     }
 
-    let bytes: Buffer | Uint8Array | null = null;
-    if (record.acceptancePdfPath) {
-      bytes = await getObjectBytes(record.acceptancePdfPath);
-    }
-    if (!bytes?.length) {
-      bytes = Buffer.from(await buildHseAcceptancePdf(record));
-    }
+    const bytes = Buffer.from(await buildHseAcceptancePdf(record));
 
     const filename = hseAcceptancePdfFilename(record);
     return new NextResponse(Buffer.from(bytes), {
