@@ -377,7 +377,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
     dashboard: {
       id: 28,
       name: "Stages & conventions",
-      img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/transport.avif",
+      img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/Stage.jpg",
       link: "/stages",
       external: false,
       description: "Offres parents, préconventions, signatures PFMP et jobs d'été",

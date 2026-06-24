@@ -1,4 +1,4 @@
-import { SCOLA_IMAGE_CDN_HOST } from "@/app/lib/scola-image";
+import { SCOLA_IMAGE_CDN_HOST } from "./scola-image";
 
 const isDev = process.env.NODE_ENV !== "production";
 
