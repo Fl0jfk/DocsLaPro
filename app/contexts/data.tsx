@@ -7,6 +7,10 @@ import {
   type DashboardTileVariant,
   type ExternalQuickLink,
 } from "@/app/lib/intranet-modules";
+import {
+  readDashboardLinksCache,
+  writeDashboardLinksCache,
+} from "@/app/lib/dashboard-links-cache";
 
 export type { DashboardTileVariant };
 export type Categories = DashboardCategory;
@@ -32,6 +36,13 @@ export const DataProvider = ({ children }: PropsWithChildren<object>) => {
   });
 
   useEffect(() => {
+    const cachedLinks = readDashboardLinksCache();
+    if (cachedLinks) {
+      setData((prev) => ({ ...prev, externalQuickLinks: cachedLinks }));
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -39,6 +50,7 @@ export const DataProvider = ({ children }: PropsWithChildren<object>) => {
         const j = await res.json();
         if (!cancelled && res.ok && Array.isArray(j.links)) {
           setData((prev) => ({ ...prev, externalQuickLinks: j.links }));
+          writeDashboardLinksCache(j.links);
         }
       } catch {
         /* liens optionnels */

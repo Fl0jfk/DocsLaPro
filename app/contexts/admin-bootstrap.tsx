@@ -16,6 +16,10 @@ import {
   readCachedDashboardAccent,
   writeCachedDashboardAccent,
 } from "@/app/lib/dashboard-accent-cache";
+import {
+  readBootstrapCache,
+  writeBootstrapCache,
+} from "@/app/lib/app-bootstrap-cache";
 import { parseDashboardAccent } from "@/app/lib/dashboard-brand-presets";
 import type {
   DomainPlanningModuleConfig,
@@ -82,15 +86,29 @@ export function AdminBootstrapProvider({
   const [error, setError] = useState<string | null>(null);
   const [accentReady, setAccentReady] = useState(false);
   const [assetsReady, setAssetsReady] = useState(false);
-  const shouldBlock = enableOverlay && (!clerkLoaded || loading || !assetsReady);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const shouldBlock = enableOverlay && (!clerkLoaded || ((loading || !assetsReady) && !hasWarmCache));
   const [overlayOpen, setOverlayOpen] = useState(enableOverlay);
 
   useLayoutEffect(() => {
-    const cached = readCachedDashboardAccent();
-    if (cached) {
-      applyDashboardBrandToDocument(cached);
+    const cachedAccent = readCachedDashboardAccent();
+    if (cachedAccent) {
+      applyDashboardBrandToDocument(cachedAccent);
       setAccentReady(true);
     }
+
+    const cachedBootstrap = readBootstrapCache();
+    if (!cachedBootstrap) return;
+
+    setSitePublic(cachedBootstrap.sitePublic);
+    setAppContext(cachedBootstrap.appContext);
+    const accent = parseDashboardAccent(cachedBootstrap.appContext?.identity?.dashboardAccent);
+    writeCachedDashboardAccent(accent);
+    applyDashboardBrandToDocument(accent);
+    setAccentReady(true);
+    setLoading(false);
+    setAssetsReady(true);
+    setHasWarmCache(true);
   }, []);
 
   useEffect(() => {
@@ -105,29 +123,40 @@ export function AdminBootstrapProvider({
         if (!cancelled && siteRes.ok) {
           setSitePublic(siteJson);
           const logoUrl = siteJson.headerLogoUrl?.trim() || "";
-          if (logoUrl) {
+          if (logoUrl && !hasWarmCache) {
             await preloadImage(logoUrl);
+          } else if (logoUrl) {
+            void preloadImage(logoUrl);
           }
         }
 
+        let nextAppContext: AppContextPayload | null = null;
         if (isSignedIn) {
           const ctxRes = await fetch("/api/app/context", { cache: "no-store" });
           const ctxJson = (await ctxRes.json()) as AppContextPayload & { error?: string };
 
           if (!cancelled && ctxRes.ok) {
+            nextAppContext = ctxJson;
             setAppContext(ctxJson);
             const accent = parseDashboardAccent(ctxJson.identity?.dashboardAccent);
             writeCachedDashboardAccent(accent);
             applyDashboardBrandToDocument(accent);
             setAccentReady(true);
-          } else if (!cancelled && enableOverlay) {
+          } else if (!cancelled && enableOverlay && !hasWarmCache) {
             throw new Error(ctxJson.error || "Contexte indisponible");
           }
         } else if (!cancelled) {
           setAppContext(null);
         }
+
+        if (!cancelled && siteRes.ok) {
+          writeBootstrapCache({
+            sitePublic: siteJson,
+            appContext: isSignedIn ? nextAppContext : null,
+          });
+        }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Erreur");
+        if (!cancelled && !hasWarmCache) setError(e instanceof Error ? e.message : "Erreur");
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -138,7 +167,7 @@ export function AdminBootstrapProvider({
     return () => {
       cancelled = true;
     };
-  }, [clerkLoaded, isSignedIn, enableOverlay]);
+  }, [clerkLoaded, isSignedIn, enableOverlay, hasWarmCache]);
 
   useEffect(() => {
     if (!enableOverlay) {

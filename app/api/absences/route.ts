@@ -37,12 +37,14 @@ import {
   loadAbsenceValidationAttachments,
 } from "@/app/lib/absences-notify";
 import {
+  consolidatePendingAbsencesInIndex,
   getAbsenceIndex,
   getAbsenceRecord,
   applyPostValidationPrivacy,
   purgeExpiredAbsences,
   saveAbsenceIndex,
   saveAbsenceRecord,
+  saveOrMergeAbsenceRecord,
 } from "@/app/lib/absences-storage";
 import {
   deleteLegacyConvocation,
@@ -132,6 +134,11 @@ export async function GET(req: Request) {
 
   try {
     let index = await purgeExpiredAbsences(await getAbsenceIndex());
+
+    if (!calendarOnly && !todayOnly) {
+      index = await consolidatePendingAbsencesInIndex(index);
+    }
+
     if (calendarOnly || todayOnly) {
       index = await mergeLegacyConvocationsForCalendar(index);
     }
@@ -260,11 +267,17 @@ export async function POST(req: Request) {
       ],
     };
 
-    await saveAbsenceRecord(record);
-
     const index = await purgeExpiredAbsences(await getAbsenceIndex());
-    index.push(record);
-    await saveAbsenceIndex(index);
+    const { index: nextIndex, record: saved, merged } = await saveOrMergeAbsenceRecord(
+      index,
+      record,
+      creatorName,
+    );
+    await saveAbsenceIndex(nextIndex);
+
+    if (merged) {
+      return NextResponse.json({ success: true, id: saved.id, merged: true });
+    }
 
     try {
       const target = await resolveDecisionTarget(scope, scope === "ogec" ? null : etablissement);
@@ -284,7 +297,7 @@ export async function POST(req: Request) {
           `Type : ${scope === "ogec" ? "Personnel OGEC" : "Professeur"}`,
           `Établissement : ${scope === "ogec" ? "OGEC" : etablissement || "—"}`,
           `Créateur : ${creatorName} (${creatorEmail || "email non renseigné"})`,
-          `Période : ${formatAbsencePeriod(record.data)}`,
+          `Période : ${formatAbsencePeriod(saved.data)}`,
           `Motif : ${reason}`,
           details ? `Détails : ${details}` : "",
           justificationPayload?.fileName ? `Justificatif fourni : ${justificationPayload.fileName}` : `Justificatif : en attente`,
@@ -301,7 +314,7 @@ export async function POST(req: Request) {
       console.error("Absences creation mail error:", mailErr);
     }
 
-    return NextResponse.json({ success: true, id });
+    return NextResponse.json({ success: true, id: saved.id });
   } catch (error) {
     console.error("Absences create error:", error);
     return NextResponse.json({ error: "Erreur création absence" }, { status: 500 });

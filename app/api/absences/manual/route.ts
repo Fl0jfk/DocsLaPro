@@ -10,7 +10,7 @@ import {
   parseLocalDateTime,
   type AbsenceScope,
 } from "@/app/lib/absences-types";
-import { getAbsenceIndex, purgeExpiredAbsences, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
+import { getAbsenceIndex, purgeExpiredAbsences, saveAbsenceIndex, saveOrMergeAbsenceRecord } from "@/app/lib/absences-storage";
 
 export async function POST(req: Request) {
   const gate = await requireAuth();
@@ -98,18 +98,22 @@ export async function POST(req: Request) {
       },
     });
 
-    await saveAbsenceRecord(record);
-
     const currentIndex = await purgeExpiredAbsences(await getAbsenceIndex());
-    await saveAbsenceIndex([...currentIndex, record]);
+    const { index: nextIndex, record: saved, merged } = await saveOrMergeAbsenceRecord(
+      currentIndex,
+      record,
+      creatorName,
+    );
+    await saveAbsenceIndex(nextIndex);
 
     return NextResponse.json({
       success: true,
+      merged,
       created: {
-        id: record.id,
-        teacherName: record.displayName,
-        startDate: record.data.startDate,
-        endDate: record.data.endDate,
+        id: saved.id,
+        teacherName: saved.displayName,
+        startDate: saved.data.startDate,
+        endDate: saved.data.endDate,
       },
     });
   } catch (error) {

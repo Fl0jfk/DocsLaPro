@@ -25,6 +25,7 @@ import {
   validateHoursTreatmentForAbsence,
   type AbsenceHoursTreatment,
 } from "@/app/lib/absence-hours-treatment";
+import { compareAbsenceRecordsAlphabetically } from "@/app/lib/absences-shared-utils";
 
 type AbsenceScope = "professeur" | "ogec";
 type Etablissement = "École" | "Collège" | "Lycée";
@@ -415,13 +416,23 @@ export default function AbsencesPageClient() {
       ? "bg-rose-50 text-rose-700 border-rose-200"
       : "bg-slate-50 text-slate-700 border-slate-200";
   const sorted = useMemo(() => [...items].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)), [items]);
-  const selfItems = sorted.filter((i) => {
-    if (i.createdBy.userId !== user?.id) return false;
-    const src = (i as { source?: string }).source;
-    return !src || src === "self";
-  });
-  const pendingItems = sorted.filter((i) =>
-    isAbsencePendingForManager(i as unknown as AbsenceRecord, user?.id || "", roles),
+  const selfItems = useMemo(() => {
+    const mine = sorted.filter((i) => {
+      if (i.createdBy.userId !== user?.id) return false;
+      const src = (i as { source?: string }).source;
+      return !src || src === "self";
+    });
+    const pending = mine.filter(isPendingAbsence);
+    const rest = mine.filter((i) => !isPendingAbsence(i));
+    pending.sort((a, b) => compareAbsenceRecordsAlphabetically(asRecord(a), asRecord(b)));
+    return [...pending, ...rest];
+  }, [sorted, user?.id]);
+  const pendingItems = useMemo(
+    () =>
+      sorted
+        .filter((i) => isAbsencePendingForManager(i as unknown as AbsenceRecord, user?.id || "", roles))
+        .sort((a, b) => compareAbsenceRecordsAlphabetically(asRecord(a), asRecord(b))),
+    [sorted, user?.id, roles],
   );
   const treatedItems = selfItems.filter(
     (i) => !isPendingAbsence(i) && (i.workflowStatus === "CLOTUREE" || itemDecision(i) !== "EN_ATTENTE"),

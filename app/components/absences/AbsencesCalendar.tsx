@@ -14,6 +14,7 @@ import {
   absencesToCalendarEvents,
   appearanceForEvent,
   buildTeacherColorIndexMap,
+  dedupeCalendarEventsForDisplay,
   sortCalendarEvents,
   type CalendarEvent,
 } from "@/app/lib/absences-calendar";
@@ -542,7 +543,7 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
 
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = new Date(year, month, day);
-      const dayEvents = sortCalendarEvents(
+      const dayEvents = dedupeCalendarEventsForDisplay(
         events.filter((event) => {
           const eventDate = new Date(event.startAt);
           return sameDay(eventDate, year, month, day);
@@ -563,7 +564,7 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
     const month = now.getMonth();
     const day = now.getDate();
     const date = new Date(year, month, day);
-    const dayEvents = sortCalendarEvents(
+    const dayEvents = dedupeCalendarEventsForDisplay(
       events.filter((event) => {
         const eventDate = new Date(event.startAt);
         return sameDay(eventDate, year, month, day);

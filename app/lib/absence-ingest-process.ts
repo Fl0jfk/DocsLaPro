@@ -18,7 +18,7 @@ import {
   type AbsenceRecord,
   type Etablissement,
 } from "@/app/lib/absences-types";
-import { getAbsenceIndex, purgeExpiredAbsences, saveAbsenceIndex, saveAbsenceRecord } from "@/app/lib/absences-storage";
+import { getAbsenceIndex, purgeExpiredAbsences, saveAbsenceIndex, saveOrMergeAbsenceRecord } from "@/app/lib/absences-storage";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
 
@@ -570,6 +570,7 @@ export async function runAbsenceIngestJob(jobId: string, documentKey: string, so
       roles: jobMeta?.creatorRoles || [],
     };
     const createdRecords: AbsenceRecord[] = [];
+    let workingIndex = await purgeExpiredAbsences(await getAbsenceIndex());
     for (const slot of normalizedSlots) {
       const record = buildIngestedAbsenceRecord({
         etablissement: parsed.etablissement,
@@ -581,11 +582,15 @@ export async function runAbsenceIngestJob(jobId: string, documentKey: string, so
         slot,
         createdBy,
       });
-      await saveAbsenceRecord(record);
-      createdRecords.push(record);
+      const { index: nextIndex, record: saved } = await saveOrMergeAbsenceRecord(
+        workingIndex,
+        record,
+        createdBy.name,
+      );
+      workingIndex = nextIndex;
+      createdRecords.push(saved);
     }
-    const currentIndex = await purgeExpiredAbsences(await getAbsenceIndex());
-    await saveAbsenceIndex([...currentIndex, ...createdRecords]);
+    await saveAbsenceIndex(workingIndex);
 
     const created: IngestJobCreated[] = createdRecords.map((r) => ({
       id: r.id,

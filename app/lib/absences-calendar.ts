@@ -1,4 +1,5 @@
 import { getPublicAbsenceReason } from "@/app/lib/absences-privacy";
+import { normalizeAbsencePersonName } from "@/app/lib/absences-shared-utils";
 import { resolveAbsenceScope, type AbsenceRecord } from "@/app/lib/absences-types";
 
 export type CalendarEvent = {
@@ -27,24 +28,40 @@ function sameDay(date: Date, y: number, m: number, d: number) {
   return date.getFullYear() === y && date.getMonth() === m && date.getDate() === d;
 }
 
-function familyNameForSort(fullName: string) {
-  const parts = String(fullName || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (parts.length === 0) return "";
-  return parts[parts.length - 1];
-}
-
 export function sortCalendarEvents(events: CalendarEvent[]) {
   return [...events].sort((a, b) => {
     if (a.isOgec !== b.isOgec) return a.isOgec ? -1 : 1;
-    const byFamily = familyNameForSort(a.displayName).localeCompare(familyNameForSort(b.displayName), "fr", {
-      sensitivity: "base",
-    });
-    if (byFamily !== 0) return byFamily;
     return a.displayName.localeCompare(b.displayName, "fr", { sensitivity: "base" });
   });
+}
+
+/** Affichage calendrier : une seule tuile par personne et par jour (sans réécrire la base). */
+export function dedupeCalendarEventsForDisplay(events: CalendarEvent[]): CalendarEvent[] {
+  const map = new Map<string, CalendarEvent>();
+
+  for (const event of events) {
+    const dayKey = event.startAt.slice(0, 10);
+    const personKey = normalizeAbsencePersonName(event.displayName);
+    const key = `${personKey}|${dayKey}|${event.scope}`;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, event);
+      continue;
+    }
+
+    map.set(key, {
+      ...existing,
+      hasDocument: existing.hasDocument || event.hasDocument,
+      documentCount: existing.documentCount + event.documentCount,
+      displayTime:
+        existing.displayTime === event.displayTime
+          ? existing.displayTime
+          : `${existing.displayTime} · ${event.displayTime}`,
+      reason: existing.reason === event.reason ? existing.reason : existing.reason,
+    });
+  }
+
+  return sortCalendarEvents([...map.values()]);
 }
 
 export function absencesToCalendarEvents(

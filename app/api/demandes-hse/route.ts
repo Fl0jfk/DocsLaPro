@@ -13,13 +13,18 @@ import {
   buildHseAcceptancePdf,
   hseAcceptancePdfFilename,
 } from "@/app/lib/hse-acceptance-pdf";
+import {
+  canAccessHseModule,
+  canCreateHseDemand,
+  canManageHseDemand,
+  canViewHseDemand,
+  type HseEtablissement,
+} from "@/app/lib/demandes-hse-access";
 
 const INDEX_KEY = "demandes-hse/index.json";
 
 /** Réception des HSE acceptées ; surclassable par HSE_OPS_EMAIL. */
 const DEFAULT_HSE_OPS_EMAIL = "sarah.buno@ac-normandie.fr";
-
-export type HseEtablissement = "École" | "Collège" | "Lycée";
 
 type HseRecord = {
   id: string;
@@ -39,42 +44,8 @@ type HseRecord = {
   acceptancePdfPath?: string;
 };
 
-const norm = (s: string) =>
-  String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[_\s-]+/g, "");
-
 function rolesOfUser(roleRaw: unknown): string[] {
   return Array.isArray(roleRaw) ? (roleRaw as string[]) : roleRaw ? [String(roleRaw)] : [];
-}
-
-function getRoleFlags(roles: string[]) {
-  const n = roles.map(norm);
-  return {
-    isDirectionEcole: n.some((r) => r.includes("direction") && r.includes("ecole")),
-    isDirectionCollege: n.some((r) => r.includes("direction") && r.includes("college")),
-    isDirectionLycee: n.some((r) => r.includes("direction") && r.includes("lycee")),
-    isProfesseur: n.some((r) => r.includes("professeur")),
-  };
-}
-
-function canCreateDemand(roles: string[]) {
-  return getRoleFlags(roles).isProfesseur;
-}
-
-function canManageDemand(rec: HseRecord, roles: string[]) {
-  const f = getRoleFlags(roles);
-  if (rec.etablissement === "École") return f.isDirectionEcole;
-  if (rec.etablissement === "Collège") return f.isDirectionCollege;
-  if (rec.etablissement === "Lycée") return f.isDirectionLycee;
-  return false;
-}
-
-function canViewDemand(rec: HseRecord, userId: string, roles: string[]) {
-  if (rec.createdBy.userId === userId) return true;
-  return canManageDemand(rec, roles);
 }
 
 async function resolveDirectorMail( etab: HseEtablissement) {
@@ -138,16 +109,13 @@ export async function GET() {
   const user = await safeCurrentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
 
-  if (!canCreateDemand(roles)) {
-    const f = getRoleFlags(roles);
-    if (!f.isDirectionEcole && !f.isDirectionCollege && !f.isDirectionLycee) {
-      return NextResponse.json({ error: "Accès réservé." }, { status: 403 });
-    }
+  if (!canAccessHseModule(roles)) {
+    return NextResponse.json({ error: "Accès réservé." }, { status: 403 });
   }
 
   try {
     const all = await getIndex();
-    const filtered = all.filter((r) => canViewDemand(r, userId, roles));
+    const filtered = all.filter((r) => canViewHseDemand(r, userId, roles));
     filtered.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     return NextResponse.json({ items: filtered });
   } catch (e) {
@@ -164,7 +132,7 @@ export async function POST(req: Request) {
   const user = await safeCurrentUser();
   const roles = rolesOfUser(user?.publicMetadata?.role);
 
-  if (!canCreateDemand(roles)) {
+  if (!canCreateHseDemand(roles)) {
     return NextResponse.json({ error: "Seuls les enseignants peuvent créer une demande HSE." }, { status: 403 });
   }
 
@@ -350,7 +318,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: true });
     }
 
-    if (!canManageDemand(current, roles)) {
+    if (!canManageHseDemand(current, roles)) {
       return NextResponse.json({ error: "Décision réservée à la direction concernée." }, { status: 403 });
     }
 

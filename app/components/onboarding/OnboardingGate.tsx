@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { resolveOnboardingGate } from "@/app/lib/onboarding-gate";
+import {
+  readOnboardingStatusCache,
+  writeOnboardingStatusCache,
+} from "@/app/lib/onboarding-status-cache";
 
 type OnboardingStatus = {
   completed: boolean;
@@ -19,13 +23,23 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [checking, setChecking] = useState(true);
 
+  useLayoutEffect(() => {
+    const cachedStatus = readOnboardingStatusCache();
+    if (!cachedStatus) return;
+    setStatus(cachedStatus);
+    setChecking(false);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/onboarding/status", { cache: "no-store" });
         const j = (await res.json()) as OnboardingStatus & { error?: string };
-        if (!cancelled && res.ok) setStatus(j);
+        if (!cancelled && res.ok) {
+          setStatus(j);
+          writeOnboardingStatusCache(j);
+        }
       } catch {
         /* laisser passer en cas d'erreur réseau */
       } finally {
@@ -51,7 +65,7 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
     }
   }, [checking, status, pathname, router, reviewMode]);
 
-  if (checking) return null;
+  if (checking && !status) return null;
 
   const decision = status
     ? resolveOnboardingGate({

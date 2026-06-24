@@ -2,6 +2,9 @@
 
 import { useClerk } from "@clerk/nextjs";
 import { useCallback } from "react";
+import { clearBootstrapCache } from "@/app/lib/app-bootstrap-cache";
+import { clearDashboardLinksCache } from "@/app/lib/dashboard-links-cache";
+import { clearOnboardingStatusCache } from "@/app/lib/onboarding-status-cache";
 import { clearLastPortalTenant } from "@/app/lib/tenant-portal-client";
 
 function signOutRedirectUrl(): string {
@@ -20,6 +23,9 @@ export function useSignOutWithPortalReset() {
   return useCallback(
     (redirectUrl?: string) => {
       clearLastPortalTenant();
+      clearBootstrapCache();
+      clearDashboardLinksCache();
+      clearOnboardingStatusCache();
       void signOut({ redirectUrl: redirectUrl ?? signOutRedirectUrl() });
     },
     [signOut],

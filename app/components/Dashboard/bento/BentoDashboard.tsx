@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import type { Categories } from "@/app/contexts/data";
 import BentoColumnGrid from "@/app/components/Dashboard/bento/BentoColumnGrid";
 import BentoEditColumnGrid from "@/app/components/Dashboard/bento/BentoEditColumnGrid";
+import LazyBentoWidget from "@/app/components/Dashboard/bento/LazyBentoWidget";
 import { useBentoDashboardLayout } from "@/app/hooks/useBentoDashboardLayout";
 import { columnsForViewport } from "@/app/lib/dashboard-bento-columns";
 import {
@@ -87,7 +88,11 @@ export default function BentoDashboard({
         .filter(Boolean)
         .map((category) => ({
           id: category!.moduleId,
-          node: renderBentoWidget(category!, widgetSize),
+          node: (
+            <LazyBentoWidget key={category!.moduleId}>
+              {renderBentoWidget(category!, widgetSize)}
+            </LazyBentoWidget>
+          ),
         })),
     );
   }, [categoriesById, editMode, visibleColumns, viewport, widgetSize]);
@@ -116,7 +121,9 @@ export default function BentoDashboard({
               Feuille de semaine — toujours affichée ici, hors grille
             </p>
           ) : null}
-          {renderBentoWidget(weekSheetCategory, widgetSize)}
+          <LazyBentoWidget>
+            {renderBentoWidget(weekSheetCategory, widgetSize)}
+          </LazyBentoWidget>
         </div>
       ) : null}
 

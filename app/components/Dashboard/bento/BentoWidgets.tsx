@@ -31,8 +31,7 @@ import { getRecentDocs, pushRecentDoc } from "@/app/lib/dashboard-recent-docs";
 import { tripsThisWeek, tripsToday, type TripIndexRow } from "@/app/lib/dashboard-trips";
 import QRCode from "qrcode";
 import ToolboxModal from "@/app/components/toolbox/ToolboxModal";
-import { renderToolboxIcon, ToolboxFolderIcon } from "@/app/components/toolbox/ToolboxIcons";
-import type { ToolboxToolId } from "@/app/lib/toolbox-types";
+import { ToolboxFolderIcon } from "@/app/components/toolbox/ToolboxIcons";
 import { stageDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 import {
   DASHBOARD_BTN_EMERALD,
@@ -998,16 +997,6 @@ export function AgentIaBentoWidget({ category }: WidgetProps) {
 
 export function ToolboxBentoWidget({ category }: WidgetProps) {
   const [open, setOpen] = useState(false);
-  const [toolIds, setToolIds] = useState<ToolboxToolId[]>([]);
-
-  useEffect(() => {
-    fetch("/api/toolbox/public", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((j) => setToolIds((j.tools || []).map((t: { id: ToolboxToolId }) => t.id)))
-      .catch(() => setToolIds([]));
-  }, [open]);
-
-  const preview = toolIds.slice(0, 4);
 
   return (
     <>
@@ -1041,28 +1030,13 @@ export function ToolboxBentoWidget({ category }: WidgetProps) {
           className="overflow-auto p-3 sm:p-4 text-left w-full hover:bg-slate-50/80 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="grid grid-cols-2 gap-1.5 shrink-0">
-              {preview.length > 0 ? (
-                preview.map((id) => (
-                  <span
-                    key={id}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm"
-                  >
-                    {renderToolboxIcon(id, "w-5 h-5")}
-                  </span>
-                ))
-              ) : (
-                <span className="flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-2xl bg-amber-50 text-amber-700 col-span-2">
-                  <ToolboxFolderIcon className="w-8 h-8" />
-                </span>
-              )}
-            </div>
+            <span className="flex h-[4.6rem] w-[4.6rem] shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+              <ToolboxFolderIcon className="w-8 h-8" />
+            </span>
             <div className="min-w-0">
-              <p className={DASHBOARD_TILE_META_STRONG}>
-                {toolIds.length > 0 ? `${toolIds.length} outil${toolIds.length > 1 ? "s" : ""} actif${toolIds.length > 1 ? "s" : ""}` : "Aucun outil activé"}
-              </p>
+              <p className={DASHBOARD_TILE_META_STRONG}>Outils pratiques</p>
               <p className={`${DASHBOARD_TILE_META} mt-1`}>
-                QR code, rentrée, portes ouvertes, Secret Santa…
+                {category.description ?? "QR code, rentrée, portes ouvertes, Secret Santa…"}
               </p>
             </div>
           </div>

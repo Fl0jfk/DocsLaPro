@@ -1,5 +1,12 @@
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getAbsenceDocumentKeys, isDocumentKeyReferenced } from "@/app/lib/absences-documents";
+import {
+  absenceCandidateFromRecord,
+  consolidateDuplicateAbsencesSync,
+  findDuplicateAbsence,
+  isPendingAbsenceRecord,
+  mergeAbsenceRecordsSync,
+} from "@/app/lib/absences-dedup";
 import { isDocumentKeyReferencedInLegacy } from "@/app/lib/absences-legacy-convocations";
 import { isSensitiveAbsenceContent } from "@/app/lib/absences-privacy";
 import {
@@ -35,6 +42,67 @@ export async function saveAbsenceRecord(record: AbsenceRecord) {
   const normalized = normalizeAbsenceRecord(record);
   await putJson(recordKey(normalized.id), normalized);
   return normalized;
+}
+
+export async function deleteAbsenceRecordJson(id: string) {
+  const bucket = await getBucketName();
+  const s3Client = await getTenantDataS3Client();
+  try {
+    await s3Client.send(
+      new DeleteObjectCommand({ Bucket: bucket, Key: s3Key(recordKey(id)) }),
+    );
+  } catch {
+    /* déjà supprimé */
+  }
+}
+
+/** Enregistre ou fusionne si une absence équivalente existe déjà. */
+export async function saveOrMergeAbsenceRecord(
+  index: AbsenceRecord[],
+  incoming: AbsenceRecord,
+  actor: string,
+): Promise<{ index: AbsenceRecord[]; record: AbsenceRecord; merged: boolean; removedId?: string }> {
+  const duplicate = findDuplicateAbsence(index, absenceCandidateFromRecord(incoming), incoming.id);
+  if (!duplicate) {
+    const saved = await saveAbsenceRecord(incoming);
+    const next = index.filter((item) => item.id !== saved.id);
+    next.push(saved);
+    return { index: next, record: saved, merged: false };
+  }
+
+  const merged = mergeAbsenceRecordsSync(duplicate, incoming, actor);
+  await saveAbsenceRecord(merged);
+  await deleteAbsenceRecordJson(incoming.id);
+
+  const next = index.filter((item) => item.id !== incoming.id && item.id !== duplicate.id);
+  next.push(merged);
+  return { index: next, record: merged, merged: true, removedId: incoming.id };
+}
+
+/** Fusionne uniquement les absences en cours (à traiter), sans toucher au calendrier historique. */
+export async function consolidatePendingAbsencesInIndex(
+  fullIndex: AbsenceRecord[],
+): Promise<AbsenceRecord[]> {
+  const pending = fullIndex.filter(isPendingAbsenceRecord);
+  if (pending.length < 2) return fullIndex;
+
+  const consolidated = consolidateDuplicateAbsencesSync(pending);
+  if (consolidated.removedIds.length === 0) return fullIndex;
+
+  for (const id of consolidated.removedIds) {
+    await deleteAbsenceRecordJson(id);
+  }
+
+  const updated = new Set(consolidated.updatedIds);
+  for (const record of consolidated.index) {
+    if (updated.has(record.id)) await saveAbsenceRecord(record);
+  }
+
+  const removed = new Set(consolidated.removedIds);
+  const others = fullIndex.filter((record) => !isPendingAbsenceRecord(record) && !removed.has(record.id));
+  const nextIndex = [...others, ...consolidated.index];
+  await saveAbsenceIndex(nextIndex);
+  return nextIndex;
 }
 
 /** Conservé pour compatibilité : on ne supprime plus les absences (seules les pièces sensibles le sont). */

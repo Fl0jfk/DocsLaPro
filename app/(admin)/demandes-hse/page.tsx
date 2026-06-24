@@ -2,6 +2,12 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  canCreateHseDemand,
+  canManageHseDemand,
+  getHseRoleFlags,
+  isHseAdministratifViewer,
+} from "@/app/lib/demandes-hse-access";
 
 type Etablissement = "École" | "Collège" | "Lycée";
 type HseStatus = "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE" | "ANNULEE";
@@ -23,37 +29,12 @@ type HseItem = {
   directionNote?: string;
 };
 
-const norm = (s: string) =>
-  String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[_\s-]+/g, "");
-
 function rolesFromUser(roleRaw: unknown): string[] {
   return Array.isArray(roleRaw) ? (roleRaw as string[]) : roleRaw ? [String(roleRaw)] : [];
 }
 
-function getRoleFlags(roles: string[]) {
-  const n = roles.map(norm);
-  return {
-    isDirectionEcole: n.some((r) => r.includes("direction") && r.includes("ecole")),
-    isDirectionCollege: n.some((r) => r.includes("direction") && r.includes("college")),
-    isDirectionLycee: n.some((r) => r.includes("direction") && r.includes("lycee")),
-    isProfesseur: n.some((r) => r.includes("professeur")),
-  };
-}
-
-function canCreateDemand(roles: string[]) {
-  return getRoleFlags(roles).isProfesseur;
-}
-
 function canManageItem(item: HseItem, roles: string[]) {
-  const f = getRoleFlags(roles);
-  if (item.etablissement === "École") return f.isDirectionEcole;
-  if (item.etablissement === "Collège") return f.isDirectionCollege;
-  if (item.etablissement === "Lycée") return f.isDirectionLycee;
-  return false;
+  return canManageHseDemand(item, roles);
 }
 
 function statusBadgeClass(s: HseStatus) {
@@ -103,9 +84,10 @@ export default function DemandesHsePage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const roles = rolesFromUser(user?.publicMetadata?.role);
-  const creator = canCreateDemand(roles);
-  const dirFlags = getRoleFlags(roles);
+  const creator = canCreateHseDemand(roles);
+  const dirFlags = getHseRoleFlags(roles);
   const directionAny = dirFlags.isDirectionEcole || dirFlags.isDirectionCollege || dirFlags.isDirectionLycee;
+  const administratifViewer = isHseAdministratifViewer(roles);
   const userEmail = user?.primaryEmailAddress?.emailAddress?.trim() ?? "";
 
   const fetchItems = useCallback(async () => {
@@ -115,7 +97,7 @@ export default function DemandesHsePage() {
       const res = await fetch("/api/demandes-hse");
       if (res.status === 403) {
         setItems([]);
-        setError("Accès réservé aux enseignants et aux directions.");
+        setError("Accès réservé aux enseignants, aux directions et au service administratif.");
         return;
       }
       const data = await res.json().catch(() => ({}));
@@ -159,6 +141,14 @@ export default function DemandesHsePage() {
         )
         .sort((a, b) => +new Date(b.decidedAt || b.updatedAt) - +new Date(a.decidedAt || a.updatedAt)),
     [items, roles],
+  );
+
+  const administratifAccepted = useMemo(
+    () =>
+      [...items]
+        .filter((i) => i.status === "ACCEPTEE")
+        .sort((a, b) => +new Date(b.decidedAt || b.updatedAt) - +new Date(a.decidedAt || a.updatedAt)),
+    [items],
   );
 
   const cancelDemand = async (id: string) => {
@@ -274,7 +264,9 @@ export default function DemandesHsePage() {
       <div className="mb-8">
         <h1 className="text-4xl font-black text-slate-900">HSE — heures supplémentaires exceptionnelles</h1>
         <p className="text-slate-500 font-medium mt-2">
-          Déposez votre demande d’heures supplémentaires exceptionnelles à la validation de votre direction d’établissement (champs libres).
+          {administratifViewer
+            ? "Consultez les demandes HSE acceptées par la direction et téléchargez les attestations PDF (sans dépôt ni validation)."
+            : "Déposez votre demande d’heures supplémentaires exceptionnelles à la validation de votre direction d’établissement (champs libres)."}
         </p>
       </div>
 
@@ -572,9 +564,67 @@ export default function DemandesHsePage() {
             </>
           )}
 
-          {!creator && !directionAny && !loading && (
+          {administratifViewer && (
+            <>
+              <div className="bg-white border border-slate-200 rounded-3xl p-4">
+                <h3 className="font-black text-slate-900">HSE acceptées</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Toutes les demandes validées par la direction — attestations PDF disponibles même si le mail de notification a été supprimé.
+                </p>
+                {error && (
+                  <p className="text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 mt-3">{error}</p>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="bg-white border border-slate-200 rounded-3xl p-8 text-slate-500">Chargement…</div>
+              ) : administratifAccepted.length === 0 ? (
+                <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-8 text-slate-500">
+                  Aucune demande HSE acceptée pour le moment.
+                </div>
+              ) : (
+                administratifAccepted.map((item) => (
+                  <div key={item.id} className="bg-white border border-slate-200 rounded-3xl p-5">
+                    <div className="flex flex-wrap gap-3 items-center justify-between mb-3">
+                      <div>
+                        <p className="font-black text-slate-900">
+                          {item.createdBy.name} — {item.etablissement}
+                          {item.nombreHeures != null ? ` · ${formatNombreHeures(item.nombreHeures)}` : ""}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {item.createdBy.email}
+                          {item.decidedAt
+                            ? ` · acceptée le ${new Date(item.decidedAt).toLocaleString("fr-FR")}`
+                            : ""}
+                          {item.decidedBy ? ` par ${item.decidedBy.name}` : ""}
+                        </p>
+                      </div>
+                      <span className={`text-xs font-black px-3 py-1.5 rounded-xl border ${statusBadgeClass(item.status)}`}>
+                        {statusLabel(item.status)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-800 font-semibold mb-2 whitespace-pre-wrap">{item.resumeDemande}</p>
+                    <p className="text-sm text-slate-700 mb-1">
+                      <span className="font-bold">Classe / contexte :</span> {item.classe}
+                    </p>
+                    {item.details ? (
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap mb-2">{item.details}</p>
+                    ) : null}
+                    {item.directionNote && (
+                      <p className="text-sm text-indigo-800 mb-2">
+                        <span className="font-bold">Note direction :</span> {item.directionNote}
+                      </p>
+                    )}
+                    <AttestationPdfLink id={item.id} />
+                  </div>
+                ))
+              )}
+            </>
+          )}
+
+          {!creator && !directionAny && !administratifViewer && !loading && (
             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-slate-600">
-              Votre profil ne permet pas d’accéder à cette page. Les demandes HSE sont réservées aux enseignants et à leur direction ; contactez
+              Votre profil ne permet pas d’accéder à cette page. Les demandes HSE sont réservées aux enseignants, à leur direction et au service administratif ; contactez
               l’administrateur si vous pensez qu’il s’agit d’une erreur.
             </div>
           )}

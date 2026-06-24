@@ -1,5 +1,9 @@
 import { schoolWeekDaysParis } from "./dashboard-week";
-import { getPublicAbsenceReason } from "./absences-privacy";
+import {
+  absencesToCalendarEvents,
+  dedupeCalendarEventsForDisplay,
+  type CalendarEvent,
+} from "./absences-calendar";
 import type { AbsenceRecord } from "./absences-types";
 
 export type AbsenceDashboardRow = {
@@ -21,27 +25,7 @@ export type AbsenceTodayRow = {
   timeLabel: string;
 };
 
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function formatTimeFR(date: Date) {
-  return `${pad2(date.getHours())}h${pad2(date.getMinutes())}`;
-}
-
-function sameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
 export type AbsenceWeekRow = AbsenceTodayRow & { dayKey: string; dayLabel: string };
-
-function parisDayKey(d: Date): string {
-  return d.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
-}
 
 function formatDayLabel(dayKey: string): string {
   const [y, m, day] = dayKey.split("-").map(Number);
@@ -49,81 +33,36 @@ function formatDayLabel(dayKey: string): string {
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 }
 
-function absencesForDay(items: AbsenceDashboardRow[], day: Date): AbsenceTodayRow[] {
-  const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
-  const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
-  const out: AbsenceTodayRow[] = [];
-
-  for (const item of items) {
-    const start = new Date(item.data.startAt);
-    const end = new Date(item.data.endAt);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || +end <= +start) continue;
-    if (+end < +dayStart || +start > +dayEnd) continue;
-
-    const isFirstDay = sameDay(start, day);
-    const isLastDay = sameDay(end, day);
-    const timeLabel =
-      isFirstDay && isLastDay
-        ? `${formatTimeFR(start)} – ${formatTimeFR(end)}`
-        : isFirstDay
-          ? `à partir de ${formatTimeFR(start)}`
-          : isLastDay
-            ? `jusqu'à ${formatTimeFR(end)}`
-            : "journée";
-
-    out.push({
-      id: `${item.id}-${parisDayKey(day)}`,
-      teacherName: item.displayName,
-      examType: getPublicAbsenceReason(item as AbsenceRecord),
-      timeLabel,
-    });
-  }
-  return out;
+function eventOnDayKey(event: CalendarEvent, dayKey: string): boolean {
+  return event.startAt.slice(0, 10) === dayKey;
 }
 
-export function absencesInWeek(items: AbsenceDashboardRow[]): AbsenceWeekRow[] {
+function calendarEventToTodayRow(event: CalendarEvent): AbsenceTodayRow {
+  return {
+    id: event.key,
+    teacherName: event.displayName,
+    examType: event.reason,
+    timeLabel: event.displayTime.replace(" - ", " – "),
+  };
+}
+
+export function absencesInWeek(items: AbsenceRecord[]): AbsenceWeekRow[] {
+  const events = absencesToCalendarEvents(items);
   const out: AbsenceWeekRow[] = [];
+
   for (const { key: dayKey } of schoolWeekDaysParis()) {
-    const [y, m, d] = dayKey.split("-").map(Number);
-    const day = new Date(y, m - 1, d);
-    for (const row of absencesForDay(items, day)) {
+    const dayEvents = events.filter((event) => eventOnDayKey(event, dayKey));
+    for (const row of dedupeCalendarEventsForDisplay(dayEvents).map(calendarEventToTodayRow)) {
       out.push({ ...row, dayKey, dayLabel: formatDayLabel(dayKey) });
     }
   }
+
   return out.sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 }
 
-export function absencesToday(items: AbsenceDashboardRow[]): AbsenceTodayRow[] {
-  const today = new Date();
-  const out: AbsenceTodayRow[] = [];
-
-  for (const item of items) {
-    const start = new Date(item.data.startAt);
-    const end = new Date(item.data.endAt);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || +end <= +start) continue;
-
-    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-    const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    if (+end < +dayStart || +start > +dayEnd) continue;
-
-    const isFirstDay = sameDay(start, today);
-    const isLastDay = sameDay(end, today);
-    const timeLabel =
-      isFirstDay && isLastDay
-        ? `${formatTimeFR(start)} – ${formatTimeFR(end)}`
-        : isFirstDay
-          ? `à partir de ${formatTimeFR(start)}`
-          : isLastDay
-            ? `jusqu'à ${formatTimeFR(end)}`
-            : "journée";
-
-    out.push({
-      id: item.id,
-      teacherName: item.displayName,
-      examType: item.reason,
-      timeLabel,
-    });
-  }
-
-  return out.sort((a, b) => a.teacherName.localeCompare(b.teacherName, "fr", { sensitivity: "base" }));
+export function absencesToday(items: AbsenceRecord[]): AbsenceTodayRow[] {
+  const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+  const events = absencesToCalendarEvents(items);
+  const dayEvents = events.filter((event) => eventOnDayKey(event, todayKey));
+  return dedupeCalendarEventsForDisplay(dayEvents).map(calendarEventToTodayRow);
 }
