@@ -62,38 +62,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const mode = String(formData.get("mode") ?? "merge").trim() === "replace" ? "replace" : "merge";
+    const hit = await getJson<unknown[]>(KEY);
+    const existingRaw = Array.isArray(hit?.data) ? hit.data : [];
+    const existingValidated = validateElevesJson(existingRaw);
+    const existing = existingValidated.ok ? existingValidated.eleves : [];
+
     let finalEleves = result.eleves;
     let mergeStats: ReturnType<typeof mergeElevesLists>["stats"] | undefined;
 
-    if (mode === "merge") {
-      const hit = await getJson<unknown[]>(KEY);
-      const existingRaw = Array.isArray(hit?.data) ? hit.data : [];
-      const existingValidated = validateElevesJson(existingRaw);
-      const existing = existingValidated.ok ? existingValidated.eleves : [];
-
-      if (existing.length > 0) {
-        const merged = mergeElevesLists(existing, result.eleves);
-        const validatedMerged = validateElevesJson(merged.eleves);
-        if (!validatedMerged.ok) {
-          return NextResponse.json({ error: validatedMerged.error }, { status: 400 });
-        }
-        finalEleves = validatedMerged.eleves;
-        mergeStats = merged.stats;
+    if (existing.length > 0) {
+      const merged = mergeElevesLists(existing, result.eleves);
+      const validatedMerged = validateElevesJson(merged.eleves);
+      if (!validatedMerged.ok) {
+        return NextResponse.json({ error: validatedMerged.error }, { status: 400 });
       }
+      finalEleves = validatedMerged.eleves;
+      mergeStats = merged.stats;
     }
 
     await putJson(KEY, finalEleves);
 
     const message = mergeStats
       ? `${mergeStats.added} ajouté(s), ${mergeStats.updated} mis à jour, ${mergeStats.kept} conservé(s) — ${mergeStats.total} élève(s) au total. Pensez à synchroniser les dossiers OneDrive.`
-      : `${finalEleves.length} élève(s) importé(s) (liste entièrement remplacée). Pensez à synchroniser les dossiers OneDrive.`;
+      : `${finalEleves.length} élève(s) enregistré(s). Pensez à synchroniser les dossiers OneDrive.`;
 
     return NextResponse.json({
       success: true,
       count: finalEleves.length,
       detectedSource: result.detectedSource,
-      mode,
       merge: mergeStats,
       message,
     });

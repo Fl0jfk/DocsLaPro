@@ -1,3 +1,30 @@
+/** Nom de famille pour dossier OneDrive (MAJUSCULES). */
+export function formatEleveNomForFolder(nom: string): string {
+  return String(nom ?? "").trim().toUpperCase();
+}
+
+/** Prénom pour dossier OneDrive (1re lettre majuscule, reste en minuscules). */
+export function formatElevePrenomForFolder(prenom: string): string {
+  const p = String(prenom ?? "").trim();
+  if (!p) return "";
+  return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+}
+
+/** Dossier OneDrive : « NOM Prenom » — sans tirets, sans classe. */
+export function buildEleveFolderName(nom: string, prenom: string): string {
+  const n = formatEleveNomForFolder(nom);
+  const p = formatElevePrenomForFolder(prenom);
+  return p ? `${n} ${p}`.trim() : n;
+}
+
+export function resolveEleveFolderName(eleve: {
+  nom: string;
+  prenom: string;
+  folderName?: string;
+}): string {
+  return buildEleveFolderName(eleve.nom, eleve.prenom);
+}
+
 export type EleveConfig = {
   ine: string;
   nom: string;
@@ -38,7 +65,8 @@ export function validateElevesJson(
     const ine = String(o.ine ?? "").trim();
     const nom = String(o.nom ?? "").trim();
     const prenom = String(o.prenom ?? "").trim();
-    const folderName = String(o.folderName ?? "").trim();
+    const folderName =
+      String(o.folderName ?? "").trim() || buildEleveFolderName(nom, prenom);
     const mef = String(o.mef ?? o.formation ?? "").trim();
     const secteur = String(o.secteur ?? "").trim();
     const classe = String(o.classe ?? "").trim();

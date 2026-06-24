@@ -5,6 +5,7 @@ export const maxDuration = 120;
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";
+import { resolveEleveFolderName } from "@/app/lib/eleves-config";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
   buildElevesPoolForOcrMatching,
@@ -224,8 +225,11 @@ export async function POST(req: Request) {
           }
         }
       }
-      if (matchedEleve?.folderName && odProfile) {
-        oneDriveFolderPath = oneDrivePathForEleve(odProfile.basePath, matchedEleve.folderName);
+      if (matchedEleve && odProfile) {
+        oneDriveFolderPath = oneDrivePathForEleve(
+          odProfile.basePath,
+          resolveEleveFolderName(matchedEleve),
+        );
       }
     } catch (e) {
       console.error("Erreur matching interne:", e);

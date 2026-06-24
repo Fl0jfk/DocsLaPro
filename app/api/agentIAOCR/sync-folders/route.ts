@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";
+import { resolveEleveFolderName } from "@/app/lib/eleves-config";
 import { listChildFolderNames, ensureChildFolder, ensureFolderPath } from "@/app/lib/graph-onedrive-folders";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
@@ -45,19 +46,22 @@ export async function POST(req: Request) {
     const scoped = filterElevesForSecteur(allEleves, profile.secteur, mefMap);
 
     await ensureFolderPath(accessToken, profile.basePath);
-    const existing = await listChildFolderNames(accessToken, profile.basePath);
+    const existingOnDrive = await listChildFolderNames(accessToken, profile.basePath);
+    const existing = new Set(existingOnDrive);
 
     const created: string[] = [];
     const alreadyThere: string[] = [];
     const ambiguous: Array<{ folderName: string; mef?: string; reason: string }> = [];
     const errors: Array<{ folderName: string; error: string }> = [];
+    const currentStudentFolders = new Set<string>();
 
     for (const e of scoped) {
+      const folderName = resolveEleveFolderName(e);
       const inferred = resolveEleveSecteur(e, mefMap);
       if (!inferred) {
         const mef = String(e.mef ?? "").trim();
         ambiguous.push({
-          folderName: e.folderName,
+          folderName,
           mef: mef || undefined,
           reason: mefTableConfigured
             ? mef
@@ -69,22 +73,28 @@ export async function POST(req: Request) {
       }
       if (inferred !== profile.secteur) continue;
 
-      if (existing.has(e.folderName)) {
-        alreadyThere.push(e.folderName);
+      currentStudentFolders.add(folderName);
+
+      if (existing.has(folderName)) {
+        alreadyThere.push(folderName);
         continue;
       }
       try {
-        const r = await ensureChildFolder(accessToken, profile.basePath, e.folderName);
-        existing.add(e.folderName);
-        if (r.created) created.push(e.folderName);
-        else alreadyThere.push(e.folderName);
+        const r = await ensureChildFolder(accessToken, profile.basePath, folderName);
+        existing.add(folderName);
+        if (r.created) created.push(folderName);
+        else alreadyThere.push(folderName);
       } catch (err) {
         errors.push({
-          folderName: e.folderName,
+          folderName,
           error: err instanceof Error ? err.message : String(err),
         });
       }
     }
+
+    const extraFoldersOnOneDrive = [...existingOnDrive]
+      .filter((name) => !currentStudentFolders.has(name))
+      .sort((a, b) => a.localeCompare(b, "fr"));
 
     const otherSecteurCounts = {
       lycee: filterElevesForSecteur(allEleves, "lycee", mefMap).length,
@@ -101,14 +111,22 @@ export async function POST(req: Request) {
       basePath: profile.basePath,
       jsonTotal: allEleves.length,
       jsonForYourSecteur: scoped.length,
-      oneDriveFoldersFound: existing.size,
+      oneDriveFoldersFound: existingOnDrive.size,
       created: created.length,
       alreadyThere: alreadyThere.length,
-      createdFolders: created.slice(0, 50),
-      ambiguous: ambiguous.slice(0, 20),
+      createdFolders: created.sort((a, b) => a.localeCompare(b, "fr")),
+      extraFoldersOnOneDrive,
+      extraFoldersCount: extraFoldersOnOneDrive.length,
+      ambiguousCount: ambiguous.length,
+      ambiguous: ambiguous.slice(0, 30),
       errors,
       otherSecteurCounts,
-      message: `${created.length} dossier(s) créé(s), ${alreadyThere.length} déjà présent(s) sous ${profile.basePath}. Les élèves des autres secteurs ne sont pas touchés.`,
+      message:
+        created.length > 0
+          ? `${created.length} dossier(s) créé(s), ${alreadyThere.length} déjà présent(s) pour les élèves de la liste actuelle.`
+          : alreadyThere.length > 0
+            ? `Aucun nouveau dossier : ${alreadyThere.length} élève(s) de la liste avaient déjà leur dossier.`
+            : "Aucun dossier créé — vérifiez la liste élèves et la table MEF.",
     });
   } catch (e) {
     console.error("sync-folders:", e);

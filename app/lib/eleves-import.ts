@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import type { EleveConfig } from "@/app/lib/eleves-config";
-import { validateElevesJson } from "@/app/lib/eleves-config";
+import { buildEleveFolderName, validateElevesJson } from "@/app/lib/eleves-config";
 
 export type ElevesImportSource = "pronote" | "ecoledirecte" | "auto";
 
@@ -54,7 +54,7 @@ const COLUMN_ALIASES: Record<FieldKey, string[]> = {
   ],
   classe: ["classe", "division", "groupe", "classe eleve", "classe élève", "class"],
   mef: ["mef", "code mef", "formation", "filiere", "filière", "parcours", "option"],
-  email: ["email", "e-mail", "mail", "courriel", "email eleve", "email élève"],
+  email: ["email", "e-mail", "mail", "courriel", "email eleve", "email élève", "mail eleve"],
   parentEmail: [
     "email parent",
     "e-mail parent",
@@ -85,12 +85,29 @@ const COLUMN_ALIASES: Record<FieldKey, string[]> = {
 
 function normalizeHeader(value: unknown): string {
   return String(value ?? "")
+    .replace(/^\ufeff/, "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[_\-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Correspondance stricte : évite que « prénom » soit pris pour « nom » (sous-chaîne). */
+function headerMatchesAlias(header: string, alias: string): boolean {
+  const h = normalizeHeader(header);
+  const a = normalizeHeader(alias);
+  if (!h || !a) return false;
+  if (h === a) return true;
+  if (a.includes(" ")) {
+    return h.includes(a);
+  }
+  return (
+    h.startsWith(`${a} `) ||
+    h.endsWith(` ${a}`) ||
+    h.includes(` ${a} `)
+  );
 }
 
 function matchColumn(header: string, source: ElevesImportSource): FieldKey | null {
@@ -126,8 +143,7 @@ function matchColumn(header: string, source: ElevesImportSource): FieldKey | nul
 
   for (const field of priority) {
     for (const alias of COLUMN_ALIASES[field]) {
-      const a = normalizeHeader(alias);
-      if (h === a || h.includes(a) || a.includes(h)) {
+      if (headerMatchesAlias(header, alias)) {
         return field;
       }
     }
@@ -177,9 +193,67 @@ function cellStr(row: unknown[], index?: number): string {
   return String(v).trim();
 }
 
-function buildFolderName(nom: string, prenom: string, classe: string): string {
-  const base = `${nom} — ${prenom}`.trim();
-  return classe ? `${base} — ${classe}` : base;
+function normalizePersonPart(value: string): string {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function personIdentityKey(nom: string, prenom: string): string {
+  return `${normalizePersonPart(nom)}§${normalizePersonPart(prenom)}`;
+}
+
+function mergeEleveFields(existing: EleveConfig, incoming: EleveConfig): EleveConfig {
+  const nom = incoming.nom.trim() || existing.nom;
+  const prenom = incoming.prenom.trim() || existing.prenom;
+  const classe = incoming.classe?.trim() || existing.classe;
+  const folderName = buildEleveFolderName(nom, prenom);
+
+  const merged: EleveConfig = {
+    ...existing,
+    nom,
+    prenom,
+    folderName,
+    ine: incoming.ine?.trim() || existing.ine,
+  };
+
+  if (classe) merged.classe = classe;
+  if (incoming.mef?.trim()) merged.mef = incoming.mef.trim();
+  if (incoming.formation?.trim()) merged.formation = incoming.formation.trim();
+  if (incoming.secteur?.trim()) merged.secteur = incoming.secteur.trim();
+  if (incoming.email?.trim()) merged.email = incoming.email.trim();
+  if (incoming.parentEmail?.trim()) merged.parentEmail = incoming.parentEmail.trim();
+  if (incoming.parent1Email?.trim()) merged.parent1Email = incoming.parent1Email.trim();
+  if (incoming.parent2Email?.trim()) merged.parent2Email = incoming.parent2Email.trim();
+
+  return merged;
+}
+
+function findExistingEleveIndex(list: EleveConfig[], incoming: EleveConfig): number {
+  const ine = incoming.ine?.trim().toUpperCase();
+  if (ine) {
+    const byIne = list.findIndex((e) => e.ine?.trim().toUpperCase() === ine);
+    if (byIne >= 0) return byIne;
+  }
+
+  const pk = personIdentityKey(incoming.nom, incoming.prenom);
+  const candidates = list
+    .map((e, index) => ({ e, index }))
+    .filter(({ e }) => personIdentityKey(e.nom, e.prenom) === pk);
+
+  if (candidates.length === 1) return candidates[0].index;
+
+  if (candidates.length > 1 && incoming.classe?.trim()) {
+    const wanted = incoming.classe.trim().toUpperCase();
+    const sameClass = candidates.find(
+      ({ e }) => (e.classe?.trim().toUpperCase() || "") === wanted,
+    );
+    if (sameClass) return sameClass.index;
+  }
+
+  return -1;
 }
 
 function parseRowsToEleves(
@@ -194,9 +268,15 @@ function parseRowsToEleves(
 
   const colMap = buildColumnMap(headers, source);
   if (colMap.nom === undefined || colMap.prenom === undefined) {
+    const detected = headers
+      .map((h) => String(h ?? "").trim())
+      .filter(Boolean)
+      .slice(0, 12)
+      .join(" · ");
     return {
-      error:
-        "Colonnes « Nom » et « Prénom » introuvables. Vérifiez que la 1re ligne du fichier est bien la ligne d'en-tête (titres des colonnes), puis l'ordre : Nom, Prénom, Classe, INE, Code MEF, e-mail élève, e-mail parent.",
+      error: detected
+        ? `Colonnes « Nom » et « Prénom » introuvables (ligne d'en-tête n°${headerRow + 1} : ${detected}). Vérifiez les titres exacts « Nom » et « Prénom » en première ligne de données.`
+        : "Colonnes « Nom » et « Prénom » introuvables. Vérifiez que la 1re ligne du fichier contient bien les titres des colonnes.",
     };
   }
 
@@ -211,8 +291,7 @@ function parseRowsToEleves(
     if (!nom || !prenom) continue;
 
     const classe = cellStr(row, colMap.classe);
-    const folderName =
-      cellStr(row, colMap.folderName) || buildFolderName(nom, prenom, classe);
+    const folderName = buildEleveFolderName(nom, prenom);
 
     const entry: EleveConfig = {
       ine: cellStr(row, colMap.ine),
@@ -322,53 +401,44 @@ export type ElevesMergeStats = {
   kept: number;
 };
 
-/** Clé de rapprochement pour fusionner deux listes élèves. */
+/** Clé de rapprochement (INE prioritaire, sinon nom + prénom). */
 export function eleveMatchKey(e: EleveConfig): string {
   const ine = e.ine?.trim().toUpperCase();
   if (ine) return `ine:${ine}`;
-  const folder = e.folderName?.trim();
-  if (folder) return `folder:${folder}`;
-  return `nom:${e.nom.trim().toUpperCase()}§${e.prenom.trim().toUpperCase()}§${(e.classe ?? "").trim().toUpperCase()}`;
+  return `person:${personIdentityKey(e.nom, e.prenom)}`;
 }
 
 /**
- * Fusionne l'import dans la liste existante : mises à jour par INE (ou nom de dossier / identité),
- * nouveaux ajoutés, élèves absents du fichier importé conservés.
+ * Fusionne l'import dans la liste existante : mise à jour par INE ou identité (nom + prénom),
+ * actualisation classe / MEF / e-mails, nouveaux ajoutés, absents du fichier conservés.
  */
 export function mergeElevesLists(
   existing: EleveConfig[],
   incoming: EleveConfig[],
 ): { eleves: EleveConfig[]; stats: ElevesMergeStats } {
-  const map = new Map<string, EleveConfig>();
-  for (const e of existing) {
-    map.set(eleveMatchKey(e), e);
-  }
-
-  const incomingKeys = new Set<string>();
+  const result = [...existing];
+  const touched = new Set<number>();
   let added = 0;
   let updated = 0;
 
   for (const inc of incoming) {
-    const key = eleveMatchKey(inc);
-    incomingKeys.add(key);
-    if (map.has(key)) {
-      map.set(key, { ...map.get(key)!, ...inc });
+    const idx = findExistingEleveIndex(result, inc);
+    if (idx >= 0) {
+      result[idx] = mergeEleveFields(result[idx], inc);
+      touched.add(idx);
       updated++;
     } else {
-      map.set(key, inc);
+      result.push(inc);
       added++;
     }
   }
 
-  let kept = 0;
-  for (const e of existing) {
-    if (!incomingKeys.has(eleveMatchKey(e))) kept++;
-  }
+  const kept = existing.length - touched.size;
 
   return {
-    eleves: [...map.values()],
+    eleves: result,
     stats: {
-      total: map.size,
+      total: result.length,
       added,
       updated,
       kept,

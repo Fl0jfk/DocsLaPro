@@ -67,7 +67,7 @@ export const MODULE_TOURS: ModuleTourDefinition[] = [
           "OBLIGATOIRE : la ligne 1 = en-têtes. Sans elle, l'import échoue.",
           "Pronote : Scolarité → Exports → liste des élèves (Excel).",
           "École Directe : export liste élèves — réorganisez les colonnes pour suivre l'ordre ci-dessous.",
-          "Fusion : par défaut, le fichier s'ajoute à eleves.json (élèves reconnus mis à jour, nouveaux ajoutés, les autres conservés). Cochez « Remplacer toute la liste » pour un export complet qui efface l'ancien.",
+          "Fusion : le fichier Excel s'ajoute à eleves.json. Chaque élève reconnu (INE ou nom + prénom) est mis à jour (classe, MEF, e-mails) ; les nouveaux sont ajoutés ; ceux absents du fichier restent dans la liste.",
         ],
         excelPreview: {
           columns: [
@@ -149,11 +149,12 @@ export const MODULE_TOURS: ModuleTourDefinition[] = [
       {
         target: "sync-onedrive",
         title: "Créer les dossiers OneDrive",
-        body: "Ce bouton crée les dossiers élèves manquants dans votre arborescence OneDrive (un dossier par élève : Nom — Prénom — Classe).",
+        body: "Ce bouton crée les dossiers élèves manquants dans votre arborescence OneDrive (un dossier par élève : NOM Prenom).",
         bullets: [
           "Quand l'utiliser : après l'import de la liste élèves (et idéalement après configuration de la table MEF).",
-          "Sans risque : les dossiers déjà existants ne sont jamais supprimés ni modifiés — l'outil ajoute uniquement ceux des nouveaux élèves.",
-          "Vous pouvez relancer ce bouton après chaque rentrée ou import : seuls les dossiers manquants seront créés.",
+          "Sans risque : les dossiers déjà présents ne sont jamais supprimés ni renommés — l'outil ajoute uniquement les manquants.",
+          "Il est normal d'avoir plus de dossiers sur OneDrive que d'élèves dans la liste : les anciens élèves partis restent archivés.",
+          "Après l'action, un bilan détaillé liste les dossiers créés, ceux déjà là et les archives laissées intactes.",
           "Le rapport indique « Dossiers créés » et « Déjà existants ». Les élèves des autres secteurs (lycée / collège / école) ne sont pas touchés.",
         ],
       },

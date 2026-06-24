@@ -70,7 +70,7 @@ function namesMatch(
   return an === bn && ap === bp;
 }
 
-/** Classe explicite ou suffixe du nom de dossier OneDrive (ex. « DUPONT — Jean — 3e2 »). */
+/** Classe explicite (champ `classe` de la liste élèves). */
 export function resolveEleveClassName(eleve: EleveConfig): string | null {
   const explicit = String(eleve.classe ?? "").trim();
   if (explicit) return explicit;

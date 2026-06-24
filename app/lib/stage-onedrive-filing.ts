@@ -14,6 +14,7 @@ import {
   resolveConventionSecteur,
   resolveOneDriveProfileForConvention,
 } from "@/app/lib/stage-eleve-match";
+import { resolveEleveFolderName } from "@/app/lib/eleves-config";
 import { buildStageConventionPdf } from "@/app/lib/stage-pdf";
 import { getConventionsIndex, getStageConvention, saveStageConvention } from "@/app/lib/stage-storage";
 import type { StageConvention } from "@/app/lib/stage-types";
@@ -139,7 +140,7 @@ async function fileSignedConventionCore(params: {
       filedBy: params.filedBy,
       folderPath: uploaded.folderPath,
       fileName: uploaded.fileName,
-      matchedFolderName: matchedEleve.folderName,
+      matchedFolderName: resolveEleveFolderName(matchedEleve),
     },
     oneDriveFilingPending: false,
     oneDriveFilingError: purge.purged ? undefined : `PDF S3 non supprimé : ${purge.error ?? "erreur"}`,
@@ -153,7 +154,7 @@ async function fileSignedConventionCore(params: {
     folderPath: uploaded.folderPath,
     fileName: uploaded.fileName,
     fullPath: uploaded.fullPath,
-    matchedFolderName: matchedEleve.folderName,
+    matchedFolderName: resolveEleveFolderName(matchedEleve),
   };
 }
 

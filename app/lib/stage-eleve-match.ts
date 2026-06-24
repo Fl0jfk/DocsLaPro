@@ -1,4 +1,5 @@
 import type { EleveConfig } from "@/app/lib/eleves-config";
+import { resolveEleveFolderName } from "@/app/lib/eleves-config";
 import { getJson } from "@/app/lib/s3-storage";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
@@ -144,10 +145,9 @@ export async function matchEleveForConvention(
       allEleves.find((e) => e.ine?.trim().toUpperCase() === ine.toUpperCase()) ??
       null;
     if (found) {
-      const folderPath =
-        found.folderName && profile
-          ? oneDrivePathForEleve(profile.basePath, found.folderName)
-          : null;
+      const folderPath = profile
+        ? oneDrivePathForEleve(profile.basePath, resolveEleveFolderName(found))
+        : null;
       return {
         matchedEleve: found,
         folderPath,
@@ -177,10 +177,9 @@ export async function matchEleveForConvention(
     .sort((a, b) => b.score - a.score);
 
   const best = scored[0]?.eleve ?? null;
-  const folderPath =
-    best?.folderName && profile
-      ? oneDrivePathForEleve(profile.basePath, best.folderName)
-      : null;
+  const folderPath = best && profile
+    ? oneDrivePathForEleve(profile.basePath, resolveEleveFolderName(best))
+    : null;
 
   return {
     matchedEleve: best,

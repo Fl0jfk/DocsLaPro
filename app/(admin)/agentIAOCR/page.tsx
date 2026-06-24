@@ -71,7 +71,6 @@ function OneDriveUpDocsOCRAIContent() {
 
   const [elevesCount, setElevesCount] = useState<number | null>(null);
   const [elevesSource, setElevesSource] = useState<"auto" | "pronote" | "ecoledirecte">("auto");
-  const [elevesReplaceAll, setElevesReplaceAll] = useState(false);
   const [elevesUploading, setElevesUploading] = useState(false);
   const [elevesMessage, setElevesMessage] = useState("");
   const [syncingFolders, setSyncingFolders] = useState(false);
@@ -82,7 +81,12 @@ function OneDriveUpDocsOCRAIContent() {
     jsonForYourSecteur?: number;
     created?: number;
     alreadyThere?: number;
+    createdFolders?: string[];
+    extraFoldersCount?: number;
+    extraFoldersOnOneDrive?: string[];
+    ambiguousCount?: number;
     ambiguous?: Array<{ folderName: string; mef?: string; reason?: string }>;
+    errors?: Array<{ folderName: string; error: string }>;
     otherSecteurCounts?: Record<string, number>;
     mefTableConfigured?: boolean;
   } | null>(null);
@@ -1145,7 +1149,6 @@ function OneDriveUpDocsOCRAIContent() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("source", elevesSource);
-      if (elevesReplaceAll) fd.append("mode", "replace");
       const res = await fetch("/api/eleves/import", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Échec de la mise à jour");
@@ -1687,9 +1690,9 @@ function OneDriveUpDocsOCRAIContent() {
                 <h3 className="text-sm font-bold text-slate-800">1 — Importer la liste élèves (Excel)</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
                   Enregistre les élèves utilisés par l&apos;IA pour reconnaître et classer les documents. À refaire
-                  quand la liste change (rentrée, arrivées…). Par défaut, l&apos;import{" "}
-                  <strong>fusionne</strong> avec la liste déjà enregistrée (mise à jour + ajouts, sans supprimer les
-                  autres).
+                  quand la liste change (rentrée, arrivées…). L&apos;import{" "}
+                  <strong>fusionne toujours</strong> avec la liste déjà enregistrée : élèves reconnus (INE ou nom +
+                  prénom) mis à jour (classe, MEF, e-mails), nouveaux ajoutés, les autres conservés sans suppression.
                 </p>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950 leading-relaxed space-y-2">
                   <p className="font-bold">
@@ -1734,15 +1737,6 @@ function OneDriveUpDocsOCRAIContent() {
                   >
                     {elevesUploading ? "Envoi…" : "Importer liste élèves (Excel)"}
                   </button>
-                  <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={elevesReplaceAll}
-                      onChange={(e) => setElevesReplaceAll(e.target.checked)}
-                      className="rounded border-slate-300"
-                    />
-                    Remplacer toute la liste (au lieu de fusionner)
-                  </label>
                 </div>
                 {elevesMessage && (
                   <p
@@ -1801,15 +1795,20 @@ function OneDriveUpDocsOCRAIContent() {
               >
                 <h3 className="text-sm font-bold text-slate-800">3 — Créer les dossiers sur OneDrive</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Crée un dossier par élève de <strong>votre secteur</strong> (format « Nom — Prénom — Classe »)
+                  Crée un dossier par élève de <strong>votre secteur</strong> (format « NOM Prenom » — sans
+                  tirets, sans classe)
                   dans l&apos;arborescence OneDrive connectée en haut de page.
                 </p>
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-950 leading-relaxed space-y-1">
                   <p className="font-bold">Sans risque pour les dossiers existants</p>
                   <p>
-                    Ce bouton <strong>ne supprime ni ne modifie</strong> les dossiers déjà présents. Il ajoute
-                    uniquement les dossiers manquants pour les nouveaux élèves. Vous pouvez le relancer après
-                    chaque import : seuls les nouveaux seront créés.
+                    Ce bouton <strong>ne supprime ni ne renomme rien</strong>. Il ajoute uniquement les dossiers
+                    manquants pour les élèves de la liste actuelle. Les dossiers déjà là sont laissés tels quels.
+                  </p>
+                  <p>
+                    Il est normal d&apos;avoir <strong>plus de dossiers sur OneDrive</strong> que d&apos;élèves dans
+                    la liste : les anciens élèves partis restent archivés sur OneDrive et ne sont{" "}
+                    <strong>jamais supprimés</strong> par cette action.
                   </p>
                 </div>
                 <div>
@@ -1828,14 +1827,90 @@ function OneDriveUpDocsOCRAIContent() {
                   )}
                 </div>
                 {syncReport && (
-                  <div className="p-4 bg-white rounded-xl border border-slate-200 text-sm text-slate-700 space-y-1">
-                    <p>
-                      <strong>{syncReport.secteurLabel}</strong> — {syncReport.basePath}
-                    </p>
-                    <p>
-                      Dossiers créés : {syncReport.created} · Déjà existants (inchangés) :{" "}
-                      {syncReport.alreadyThere}
-                    </p>
+                  <div className="p-4 bg-white rounded-xl border border-slate-200 text-sm text-slate-700 space-y-3">
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        {syncReport.secteurLabel} — {syncReport.basePath}
+                      </p>
+                      <p className="text-slate-600 mt-1">{syncReport.message}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
+                        <p className="font-bold text-emerald-900">{syncReport.created ?? 0}</p>
+                        <p className="text-emerald-800">créé(s)</p>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                        <p className="font-bold text-slate-800">{syncReport.alreadyThere ?? 0}</p>
+                        <p className="text-slate-600">déjà présent(s)</p>
+                      </div>
+                      <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
+                        <p className="font-bold text-amber-900">{syncReport.extraFoldersCount ?? 0}</p>
+                        <p className="text-amber-800">archives OneDrive</p>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                        <p className="font-bold text-slate-800">{syncReport.jsonForYourSecteur ?? "—"}</p>
+                        <p className="text-slate-600">élèves secteur</p>
+                      </div>
+                    </div>
+
+                    {(syncReport.createdFolders?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 mb-1">
+                          Dossiers créés ({syncReport.createdFolders!.length})
+                        </p>
+                        <ul className="max-h-48 overflow-y-auto rounded-lg border border-emerald-100 bg-emerald-50/50 text-xs font-mono divide-y divide-emerald-100">
+                          {syncReport.createdFolders!.map((name) => (
+                            <li key={name} className="px-3 py-1.5 text-emerald-950">
+                              {name}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {(syncReport.created ?? 0) === 0 && (syncReport.alreadyThere ?? 0) > 0 && (
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Tous les élèves de la liste avaient déjà leur dossier — rien à ajouter, c&apos;est normal.
+                      </p>
+                    )}
+
+                    {(syncReport.extraFoldersCount ?? 0) > 0 && (
+                      <p className="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 leading-relaxed">
+                        <strong>{syncReport.extraFoldersCount} dossier(s)</strong> sur OneDrive ne correspondent plus
+                        à un élève de la liste actuelle (anciens élèves, archives…). Ils ont été{" "}
+                        <strong>laissés en place</strong> — cette action ne les supprime pas.
+                      </p>
+                    )}
+
+                    {(syncReport.ambiguousCount ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-amber-800 mb-1">
+                          Non traités — MEF manquant ou inconnu ({syncReport.ambiguousCount})
+                        </p>
+                        <ul className="max-h-32 overflow-y-auto text-xs text-amber-900 space-y-0.5">
+                          {syncReport.ambiguous?.map((a) => (
+                            <li key={a.folderName}>
+                              {a.folderName}
+                              {a.mef ? ` (${a.mef})` : ""} — {a.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {(syncReport.errors?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-red-700 mb-1">Erreurs</p>
+                        <ul className="text-xs text-red-600 space-y-0.5">
+                          {syncReport.errors!.map((e) => (
+                            <li key={e.folderName}>
+                              {e.folderName} — {e.error}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
