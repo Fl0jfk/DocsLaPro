@@ -10,6 +10,7 @@
 
 import { hasGlobalAdminRole, hasMasterRole, hasRole } from "./intranet-role-utils";
 import { INTRANET_DIRECTION_SLUGS, intranetRolesExceptParent } from "./intranet-roles";
+import { RGPD_MODULE_ROLES } from "./rgpd-access";
 
 const DIRECTIONS = [...INTRANET_DIRECTION_SLUGS];
 const ROLES_EXCEPT_PARENT = intranetRolesExceptParent();
@@ -308,7 +309,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "conformite-rgpd",
     pathPrefixes: ["/conformite-rgpd", "/api/rgpd"],
-    allowedRoles: [...DIRECTIONS, "administratif"],
+    allowedRoles: [...RGPD_MODULE_ROLES],
     dashboard: {
       id: 29,
       name: "Conformité RGPD",

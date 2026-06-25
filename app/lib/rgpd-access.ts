@@ -1,22 +1,19 @@
 import { hasRole } from "@/app/lib/intranet-role-utils";
 import { INTRANET_DIRECTION_SLUGS } from "@/app/lib/intranet-roles";
 
-const norm = (s: string) =>
-  String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[_\s-]+/g, "");
+/** Rôles autorisés sur le module Conformité RGPD (tuile, routes, API). */
+export const RGPD_MODULE_ROLES = [
+  ...INTRANET_DIRECTION_SLUGS,
+  "administratif",
+  "comptabilite",
+] as const;
 
 export function isDirectionRole(roles: string[]): boolean {
   return INTRANET_DIRECTION_SLUGS.some((slug) => hasRole(roles, slug));
 }
 
 export function canAccessRgpdModule(roles: string[]): boolean {
-  if (isDirectionRole(roles)) return true;
-  if (hasRole(roles, "administratif")) return true;
-  if (roles.some((r) => norm(r) === "admin")) return true;
-  return false;
+  return RGPD_MODULE_ROLES.some((slug) => hasRole(roles, slug));
 }
 
 export function canManageRgpdWorkspace(roles: string[]): boolean {
