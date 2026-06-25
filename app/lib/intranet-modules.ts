@@ -306,6 +306,18 @@ export const INTRANET_MODULES: IntranetModule[] = [
     },
   },
   {
+    id: "conformite-rgpd",
+    pathPrefixes: ["/conformite-rgpd", "/api/rgpd"],
+    allowedRoles: [...DIRECTIONS, "administratif"],
+    dashboard: {
+      id: 29,
+      name: "Conformité RGPD",
+      img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+      link: "/conformite-rgpd",
+      external: false,
+    },
+  },
+  {
     id: "admin-settings",
     pathPrefixes: ["/parametres", "/api/settings"],
     allowedRoles: [],

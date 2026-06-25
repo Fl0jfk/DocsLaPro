@@ -658,6 +658,44 @@ export const MODULE_TOURS: ModuleTourDefinition[] = [
       },
     ],
   },
+  {
+    moduleId: "conformite-rgpd",
+    title: "Conformité RGPD",
+    audienceRoles: [
+      "administratif",
+      "direction_ecole",
+      "direction_college",
+      "direction_lycee",
+      "admin",
+    ],
+    steps: [
+      {
+        target: "rgpd-module",
+        title: "Module Conformité RGPD",
+        body: "Ce module vous aide à inventorier les documents RGPD, mesurer votre conformité et gérer les incidents. Ce n'est pas un conseil juridique — validation par le DPD/DPO et la direction.",
+      },
+      {
+        title: "Questionnaire",
+        body: "Répondez au questionnaire pour déterminer quels documents sont obligatoires ou recommandés pour votre établissement (école, collège, lycée, sous-traitants, traitements sensibles…).",
+        bullets: [
+          "7 étapes avec sauvegarde automatique",
+          "Synthèse finale : liste des documents applicables",
+        ],
+      },
+      {
+        title: "Documents & score",
+        body: "Le tableau de bord affiche une note sur 100. Pour chaque document : générez un PDF prérempli, importez le vôtre, ou lancez l'analyse IA pour identifier les manques.",
+        bullets: [
+          "Registre, mentions d'information, procédures, sous-traitants…",
+          "L'IA compare votre document aux critères CNIL attendus",
+        ],
+      },
+      {
+        title: "Incidents",
+        body: "Déclarez une violation de données ou un incident de sécurité. Décrivez la situation au bot : il préremplit la fiche que vous validez avant enregistrement et export PDF.",
+      },
+    ],
+  },
 ];
 
 export function getModuleTour(moduleId: string): ModuleTourDefinition | undefined {

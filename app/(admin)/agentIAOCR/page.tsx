@@ -17,6 +17,26 @@ function getMsalInstance() {
   return msalInstance;
 }
 
+function getMsalActiveAccount(): msal.AccountInfo | null {
+  const instance = getMsalInstance();
+  return instance.getActiveAccount() ?? instance.getAllAccounts()[0] ?? null;
+}
+
+function setMsalActiveAccount(account: msal.AccountInfo | null) {
+  if (account) getMsalInstance().setActiveAccount(account);
+}
+
+async function verifyOneDriveToken(token: string): Promise<boolean> {
+  try {
+    const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return verifyRes.ok;
+  } catch {
+    return false;
+  }
+}
+
 type ProcessResult = {
   success: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,6 +68,8 @@ const INITIAL_OCR_PROCESSING_STATUS = {
   totalKnown: false,
   label: "",
 };
+
+const BATCH_JOB_STORAGE_KEY = "agentIAOCR-active-batch-job";
 
 function OneDriveUpDocsOCRAIContent() {
   const searchParams = useSearchParams();
@@ -106,6 +128,8 @@ function OneDriveUpDocsOCRAIContent() {
   const processingLockRef = useRef(false);
   const [checkingOneDrive, setCheckingOneDrive] = useState(false);
   const [oneDriveVerified, setOneDriveVerified] = useState(false);
+  const [activeBatchJobId, setActiveBatchJobId] = useState<string | null>(null);
+  const [batchJobNeedsToken, setBatchJobNeedsToken] = useState(false);
 
   const applyOneDriveSession = useCallback((activeAccount: msal.AccountInfo | null, token: string | null) => {
     setAccount(activeAccount);
@@ -121,13 +145,21 @@ function OneDriveUpDocsOCRAIContent() {
     }
     setCheckingOneDrive(true);
     try {
-      const accounts = getMsalInstance().getAllAccounts();
-      if (accounts.length === 0) {
+      const activeAccount = getMsalActiveAccount();
+      if (!activeAccount) {
         applyOneDriveSession(null, null);
         setError("Connectez-vous à OneDrive avant de déposer des fichiers (bouton en haut à droite).");
         return null;
       }
-      const activeAccount = accounts[0];
+      setMsalActiveAccount(activeAccount);
+
+      const cachedToken = oneDriveTokenRef.current;
+      if (cachedToken && (await verifyOneDriveToken(cachedToken))) {
+        applyOneDriveSession(activeAccount, cachedToken);
+        setError("");
+        return cachedToken;
+      }
+
       let token: string;
       try {
         const tokenResponse = await getMsalInstance().acquireTokenSilent({
@@ -142,15 +174,13 @@ function OneDriveUpDocsOCRAIContent() {
             scopes: ONEDRIVE_SCOPES,
           });
           token = tokenResponse.accessToken;
+          setMsalActiveAccount(tokenResponse.account ?? activeAccount);
         } else {
           throw err;
         }
       }
 
-      const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!verifyRes.ok) {
+      if (!(await verifyOneDriveToken(token))) {
         throw new Error("Session OneDrive expirée ou accès refusé. Reconnectez-vous.");
       }
 
@@ -158,7 +188,8 @@ function OneDriveUpDocsOCRAIContent() {
       setError("");
       return token;
     } catch (err: unknown) {
-      applyOneDriveSession(getMsalInstance().getAllAccounts()[0] ?? null, null);
+      const account = getMsalActiveAccount();
+      applyOneDriveSession(account, null);
       const msg = err instanceof Error ? err.message : String(err);
       setError(`OneDrive indisponible : ${msg}`);
       return null;
@@ -216,15 +247,13 @@ function OneDriveUpDocsOCRAIContent() {
         setMsalReady(true);
         const accounts = getMsalInstance().getAllAccounts();
         if (accounts.length > 0) {
+          setMsalActiveAccount(accounts[0]);
           try {
             const tokenResponse = await getMsalInstance().acquireTokenSilent({
               account: accounts[0],
               scopes: ONEDRIVE_SCOPES,
             });
-            const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-              headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
-            });
-            if (verifyRes.ok) {
+            if (await verifyOneDriveToken(tokenResponse.accessToken)) {
               applyOneDriveSession(accounts[0], tokenResponse.accessToken);
             } else {
               applyOneDriveSession(accounts[0], null);
@@ -274,14 +303,12 @@ function OneDriveUpDocsOCRAIContent() {
       try {
         const result = await getMsalInstance().handleRedirectPromise();
         if (result?.account) {
+          setMsalActiveAccount(result.account);
           const tokenResponse = await getMsalInstance().acquireTokenSilent({
             account: result.account,
             scopes: ONEDRIVE_SCOPES,
           });
-          const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-            headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
-          });
-          if (verifyRes.ok) {
+          if (await verifyOneDriveToken(tokenResponse.accessToken)) {
             applyOneDriveSession(result.account, tokenResponse.accessToken);
           } else {
             applyOneDriveSession(result.account, null);
@@ -322,14 +349,14 @@ function OneDriveUpDocsOCRAIContent() {
   }, [abortOcrInFlight, resetOcrSessionUi]);
 
   const canAcceptNewOcrFiles = useCallback(() => {
-    if (ocrProcessingRef.current || processingLockRef.current) {
+    if (ocrProcessingRef.current || processingLockRef.current || activeBatchJobId) {
       setError(
-        "Un traitement est encore en cours. Attendez la fin de la session (ou consultez les échecs ci-dessous) avant de déposer de nouveaux fichiers.",
+        "Un traitement est encore en cours (sur le serveur). Attendez la fin ou consultez les échecs ci-dessous avant de déposer de nouveaux fichiers.",
       );
       return false;
     }
     return true;
-  }, []);
+  }, [activeBatchJobId]);
 
   const login = async () => {
     if (!msalReady) {
@@ -342,10 +369,8 @@ function OneDriveUpDocsOCRAIContent() {
         scopes: ONEDRIVE_SCOPES,
         prompt: "select_account",
       });
-      const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-        headers: { Authorization: `Bearer ${result.accessToken}` },
-      });
-      if (!verifyRes.ok) {
+      setMsalActiveAccount(result.account);
+      if (!(await verifyOneDriveToken(result.accessToken))) {
         throw new Error(
           "Accès OneDrive refusé pour ce compte Microsoft. Utilisez le compte professionnel de l'établissement.",
         );
@@ -402,6 +427,24 @@ function OneDriveUpDocsOCRAIContent() {
     throw new Error("Timeout OCR : aucun texte retourné");
   };
 
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  /** Pause entre fichiers : plus le lot est gros, plus on espace les appels Graph. */
+  const interFileDelayMs = (processedCount: number, totalEstimate: number) => {
+    const base = totalEstimate >= 100 ? 3500 : totalEstimate >= 50 ? 2800 : 2000;
+    const extra = Math.floor(processedCount / 25) * 1500;
+    return Math.min(12000, base + extra);
+  };
+
+  const parseRetryAfterMs = (res: Response, attempt: number): number => {
+    const raw = res.headers.get("Retry-After");
+    if (raw) {
+      const sec = Number(raw);
+      if (!Number.isNaN(sec) && sec > 0) return sec * 1000;
+    }
+    return Math.min(60_000, 4000 * 2 ** attempt);
+  };
+
   const uploadToS3AndOneDrive = async (
     file: File,
     token: string,
@@ -424,20 +467,52 @@ function OneDriveUpDocsOCRAIContent() {
     if (!upload.ok) throw new Error("Échec upload S3 : " + (await upload.text()));
 
     const tempPath = `Temp/${file.name}`;
-    const odRes = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/root:/${tempPath}:/content`,
-      {
+    const putOneDrive = (accessToken: string) =>
+      fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${tempPath}:/content`, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": file.type || "application/pdf",
         },
         body: file,
         signal,
+      });
+
+    let activeToken = token;
+    let odRes: Response | null = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      odRes = await putOneDrive(activeToken);
+      if (odRes.status === 401) {
+        const refreshed = await ensureOneDriveConnection();
+        if (!refreshed) {
+          throw new Error(
+            "Session OneDrive expirée (401 Graph). Reconnectez-vous à Microsoft puis relancez les fichiers restants.",
+          );
+        }
+        activeToken = refreshed;
+        continue;
       }
-    );
-    if (!odRes.ok) {
-      throw new Error("Échec upload OneDrive Temp : " + (await odRes.text()));
+      if (odRes.status === 429) {
+        const waitMs = parseRetryAfterMs(odRes, attempt);
+        await sleep(waitMs);
+        continue;
+      }
+      break;
+    }
+    if (!odRes || !odRes.ok) {
+      const detail = odRes ? await odRes.text() : "réponse vide";
+      const status = odRes?.status ?? 0;
+      const hint =
+        status === 401
+          ? "Session OneDrive expirée — reconnectez Microsoft."
+          : status === 429
+            ? "Limite de requêtes OneDrive atteinte — relancez les fichiers restants dans quelques minutes."
+            : status >= 500
+              ? "Service Microsoft Graph temporairement indisponible."
+              : "";
+      throw new Error(
+        `Échec upload OneDrive Temp (${status})${hint ? ` — ${hint}` : ""} : ${detail.slice(0, 300)}`,
+      );
     }
     return { key, tempPath };
   };
@@ -514,6 +589,25 @@ function OneDriveUpDocsOCRAIContent() {
         }),
         signal,
       });
+      if (moveRes.status === 401) {
+        const refreshed = await ensureOneDriveConnection();
+        if (refreshed) {
+          const retry = await fetch("/api/agentIAOCR/move-file", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken: refreshed,
+              sourcePath,
+              targetFolderPath,
+              newFileName,
+            }),
+            signal,
+          });
+          if (retry.ok) {
+            return { success: true, result: ai, fileName: displayName };
+          }
+        }
+      }
       if (!moveRes.ok) {
         throw new Error(
           "Le fichier n'a pas pu être déplacé : " + (await moveRes.text())
@@ -533,7 +627,7 @@ function OneDriveUpDocsOCRAIContent() {
 
   const processSingleFile = async (file: File, signal: AbortSignal): Promise<ProcessResult> => {
     try {
-      const token = oneDriveTokenRef.current;
+      const token = await ensureOneDriveConnection();
       if (!token) throw new Error("Pas de token OneDrive disponible");
       const { key, tempPath } = await uploadToS3AndOneDrive(file, token, signal);
       const r2 = await fetch("/api/agentIAOCR/ocr-process", {
@@ -586,7 +680,7 @@ function OneDriveUpDocsOCRAIContent() {
       });
     };
     try {
-      const token = oneDriveTokenRef.current;
+      const token = await ensureOneDriveConnection();
       if (!token) throw new Error("Pas de token OneDrive disponible");
       report(`Envoi de ${file.name}…`, 4);
       const { key } = await uploadToS3AndOneDrive(file, token, signal);
@@ -691,6 +785,7 @@ function OneDriveUpDocsOCRAIContent() {
         );
         let tempSegPath: string | undefined;
         try {
+          const segToken = (await ensureOneDriveConnection()) ?? token;
           const slice = buildTextFromPages(
             ocr.pageTexts,
             seg.pageStart,
@@ -742,16 +837,40 @@ function OneDriveUpDocsOCRAIContent() {
             {
               method: "PUT",
               headers: {
-                Authorization: `Bearer ${token}`,
+                Authorization: `Bearer ${segToken}`,
                 "Content-Type": "application/pdf",
               },
               body: pdfBlob,
               signal,
             }
           );
-          if (!odPut.ok) {
+          if (odPut.status === 401) {
+            const refreshed = await ensureOneDriveConnection();
+            if (!refreshed) {
+              throw new Error(
+                "Session OneDrive expirée (401) pendant le découpage — reconnectez Microsoft.",
+              );
+            }
+            const retryPut = await fetch(
+              `https://graph.microsoft.com/v1.0/me/drive/root:/${tempSegPath}:/content`,
+              {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${refreshed}`,
+                  "Content-Type": "application/pdf",
+                },
+                body: pdfBlob,
+                signal,
+              }
+            );
+            if (!retryPut.ok) {
+              throw new Error("Upload segment OneDrive : " + (await retryPut.text()));
+            }
+          } else if (!odPut.ok) {
             throw new Error("Upload segment OneDrive : " + (await odPut.text()));
           }
+
+          const moveToken = (await ensureOneDriveConnection()) ?? segToken;
 
           const r4 = await fetch("/api/agentIAOCR/analyze-doc-match-eleve", {
             method: "POST",
@@ -785,14 +904,34 @@ function OneDriveUpDocsOCRAIContent() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              accessToken: token,
+              accessToken: moveToken,
               sourcePath: tempSegPath,
               targetFolderPath: ai.oneDriveFolderPath,
               newFileName: segmentOdName,
             }),
             signal,
           });
-          if (!moveRes.ok) {
+          if (moveRes.status === 401) {
+            const refreshed = await ensureOneDriveConnection();
+            if (refreshed) {
+              const retryMove = await fetch("/api/agentIAOCR/move-file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  accessToken: refreshed,
+                  sourcePath: tempSegPath,
+                  targetFolderPath: ai.oneDriveFolderPath,
+                  newFileName: segmentOdName,
+                }),
+                signal,
+              });
+              if (!retryMove.ok) {
+                throw new Error(await retryMove.text());
+              }
+            } else {
+              throw new Error("Session OneDrive expirée lors du rangement du segment.");
+            }
+          } else if (!moveRes.ok) {
             throw new Error(await moveRes.text());
           }
           results.push({ success: true, result: ai, fileName: label });
@@ -838,7 +977,8 @@ function OneDriveUpDocsOCRAIContent() {
     items: T[],
     batchSize: number,
     processFn: (item: T) => Promise<R>,
-    onProgress: (results: R[]) => void
+    onProgress: (results: R[]) => void,
+    onBetweenFiles?: (info: { processed: number; total: number; pauseMs: number }) => void | Promise<void>,
   ): Promise<R[]> {
     const results: R[] = [];
     for (let i = 0; i < items.length; i += batchSize) {
@@ -847,7 +987,13 @@ function OneDriveUpDocsOCRAIContent() {
       results.push(...batchResults);
       onProgress(results);
       if (i + batchSize < items.length) {
-        await new Promise((r) => setTimeout(r, 2000));
+        const processed = results.length;
+        let pauseMs = interFileDelayMs(processed, items.length);
+        if (processed > 0 && processed % 25 === 0) {
+          pauseMs += 10_000;
+        }
+        await onBetweenFiles?.({ processed, total: items.length, pauseMs });
+        await sleep(pauseMs);
       }
     }
     return results;
@@ -905,6 +1051,146 @@ function OneDriveUpDocsOCRAIContent() {
     }, sessionId);
   };
 
+  const resumeBatchWithOneDrive = useCallback(async () => {
+    if (!activeBatchJobId) return;
+    const token = await ensureOneDriveConnection();
+    if (!token) return;
+    const res = await fetch("/api/agentIAOCR/batch-job/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: activeBatchJobId, accessToken: token }),
+    });
+    if (!res.ok) {
+      setError(await res.text());
+      return;
+    }
+    setBatchJobNeedsToken(false);
+    setError("");
+  }, [activeBatchJobId, ensureOneDriveConnection]);
+
+  useEffect(() => {
+    if (!clerkUser?.id) return;
+    void (async () => {
+      try {
+        const listRes = await fetch("/api/agentIAOCR/batch-job/list");
+        if (!listRes.ok) return;
+        const listData = await listRes.json();
+        const active = (listData.jobs as Array<{ jobId: string; status: string }> | undefined)?.find(
+          (j) => j.status === "pending" || j.status === "processing" || j.status === "needs_token",
+        );
+        const stored = localStorage.getItem(BATCH_JOB_STORAGE_KEY);
+        const jobId = active?.jobId || stored;
+        if (!jobId) return;
+
+        const stRes = await fetch(
+          `/api/agentIAOCR/batch-job/status?jobId=${encodeURIComponent(jobId)}`,
+        );
+        if (stRes.ok) {
+          const st = await stRes.json();
+          if (st.status === "completed" || st.status === "failed") {
+            localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
+            if (Array.isArray(st.results)) setOcrResults(st.results);
+            setProcessingStatus({
+              percent: st.status === "completed" ? 100 : st.percent ?? 0,
+              label: st.label || "",
+              done: st.currentItemIndex ?? 0,
+              total: st.totalItems ?? 0,
+              totalKnown: true,
+              completed: st.completed ?? 0,
+              failed: st.failed ?? 0,
+            });
+            if (st.status === "failed" && st.error) setError(String(st.error));
+            return;
+          }
+        }
+
+        setActiveBatchJobId(jobId);
+        setOcrProcessing(true);
+        if (active?.status === "needs_token") setBatchJobNeedsToken(true);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [clerkUser?.id]);
+
+  useEffect(() => {
+    if (!activeBatchJobId || batchJobNeedsToken) return;
+    let cancelled = false;
+    let polls = 0;
+
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        if (polls > 0) await sleep(polls < 3 ? 2000 : 4000);
+        polls += 1;
+
+        if (polls % 5 === 0) {
+          const fresh = await ensureOneDriveConnection();
+          if (fresh) {
+            await fetch("/api/agentIAOCR/batch-job/token", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                jobId: activeBatchJobId,
+                accessToken: fresh,
+                refreshOnly: true,
+              }),
+            });
+          }
+        }
+
+        await fetch("/api/agentIAOCR/batch-job/process", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId: activeBatchJobId }),
+        });
+
+        const stRes = await fetch(
+          `/api/agentIAOCR/batch-job/status?jobId=${encodeURIComponent(activeBatchJobId)}`,
+        );
+        if (!stRes.ok || cancelled) return;
+        const st = await stRes.json();
+
+        setProcessingStatus({
+          percent: typeof st.percent === "number" ? st.percent : 0,
+          label: st.label || "Traitement serveur en cours…",
+          done: typeof st.currentItemIndex === "number" ? st.currentItemIndex : 0,
+          total: typeof st.totalItems === "number" ? st.totalItems : 0,
+          totalKnown: true,
+          completed: typeof st.completed === "number" ? st.completed : 0,
+          failed: typeof st.failed === "number" ? st.failed : 0,
+        });
+        if (Array.isArray(st.results)) {
+          setOcrResults(st.results);
+          setOcrResultsSessionId((id) => id + 1);
+        }
+
+        if (st.status === "needs_token") {
+          setBatchJobNeedsToken(true);
+          setOcrProcessing(true);
+          return;
+        }
+
+        if (st.status === "completed" || st.status === "failed") {
+          setOcrProcessing(false);
+          setActiveBatchJobId(null);
+          localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
+          if (st.status === "failed" && st.error) setError(String(st.error));
+          return;
+        }
+
+        void tick();
+      } catch (e) {
+        if (!cancelled) console.warn("[agentIAOCR] poll batch:", e);
+      }
+    };
+
+    void tick();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBatchJobId, batchJobNeedsToken, ensureOneDriveConnection]);
+
   const runProcessing = async (
     standardFiles: File[],
     classFiles: File[],
@@ -920,99 +1206,112 @@ function OneDriveUpDocsOCRAIContent() {
     setOcrProcessing(true);
     setError("");
     setOcrResults([]);
-    const allResults: ProcessResult[] = [];
+    setBatchJobNeedsToken(false);
+    setActiveBatchJobId(null);
 
-    const hasStd = standardFiles.length > 0;
-    const hasClass = classFiles.length > 0;
-    const stdShare = hasStd && hasClass ? 0.2 : hasStd ? 1 : 0;
-    const classShare = hasClass && hasStd ? 0.8 : hasClass ? 1 : 0;
+    const allEntries: { file: File; mode: "standard" | "class" }[] = [
+      ...standardFiles.map((file) => ({ file, mode: "standard" as const })),
+      ...classFiles.map((file) => ({ file, mode: "class" as const })),
+    ];
 
-    applyProcessingProgress({
-      percent: 1,
-      label: "Préparation du traitement…",
-      done: 0,
-      total: 0,
-      totalKnown: false,
-      completed: 0,
-      failed: 0,
-    }, sessionId);
+    applyProcessingProgress(
+      {
+        percent: 1,
+        label: "Envoi des fichiers vers S3 et OneDrive…",
+        done: 0,
+        total: allEntries.length,
+        totalKnown: true,
+        completed: 0,
+        failed: 0,
+      },
+      sessionId,
+    );
 
     try {
-      if (standardFiles.length > 0) {
-        const flat = await processInBatches(
-          standardFiles,
-          1,
-          (file) => processSingleFile(file, signal),
-          (batchResults) => {
-            if (!isActiveOcrSession(sessionId)) return;
-            const merged = [...allResults, ...batchResults];
-            const done = batchResults.length;
-            const pct = hasClass
-              ? Math.round(stdShare * 100 * (done / standardFiles.length))
-              : Math.round((100 * done) / standardFiles.length);
-            applyProcessingProgress({
-              percent: pct,
-              label: `PDF standard ${done} / ${standardFiles.length}`,
-              done,
-              total: standardFiles.length,
-              totalKnown: true,
-              completed: merged.filter((r) => r.success).length,
-              failed: merged.filter((r) => !r.success).length,
-            }, sessionId);
-          },
-        );
-        allResults.push(...flat);
-        if (!hasClass) {
-          applyProcessingProgress({
-            percent: 100,
-            label: `Terminé — ${flat.length} PDF traité${flat.length > 1 ? "s" : ""}`,
-            done: flat.length,
-            total: flat.length,
-            totalKnown: true,
-            completed: flat.filter((r) => r.success).length,
-            failed: flat.filter((r) => !r.success).length,
-          }, sessionId);
-        }
-      }
+      const items: Array<{
+        fileName: string;
+        mode: "standard" | "class";
+        s3Key: string;
+        tempPath: string;
+      }> = [];
 
-      for (let ci = 0; ci < classFiles.length; ci++) {
-        if (!isActiveOcrSession(sessionId)) break;
-        const file = classFiles[ci];
-        const classBase = allResults.length;
-        const segmentResults = await processClassFile(file, signal, (info) => {
-          mergeClassProgress(allResults, classBase, info, stdShare, classShare, sessionId);
-        });
-        allResults.push(...segmentResults);
-        if (ci < classFiles.length - 1) {
-          await new Promise((r) => setTimeout(r, 1500));
+      let uploadToken = token;
+
+      for (let i = 0; i < allEntries.length; i++) {
+        if (!isActiveOcrSession(sessionId)) return;
+        if (i > 0 && i % 25 === 0) {
+          const refreshed = await ensureOneDriveConnection();
+          if (refreshed) uploadToken = refreshed;
         }
+        const { file, mode } = allEntries[i];
+        applyProcessingProgress(
+          {
+            percent: Math.max(2, Math.round((32 * (i + 1)) / allEntries.length)),
+            label: `Upload ${i + 1} / ${allEntries.length} — ${file.name}`,
+            done: i,
+            total: allEntries.length,
+            totalKnown: true,
+            completed: 0,
+            failed: 0,
+          },
+          sessionId,
+        );
+        const { key, tempPath } = await uploadToS3AndOneDrive(file, uploadToken, signal);
+        items.push({ fileName: file.name, mode, s3Key: key, tempPath });
       }
 
       if (!isActiveOcrSession(sessionId)) return;
 
-      if (allResults.length > 0) {
-        applyProcessingProgress({
-          percent: 100,
-          label: `Terminé — ${allResults.length} document${allResults.length > 1 ? "s" : ""} traité${allResults.length > 1 ? "s" : ""}`,
-          done: allResults.length,
-          total: allResults.length,
+      const freshToken = (await ensureOneDriveConnection()) ?? uploadToken;
+
+      applyProcessingProgress(
+        {
+          percent: 36,
+          label: "Lancement du traitement sur le serveur…",
+          done: allEntries.length,
+          total: allEntries.length,
           totalKnown: true,
-          completed: allResults.filter((r) => r.success).length,
-          failed: allResults.filter((r) => !r.success).length,
-        }, sessionId);
-      }
-      setOcrResultsSessionId(sessionId);
-      setOcrResults(allResults);
+          completed: 0,
+          failed: 0,
+        },
+        sessionId,
+      );
+
+      const createRes = await fetch("/api/agentIAOCR/batch-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: freshToken, items }),
+        signal,
+      });
+      if (!createRes.ok) throw new Error(await createRes.text());
+      const created = await createRes.json();
+      const jobId = created.jobId as string | undefined;
+      if (!jobId) throw new Error("Impossible de créer le traitement serveur");
+
+      localStorage.setItem(BATCH_JOB_STORAGE_KEY, jobId);
+      setActiveBatchJobId(jobId);
+      applyProcessingProgress(
+        {
+          percent: 40,
+          label: `Traitement serveur lancé (${items.length} PDF) — vous pouvez quitter cette page`,
+          done: 0,
+          total: items.length,
+          totalKnown: true,
+          completed: 0,
+          failed: 0,
+        },
+        sessionId,
+      );
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (!isActiveOcrSession(sessionId)) return;
+      setOcrProcessing(false);
       setError(
-        "Erreur globale OCR / Analyse: " +
-          (err instanceof Error ? err.message : String(err))
+        "Erreur lors de l'envoi ou du lancement : " +
+          (err instanceof Error ? err.message : String(err)),
       );
     } finally {
       if (isActiveOcrSession(sessionId)) {
-        setOcrProcessing(false);
         if (standardInputRef.current) standardInputRef.current.value = "";
         if (classInputRef.current) classInputRef.current.value = "";
       }
@@ -1076,14 +1375,18 @@ function OneDriveUpDocsOCRAIContent() {
   };
 
   const enqueueStandard = async (fileList: FileList | File[]) => {
-    const token = await ensureOneDriveConnection();
-    if (!token) return;
+    if (!oneDriveVerified || !oneDriveTokenRef.current) {
+      const token = await ensureOneDriveConnection();
+      if (!token) return;
+    }
     enqueueOcrFiles(fileList, "standard");
   };
 
   const enqueueClass = async (fileList: FileList | File[]) => {
-    const token = await ensureOneDriveConnection();
-    if (!token) return;
+    if (!oneDriveVerified || !oneDriveTokenRef.current) {
+      const token = await ensureOneDriveConnection();
+      if (!token) return;
+    }
     enqueueOcrFiles(fileList, "class");
   };
 
@@ -1259,6 +1562,31 @@ function OneDriveUpDocsOCRAIContent() {
         <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-xl">
           <p className="font-bold">Attention</p>
           <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {batchJobNeedsToken && activeBatchJobId && (
+        <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 rounded-r-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="font-bold">Session OneDrive expirée</p>
+            <p className="text-sm">
+              Le traitement serveur est en pause. Reconnectez Microsoft pour reprendre le rangement des fichiers restants.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void resumeBatchWithOneDrive()}
+            className="shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl"
+          >
+            Reconnecter et reprendre
+          </button>
+        </div>
+      )}
+
+      {activeBatchJobId && ocrProcessing && !batchJobNeedsToken && (
+        <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl text-sm">
+          Traitement en cours sur le <strong>serveur</strong> — vous pouvez fermer cet onglet ou éteindre votre poste.
+          Revenez plus tard sur cette page pour suivre la progression.
         </div>
       )}
 
