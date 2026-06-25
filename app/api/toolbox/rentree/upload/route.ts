@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { requireAdmin } from "@/app/lib/intranet-auth";
+import { rentreePublicFileApiUrl } from "@/app/lib/rentree-public-urls";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 import { s3Key } from "@/app/lib/s3-path";
-import { publicS3UrlForKey } from "@/app/lib/travels-s3";
 
 const ALLOWED_TYPES = new Set([
   "application/pdf",
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       uploadUrl,
-      fileUrl: await publicS3UrlForKey(fileKey),
+      fileUrl: rentreePublicFileApiUrl(fileKey),
     });
   } catch (error) {
     console.error("[toolbox/rentree/upload]", error);

@@ -43,10 +43,12 @@ import { contentSecurityPolicyHeaderValue } from '@/app/lib/content-security-pol
 const isPublicRoute = createRouteMatcher([
   '/',
   '/rentree(.*)',
+  '/documents/rentree(.*)',
   '/simulateurTarifs(.*)',
   '/simulateurFournitures(.*)',
   '/portes-ouvertes(.*)',
   '/api/toolbox/public',
+  '/api/rentree/file',
   '/api/portes-ouvertes/register',
   '/faire-une-demande(.*)',
   '/demande/merci',
@@ -408,6 +410,7 @@ export default isMultiTenantEnabled() ? multiTenantMiddleware : clerkMw;
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|otf|mp4|mp3|pdf)).*)',
+    '/documents/rentree/:path*',
     '/',
     '/(api|trpc)(.*)',
   ],

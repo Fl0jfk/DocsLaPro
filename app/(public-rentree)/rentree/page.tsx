@@ -1,5 +1,6 @@
 import { loadAppConfig } from "@/app/lib/app-config";
 import { resolveRentreePageId } from "@/app/lib/rentree-pages";
+import { resolveRentreePagesPublicHrefs } from "@/app/lib/rentree-public-urls";
 import { getToolboxConfigResolved } from "@/app/lib/toolbox-config";
 import { requireRentreePublicPage } from "@/app/lib/toolbox-public-gate";
 import RentreePageClient from "./RentreePageClient";
@@ -17,12 +18,13 @@ export default async function RentreePage({
     establishment: sp.establishment,
     level: sp.level,
   });
+  const pages = await resolveRentreePagesPublicHrefs(rentree.pages);
 
   return (
     <RentreePageClient
       title={rentree.title}
       schoolYear={rentree.schoolYear}
-      pages={rentree.pages}
+      pages={pages}
       initialEstablishmentId={initialEstablishmentId}
       showFournitures={rentree.showSimulateurFournitures && toolbox.tools["simulateur-fournitures"].enabled}
       showPortesOuvertes={toolbox.tools["portes-ouvertes"].enabled}
