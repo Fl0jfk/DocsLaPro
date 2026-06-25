@@ -7,7 +7,11 @@ import {
   getMergedProfileSections,
   profileHasOverride,
 } from "@/app/lib/fournitures-profiles";
-import type { FournituresSection, FournituresToolConfig } from "@/app/lib/fournitures-types";
+import type {
+  FournituresSection,
+  FournituresStage,
+  FournituresToolConfig,
+} from "@/app/lib/fournitures-types";
 
 type StageFilter = "ecole" | "college" | "lycee";
 
@@ -16,39 +20,55 @@ type Props = {
   onChange: (patch: Partial<FournituresToolConfig>) => void;
 };
 
+const STAGE_LINK_META: Record<FournituresStage, { label: string; hint: string }> = {
+  ecole: {
+    label: "Lien partenaire — École",
+    hint: "Flyer ou page de commande affiché aux familles (école uniquement).",
+  },
+  college: {
+    label: "Lien partenaire — Collège",
+    hint: "Flyer ou page de commande affiché aux familles (collège uniquement).",
+  },
+  lycee: {
+    label: "Lien partenaire — Lycée",
+    hint: "Flyer ou page partenaire affiché aux familles (lycée uniquement).",
+  },
+};
+
 function emptySection(): FournituresSection {
   return { title: "Nouvelle rubrique", items: [] };
 }
 
-type PdfField = "colbertPdfUrl" | "arbsPdfUrl";
-
-function FournituresPdfField({
-  label,
-  hint,
-  value,
-  field,
+function FournituresStageLinkField({
+  stage,
+  url,
+  badgeLabel,
   uploading,
   onUpload,
-  onChange,
+  onChangeUrl,
+  onChangeLabel,
 }: {
-  label: string;
-  hint?: string;
-  value: string;
-  field: PdfField;
+  stage: FournituresStage;
+  url: string;
+  badgeLabel: string;
   uploading: boolean;
-  onUpload: (field: PdfField, file: File) => void;
-  onChange: (url: string) => void;
+  onUpload: (stage: FournituresStage, file: File) => void;
+  onChangeUrl: (url: string) => void;
+  onChangeLabel: (label: string) => void;
 }) {
-  const trimmed = value.trim();
+  const meta = STAGE_LINK_META[stage];
+  const trimmed = url.trim();
   return (
-    <label className="block sm:col-span-2">
-      <span className="text-xs font-bold uppercase text-slate-500">{label}</span>
-      {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
-      <div className="mt-1 flex flex-wrap items-center gap-2">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3 sm:col-span-2">
+      <div>
+        <span className="text-xs font-bold uppercase text-slate-500">{meta.label}</span>
+        <p className="mt-0.5 text-xs text-slate-500">{meta.hint}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
         <input
-          className="min-w-[12rem] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-mono text-xs"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          className="min-w-[12rem] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono text-xs"
+          value={url}
+          onChange={(e) => onChangeUrl(e.target.value)}
           placeholder="https://… (ou chargez un PDF ci-contre)"
         />
         <label className="cursor-pointer shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
@@ -60,7 +80,7 @@ function FournituresPdfField({
             disabled={uploading}
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) onUpload(field, file);
+              if (file) onUpload(stage, file);
               e.target.value = "";
             }}
           />
@@ -76,12 +96,21 @@ function FournituresPdfField({
           </a>
         ) : null}
       </div>
-    </label>
+      <label className="block">
+        <span className="text-xs font-bold uppercase text-slate-500">Libellé du badge (optionnel)</span>
+        <input
+          className="mt-1 w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          value={badgeLabel}
+          onChange={(e) => onChangeLabel(e.target.value)}
+          placeholder="ex. Colbert, ARBS…"
+        />
+      </label>
+    </div>
   );
 }
 
 export default function FournituresEditor({ config, onChange }: Props) {
-  const [uploadingField, setUploadingField] = useState<PdfField | null>(null);
+  const [uploadingStage, setUploadingStage] = useState<FournituresStage | null>(null);
   const [stage, setStage] = useState<StageFilter>("ecole");
   const profilesInStage = useMemo(
     () => FOURNITURES_PROFILES.filter((p) => p.stage === stage),
@@ -95,6 +124,21 @@ export default function FournituresEditor({ config, onChange }: Props) {
   const activeMeta = FOURNITURES_PROFILES.find((p) => p.id === activeId);
   const sections = getMergedProfileSections(activeId, config.profiles);
   const isCustom = profileHasOverride(activeId, config.profiles);
+
+  function patchStageLink(stageKey: FournituresStage, patch: { url?: string; label?: string }) {
+    const current = config.stageLinks[stageKey];
+    const nextUrl = patch.url !== undefined ? patch.url : (current?.url ?? "");
+    const nextLabel = patch.label !== undefined ? patch.label : (current?.label ?? "");
+    const trimmedUrl = nextUrl.trim();
+    const trimmedLabel = nextLabel.trim();
+    const nextLinks = { ...config.stageLinks };
+    if (!trimmedUrl) {
+      delete nextLinks[stageKey];
+    } else {
+      nextLinks[stageKey] = trimmedLabel ? { url: trimmedUrl, label: trimmedLabel } : { url: trimmedUrl };
+    }
+    onChange({ stageLinks: nextLinks });
+  }
 
   function setProfileSections(profileId: string, next: FournituresSection[]) {
     onChange({
@@ -147,9 +191,8 @@ export default function FournituresEditor({ config, onChange }: Props) {
     setProfileSections(activeId, next);
   }
 
-  async function uploadPdf(field: PdfField, file: File) {
-    const kind = field === "colbertPdfUrl" ? "colbert" : "arbs";
-    setUploadingField(field);
+  async function uploadPdf(stageKey: FournituresStage, file: File) {
+    setUploadingStage(stageKey);
     try {
       const res = await fetch("/api/toolbox/fournitures/upload", {
         method: "POST",
@@ -157,7 +200,7 @@ export default function FournituresEditor({ config, onChange }: Props) {
         body: JSON.stringify({
           fileName: file.name,
           fileType: file.type || "application/pdf",
-          kind,
+          kind: stageKey,
         }),
       });
       const data = await res.json();
@@ -170,11 +213,11 @@ export default function FournituresEditor({ config, onChange }: Props) {
       });
       if (!put.ok) throw new Error("Envoi du fichier vers S3 échoué");
 
-      onChange({ [field]: data.fileUrl as string });
+      patchStageLink(stageKey, { url: data.fileUrl as string });
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Erreur upload");
     } finally {
-      setUploadingField(null);
+      setUploadingStage(null);
     }
   }
 
@@ -205,24 +248,18 @@ export default function FournituresEditor({ config, onChange }: Props) {
             onChange={(e) => onChange({ schoolYear: e.target.value })}
           />
         </label>
-        <FournituresPdfField
-          label="PDF Colbert (optionnel)"
-          hint="Flyer librairie Colbert — lien HTTPS affiché aux familles."
-          value={config.colbertPdfUrl || ""}
-          field="colbertPdfUrl"
-          uploading={uploadingField === "colbertPdfUrl"}
-          onUpload={uploadPdf}
-          onChange={(url) => onChange({ colbertPdfUrl: url })}
-        />
-        <FournituresPdfField
-          label="Lien ARBS location manuels (optionnel)"
-          hint="Flyer ARBS — location de manuels scolaires (lycée)."
-          value={config.arbsPdfUrl || ""}
-          field="arbsPdfUrl"
-          uploading={uploadingField === "arbsPdfUrl"}
-          onUpload={uploadPdf}
-          onChange={(url) => onChange({ arbsPdfUrl: url })}
-        />
+        {(["ecole", "college", "lycee"] as const).map((stageKey) => (
+          <FournituresStageLinkField
+            key={stageKey}
+            stage={stageKey}
+            url={config.stageLinks[stageKey]?.url ?? ""}
+            badgeLabel={config.stageLinks[stageKey]?.label ?? ""}
+            uploading={uploadingStage === stageKey}
+            onUpload={uploadPdf}
+            onChangeUrl={(url) => patchStageLink(stageKey, { url })}
+            onChangeLabel={(label) => patchStageLink(stageKey, { label })}
+          />
+        ))}
       </div>
 
       <nav className="flex flex-wrap gap-2">

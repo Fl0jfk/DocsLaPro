@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import RentreePublicHeader from "@/app/components/RentreePublicHeader";
 import { SCHOOL } from "@/app/lib/school";
-import type { FournituresToolConfig } from "@/app/lib/fournitures-types";
+import type { FournituresStage, FournituresToolConfig } from "@/app/lib/fournitures-types";
 import {
   dedupeStrings,
   formatChildLabel,
@@ -19,8 +19,21 @@ import {
   type Stage,
 } from "@/app/lib/fournitures-engine";
 
-const DEFAULT_ARBS_URL =
-  "https://scola-image.s3.eu-west-3.amazonaws.com/rentree/Flyer-ARBS.pdf";
+const STAGE_PARTNER_BADGE_CLASS: Record<FournituresStage, string> = {
+  ecole: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100",
+  college: "bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100",
+  lycee: "bg-pink-50 border-pink-200 text-pink-700 hover:bg-pink-100",
+};
+
+function getStagePartnerLink(config: FournituresToolConfig, stage: FournituresStage) {
+  const link = config.stageLinks[stage];
+  const url = link?.url?.trim();
+  if (!url) return null;
+  return {
+    url,
+    label: link?.label?.trim() || "Partenaire",
+  };
+}
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -237,19 +250,22 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
               <div className="bg-white border border-slate-200 rounded-2xl p-5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Détails par enfant</p>
                 <div className="mt-4 space-y-6">
-                  {computed.withSupplies.map(({ child, supplies }) => (
+                  {computed.withSupplies.map(({ child, supplies }) => {
+                    const partner = getStagePartnerLink(config, child.stage);
+                    const badgeClass = STAGE_PARTNER_BADGE_CLASS[child.stage];
+                    return (
                     <div key={child.id} className="border border-slate-100 rounded-2xl p-4">
                       <h3 className="font-black text-slate-900 text-sm">{formatChildLabel(child)}</h3>
-                      {child.stage === "lycee" && (
+                      {partner && (
                         <a
-                          href={config.arbsPdfUrl || DEFAULT_ARBS_URL}
+                          href={partner.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-2 mb-3 inline-flex items-center gap-2 bg-pink-50 border border-pink-200 text-pink-700 text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full hover:bg-pink-100 transition print:hidden"
+                          className={`mt-2 mb-3 inline-flex items-center gap-2 border text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition print:hidden ${badgeClass}`}
                         >
-                          <span>📚</span>
-                          <span>Partenariat ARBS — Location de manuels</span>
-                          <span className="text-pink-400">→ Flyer PDF</span>
+                          <span>🔗</span>
+                          <span>{partner.label}</span>
+                          <span className="opacity-60">→ Flyer PDF</span>
                         </a>
                       )}
                       <div className="mt-3 space-y-4">
@@ -264,15 +280,15 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                                     className="inline-block shrink-0 w-3 h-3 border border-slate-400 rounded-[2px]"
                                   />
                                   <span className="flex-1">{it}</span>
-                                  {child.stage === "lycee" && (
+                                  {partner && (
                                     <a
-                                      href={config.arbsPdfUrl || DEFAULT_ARBS_URL}
+                                      href={partner.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      title="Location de ce manuel via ARBS"
-                                      className="shrink-0 inline-flex items-center gap-1 bg-pink-50 border border-pink-200 text-pink-600 text-[10px] font-black px-2 py-0.5 rounded-full hover:bg-pink-100 transition print:hidden"
+                                      title={partner.label}
+                                      className={`shrink-0 inline-flex items-center gap-1 border text-[10px] font-black px-2 py-0.5 rounded-full transition print:hidden ${badgeClass}`}
                                     >
-                                      📚 ARBS
+                                      {partner.label}
                                     </a>
                                   )}
                                 </li>
@@ -282,7 +298,8 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                         ))}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

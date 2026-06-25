@@ -1,8 +1,54 @@
 import type {
+  FournituresPartnerLink,
   FournituresProfileOverrides,
   FournituresSection,
+  FournituresStage,
+  FournituresStagePartnerLinks,
   FournituresToolConfig,
 } from "@/app/lib/fournitures-types";
+
+const STAGES: FournituresStage[] = ["ecole", "college", "lycee"];
+
+function parsePartnerLink(raw: unknown): FournituresPartnerLink | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === "string") {
+    const url = raw.trim();
+    return url ? { url } : undefined;
+  }
+  if (typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const url = String(o.url || "").trim();
+    if (!url) return undefined;
+    const label = String(o.label || "").trim() || undefined;
+    return label ? { url, label } : { url };
+  }
+  return undefined;
+}
+
+function parseStageLinks(raw: Record<string, unknown>): FournituresStagePartnerLinks {
+  const rawLinks = raw.stageLinks;
+  if (rawLinks && typeof rawLinks === "object") {
+    const out: FournituresStagePartnerLinks = {};
+    for (const stage of STAGES) {
+      const link = parsePartnerLink((rawLinks as Record<string, unknown>)[stage]);
+      if (link) out[stage] = link;
+    }
+    if (Object.keys(out).length > 0) return out;
+  }
+
+  const out: FournituresStagePartnerLinks = {};
+  const colbert = String(raw.colbertPdfUrl || "").trim();
+  const arbs = String(raw.arbsPdfUrl || "").trim();
+  if (colbert) {
+    const link: FournituresPartnerLink = { url: colbert, label: "Colbert" };
+    out.ecole = link;
+    out.college = { ...link };
+  }
+  if (arbs) {
+    out.lycee = { url: arbs, label: "ARBS" };
+  }
+  return out;
+}
 
 function parseSections(raw: unknown): FournituresSection[] {
   if (!Array.isArray(raw)) return [];
@@ -39,8 +85,7 @@ export function parseFournituresToolConfig(
     enabled: raw.enabled === true,
     title: String(raw.title || defaults.title).trim(),
     schoolYear: String(raw.schoolYear || defaults.schoolYear).trim(),
-    colbertPdfUrl: String(raw.colbertPdfUrl || defaults.colbertPdfUrl || "").trim() || undefined,
-    arbsPdfUrl: String(raw.arbsPdfUrl || defaults.arbsPdfUrl || "").trim() || undefined,
+    stageLinks: parseStageLinks(raw),
     profiles: parseFournituresProfiles(raw.profiles),
   };
 }

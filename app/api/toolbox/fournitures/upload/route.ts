@@ -7,22 +7,33 @@ import { getBucketName } from "@/app/lib/s3-storage";
 import { s3Key } from "@/app/lib/s3-path";
 import { publicS3UrlForKey } from "@/app/lib/travels-s3";
 
-const ALLOWED_KINDS = new Set(["colbert", "arbs"]);
+const ALLOWED_KINDS = new Set(["ecole", "college", "lycee", "colbert", "arbs"]);
+
+function normalizeUploadKind(kind: string): string | null {
+  const k = kind.trim().toLowerCase();
+  if (k === "colbert") return "ecole";
+  if (k === "arbs") return "lycee";
+  if (ALLOWED_KINDS.has(k)) return k;
+  return null;
+}
 
 function safeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "document.pdf";
 }
 
-/** Prépare un upload PDF Colbert / ARBS vers S3 (URL HTTPS publique du tenant). */
+/** Prépare un upload PDF partenaire (par cycle) vers S3 (URL HTTPS publique du tenant). */
 export async function POST(req: Request) {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
 
   try {
     const { fileName, fileType, kind } = await req.json();
-    const docKind = String(kind || "").trim().toLowerCase();
-    if (!ALLOWED_KINDS.has(docKind)) {
-      return NextResponse.json({ error: "Type de document invalide (colbert ou arbs)." }, { status: 400 });
+    const docKind = normalizeUploadKind(String(kind || ""));
+    if (!docKind) {
+      return NextResponse.json(
+        { error: "Type de document invalide (ecole, college ou lycee)." },
+        { status: 400 },
+      );
     }
 
     const type = String(fileType || "").trim().toLowerCase();

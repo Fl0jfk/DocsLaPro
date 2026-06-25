@@ -57,12 +57,21 @@ export type FournituresChild =
 /** Overrides par identifiant de profil (classe ou rubrique). */
 export type FournituresProfileOverrides = Record<string, FournituresSection[]>;
 
+/** Lien partenaire optionnel affiché sur le simulateur pour un cycle. */
+export type FournituresPartnerLink = {
+  url: string;
+  /** Libellé du badge (ex. Colbert, ARBS). Défaut : « Partenaire ». */
+  label?: string;
+};
+
+export type FournituresStagePartnerLinks = Partial<Record<FournituresStage, FournituresPartnerLink>>;
+
 export type FournituresToolConfig = {
   enabled: boolean;
   title: string;
   schoolYear: string;
-  colbertPdfUrl?: string;
-  arbsPdfUrl?: string;
+  /** Liens partenaires indépendants par cycle (école, collège, lycée). */
+  stageLinks: FournituresStagePartnerLinks;
   /** Listes éditables — clé = profileId (ex. ecole:CP, college:5e). */
   profiles: FournituresProfileOverrides;
 };
@@ -78,7 +87,6 @@ export type FournituresProfileMeta = {
 export const DEFAULT_FOURNITURES_CONFIG: Omit<FournituresToolConfig, "enabled"> = {
   title: "Simulateur fournitures",
   schoolYear: "2026 / 2027",
-  colbertPdfUrl: "",
-  arbsPdfUrl: "",
+  stageLinks: {},
   profiles: {},
 };
