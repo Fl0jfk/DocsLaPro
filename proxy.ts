@@ -32,7 +32,7 @@ import {
   canAccessIntranetPath,
   isOrgAdminFromSession,
 } from '@/app/lib/intranet-modules';
-import { hasMasterRole } from '@/app/lib/intranet-role-utils';
+import { hasMasterRole, isEleveOnlyRoleSet } from '@/app/lib/intranet-role-utils';
 import {
   intranetRolesFromMetadata,
   intranetRolesFromSessionClaims,
@@ -49,6 +49,7 @@ const isPublicRoute = createRouteMatcher([
   '/portes-ouvertes(.*)',
   '/api/toolbox/public',
   '/api/rentree/file',
+  '/api/fournitures/file',
   '/api/portes-ouvertes/register',
   '/faire-une-demande(.*)',
   '/demande/merci',
@@ -337,7 +338,8 @@ async function handleProxyRequest(
         { status: 403 },
       );
     }
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const fallback = "/dashboard";
+    return NextResponse.redirect(new URL(fallback, request.url));
   }
 
   return nextWithTenant(request, tenant);

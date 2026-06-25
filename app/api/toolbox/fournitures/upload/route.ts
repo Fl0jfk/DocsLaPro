@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { requireAdmin } from "@/app/lib/intranet-auth";
+import { fournituresPublicFileApiUrl } from "@/app/lib/fournitures-public-urls";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 import { s3Key } from "@/app/lib/s3-path";
-import { publicS3UrlForKey } from "@/app/lib/travels-s3";
 
 const ALLOWED_KINDS = new Set(["ecole", "college", "lycee", "colbert", "arbs"]);
 
@@ -21,7 +21,7 @@ function safeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "document.pdf";
 }
 
-/** Prépare un upload PDF partenaire (par cycle) vers S3 (URL HTTPS publique du tenant). */
+/** Prépare un upload PDF partenaire (par cycle) vers S3 (servi via /api/fournitures/file). */
 export async function POST(req: Request) {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       uploadUrl,
-      fileUrl: await publicS3UrlForKey(fileKey),
+      fileUrl: fournituresPublicFileApiUrl(fileKey),
     });
   } catch (error) {
     console.error("[toolbox/fournitures/upload]", error);

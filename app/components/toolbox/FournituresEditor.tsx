@@ -12,6 +12,7 @@ import type {
   FournituresStage,
   FournituresToolConfig,
 } from "@/app/lib/fournitures-types";
+import { fournituresPreviewHref } from "@/app/lib/fournitures-public-urls";
 
 type StageFilter = "ecole" | "college" | "lycee";
 
@@ -87,7 +88,7 @@ function FournituresStageLinkField({
         </label>
         {trimmed ? (
           <a
-            href={trimmed}
+            href={fournituresPreviewHref(trimmed)}
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 text-xs font-bold text-blue-600 underline"

@@ -32,6 +32,16 @@ export function isHiddenMasterMember(roles: string[]): boolean {
 }
 
 /** Paramétrage planning domaines : admin org, direction*, administratif. */
+/** Profil limité au bot bien-être (pas d'accès dashboard staff). */
+export function isEleveOnlyRoleSet(roles: string[]): boolean {
+  const visible = roles.filter((r) => r !== "master");
+  return visible.length > 0 && visible.every((r) => r === "eleve");
+}
+
+export function hasEleveRole(roles: string[]): boolean {
+  return hasRole(roles, "eleve");
+}
+
 export function canAccessDomainPlanningSettingsFromRoles(roles: string[]): boolean {
   if (hasGlobalAdminRole(roles)) return true;
   return roles.some((r) => {

@@ -8,7 +8,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { hasGlobalAdminRole, hasMasterRole, hasRole } from "./intranet-role-utils";
+import { hasGlobalAdminRole, hasMasterRole, hasRole, isEleveOnlyRoleSet } from "./intranet-role-utils";
 import { INTRANET_DIRECTION_SLUGS, intranetRolesExceptParent } from "./intranet-roles";
 import { RGPD_MODULE_ROLES } from "./rgpd-access";
 
@@ -73,6 +73,19 @@ export const INTRANET_ALWAYS_ALLOWED_PREFIXES = [
   "/api/onboarding/status",
   "/onboarding",
   "/configuration-en-cours",
+];
+
+/** Profil élève : accès minimal (dashboard + bulle bien-être). */
+export const INTRANET_ELEVE_ALLOWED_PREFIXES = [
+  "/dashboard",
+  "/api/dashboard",
+  "/api/bien-etre",
+  "/api/app/context",
+  "/api/tenant/public",
+  "/sign-in",
+  "/sign-up",
+  "/sign-out",
+  "/sso-callback",
 ];
 
 /** Réservé au profil Master (invisible, config plateforme). */
@@ -423,6 +436,11 @@ export const INTRANET_MODULES: IntranetModule[] = [
     },
   },
   {
+    id: "bien-etre-referent",
+    pathPrefixes: ["/bien-etre/referent", "/bien-etre/config", "/api/bien-etre/config", "/api/bien-etre/signalements"],
+    allowedRoles: [...DIRECTIONS, "administratif", "education"],
+  },
+  {
     id: "dashboard-academic-deadlines",
     pathPrefixes: ["/api/academic-deadlines", "/api/dashboard/academic-deadlines"],
     allowedRoles: [...DIRECTIONS, "administratif"],
@@ -555,6 +573,12 @@ export function canAccessIntranetPath(
     )
   ) {
     return hasMasterRole(roles);
+  }
+
+  if (isEleveOnlyRoleSet(roles)) {
+    return INTRANET_ELEVE_ALLOWED_PREFIXES.some(
+      (p) => normalized === p || normalized.startsWith(`${p}/`),
+    );
   }
 
   if (

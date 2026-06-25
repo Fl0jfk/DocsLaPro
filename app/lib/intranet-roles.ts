@@ -11,6 +11,7 @@ export const INTRANET_ROLE_OPTIONS: { slug: string; label: string }[] = [
   { slug: "infirmerie", label: "Infirmerie" },
   { slug: "education", label: "Éducation / vie scolaire" },
   { slug: "parent", label: "Parent" },
+  { slug: "eleve", label: "Élève (bot bien-être)" },
 ];
 
 export const INTRANET_DIRECTION_SLUGS = [
