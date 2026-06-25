@@ -1,6 +1,6 @@
 import type { Establishment, EstablishmentKind } from "@/app/lib/app-config-schemas";
 import { getActiveEstablishments } from "@/app/lib/app-config-establishments";
-import { DEFAULT_RENTREE_SECTIONS, emptyRentreePage, RENTREE_LINKS } from "@/app/lib/rentree-defaults";
+import { DEFAULT_RENTREE_SECTIONS, emptyRentreePage, normalizeRentreeSections, RENTREE_LINKS } from "@/app/lib/rentree-defaults";
 import type {
   RentreeAccent,
   RentreeEstablishmentPage,
@@ -33,19 +33,20 @@ function pageFromLegacy(est: Establishment, legacy: RentreeLinksByLevel): Rentre
     establishmentId: est.id,
     label: legacy.label || est.label,
     accent: legacy.accent || defaultAccentForKind(est.kind),
-    sections: cloneSections(legacy.sections),
+    sections: normalizeRentreeSections(cloneSections(legacy.sections)),
   };
 }
 
 function pageFromExisting(est: Establishment, page: RentreeEstablishmentPage): RentreeEstablishmentPage {
+  const sections =
+    Array.isArray(page.sections) && page.sections.length > 0
+      ? normalizeRentreeSections(cloneSections(page.sections))
+      : DEFAULT_RENTREE_SECTIONS.map((s) => ({ ...s, items: [] }));
   return {
     establishmentId: est.id,
     label: String(page.label || est.label).trim() || est.label,
     accent: page.accent || defaultAccentForKind(est.kind),
-    sections:
-      Array.isArray(page.sections) && page.sections.length > 0
-        ? cloneSections(page.sections)
-        : DEFAULT_RENTREE_SECTIONS.map((s) => ({ ...s, items: [] })),
+    sections,
   };
 }
 

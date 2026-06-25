@@ -4,6 +4,7 @@ import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import RentreePublicHeader from "@/app/components/RentreePublicHeader";
+import { isInternatRentreeSection } from "@/app/lib/rentree-defaults";
 import { rentreeAccentClasses } from "@/app/lib/rentree-accent-styles";
 import type { RentreeEstablishmentPage } from "@/app/lib/rentree-types";
 
@@ -12,11 +13,13 @@ function LinkCard({
   description,
   href,
   kind,
+  variant = "default",
 }: {
   title: string;
   description?: string;
   href: string;
   kind?: "pdf" | "link";
+  variant?: "default" | "internat";
 }) {
   const isPdf = kind === "pdf" || href.toLowerCase().endsWith(".pdf");
   const badge = isPdf ? "PDF" : "Lien";
@@ -25,15 +28,24 @@ function LinkCard({
   const isInternal = href.startsWith("/");
   const targetProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
   const Comp = isInternal ? Link : "a";
+  const cardClass =
+    variant === "internat"
+      ? "group block rounded-3xl border border-white/15 bg-white p-5 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+      : "group block rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all";
+  const titleClass = variant === "internat" ? "font-black text-slate-900 text-lg leading-snug" : "font-black text-slate-900 text-lg leading-snug";
+  const ctaClass =
+    variant === "internat"
+      ? "font-black text-amber-700 group-hover:text-amber-800 transition-colors"
+      : "font-black text-indigo-600 group-hover:text-indigo-700 transition-colors";
   return (
     <Comp
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {...(isInternal ? ({ href } as any) : ({ href, ...targetProps } as any))}
-      className="group block rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all"
+      className={cardClass}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="font-black text-slate-900 text-lg leading-snug">{title}</p>
+          <p className={titleClass}>{title}</p>
           {description ? <p className="text-sm text-slate-500 mt-1 leading-relaxed">{description}</p> : null}
         </div>
         <span className="flex items-center gap-2 shrink-0">
@@ -44,9 +56,81 @@ function LinkCard({
         </span>
       </div>
       <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="font-black text-indigo-600 group-hover:text-indigo-700 transition-colors">Ouvrir →</span>
+        <span className={ctaClass}>Ouvrir →</span>
       </div>
     </Comp>
+  );
+}
+
+function RentreeSectionPanel({
+  section,
+  accent,
+  variant = "default",
+}: {
+  section: { title: string; items: Array<{ title: string; description?: string; href: string; kind?: "pdf" | "link" }> };
+  accent: ReturnType<typeof rentreeAccentClasses>;
+  variant?: "default" | "internat";
+}) {
+  if (variant === "internat") {
+    return (
+      <section className="mt-14 pt-10 border-t-2 border-dashed border-slate-200">
+        <div className="rounded-[2.5rem] border-2 border-slate-900 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8 shadow-2xl">
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/20 text-2xl ring-1 ring-amber-300/40">
+                🛏️
+              </span>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Élèves internes</p>
+                <h3 className="text-2xl md:text-3xl font-black text-white">{section.title}</h3>
+                <p className="text-sm text-slate-300 mt-1">Documents et informations spécifiques à l&apos;internat.</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-amber-200/80">{section.items.length} document(s)</span>
+          </div>
+          {section.items.length === 0 ? (
+            <p className="text-sm text-slate-400">Aucun document pour le moment.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {section.items.map((it) => (
+                <LinkCard
+                  key={`${section.title}-${it.title}-${it.href}`}
+                  title={it.title}
+                  description={it.description}
+                  href={it.href}
+                  kind={it.kind}
+                  variant="internat"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bg-slate-50 rounded-[2.5rem] p-6 md:p-8 border border-slate-100">
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <h3 className={`text-xl md:text-2xl font-black ${accent.sectionTitle}`}>{section.title}</h3>
+        <span className="text-xs font-bold text-slate-400">{section.items.length} lien(s)</span>
+      </div>
+      {section.items.length === 0 ? (
+        <p className="text-sm text-slate-500">Aucun document pour le moment.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {section.items.map((it) => (
+            <LinkCard
+              key={`${section.title}-${it.title}-${it.href}`}
+              title={it.title}
+              description={it.description}
+              href={it.href}
+              kind={it.kind}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -55,7 +139,6 @@ export type RentreePageClientProps = {
   schoolYear: string;
   pages: RentreeEstablishmentPage[];
   initialEstablishmentId?: string | null;
-  showTarifs: boolean;
   showFournitures: boolean;
   showPortesOuvertes: boolean;
 };
@@ -65,7 +148,6 @@ function RentreePageContent({
   schoolYear,
   pages,
   initialEstablishmentId,
-  showTarifs,
   showFournitures,
   showPortesOuvertes,
 }: RentreePageClientProps) {
@@ -86,6 +168,14 @@ function RentreePageContent({
     [pages, selectedId],
   );
   const a = rentreeAccentClasses(active?.accent ?? "violet");
+  const mainSections = useMemo(
+    () => (active?.sections ?? []).filter((s) => !isInternatRentreeSection(s)),
+    [active?.sections],
+  );
+  const internatSection = useMemo(
+    () => (active?.sections ?? []).find((s) => isInternatRentreeSection(s)),
+    [active?.sections],
+  );
 
   const setEstablishment = (establishmentId: string) => {
     const url = new URL(window.location.href);
@@ -130,20 +220,6 @@ function RentreePageContent({
                 </Link>
               </div>
             )}
-            {showTarifs && (
-              <div className="bg-white/90 backdrop-blur-md border border-white/60 rounded-3xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-                <div className="min-w-0">
-                  <p className="font-black text-slate-900">Tarifs scolarité</p>
-                  <p className="text-sm text-slate-600 mt-1">Estimez votre contribution selon le quotient familial.</p>
-                </div>
-                <Link
-                  href="/simulateurTarifs"
-                  className={`px-6 py-3 rounded-full font-black text-sm transition ${a.cta} whitespace-nowrap shadow-sm`}
-                >
-                  Simulateur tarifs →
-                </Link>
-              </div>
-            )}
             {pages.length > 1 && (
               <div className="flex flex-wrap gap-2">
                 {pages.map((page) => {
@@ -173,29 +249,12 @@ function RentreePageContent({
           <p className="text-slate-500 text-sm">Contenu en cours de préparation.</p>
         ) : (
           <div className="space-y-10">
-            {active.sections.map((section) => (
-              <section key={section.title} className="bg-slate-50 rounded-[2.5rem] p-6 md:p-8 border border-slate-100">
-                <div className="flex items-center justify-between gap-4 mb-6">
-                  <h3 className={`text-xl md:text-2xl font-black ${a.sectionTitle}`}>{section.title}</h3>
-                  <span className="text-xs font-bold text-slate-400">{section.items.length} lien(s)</span>
-                </div>
-                {section.items.length === 0 ? (
-                  <p className="text-sm text-slate-500">Aucun document pour le moment.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {section.items.map((it) => (
-                      <LinkCard
-                        key={`${section.title}-${it.title}-${it.href}`}
-                        title={it.title}
-                        description={it.description}
-                        href={it.href}
-                        kind={it.kind}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
+            {mainSections.map((section) => (
+              <RentreeSectionPanel key={section.title} section={section} accent={a} />
             ))}
+            {internatSection && internatSection.items.length > 0 ? (
+              <RentreeSectionPanel section={internatSection} accent={a} variant="internat" />
+            ) : null}
           </div>
         )}
       </main>

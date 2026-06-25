@@ -23,9 +23,9 @@ import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 
 const RUN_LOCK_PREFIX = "agentIAOCR/batch-locks/";
-const PROCESSING_ACTIVE_MS = 90_000;
-/** Un morceau de traitement par invocation after() — reste sous le timeout ALB / Amplify (~30–60 s). */
-const RUN_BUDGET_MS = 25_000;
+const PROCESSING_ACTIVE_MS = 60_000;
+/** Un morceau de traitement par invocation after() — reste sous le timeout Amplify (~30 s). */
+const RUN_BUDGET_MS = 28_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -66,9 +66,9 @@ async function releaseRunLock(jobId: string) {
 }
 
 function interFileDelayMs(processedCount: number, totalEstimate: number) {
-  const base = totalEstimate >= 100 ? 3500 : totalEstimate >= 50 ? 2800 : 2000;
-  const extra = Math.floor(processedCount / 25) * 1500;
-  return Math.min(12_000, base + extra);
+  const base = totalEstimate >= 100 ? 2000 : totalEstimate >= 50 ? 1200 : 400;
+  const extra = Math.floor(processedCount / 25) * 800;
+  return Math.min(6000, base + extra);
 }
 
 function segmentTempFileName(originalName: string, pageStart: number, pageEnd: number, index: number) {
@@ -291,7 +291,7 @@ async function processClassItem(
         tempOneDrivePath: tempSegPath,
       });
     }
-    await sleep(800);
+    await sleep(400);
   }
 
   return results;

@@ -37,6 +37,41 @@ async function verifyOneDriveToken(token: string): Promise<boolean> {
   }
 }
 
+async function acquireOneDriveAccessToken(
+  account: msal.AccountInfo,
+  opts?: { forceRefresh?: boolean },
+): Promise<string> {
+  const tokenResponse = await getMsalInstance().acquireTokenSilent({
+    account,
+    scopes: ONEDRIVE_SCOPES,
+    forceRefresh: opts?.forceRefresh ?? false,
+  });
+  return tokenResponse.accessToken;
+}
+
+/** Token Graph valide — silent, puis forceRefresh, puis popup si nécessaire. */
+async function obtainValidOneDriveToken(account: msal.AccountInfo): Promise<string> {
+  try {
+    let token = await acquireOneDriveAccessToken(account);
+    if (await verifyOneDriveToken(token)) return token;
+
+    token = await acquireOneDriveAccessToken(account, { forceRefresh: true });
+    if (await verifyOneDriveToken(token)) return token;
+  } catch (err) {
+    if (!(err instanceof msal.InteractionRequiredAuthError)) throw err;
+  }
+
+  const tokenResponse = await getMsalInstance().acquireTokenPopup({
+    account,
+    scopes: ONEDRIVE_SCOPES,
+  });
+  setMsalActiveAccount(tokenResponse.account ?? account);
+  if (!(await verifyOneDriveToken(tokenResponse.accessToken))) {
+    throw new Error("Session OneDrive expirée ou accès refusé. Reconnectez-vous.");
+  }
+  return tokenResponse.accessToken;
+}
+
 type ProcessResult = {
   success: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,30 +209,7 @@ function OneDriveUpDocsOCRAIContent() {
         return cachedToken;
       }
 
-      let token: string;
-      try {
-        const tokenResponse = await getMsalInstance().acquireTokenSilent({
-          account: activeAccount,
-          scopes: ONEDRIVE_SCOPES,
-        });
-        token = tokenResponse.accessToken;
-      } catch (err) {
-        if (err instanceof msal.InteractionRequiredAuthError) {
-          const tokenResponse = await getMsalInstance().acquireTokenPopup({
-            account: activeAccount,
-            scopes: ONEDRIVE_SCOPES,
-          });
-          token = tokenResponse.accessToken;
-          setMsalActiveAccount(tokenResponse.account ?? activeAccount);
-        } else {
-          throw err;
-        }
-      }
-
-      if (!(await verifyOneDriveToken(token))) {
-        throw new Error("Session OneDrive expirée ou accès refusé. Reconnectez-vous.");
-      }
-
+      const token = await obtainValidOneDriveToken(activeAccount);
       applyOneDriveSession(activeAccount, token);
       setError("");
       return token;
@@ -263,15 +275,8 @@ function OneDriveUpDocsOCRAIContent() {
         if (accounts.length > 0) {
           setMsalActiveAccount(accounts[0]);
           try {
-            const tokenResponse = await getMsalInstance().acquireTokenSilent({
-              account: accounts[0],
-              scopes: ONEDRIVE_SCOPES,
-            });
-            if (await verifyOneDriveToken(tokenResponse.accessToken)) {
-              applyOneDriveSession(accounts[0], tokenResponse.accessToken);
-            } else {
-              applyOneDriveSession(accounts[0], null);
-            }
+            const token = await obtainValidOneDriveToken(accounts[0]);
+            applyOneDriveSession(accounts[0], token);
           } catch {
             applyOneDriveSession(accounts[0], null);
           }
@@ -318,13 +323,10 @@ function OneDriveUpDocsOCRAIContent() {
         const result = await getMsalInstance().handleRedirectPromise();
         if (result?.account) {
           setMsalActiveAccount(result.account);
-          const tokenResponse = await getMsalInstance().acquireTokenSilent({
-            account: result.account,
-            scopes: ONEDRIVE_SCOPES,
-          });
-          if (await verifyOneDriveToken(tokenResponse.accessToken)) {
-            applyOneDriveSession(result.account, tokenResponse.accessToken);
-          } else {
+          try {
+            const token = await obtainValidOneDriveToken(result.account);
+            applyOneDriveSession(result.account, token);
+          } catch {
             applyOneDriveSession(result.account, null);
           }
         }
@@ -467,9 +469,9 @@ function OneDriveUpDocsOCRAIContent() {
 
   /** Pause entre fichiers : plus le lot est gros, plus on espace les appels Graph. */
   const interFileDelayMs = (processedCount: number, totalEstimate: number) => {
-    const base = totalEstimate >= 100 ? 3500 : totalEstimate >= 50 ? 2800 : 2000;
-    const extra = Math.floor(processedCount / 25) * 1500;
-    return Math.min(12000, base + extra);
+    const base = totalEstimate >= 100 ? 2000 : totalEstimate >= 50 ? 1200 : 400;
+    const extra = Math.floor(processedCount / 25) * 800;
+    return Math.min(6000, base + extra);
   };
 
   const parseRetryAfterMs = (res: Response, attempt: number): number => {
@@ -1155,10 +1157,10 @@ function OneDriveUpDocsOCRAIContent() {
     const tick = async () => {
       if (cancelled) return;
       try {
-        if (polls > 0) await sleep(polls < 3 ? 2000 : 4000);
+        if (polls > 0) await sleep(2000);
         polls += 1;
 
-        if (polls % 5 === 0) {
+        if (polls % 4 === 0) {
           const fresh = await ensureOneDriveConnection();
           if (fresh) {
             await fetch("/api/agentIAOCR/batch-job/token", {
@@ -1173,8 +1175,8 @@ function OneDriveUpDocsOCRAIContent() {
           }
         }
 
-        // Relance le worker en arrière-plan (réponse 202 rapide). Pas à chaque tick.
-        if (polls === 1 || polls % 8 === 0) {
+        // Relance le worker (202 rapide). Toutes les ~6 s en phase serveur.
+        if (polls === 1 || polls % 3 === 0) {
           try {
             await fetch("/api/agentIAOCR/batch-job/process", {
               method: "POST",
@@ -1195,8 +1197,25 @@ function OneDriveUpDocsOCRAIContent() {
         applyBatchJobStatusToUi(st);
 
         if (st.status === "needs_token") {
+          const fresh = await ensureOneDriveConnection();
+          if (fresh) {
+            const resumeRes = await fetch("/api/agentIAOCR/batch-job/token", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ jobId: activeBatchJobId, accessToken: fresh }),
+            });
+            if (resumeRes.ok) {
+              setBatchJobNeedsToken(false);
+              setError("");
+              void tick();
+              return;
+            }
+          }
           setBatchJobNeedsToken(true);
           setOcrProcessing(true);
+          setError(
+            "Session OneDrive expirée (401 Microsoft Graph). Cliquez sur « Reconnecter OneDrive » puis reprenez.",
+          );
           return;
         }
 

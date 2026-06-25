@@ -7,61 +7,12 @@ import {
   getTenantSmtpConfig,
 } from "@/app/lib/tenant-mail";
 import { getToolboxConfig } from "@/app/lib/toolbox-config";
-
-type LangueSeconde = "Espagnol" | "Allemand";
-type CollegeNiveau = "6e" | "5e" | "4e" | "3e";
-type EcoleNiveau = "JE1" | "JE2" | "JE3" | "JE4" | "CP" | "CE1" | "CE2" | "CM1" | "CM2";
-type LyceeNiveau = "2nde" | "1re" | "Terminale";
-type LyceeTrack = "General" | "ST2S";
-type LyceeSpecialite = "Maths" | "Physique-Chimie" | "SVT" | "SES" | "HG-GEO-GEOPOL";
-
-type Child =
-  | { id: string; stage: "ecole"; niveau: EcoleNiveau }
-  | {
-      id: string;
-      stage: "college";
-      niveau: CollegeNiveau;
-      ebp: boolean;
-      langue: LangueSeconde;
-      optionBilingueAllemand: boolean;
-      optionLatin: boolean;
-    }
-  | {
-      id: string;
-      stage: "lycee";
-      niveau: LyceeNiveau;
-      track: LyceeTrack;
-      langue: LangueSeconde;
-      anglaisEuro?: boolean;
-      specialites: LyceeSpecialite[];
-      latin: boolean;
-    };
+import type { FournituresChild } from "@/app/lib/fournitures-types";
+import { formatChildLabel, formatSuppliesPdfFilename } from "@/app/lib/fournitures-engine";
 
 function isValidEmail(value: string) {
   const v = String(value || "").trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-}
-
-function formatChildLabel(child: Child) {
-  if (child.stage === "ecole") {
-    const ecoleLabels: Record<EcoleNiveau, string> = {
-      JE1: "J.E.1 (Mme BAYEL Christine)",
-      JE2: "J.E.2 (Mme CARTIER Céline)",
-      JE3: "J.E.3 (Mme DOUGHTY Sylvie)",
-      JE4: "J.E.4",
-      CP: "CP",
-      CE1: "CE1",
-      CE2: "CE2",
-      CM1: "CM1",
-      CM2: "CM2",
-    };
-    return `École — ${ecoleLabels[child.niveau] ?? child.niveau}`;
-  }
-  if (child.stage === "college") {
-    if (child.niveau === "6e") return `Collège — 6e (bilingue allemand: ${child.optionBilingueAllemand ? "oui" : "non"})`;
-    return `Collège — ${child.niveau} (${child.langue}${child.ebp ? " • E.B.P" : ""}${child.optionLatin ? " • Latin" : ""})`;
-  }
-  return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • ${child.langue})`;
 }
 
 export async function POST(req: Request) {
@@ -73,7 +24,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const email = String(body?.email || "").trim();
-    const children = (body?.children || []) as Child[];
+    const children = (body?.children || []) as FournituresChild[];
 
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: "Email invalide." }, { status: 400 });
@@ -123,21 +74,24 @@ export async function POST(req: Request) {
       doc.setLineWidth(0.35);
       doc.rect(x, y - 2.6, 3.3, 3.3);
     };
+    const styleListItem = () => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(51, 65, 85);
+    };
+    const newContentPage = () => {
+      doc.addPage();
+      drawHeader();
+      y = 32;
+    };
     drawHeader();
     let y = 32;
-    doc.setTextColor(30, 41, 59);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
-    doc.text(`Email destinataire : ${email}`, ML, y);
-    y += 8;
 
     for (let ci = 0; ci < children.length; ci++) {
       const child = children[ci]!;
 
       if (y > H - 30) {
-        doc.addPage();
-        drawHeader();
-        y = 32;
+        newContentPage();
       }
 
       doc.setFont("helvetica", "bold");
@@ -146,16 +100,11 @@ export async function POST(req: Request) {
       doc.text(formatChildLabel(child), ML, y);
       y += 6;
 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      doc.setTextColor(71, 85, 105);
       const supplies = (body?.suppliesByChild?.[child.id] as Array<{ title: string; items: string[] }>) || null;
       const sections = Array.isArray(supplies) ? supplies : [{ title: "Fournitures", items: ["(liste non transmise)"] }];
       for (const sec of sections) {
         if (y > H - 24) {
-          doc.addPage();
-          drawHeader();
-          y = 32;
+          newContentPage();
         }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9.5);
@@ -163,16 +112,13 @@ export async function POST(req: Request) {
         doc.text(sec.title, ML, y);
         y += 5;
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9.5);
-        doc.setTextColor(51, 65, 85);
+        styleListItem();
         for (const item of sec.items || []) {
           const text = String(item || "").trim();
           if (!text) continue;
           if (y > H - 14) {
-            doc.addPage();
-            drawHeader();
-            y = 32;
+            newContentPage();
+            styleListItem();
           }
           checkbox(ML, y);
           const lines = doc.splitTextToSize(text, MR - (ML + 6));
@@ -192,6 +138,7 @@ export async function POST(req: Request) {
 
     const pdfArrayBuffer = doc.output("arraybuffer");
     const pdfBuffer = Buffer.from(pdfArrayBuffer);
+    const pdfFilename = formatSuppliesPdfFilename(children);
 
     await transporter.sendMail({
       from: `"Simulateur Fournitures" <${smtp.user}>`,
@@ -204,17 +151,17 @@ export async function POST(req: Request) {
       </div>`,
       attachments: [
         {
-          filename: `liste_fournitures_${new Date().toISOString().slice(0, 10)}.pdf`,
+          filename: pdfFilename,
           content: pdfBuffer,
           contentType: "application/pdf",
         },
       ],
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("supplies/send error:", error?.message || error);
-    return NextResponse.json({ error: "Échec de l'envoi.", details: error?.message || String(error) }, { status: 500 });
+    return NextResponse.json({ success: true, filename: pdfFilename });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("supplies/send error:", message);
+    return NextResponse.json({ error: "Échec de l'envoi.", details: message }, { status: 500 });
   }
 }
-

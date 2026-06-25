@@ -24,7 +24,6 @@ export default async function RentreePage({
       schoolYear={rentree.schoolYear}
       pages={rentree.pages}
       initialEstablishmentId={initialEstablishmentId}
-      showTarifs={rentree.showSimulateurTarifs && toolbox.tools["simulateur-tarifs"].enabled}
       showFournitures={rentree.showSimulateurFournitures && toolbox.tools["simulateur-fournitures"].enabled}
       showPortesOuvertes={toolbox.tools["portes-ouvertes"].enabled}
     />

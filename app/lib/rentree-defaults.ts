@@ -1,15 +1,40 @@
 import type { RentreeEstablishmentPage, RentreeLinksByLevel, RentreeSection } from "@/app/lib/rentree-types";
 
+export const RENTREE_SECTION_CALENDRIER = "Calendrier";
+export const RENTREE_SECTION_INFOS = "Infos pratiques";
+export const RENTREE_SECTION_INTERNAT = "Internat";
+
 export const DEFAULT_RENTREE_SECTIONS: RentreeSection[] = [
-  {
-    title: "Calendrier",
-    items: [],
-  },
-  {
-    title: "Documents",
-    items: [],
-  },
+  { title: RENTREE_SECTION_CALENDRIER, items: [] },
+  { title: RENTREE_SECTION_INFOS, items: [] },
+  { title: RENTREE_SECTION_INTERNAT, items: [] },
 ];
+
+export function isInternatRentreeSection(section: RentreeSection): boolean {
+  return section.title.trim().toLowerCase() === "internat";
+}
+
+/** Aligne titres legacy et garantit la rubrique Internat en dernier. */
+export function normalizeRentreeSections(sections: RentreeSection[]): RentreeSection[] {
+  const normalized = sections.map((s) => ({
+    title: s.title.trim().toLowerCase() === "documents" ? RENTREE_SECTION_INFOS : s.title.trim(),
+    items: s.items.map((it) => ({ ...it })),
+  }));
+
+  if (!normalized.some((s) => isInternatRentreeSection(s))) {
+    normalized.push({ title: RENTREE_SECTION_INTERNAT, items: [] });
+  }
+
+  const order = (title: string) => {
+    const t = title.trim().toLowerCase();
+    if (t === "calendrier") return 0;
+    if (t === "infos pratiques") return 1;
+    if (t === "internat") return 99;
+    return 50;
+  };
+
+  return [...normalized].sort((a, b) => order(a.title) - order(b.title));
+}
 
 /**
  * Documents publics par défaut (La Providence — migration legacy).
@@ -33,7 +58,7 @@ export const RENTREE_LINKS: RentreeLinksByLevel[] = [
         ],
       },
       {
-        title: "Infos pratiques",
+        title: RENTREE_SECTION_INFOS,
         items: [
           {
             title: "Organisation de la rentrée",
@@ -55,6 +80,10 @@ export const RENTREE_LINKS: RentreeLinksByLevel[] = [
           },
         ],
       },
+      {
+        title: RENTREE_SECTION_INTERNAT,
+        items: [],
+      },
     ],
   },
   {
@@ -74,7 +103,7 @@ export const RENTREE_LINKS: RentreeLinksByLevel[] = [
         ],
       },
       {
-        title: "Documents",
+        title: RENTREE_SECTION_INFOS,
         items: [
           {
             title: "Organisation de la rentrée",
@@ -96,6 +125,10 @@ export const RENTREE_LINKS: RentreeLinksByLevel[] = [
           },
         ],
       },
+      {
+        title: RENTREE_SECTION_INTERNAT,
+        items: [],
+      },
     ],
   },
   {
@@ -115,7 +148,7 @@ export const RENTREE_LINKS: RentreeLinksByLevel[] = [
         ],
       },
       {
-        title: "Documents",
+        title: RENTREE_SECTION_INFOS,
         items: [
           {
             title: "Organisation de la rentrée",
@@ -142,6 +175,10 @@ export const RENTREE_LINKS: RentreeLinksByLevel[] = [
             kind: "pdf",
           },
         ],
+      },
+      {
+        title: RENTREE_SECTION_INTERNAT,
+        items: [],
       },
     ],
   },

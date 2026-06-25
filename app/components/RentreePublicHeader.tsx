@@ -12,7 +12,6 @@ import {
 
 const NAV = [
   { href: "/rentree", label: "Rentrée" },
-  { href: "/simulateurTarifs", label: "Simulateur tarifs" },
   { href: "/simulateurFournitures", label: "Simulateur fournitures" },
 ];
 

@@ -716,6 +716,61 @@ export function formatChildLabel(child: FournituresChild): string {
   return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • ${child.langue})`;
 }
 
+function slugifyFilenamePart(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+/** Nom de fichier PDF dérivé de la sélection (ex. college_6e_option_bilingue). */
+export function formatChildFilenameBase(child: FournituresChild): string {
+  if (child.stage === "ecole") {
+    const niveauSlug: Record<EcoleNiveau, string> = {
+      JE1MMEBAYEL: "je1",
+      JE2MMECARTIER: "je2",
+      JE3MMEDOUGHTY: "je3",
+      JE4: "je4",
+      CP: "cp",
+      CE1: "ce1",
+      CE2: "ce2",
+      CM1: "cm1",
+      CM2: "cm2",
+    };
+    return `ecole_${niveauSlug[child.niveau] ?? slugifyFilenamePart(child.niveau)}`;
+  }
+
+  if (child.stage === "college") {
+    const parts = ["college", child.niveau];
+    if (child.niveau === "6e") {
+      if (child.optionBilingueAllemand) parts.push("option_bilingue");
+    } else {
+      parts.push(slugifyFilenamePart(child.langue));
+      if (child.optionLatin) parts.push("latin");
+      if (child.optionOse) parts.push("ose");
+      if (child.optionLceAnglais) parts.push("lce_anglais");
+    }
+    return parts.join("_");
+  }
+
+  const parts = ["lycee", slugifyFilenamePart(child.niveau), child.track === "ST2S" ? "st2s" : "general"];
+  parts.push(slugifyFilenamePart(child.langue));
+  if (child.anglaisEuro) parts.push("anglais_euro");
+  if (child.latin) parts.push("latin");
+  for (const spec of child.specialites) parts.push(slugifyFilenamePart(spec));
+  for (const opt of child.options) parts.push(slugifyFilenamePart(opt));
+  return parts.join("_");
+}
+
+export function formatSuppliesPdfFilename(children: FournituresChild[]): string {
+  const bases = children.map(formatChildFilenameBase).filter(Boolean);
+  if (bases.length === 0) return "liste_fournitures.pdf";
+  if (bases.length === 1) return `${bases[0]}.pdf`;
+  return `liste_fournitures_${bases.join("__")}.pdf`;
+}
+
 export function dedupeStrings(items: string[]) {
   const set = new Set(items.map((s) => s.trim()).filter(Boolean));
   return Array.from(set);

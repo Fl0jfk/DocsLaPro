@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Establishment } from "@/app/lib/app-config-schemas";
+import { isInternatRentreeSection, RENTREE_SECTION_INTERNAT } from "@/app/lib/rentree-defaults";
 import { rentreeAccentClasses } from "@/app/lib/rentree-accent-styles";
 import { RENTREE_ACCENT_OPTIONS } from "@/app/lib/rentree-types";
 import type { RentreeEstablishmentPage, RentreeLinkItem, RentreeSection } from "@/app/lib/rentree-types";
@@ -209,7 +210,12 @@ export default function RentreeEditor({ rentree, establishments, onChange, onPag
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <h3 className="font-black text-slate-900">Rubriques et liens</h3>
+              <div>
+                <h3 className="font-black text-slate-900">Rubriques et liens</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Calendrier, Infos pratiques et {RENTREE_SECTION_INTERNAT} — chargez les documents séparément par rubrique.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => addSection(activePage.establishmentId)}
@@ -220,7 +226,14 @@ export default function RentreeEditor({ rentree, establishments, onChange, onPag
             </div>
 
             {activePage.sections.map((section, sIdx) => (
-              <div key={`${activePage.establishmentId}-sec-${sIdx}`} className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+              <div
+                key={`${activePage.establishmentId}-sec-${sIdx}`}
+                className={`rounded-xl border p-4 space-y-3 ${
+                  isInternatRentreeSection(section)
+                    ? "border-amber-300 bg-amber-50/60 ring-1 ring-amber-200"
+                    : "border-slate-100 bg-slate-50"
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <input
                     className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold"
