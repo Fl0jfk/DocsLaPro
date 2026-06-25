@@ -1089,6 +1089,44 @@ function OneDriveUpDocsOCRAIContent() {
     }, sessionId);
   };
 
+  const cancelOcrProcessing = useCallback(async () => {
+    abortOcrInFlight();
+    ocrSessionIdRef.current += 1;
+
+    if (activeBatchJobId) {
+      try {
+        const res = await fetch("/api/agentIAOCR/batch-job/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId: activeBatchJobId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(typeof data.error === "string" ? data.error : "Impossible d'annuler le traitement.");
+          return;
+        }
+        if (Array.isArray(data.results)) {
+          setOcrResults(data.results);
+          setOcrResultsSessionId((id) => id + 1);
+        }
+        persistFinishedBatchJob(activeBatchJobId);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Impossible d'annuler le traitement.");
+        return;
+      }
+    }
+
+    setOcrProcessing(false);
+    setActiveBatchJobId(null);
+    setBatchJobNeedsToken(false);
+    localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
+    setProcessingStatus({
+      ...INITIAL_OCR_PROCESSING_STATUS,
+      label: "Traitement annulé",
+    });
+    setError("");
+  }, [abortOcrInFlight, activeBatchJobId, persistFinishedBatchJob]);
+
   const resumeBatchWithOneDrive = useCallback(async () => {
     if (!activeBatchJobId) return;
     const token = await ensureOneDriveConnection();
@@ -1625,31 +1663,49 @@ function OneDriveUpDocsOCRAIContent() {
               Le traitement serveur est en pause. Reconnectez Microsoft pour reprendre le rangement des fichiers restants.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void resumeBatchWithOneDrive()}
-            className="shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl"
-          >
-            Reconnecter et reprendre
-          </button>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => void resumeBatchWithOneDrive()}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl"
+            >
+              Reconnecter et reprendre
+            </button>
+            <button
+              type="button"
+              onClick={() => void cancelOcrProcessing()}
+              className="px-4 py-2 bg-white border border-amber-400 text-amber-900 font-bold rounded-xl hover:bg-amber-100"
+            >
+              Annuler le traitement
+            </button>
+          </div>
         </div>
       )}
 
-      {isServerPhase && (
-        <div className="mb-6 p-5 bg-emerald-50 border-2 border-emerald-400 rounded-2xl flex gap-4 items-start shadow-sm">
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xl font-bold"
-            aria-hidden
-          >
-            ✓
-          </span>
-          <div>
-            <p className="text-lg font-extrabold text-emerald-950">Vous pouvez quitter cette page</p>
-            <p className="text-sm text-emerald-900 mt-1 leading-relaxed">
-              Le reste du traitement tourne sur le <strong>serveur</strong> (OCR, IA, rangement OneDrive).
-              Revenez sur cette page à tout moment pour voir où en est le lot et consulter les résultats.
-            </p>
+      {(isServerPhase || (ocrProcessing && activeBatchJobId)) && !batchJobNeedsToken && (
+        <div className="mb-6 p-5 bg-emerald-50 border-2 border-emerald-400 rounded-2xl flex gap-4 items-start justify-between shadow-sm">
+          <div className="flex gap-4 items-start min-w-0">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xl font-bold"
+              aria-hidden
+            >
+              ✓
+            </span>
+            <div>
+              <p className="text-lg font-extrabold text-emerald-950">Vous pouvez quitter cette page</p>
+              <p className="text-sm text-emerald-900 mt-1 leading-relaxed">
+                Le reste du traitement tourne sur le <strong>serveur</strong> (OCR, IA, rangement OneDrive).
+                Revenez sur cette page à tout moment pour voir où en est le lot et consulter les résultats.
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => void cancelOcrProcessing()}
+            className="shrink-0 px-4 py-2 bg-white border border-emerald-500 text-emerald-900 font-bold rounded-xl hover:bg-emerald-100"
+          >
+            Annuler
+          </button>
         </div>
       )}
 
@@ -1688,6 +1744,13 @@ function OneDriveUpDocsOCRAIContent() {
               {progressCaption ? `${progressCaption} · ` : ""}
               {Math.round(progressPercent)}%
             </p>
+            <button
+              type="button"
+              onClick={() => void cancelOcrProcessing()}
+              className="mt-6 px-5 py-2.5 bg-white border-2 border-amber-600 text-amber-950 font-bold rounded-xl hover:bg-amber-100"
+            >
+              Annuler l&apos;envoi
+            </button>
           </div>
         </div>
       )}

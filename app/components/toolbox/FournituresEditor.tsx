@@ -20,7 +20,68 @@ function emptySection(): FournituresSection {
   return { title: "Nouvelle rubrique", items: [] };
 }
 
+type PdfField = "colbertPdfUrl" | "arbsPdfUrl";
+
+function FournituresPdfField({
+  label,
+  hint,
+  value,
+  field,
+  uploading,
+  onUpload,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  field: PdfField;
+  uploading: boolean;
+  onUpload: (field: PdfField, file: File) => void;
+  onChange: (url: string) => void;
+}) {
+  const trimmed = value.trim();
+  return (
+    <label className="block sm:col-span-2">
+      <span className="text-xs font-bold uppercase text-slate-500">{label}</span>
+      {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <input
+          className="min-w-[12rem] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-mono text-xs"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://… (ou chargez un PDF ci-contre)"
+        />
+        <label className="cursor-pointer shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
+          {uploading ? "Envoi…" : "📎 Charger PDF"}
+          <input
+            type="file"
+            className="hidden"
+            accept=".pdf,application/pdf"
+            disabled={uploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(field, file);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {trimmed ? (
+          <a
+            href={trimmed}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 text-xs font-bold text-blue-600 underline"
+          >
+            Voir →
+          </a>
+        ) : null}
+      </div>
+    </label>
+  );
+}
+
 export default function FournituresEditor({ config, onChange }: Props) {
+  const [uploadingField, setUploadingField] = useState<PdfField | null>(null);
   const [stage, setStage] = useState<StageFilter>("ecole");
   const profilesInStage = useMemo(
     () => FOURNITURES_PROFILES.filter((p) => p.stage === stage),
@@ -86,6 +147,37 @@ export default function FournituresEditor({ config, onChange }: Props) {
     setProfileSections(activeId, next);
   }
 
+  async function uploadPdf(field: PdfField, file: File) {
+    const kind = field === "colbertPdfUrl" ? "colbert" : "arbs";
+    setUploadingField(field);
+    try {
+      const res = await fetch("/api/toolbox/fournitures/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type || "application/pdf",
+          kind,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload impossible");
+
+      const put = await fetch(data.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
+        body: file,
+      });
+      if (!put.ok) throw new Error("Envoi du fichier vers S3 échoué");
+
+      onChange({ [field]: data.fileUrl as string });
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erreur upload");
+    } finally {
+      setUploadingField(null);
+    }
+  }
+
   return (
     <div className="space-y-6 border-t border-slate-100 pt-6">
       <div>
@@ -113,24 +205,24 @@ export default function FournituresEditor({ config, onChange }: Props) {
             onChange={(e) => onChange({ schoolYear: e.target.value })}
           />
         </label>
-        <label className="block sm:col-span-2">
-          <span className="text-xs font-bold uppercase text-slate-500">PDF Colbert (optionnel)</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            value={config.colbertPdfUrl || ""}
-            onChange={(e) => onChange({ colbertPdfUrl: e.target.value })}
-            placeholder="https://…"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="text-xs font-bold uppercase text-slate-500">Lien ARBS location manuels (optionnel)</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            value={config.arbsPdfUrl || ""}
-            onChange={(e) => onChange({ arbsPdfUrl: e.target.value })}
-            placeholder="https://…"
-          />
-        </label>
+        <FournituresPdfField
+          label="PDF Colbert (optionnel)"
+          hint="Flyer librairie Colbert — lien HTTPS affiché aux familles."
+          value={config.colbertPdfUrl || ""}
+          field="colbertPdfUrl"
+          uploading={uploadingField === "colbertPdfUrl"}
+          onUpload={uploadPdf}
+          onChange={(url) => onChange({ colbertPdfUrl: url })}
+        />
+        <FournituresPdfField
+          label="Lien ARBS location manuels (optionnel)"
+          hint="Flyer ARBS — location de manuels scolaires (lycée)."
+          value={config.arbsPdfUrl || ""}
+          field="arbsPdfUrl"
+          uploading={uploadingField === "arbsPdfUrl"}
+          onUpload={uploadPdf}
+          onChange={(url) => onChange({ arbsPdfUrl: url })}
+        />
       </div>
 
       <nav className="flex flex-wrap gap-2">

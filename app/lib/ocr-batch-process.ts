@@ -340,6 +340,9 @@ export async function runOcrBatchJob(jobId: string) {
 
   try {
     while (job.currentItemIndex < job.items.length) {
+      job = (await readBatchJob(jobId))!;
+      if (!job || job.status === "failed" || job.status === "completed") break;
+
       if (Date.now() - startedAt > RUN_BUDGET_MS) {
         await patchJob(jobId, {
           status: "processing",
@@ -403,7 +406,7 @@ export async function runOcrBatchJob(jobId: string) {
     }
 
     job = (await readBatchJob(jobId))!;
-    if (!job || job.status === "needs_token") return;
+    if (!job || job.status === "needs_token" || job.status === "failed") return;
 
     if (job.currentItemIndex >= job.items.length) {
       const completed = job.results.filter((r) => r.success).length;
@@ -462,4 +465,22 @@ export async function refreshBatchJobAccessToken(jobId: string, accessToken: str
   if (job.status === "completed" || job.status === "failed") return job;
   await writeBatchJob({ ...job, accessToken });
   return job;
+}
+
+/** Arrête un lot OCR serveur en cours (fichiers déjà traités conservés dans les résultats). */
+export async function cancelBatchJob(jobId: string): Promise<OcrBatchJob | null> {
+  const job = await readBatchJob(jobId);
+  if (!job) return null;
+  if (job.status === "completed" || job.status === "failed") return job;
+
+  const cancelled: OcrBatchJob = {
+    ...job,
+    status: "failed",
+    error: "Traitement annulé par l'utilisateur.",
+    label: "Traitement annulé",
+    updatedAt: new Date().toISOString(),
+  };
+  await writeBatchJob(cancelled);
+  await releaseRunLock(jobId);
+  return cancelled;
 }
