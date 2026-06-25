@@ -2,22 +2,25 @@ import { NextResponse } from "next/server";
 import { getToolboxConfigResolved, toolboxEnabledTools } from "@/app/lib/toolbox-config";
 import { TOOLBOX_TOOLS_META } from "@/app/lib/toolbox-tools";
 import { loadAppConfig } from "@/app/lib/app-config";
+import { tenantAbsolutePath } from "@/app/lib/tenant-context";
 
 /** Config publique des outils activés (sans e-mails internes). */
 export async function GET() {
   try {
     const [toolbox, app] = await Promise.all([getToolboxConfigResolved(), loadAppConfig()]);
     const enabled = toolboxEnabledTools(toolbox);
-    const tools = TOOLBOX_TOOLS_META.filter((m) => enabled.includes(m.id)).map((m) => ({
-      id: m.id,
-      label: m.label,
-      description: m.description,
-      adminPath: m.adminPath,
-      publicPath: m.publicPath,
-      color: m.color,
-      bg: m.bg,
-      season: m.season,
-    }));
+    const tools = await Promise.all(
+      TOOLBOX_TOOLS_META.filter((m) => enabled.includes(m.id)).map(async (m) => ({
+        id: m.id,
+        label: m.label,
+        description: m.description,
+        adminPath: m.adminPath,
+        publicPath: m.publicPath ? await tenantAbsolutePath(m.publicPath) : undefined,
+        color: m.color,
+        bg: m.bg,
+        season: m.season,
+      })),
+    );
 
     const po = toolbox.tools["portes-ouvertes"];
     const rentree = toolbox.tools.rentree;

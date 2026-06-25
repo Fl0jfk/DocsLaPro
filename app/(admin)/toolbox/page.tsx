@@ -51,6 +51,7 @@ export default function ToolboxAdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [config, setConfig] = useState<ToolboxConfig | null>(null);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
+  const [publicOrigin, setPublicOrigin] = useState("");
   const [stats, setStats] = useState<Record<string, number>>({});
   const [regCount, setRegCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -68,6 +69,7 @@ export default function ToolboxAdminPage() {
       if (!res.ok) throw new Error(j.error || "Erreur");
       setConfig(j.config);
       setEstablishments(j.establishments || []);
+      setPublicOrigin(typeof j.publicOrigin === "string" ? j.publicOrigin.replace(/\/$/, "") : "");
       setStats(j.portesOuvertesStats || {});
       setRegCount(j.registrationsCount || 0);
     } catch (e: unknown) {
@@ -223,12 +225,13 @@ export default function ToolboxAdminPage() {
                       <p className="mt-1 text-xs text-slate-500">{meta.description}</p>
                       {meta.publicPath && enabled && (
                         <a
-                          href={meta.publicPath}
+                          href={`${publicOrigin}${meta.publicPath}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-2 inline-block text-xs font-bold text-blue-600 underline"
+                          className="mt-2 inline-block text-xs font-bold text-blue-600 underline break-all"
                         >
-                          Page publique → {meta.publicPath}
+                          Page publique → {publicOrigin}
+                          {meta.publicPath}
                         </a>
                       )}
                       {meta.id === "rentree" && enabled && (
@@ -306,12 +309,12 @@ export default function ToolboxAdminPage() {
               onChange={(patch) => patchTool("simulateur-fournitures", patch)}
             />
             <a
-              href="/simulateurFournitures"
+              href={`${publicOrigin}/simulateurFournitures`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-bold text-emerald-700 underline"
+              className="text-sm font-bold text-emerald-700 underline break-all"
             >
-              Voir la page publique →
+              Voir la page publique → {publicOrigin}/simulateurFournitures
             </a>
           </section>
         )}

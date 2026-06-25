@@ -1,7 +1,7 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
-import { getToolboxConfigResolved } from "@/app/lib/toolbox-config";
+import { getToolboxConfig, getToolboxConfigResolved } from "@/app/lib/toolbox-config";
 import type {
   PortesOuvertesToolConfig,
   RentreeToolConfig,

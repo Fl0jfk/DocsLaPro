@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/app/lib/intranet-auth";
 import { loadAppConfig } from "@/app/lib/app-config";
+import { getTenantAppUrl } from "@/app/lib/tenant-context";
 import {
   getToolboxConfigResolved,
   parseToolboxConfig,
@@ -13,10 +14,15 @@ export async function GET() {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
   try {
-    const [config, app] = await Promise.all([getToolboxConfigResolved(), loadAppConfig()]);
+    const [config, app, publicOrigin] = await Promise.all([
+      getToolboxConfigResolved(),
+      loadAppConfig(),
+      getTenantAppUrl(),
+    ]);
     const registrations = await listPortesOuvertesRegistrations();
     return NextResponse.json({
       config,
+      publicOrigin,
       establishments: app.establishments.filter((e) => e.active !== false),
       portesOuvertesStats: countRegistrationsBySlot(registrations),
       registrationsCount: registrations.length,

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PublicSiteIdentityLayout from "@/app/components/PublicSiteIdentityLayout";
 
 export const metadata: Metadata = {
   title: "Rentrée — La Providence Nicolas Barré",
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function PublicRentreeLayout({ children }: { children: React.ReactNode }) {
-  return <div className="antialiased text-black font-medium">{children}</div>;
+  return (
+    <PublicSiteIdentityLayout>
+      <div className="antialiased text-black font-medium">{children}</div>
+    </PublicSiteIdentityLayout>
+  );
 }
