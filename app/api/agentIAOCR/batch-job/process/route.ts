@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { resolveSession } from "@/app/lib/intranet-session";
 import { readBatchJob } from "../batch-job";
 import { runOcrBatchJob, tryClaimBatchJob } from "@/app/lib/ocr-batch-process";
 
-export const maxDuration = 300;
+/** Réponse HTTP rapide — le worker tourne via after() (évite 504 ALB / Amplify ~60 s). */
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const session = await resolveSession();
@@ -48,27 +49,9 @@ export async function POST(req: Request) {
 
   const claimed = await tryClaimBatchJob(jobId);
   if (claimed) {
-    try {
-      await runOcrBatchJob(jobId);
-    } catch (err) {
-      console.error("[ocr-batch/process]", err);
-    }
-    const final = await readBatchJob(jobId);
-    if (final?.status === "completed") {
-      return NextResponse.json({ ok: true, status: "completed" }, { status: 200 });
-    }
-    if (final?.status === "failed") {
-      return NextResponse.json(
-        { ok: false, status: "failed", error: final.error ?? null },
-        { status: 200 },
-      );
-    }
-    if (final?.status === "needs_token") {
-      return NextResponse.json(
-        { ok: false, status: "needs_token", error: final.error ?? null },
-        { status: 200 },
-      );
-    }
+    after(() =>
+      runOcrBatchJob(jobId).catch((err) => console.error("[ocr-batch/process] after():", err)),
+    );
   }
 
   return NextResponse.json(
@@ -77,8 +60,8 @@ export async function POST(req: Request) {
       accepted: true,
       claimed,
       detail: claimed
-        ? "Traitement OCR en cours sur le serveur."
-        : "Traitement déjà en cours ; le suivi continue.",
+        ? "Traitement OCR relancé en arrière-plan."
+        : "Traitement déjà en cours ; consultez le statut.",
     },
     { status: 202 },
   );

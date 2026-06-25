@@ -23,8 +23,9 @@ import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 
 const RUN_LOCK_PREFIX = "agentIAOCR/batch-locks/";
-const PROCESSING_ACTIVE_MS = 120_000;
-const RUN_BUDGET_MS = 240_000;
+const PROCESSING_ACTIVE_MS = 90_000;
+/** Un morceau de traitement par invocation after() — reste sous le timeout ALB / Amplify (~30–60 s). */
+const RUN_BUDGET_MS = 25_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

@@ -70,6 +70,20 @@ const INITIAL_OCR_PROCESSING_STATUS = {
 };
 
 const BATCH_JOB_STORAGE_KEY = "agentIAOCR-active-batch-job";
+/** Dernier lot terminé — conservé jusqu'au prochain dépôt de fichiers. */
+const BATCH_JOB_LAST_RESULTS_KEY = "agentIAOCR-last-batch-job";
+
+type BatchJobStatusPayload = {
+  status?: string;
+  label?: string;
+  percent?: number;
+  currentItemIndex?: number;
+  totalItems?: number;
+  completed?: number;
+  failed?: number;
+  results?: ProcessResult[];
+  error?: string | null;
+};
 
 function OneDriveUpDocsOCRAIContent() {
   const searchParams = useSearchParams();
@@ -346,7 +360,29 @@ function OneDriveUpDocsOCRAIContent() {
     resetOcrSessionUi(true);
     setPendingStandardFiles([]);
     setPendingClassFiles([]);
+    localStorage.removeItem(BATCH_JOB_LAST_RESULTS_KEY);
   }, [abortOcrInFlight, resetOcrSessionUi]);
+
+  const applyBatchJobStatusToUi = useCallback((st: BatchJobStatusPayload) => {
+    setProcessingStatus({
+      percent: typeof st.percent === "number" ? st.percent : 0,
+      label: st.label || "",
+      done: typeof st.currentItemIndex === "number" ? st.currentItemIndex : 0,
+      total: typeof st.totalItems === "number" ? st.totalItems : 0,
+      totalKnown: true,
+      completed: typeof st.completed === "number" ? st.completed : 0,
+      failed: typeof st.failed === "number" ? st.failed : 0,
+    });
+    if (Array.isArray(st.results)) {
+      setOcrResults(st.results);
+      setOcrResultsSessionId((id) => id + 1);
+    }
+  }, []);
+
+  const persistFinishedBatchJob = useCallback((jobId: string) => {
+    localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
+    localStorage.setItem(BATCH_JOB_LAST_RESULTS_KEY, jobId);
+  }, []);
 
   const canAcceptNewOcrFiles = useCallback(() => {
     if (ocrProcessingRef.current || processingLockRef.current || activeBatchJobId) {
@@ -1075,43 +1111,41 @@ function OneDriveUpDocsOCRAIContent() {
         const listRes = await fetch("/api/agentIAOCR/batch-job/list");
         if (!listRes.ok) return;
         const listData = await listRes.json();
-        const active = (listData.jobs as Array<{ jobId: string; status: string }> | undefined)?.find(
+        const jobs = (listData.jobs as Array<{ jobId: string; status: string }> | undefined) ?? [];
+        const active = jobs.find(
           (j) => j.status === "pending" || j.status === "processing" || j.status === "needs_token",
         );
-        const stored = localStorage.getItem(BATCH_JOB_STORAGE_KEY);
-        const jobId = active?.jobId || stored;
+        const storedActive = localStorage.getItem(BATCH_JOB_STORAGE_KEY);
+        const storedLast = localStorage.getItem(BATCH_JOB_LAST_RESULTS_KEY);
+        const recentFinished = jobs.find((j) => j.status === "completed" || j.status === "failed");
+        const jobId =
+          active?.jobId || storedActive || storedLast || recentFinished?.jobId;
         if (!jobId) return;
 
         const stRes = await fetch(
           `/api/agentIAOCR/batch-job/status?jobId=${encodeURIComponent(jobId)}`,
         );
-        if (stRes.ok) {
-          const st = await stRes.json();
-          if (st.status === "completed" || st.status === "failed") {
-            localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
-            if (Array.isArray(st.results)) setOcrResults(st.results);
-            setProcessingStatus({
-              percent: st.status === "completed" ? 100 : st.percent ?? 0,
-              label: st.label || "",
-              done: st.currentItemIndex ?? 0,
-              total: st.totalItems ?? 0,
-              totalKnown: true,
-              completed: st.completed ?? 0,
-              failed: st.failed ?? 0,
-            });
-            if (st.status === "failed" && st.error) setError(String(st.error));
-            return;
-          }
+        if (!stRes.ok) return;
+        const st = (await stRes.json()) as BatchJobStatusPayload & { jobId?: string };
+
+        if (st.status === "pending" || st.status === "processing" || st.status === "needs_token") {
+          setActiveBatchJobId(jobId);
+          setOcrProcessing(true);
+          applyBatchJobStatusToUi(st);
+          if (st.status === "needs_token") setBatchJobNeedsToken(true);
+          return;
         }
 
-        setActiveBatchJobId(jobId);
-        setOcrProcessing(true);
-        if (active?.status === "needs_token") setBatchJobNeedsToken(true);
+        if (st.status === "completed" || st.status === "failed") {
+          persistFinishedBatchJob(jobId);
+          applyBatchJobStatusToUi(st);
+          if (st.status === "failed" && st.error) setError(String(st.error));
+        }
       } catch {
         /* ignore */
       }
     })();
-  }, [clerkUser?.id]);
+  }, [clerkUser?.id, applyBatchJobStatusToUi, persistFinishedBatchJob]);
 
   useEffect(() => {
     if (!activeBatchJobId || batchJobNeedsToken) return;
@@ -1139,31 +1173,26 @@ function OneDriveUpDocsOCRAIContent() {
           }
         }
 
-        await fetch("/api/agentIAOCR/batch-job/process", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId: activeBatchJobId }),
-        });
+        // Relance le worker en arrière-plan (réponse 202 rapide). Pas à chaque tick.
+        if (polls === 1 || polls % 8 === 0) {
+          try {
+            await fetch("/api/agentIAOCR/batch-job/process", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ jobId: activeBatchJobId }),
+            });
+          } catch {
+            /* 504 / réseau : le statut ci-dessous reste la source de vérité */
+          }
+        }
 
         const stRes = await fetch(
           `/api/agentIAOCR/batch-job/status?jobId=${encodeURIComponent(activeBatchJobId)}`,
         );
         if (!stRes.ok || cancelled) return;
-        const st = await stRes.json();
+        const st = (await stRes.json()) as BatchJobStatusPayload;
 
-        setProcessingStatus({
-          percent: typeof st.percent === "number" ? st.percent : 0,
-          label: st.label || "Traitement serveur en cours…",
-          done: typeof st.currentItemIndex === "number" ? st.currentItemIndex : 0,
-          total: typeof st.totalItems === "number" ? st.totalItems : 0,
-          totalKnown: true,
-          completed: typeof st.completed === "number" ? st.completed : 0,
-          failed: typeof st.failed === "number" ? st.failed : 0,
-        });
-        if (Array.isArray(st.results)) {
-          setOcrResults(st.results);
-          setOcrResultsSessionId((id) => id + 1);
-        }
+        applyBatchJobStatusToUi(st);
 
         if (st.status === "needs_token") {
           setBatchJobNeedsToken(true);
@@ -1174,7 +1203,7 @@ function OneDriveUpDocsOCRAIContent() {
         if (st.status === "completed" || st.status === "failed") {
           setOcrProcessing(false);
           setActiveBatchJobId(null);
-          localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
+          persistFinishedBatchJob(activeBatchJobId);
           if (st.status === "failed" && st.error) setError(String(st.error));
           return;
         }
@@ -1182,6 +1211,7 @@ function OneDriveUpDocsOCRAIContent() {
         void tick();
       } catch (e) {
         if (!cancelled) console.warn("[agentIAOCR] poll batch:", e);
+        void tick();
       }
     };
 
@@ -1189,7 +1219,7 @@ function OneDriveUpDocsOCRAIContent() {
     return () => {
       cancelled = true;
     };
-  }, [activeBatchJobId, batchJobNeedsToken, ensureOneDriveConnection]);
+  }, [activeBatchJobId, batchJobNeedsToken, ensureOneDriveConnection, applyBatchJobStatusToUi, persistFinishedBatchJob]);
 
   const runProcessing = async (
     standardFiles: File[],
@@ -1528,6 +1558,9 @@ function OneDriveUpDocsOCRAIContent() {
 
   const failedResults = ocrResults.filter((r) => !r.success);
 
+  const isUploadPhase = ocrProcessing && !activeBatchJobId;
+  const isServerPhase = ocrProcessing && Boolean(activeBatchJobId) && !batchJobNeedsToken;
+
   const ProcessingSpinner = ({ size = "text-7xl" }: { size?: string }) => (
     <span
       className={`${size} inline-block animate-spin`}
@@ -1583,10 +1616,60 @@ function OneDriveUpDocsOCRAIContent() {
         </div>
       )}
 
-      {activeBatchJobId && ocrProcessing && !batchJobNeedsToken && (
-        <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl text-sm">
-          Traitement en cours sur le <strong>serveur</strong> — vous pouvez fermer cet onglet ou éteindre votre poste.
-          Revenez plus tard sur cette page pour suivre la progression.
+      {isServerPhase && (
+        <div className="mb-6 p-5 bg-emerald-50 border-2 border-emerald-400 rounded-2xl flex gap-4 items-start shadow-sm">
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xl font-bold"
+            aria-hidden
+          >
+            ✓
+          </span>
+          <div>
+            <p className="text-lg font-extrabold text-emerald-950">Vous pouvez quitter cette page</p>
+            <p className="text-sm text-emerald-900 mt-1 leading-relaxed">
+              Le reste du traitement tourne sur le <strong>serveur</strong> (OCR, IA, rangement OneDrive).
+              Revenez sur cette page à tout moment pour voir où en est le lot et consulter les résultats.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isUploadPhase && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="ocr-upload-phase-title"
+          aria-describedby="ocr-upload-phase-desc"
+        >
+          <div className="w-full max-w-xl rounded-3xl border-4 border-amber-500 bg-amber-50 p-8 md:p-10 shadow-2xl text-center">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800 mb-3">
+              Phase d&apos;upload
+            </p>
+            <h2
+              id="ocr-upload-phase-title"
+              className="text-2xl md:text-3xl font-black text-amber-950 leading-tight mb-4"
+            >
+              Ne quittez pas cette page
+            </h2>
+            <p id="ocr-upload-phase-desc" className="text-base md:text-lg font-semibold text-amber-900 mb-6 leading-relaxed">
+              Vos PDF sont envoyés vers le cloud et OneDrive. Sur un gros lot, cela peut prendre plusieurs
+              minutes — laissez cet onglet ouvert jusqu&apos;au message de confirmation serveur.
+            </p>
+            <div className="rounded-2xl bg-white/90 border border-amber-300 px-4 py-3 text-sm font-bold text-amber-950">
+              {processingStatus.label || "Préparation de l'envoi…"}
+            </div>
+            <div className="mt-5 w-full bg-amber-200/80 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-amber-600 h-full transition-all duration-500"
+                style={{ width: `${Math.min(100, progressPercent)}%` }}
+              />
+            </div>
+            <p className="mt-3 text-xs font-bold uppercase tracking-wide text-amber-800">
+              {progressCaption ? `${progressCaption} · ` : ""}
+              {Math.round(progressPercent)}%
+            </p>
+          </div>
         </div>
       )}
 
@@ -1652,16 +1735,27 @@ function OneDriveUpDocsOCRAIContent() {
             </div>
           )}
           {ocrProcessing && (
-            <div className="mb-8 p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-3xl shadow-xl flex flex-col items-center gap-4">
+            <div
+              className={`mb-8 p-8 rounded-3xl shadow-xl flex flex-col items-center gap-4 border-2 ${
+                isServerPhase
+                  ? "bg-gradient-to-br from-emerald-50 to-indigo-50 border-emerald-300"
+                  : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300"
+              }`}
+            >
               <ProcessingSpinner size="text-8xl" />
               <p className="text-2xl font-extrabold text-blue-900 tracking-tight">
-                Analyse en cours…
+                {isServerPhase ? "Traitement serveur en cours…" : "Envoi des fichiers…"}
               </p>
-              <p className="text-center text-sm font-medium text-blue-800 max-w-lg">
-                L&apos;IA lit, découpe et range vos documents.{" "}
-                <strong>Ne fermez pas cette page</strong> — cela peut prendre
-                plusieurs minutes pour un export classe entière.
-              </p>
+              {isServerPhase && (
+                <div className="flex items-center gap-3 rounded-2xl bg-white/80 border border-emerald-300 px-5 py-3 max-w-lg">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white font-bold">
+                    ✓
+                  </span>
+                  <p className="text-sm font-semibold text-emerald-950 text-left">
+                    Vous pouvez fermer cet onglet — revenez plus tard pour suivre la progression.
+                  </p>
+                </div>
+              )}
               <div className="w-full max-w-lg">
                 <div className="flex justify-between text-xs font-bold text-blue-700 mb-2 uppercase">
                   <span>Progression</span>
