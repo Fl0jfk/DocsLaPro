@@ -192,3 +192,5 @@ export function emptyRentreePage(establishmentId: string, label: string): Rentre
     sections: DEFAULT_RENTREE_SECTIONS.map((s) => ({ ...s, items: [...s.items] })),
   };
 }
+
+export { rentreeAccentClasses } from "@/app/lib/rentree-accent-styles";

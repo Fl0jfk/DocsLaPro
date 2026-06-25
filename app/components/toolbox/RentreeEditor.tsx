@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import type { Establishment } from "@/app/lib/app-config-schemas";
-import { isInternatRentreeSection, RENTREE_SECTION_INTERNAT } from "@/app/lib/rentree-defaults";
-import { rentreeAccentClasses } from "@/app/lib/rentree-accent-styles";
+import {
+  isInternatRentreeSection,
+  RENTREE_SECTION_INTERNAT,
+  rentreeAccentClasses,
+} from "@/app/lib/rentree-defaults";
 import { RENTREE_ACCENT_OPTIONS } from "@/app/lib/rentree-types";
 import type { RentreeEstablishmentPage, RentreeLinkItem, RentreeSection } from "@/app/lib/rentree-types";
 import type { RentreeToolConfig } from "@/app/lib/toolbox-types";
