@@ -24,6 +24,7 @@ applications:
             - echo "PLATFORM_CLERK_PUBLISHABLE_KEY=$PLATFORM_CLERK_PUBLISHABLE_KEY" >> .env.production
             - echo "PLATFORM_CLERK_SECRET_KEY=$PLATFORM_CLERK_SECRET_KEY" >> .env.production
             - echo "TRAVEL_EMAIL_INGEST_SECRET=$TRAVEL_EMAIL_INGEST_SECRET" >> .env.production
+            - echo "OCR_WORKER_SECRET=$OCR_WORKER_SECRET" >> .env.production
             - npm run build
       artifacts:
         baseDirectory: .next

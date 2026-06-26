@@ -7,7 +7,7 @@ import {
   runOcrBatchJob,
 } from "@/app/lib/ocr-batch-process";
 
-export const maxDuration = 15;
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const session = await resolveSession();

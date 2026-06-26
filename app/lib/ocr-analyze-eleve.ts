@@ -27,14 +27,64 @@ function normalize(str: string): string {
     .trim();
 }
 
+function normalizeIne(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const curr = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    prev = curr;
+  }
+  return prev[b.length];
+}
+
+/** Proximité 0→1 entre deux chaînes (1 = identiques). */
+function closeness(a: string, b: string): number {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.includes(b) || b.includes(a)) return 0.9;
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 0;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+/**
+ * Score de similarité nom/prénom, tolérant aux fautes d'OCR.
+ * Accepte un appariement même si un seul des deux champs est exploitable.
+ */
 function nameSimilarity(aNom: string, aPrenom: string, bNom: string, bPrenom: string): number {
   const an = normalize(aNom);
   const ap = normalize(aPrenom);
   const bn = normalize(bNom);
   const bp = normalize(bPrenom);
+
   let score = 0;
-  if (an && bn && (an === bn || bn.includes(an) || an.includes(bn))) score += 2;
-  if (ap && bp && (ap === bp || bp.includes(ap) || ap.includes(bp))) score += 2;
+  if (an && bn) {
+    const c = closeness(an, bn);
+    if (c >= 0.8) score += 2 * c;
+  }
+  if (ap && bp) {
+    const c = closeness(ap, bp);
+    if (c >= 0.8) score += 2 * c;
+  }
+  // Inversion nom/prénom fréquente sur les bulletins.
+  if (an && bp && ap && bn) {
+    const cross = (closeness(an, bp) + closeness(ap, bn)) / 2;
+    if (cross >= 0.9) score = Math.max(score, 3.5);
+  }
   return score;
 }
 
@@ -143,14 +193,21 @@ export async function analyzeDocMatchEleve(
       hasOneDriveProfile: Boolean(odProfile),
     };
     const { ine, nom, prénom } = extracted;
+    const hasNom = nom && nom !== "non_trouvé";
+    const hasPrenom = prénom && prénom !== "non_trouvé";
     if (ine && ine !== "non_trouvé") {
-      const ineTrim = ine.trim().toUpperCase();
-      const found = eleves.find((e) => e.ine && e.ine.trim().toUpperCase() === ineTrim);
-      if (found) matchedEleve = found;
+      const ineNorm = normalizeIne(ine);
+      if (ineNorm) {
+        const found = eleves.find((e) => e.ine && normalizeIne(e.ine) === ineNorm);
+        if (found) matchedEleve = found;
+      }
     }
-    if (!matchedEleve && nom && prénom && nom !== "non_trouvé" && prénom !== "non_trouvé") {
+    if (!matchedEleve && (hasNom || hasPrenom)) {
       const scored = eleves
-        .map((e) => ({ eleve: e, score: nameSimilarity(nom, prénom, e.nom, e.prenom) }))
+        .map((e) => ({
+          eleve: e,
+          score: nameSimilarity(hasNom ? nom : "", hasPrenom ? prénom : "", e.nom, e.prenom),
+        }))
         .filter((s) => s.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);

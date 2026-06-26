@@ -1,10 +1,14 @@
 import { after, NextResponse } from "next/server";
 import { resolveSession } from "@/app/lib/intranet-session";
 import { readBatchJob } from "../batch-job";
-import { runOcrBatchJob, tryClaimBatchJob } from "@/app/lib/ocr-batch-process";
+import { runOcrBatchJob } from "@/app/lib/ocr-batch-process";
 
-/** Réponse HTTP rapide — le worker tourne via after() (évite 504 ALB / Amplify ~60 s). */
-export const maxDuration = 30;
+/**
+ * Réponse HTTP rapide — le worker tourne via after() en micro-étapes non bloquantes.
+ * maxDuration élevé pour laisser le worker enchaîner plusieurs items par invocation
+ * (il s'auto-limite via RUN_BUDGET_MS bien en deçà de ce plafond).
+ */
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const session = await resolveSession();
@@ -47,22 +51,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const claimed = await tryClaimBatchJob(jobId);
-  if (claimed) {
-    after(() =>
-      runOcrBatchJob(jobId).catch((err) => console.error("[ocr-batch/process] after():", err)),
-    );
-  }
+  // Le worker gère lui-même le verrou, la planification (nextRunAt) et les micro-étapes.
+  after(() =>
+    runOcrBatchJob(jobId).catch((err) => console.error("[ocr-batch/process] after():", err)),
+  );
 
   return NextResponse.json(
-    {
-      ok: true,
-      accepted: true,
-      claimed,
-      detail: claimed
-        ? "Traitement OCR relancé en arrière-plan."
-        : "Traitement déjà en cours ; consultez le statut.",
-    },
+    { ok: true, accepted: true, detail: "Traitement OCR relancé en arrière-plan." },
     { status: 202 },
   );
 }

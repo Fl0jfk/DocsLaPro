@@ -7,8 +7,14 @@ import { buildTextFromPages } from "@/app/lib/eleves-config";
 import { consumeDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
 import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
+import {
+  ONEDRIVE_MSAL_SCOPES,
+  buildOneDriveMsalConfig,
+  fetchMicrosoftOneDrivePublicConfig,
+  storeMsalReturnPath,
+} from "@/app/lib/msal-onedrive-client";
 
-const ONEDRIVE_SCOPES = ["Files.ReadWrite", "User.Read"];
+const ONEDRIVE_SCOPES = [...ONEDRIVE_MSAL_SCOPES];
 
 let msalInstance: msal.PublicClientApplication | null = null;
 
@@ -249,30 +255,29 @@ function OneDriveUpDocsOCRAIContent() {
   useEffect(() => {
     const init = async () => {
       try {
-        const tenantRes = await fetch("/api/tenant/public");
-        const tenant = await tenantRes.json();
-        const ms = tenant.microsoftOneDrive;
-        if (!ms?.enabled || !ms.clientId || !ms.tenantId) {
+        const ms = await fetchMicrosoftOneDrivePublicConfig();
+        if (!ms) {
           setError("OneDrive n'est pas activé pour cet établissement. Activez-le dans Paramètres → Intégrations.");
           setMsalReady(true);
           return;
         }
-        const redirectUri =
-          typeof window !== "undefined" ? `${window.location.origin}/agentIAOCR` : "/agentIAOCR";
-        msalInstance = new msal.PublicClientApplication({
-          auth: {
-            clientId: ms.clientId,
-            authority: `https://login.microsoftonline.com/${ms.tenantId}`,
-            redirectUri,
-          },
-          cache: {
-            cacheLocation: "localStorage",
-          },
-        });
+        msalInstance = new msal.PublicClientApplication(buildOneDriveMsalConfig(ms));
         await getMsalInstance().initialize();
+
+        const redirectResult = await getMsalInstance().handleRedirectPromise();
+        if (redirectResult?.account) {
+          setMsalActiveAccount(redirectResult.account);
+          try {
+            const token = await obtainValidOneDriveToken(redirectResult.account);
+            applyOneDriveSession(redirectResult.account, token);
+          } catch {
+            applyOneDriveSession(redirectResult.account, null);
+          }
+        }
+
         setMsalReady(true);
         const accounts = getMsalInstance().getAllAccounts();
-        if (accounts.length > 0) {
+        if (!redirectResult?.account && accounts.length > 0) {
           setMsalActiveAccount(accounts[0]);
           try {
             const token = await obtainValidOneDriveToken(accounts[0]);
@@ -315,28 +320,6 @@ function OneDriveUpDocsOCRAIContent() {
       }
     })();
   }, [ensureOneDriveConnection, msalReady]);
-
-  useEffect(() => {
-    if (!msalReady) return;
-    const handleRedirect = async () => {
-      try {
-        const result = await getMsalInstance().handleRedirectPromise();
-        if (result?.account) {
-          setMsalActiveAccount(result.account);
-          try {
-            const token = await obtainValidOneDriveToken(result.account);
-            applyOneDriveSession(result.account, token);
-          } catch {
-            applyOneDriveSession(result.account, null);
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (err: any) {
-        setError("Erreur login redirect: " + err.message);
-      }
-    };
-    handleRedirect();
-  }, [applyOneDriveSession, msalReady]);
 
   useEffect(() => {
     ocrProcessingRef.current = ocrProcessing;
@@ -403,25 +386,15 @@ function OneDriveUpDocsOCRAIContent() {
     }
     setError("");
     try {
-      const result = await getMsalInstance().loginPopup({
+      storeMsalReturnPath();
+      await getMsalInstance().loginRedirect({
         scopes: ONEDRIVE_SCOPES,
         prompt: "select_account",
       });
-      setMsalActiveAccount(result.account);
-      if (!(await verifyOneDriveToken(result.accessToken))) {
-        throw new Error(
-          "Accès OneDrive refusé pour ce compte Microsoft. Utilisez le compte professionnel de l'établissement.",
-        );
-      }
-      applyOneDriveSession(result.account, result.accessToken);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      if (err instanceof msal.BrowserAuthError && err.errorCode === "user_cancelled") {
-        setError("Connexion annulée.");
-        return;
-      }
       if (err instanceof msal.BrowserAuthError && err.errorCode === "interaction_in_progress") {
-        setError("Une connexion Microsoft est déjà en cours. Fermez la fenêtre Microsoft et réessayez.");
+        setError("Une connexion Microsoft est déjà en cours. Patientez quelques secondes puis réessayez.");
         return;
       }
       setError(

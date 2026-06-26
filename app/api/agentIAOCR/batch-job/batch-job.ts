@@ -20,6 +20,23 @@ export type OcrBatchResult = {
   result?: any;
 };
 
+export type OcrBatchSegment = {
+  pageStart: number;
+  pageEnd: number;
+  label?: string;
+};
+
+/**
+ * Sous-phase d'un item — permet de reprendre le traitement entre deux invocations
+ * `after()` sans jamais bloquer (Textract poll non bloquant, segments incrémentaux).
+ */
+export type OcrBatchItemPhase =
+  | "ocr_start" // doit lancer Textract
+  | "ocr_poll" // Textract lancé, en attente du résultat
+  | "analyze" // OCR prêt (mode standard) : analyse IA + déplacement
+  | "segmenting" // OCR prêt (mode classe) : découpage à calculer
+  | "segments"; // découpage prêt : traitement segment par segment
+
 export type OcrBatchJobItem = {
   id: string;
   fileName: string;
@@ -27,6 +44,14 @@ export type OcrBatchJobItem = {
   s3Key: string;
   tempPath: string;
   status: "pending" | "processing" | "done" | "failed";
+  phase?: OcrBatchItemPhase;
+  textractJobId?: string;
+  /** Clé S3 du cache OCR ({text,pageTexts,pageCount}) pour ne pas gonfler le job JSON. */
+  ocrCacheKey?: string;
+  /** Segments calculés (mode classe). */
+  segments?: OcrBatchSegment[];
+  /** Index du prochain segment à traiter (mode classe). */
+  segmentIndex?: number;
 };
 
 export type OcrBatchJob = {
@@ -36,7 +61,13 @@ export type OcrBatchJob = {
   startedAt: string;
   updatedAt: string;
   processingStartedAt?: string;
+  /** Ne pas relancer le worker avant cette date (planification sans sleep serveur). */
+  nextRunAt?: string;
   accessToken: string;
+  /** Refresh token délégué (optionnel) : permet au serveur de renouveler le token sans onglet ouvert. */
+  refreshToken?: string;
+  /** Origine HTTP du tenant — sert à l'auto-relance serveur (onglet fermé). */
+  originUrl?: string;
   items: OcrBatchJobItem[];
   currentItemIndex: number;
   results: OcrBatchResult[];
@@ -46,6 +77,44 @@ export type OcrBatchJob = {
   failed: number;
   error?: string;
 };
+
+export type OcrCachePayload = {
+  text: string;
+  pageTexts: Record<string, string>;
+  pageCount: number;
+};
+
+const OCR_CACHE_PREFIX = "agentIAOCR/batch-ocr/";
+
+export function ocrCacheKey(jobId: string, itemId: string) {
+  return `${OCR_CACHE_PREFIX}${jobId}/${itemId}.json`;
+}
+
+export async function writeOcrCache(key: string, payload: OcrCachePayload) {
+  const s3Client = await getTenantDataS3Client();
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: await getBucketName(),
+      Key: key,
+      Body: JSON.stringify(payload),
+      ContentType: "application/json",
+    }),
+  );
+}
+
+export async function readOcrCache(key: string): Promise<OcrCachePayload | null> {
+  const s3Client = await getTenantDataS3Client();
+  try {
+    const res = await s3Client.send(
+      new GetObjectCommand({ Bucket: await getBucketName(), Key: key }),
+    );
+    const raw = await res.Body?.transformToString();
+    if (!raw) return null;
+    return JSON.parse(raw) as OcrCachePayload;
+  } catch {
+    return null;
+  }
+}
 
 const JOB_PREFIX = "agentIAOCR/batch-jobs/";
 const INDEX_PREFIX = "agentIAOCR/batch-jobs-index/";

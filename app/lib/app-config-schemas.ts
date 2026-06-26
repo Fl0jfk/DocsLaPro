@@ -62,8 +62,26 @@ export type EcoleDirecteIntegration = {
   preinscriptionUrl?: string;
 };
 
+export type OneDriveSecteur = "ecole" | "college" | "lycee";
+
+/** Dossier racine OneDrive où ranger les documents élèves, par cycle. */
+export type OneDriveSecteurBase = {
+  basePath: string;
+  label?: string;
+};
+
+/** Associe un utilisateur (email ou nom) à un cycle, pour le classement OCR/stages. */
+export type OneDriveUserSecteur = {
+  match: string;
+  secteur: OneDriveSecteur;
+};
+
 export type MicrosoftOneDriveIntegration = {
   enabled: boolean;
+  /** Surcharge des dossiers racine par cycle (sinon valeurs par défaut en dur). */
+  basesBySecteur?: Partial<Record<OneDriveSecteur, OneDriveSecteurBase>>;
+  /** Mapping utilisateur → cycle (pour les comptes non câblés en dur). */
+  userSecteurs?: OneDriveUserSecteur[];
 };
 
 export type IntegrationsConfig = {
@@ -427,6 +445,46 @@ function parseEcoleDirecteIntegration(raw: unknown): EcoleDirecteIntegration | u
   };
 }
 
+function parseOneDriveSecteur(value: unknown): OneDriveSecteur | null {
+  const s = String(value ?? "").trim().toLowerCase();
+  return s === "ecole" || s === "college" || s === "lycee" ? s : null;
+}
+
+function parseOneDriveIntegration(raw: Record<string, unknown>): MicrosoftOneDriveIntegration {
+  const result: MicrosoftOneDriveIntegration = { enabled: raw.enabled === true };
+
+  const basesRaw = raw.basesBySecteur;
+  if (basesRaw && typeof basesRaw === "object") {
+    const bases: Partial<Record<OneDriveSecteur, OneDriveSecteurBase>> = {};
+    for (const secteur of ["ecole", "college", "lycee"] as const) {
+      const row = (basesRaw as Record<string, unknown>)[secteur];
+      if (row && typeof row === "object") {
+        const basePath = str((row as Record<string, unknown>).basePath);
+        if (basePath) {
+          bases[secteur] = {
+            basePath,
+            label: str((row as Record<string, unknown>).label) || undefined,
+          };
+        }
+      }
+    }
+    if (Object.keys(bases).length > 0) result.basesBySecteur = bases;
+  }
+
+  if (Array.isArray(raw.userSecteurs)) {
+    const list: OneDriveUserSecteur[] = [];
+    for (const item of raw.userSecteurs) {
+      if (!item || typeof item !== "object") continue;
+      const match = str((item as Record<string, unknown>).match);
+      const secteur = parseOneDriveSecteur((item as Record<string, unknown>).secteur);
+      if (match && secteur) list.push({ match, secteur });
+    }
+    if (list.length > 0) result.userSecteurs = list;
+  }
+
+  return result;
+}
+
 export function parseIntegrations(raw: unknown): IntegrationsConfig {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const oneDrive = o.microsoftOneDrive && typeof o.microsoftOneDrive === "object"
@@ -435,7 +493,7 @@ export function parseIntegrations(raw: unknown): IntegrationsConfig {
   return {
     zeendoc: parseZeendocIntegration(o.zeendoc),
     ecoleDirecte: parseEcoleDirecteIntegration(o.ecoleDirecte),
-    microsoftOneDrive: oneDrive ? { enabled: oneDrive.enabled === true } : undefined,
+    microsoftOneDrive: oneDrive ? parseOneDriveIntegration(oneDrive) : undefined,
   };
 }
 

@@ -1,11 +1,16 @@
 import "server-only";
 
-import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import {
+  ocrCacheKey,
   readBatchJob,
+  readOcrCache,
   writeBatchJob,
+  writeOcrCache,
   type OcrBatchJob,
+  type OcrBatchJobItem,
   type OcrBatchResult,
+  type OcrBatchSegment,
 } from "@/app/api/agentIAOCR/batch-job/batch-job";
 import { analyzeDocMatchEleve } from "@/app/lib/ocr-analyze-eleve";
 import { extractPdfPagesBytes } from "@/app/lib/ocr-extract-pages";
@@ -15,17 +20,24 @@ import {
   uploadBytesToOneDrive,
 } from "@/app/lib/ocr-graph-ops";
 import { runDocumentSegmentation } from "@/app/lib/ocr-segment-run";
-import { runTextractForS3Key } from "@/app/lib/ocr-textract";
+import { pollTextractOnce, startTextractForS3Key } from "@/app/lib/ocr-textract";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
-import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
+import { resolveOneDriveProfileForClerkUserServer } from "@/app/lib/onedrive-user-profiles.server";
+import type { OneDriveUserProfile } from "@/app/lib/onedrive-user-profiles";
+import { getMicrosoftAccessTokenFromRefresh } from "@/app/lib/graph-microsoft-delegated";
 import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
+import { getTenant } from "@/app/lib/tenant-context";
+import { getTenantSecrets } from "@/app/lib/tenant-registry";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 
 const RUN_LOCK_PREFIX = "agentIAOCR/batch-locks/";
-const PROCESSING_ACTIVE_MS = 60_000;
-/** Un morceau de traitement par invocation after() — reste sous le timeout Amplify (~30 s). */
-const RUN_BUDGET_MS = 28_000;
+/** Au-delà de cet âge, un lock est considéré orphelin (worker tué) et peut être volé. */
+const LOCK_TTL_MS = 75_000;
+/** Budget d'une invocation `after()` — on s'arrête bien avant le timeout de la fonction. */
+const RUN_BUDGET_MS = 50_000;
+/** Délai entre deux tours de polling Textract. */
+const OCR_POLL_DELAY_MS = 3_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -33,7 +45,23 @@ function runLockKey(jobId: string) {
   return `${RUN_LOCK_PREFIX}${jobId}.lock`;
 }
 
-async function acquireRunLock(jobId: string): Promise<boolean> {
+async function readLockAcquiredAt(jobId: string): Promise<number | null> {
+  const s3Client = await getTenantDataS3Client();
+  try {
+    const res = await s3Client.send(
+      new GetObjectCommand({ Bucket: await getBucketName(), Key: runLockKey(jobId) }),
+    );
+    const raw = await res.Body?.transformToString();
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { acquiredAt?: string };
+    const t = parsed.acquiredAt ? new Date(parsed.acquiredAt).getTime() : NaN;
+    return Number.isNaN(t) ? null : t;
+  } catch {
+    return null;
+  }
+}
+
+async function putLock(jobId: string): Promise<boolean> {
   const s3Client = await getTenantDataS3Client();
   try {
     await s3Client.send(
@@ -54,6 +82,17 @@ async function acquireRunLock(jobId: string): Promise<boolean> {
   }
 }
 
+/** Acquiert le lock ; vole un lock orphelin (worker précédent tué sans libération). */
+async function acquireRunLock(jobId: string): Promise<boolean> {
+  if (await putLock(jobId)) return true;
+
+  const acquiredAt = await readLockAcquiredAt(jobId);
+  if (acquiredAt !== null && Date.now() - acquiredAt < LOCK_TTL_MS) return false;
+
+  await releaseRunLock(jobId);
+  return putLock(jobId);
+}
+
 async function releaseRunLock(jobId: string) {
   const s3Client = await getTenantDataS3Client();
   try {
@@ -65,10 +104,38 @@ async function releaseRunLock(jobId: string) {
   }
 }
 
-function interFileDelayMs(processedCount: number, totalEstimate: number) {
-  const base = totalEstimate >= 100 ? 2000 : totalEstimate >= 50 ? 1200 : 400;
-  const extra = Math.floor(processedCount / 25) * 800;
-  return Math.min(6000, base + extra);
+/**
+ * Auto-relance serveur : ré-invoque le worker via un endpoint interne (secret partagé),
+ * pour que le lot se termine même si l'onglet est fermé. Sans secret/origine → no-op
+ * (on retombe sur le ré-déclenchement par le navigateur tant qu'il est ouvert).
+ */
+async function fireSelfChain(originUrl: string | undefined, jobId: string, delayMs: number) {
+  const secret = process.env.OCR_WORKER_SECRET?.trim();
+  if (!secret || !originUrl) return;
+  try {
+    await fetch(`${originUrl.replace(/\/+$/, "")}/api/agentIAOCR/batch-job/internal-run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-ocr-worker-secret": secret },
+      body: JSON.stringify({ jobId, delayMs }),
+    });
+  } catch (err) {
+    console.error("[ocr-batch] auto-relance échouée:", err);
+  }
+}
+
+async function deleteOcrCacheForJob(job: OcrBatchJob) {
+  const s3Client = await getTenantDataS3Client();
+  const bucket = await getBucketName();
+  await Promise.all(
+    job.items
+      .map((it) => it.ocrCacheKey)
+      .filter((k): k is string => Boolean(k))
+      .map((Key) =>
+        s3Client
+          .send(new DeleteObjectCommand({ Bucket: bucket, Key }))
+          .catch(() => undefined),
+      ),
+  );
 }
 
 function segmentTempFileName(originalName: string, pageStart: number, pageEnd: number, index: number) {
@@ -79,16 +146,10 @@ function segmentTempFileName(originalName: string, pageStart: number, pageEnd: n
 function computeProgress(job: OcrBatchJob) {
   const totalItems = job.items.length;
   const doneItems = job.currentItemIndex;
-  const itemResults = job.results.length;
   const completed = job.results.filter((r) => r.success).length;
   const failed = job.results.filter((r) => !r.success).length;
-  const percent =
-    totalItems > 0
-      ? Math.min(99, Math.round((doneItems / totalItems) * 100))
-      : itemResults > 0
-        ? 100
-        : 0;
-  return { percent, completed, failed, totalItems, doneItems };
+  const percent = totalItems > 0 ? Math.min(99, Math.round((doneItems / totalItems) * 100)) : 0;
+  return { percent, completed, failed };
 }
 
 async function patchJob(jobId: string, patch: Partial<OcrBatchJob>) {
@@ -102,7 +163,7 @@ async function patchJob(jobId: string, patch: Partial<OcrBatchJob>) {
 async function getOdProfileForUser(userId: string) {
   const clerk = await getClerkClientForTenant();
   const user = await clerk.users.getUser(userId);
-  return getOneDriveProfileForClerkUser({
+  return resolveOneDriveProfileForClerkUserServer({
     lastName: user.lastName,
     emailAddresses: user.emailAddresses?.map((e) => ({ emailAddress: e.emailAddress })),
     primaryEmailAddress: user.primaryEmailAddress
@@ -118,269 +179,368 @@ class TokenExpiredError extends Error {
   }
 }
 
-async function analyzeAndMove(
-  accessToken: string,
-  text: string,
-  sourcePath: string,
-  displayName: string,
-  odProfile: Awaited<ReturnType<typeof getOdProfileForUser>>,
-): Promise<OcrBatchResult> {
+/**
+ * Contexte d'exécution : porte le token courant et sait le renouveler côté serveur
+ * (refresh token du job ou refresh token délégué par cycle dans les secrets tenant).
+ */
+type WorkerCtx = {
+  jobId: string;
+  token: string;
+  odProfile: OneDriveUserProfile | null;
+  refreshToken: string | null;
+};
+
+async function resolveServerRefreshToken(
+  job: OcrBatchJob,
+  odProfile: OneDriveUserProfile | null,
+): Promise<string | null> {
+  if (job.refreshToken?.trim()) return job.refreshToken.trim();
+  if (!odProfile) return null;
   try {
-    const ai = await analyzeDocMatchEleve(text, odProfile);
-    if (!ai?.fileName) {
-      return {
-        success: false,
-        error: "Analyse IA incomplète.",
-        fileName: displayName,
-        result: ai,
-        tempOneDrivePath: sourcePath,
-      };
-    }
-    if (!ai.oneDriveFolderPath) {
-      return {
-        success: false,
-        error:
-          "Élève non identifié — le fichier reste dans Temp. Rangez-le à la main ou repassez-le en mode Standard.",
-        fileName: displayName,
-        result: ai,
-        tempOneDrivePath: sourcePath,
-      };
-    }
-    const move = await moveOneDriveFile(
-      accessToken,
-      sourcePath,
-      ai.oneDriveFolderPath,
-      `${ai.fileName}.pdf`,
-    );
-    if (!move.ok) {
-      if (move.status === 401) throw new TokenExpiredError();
-      return {
-        success: false,
-        error: `Déplacement impossible : ${move.detail.slice(0, 200)}`,
-        fileName: displayName,
-        result: ai,
-        tempOneDrivePath: sourcePath,
-      };
-    }
-    return { success: true, result: ai, fileName: displayName };
-  } catch (err) {
-    if (err instanceof TokenExpiredError) throw err;
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-      fileName: displayName,
-      tempOneDrivePath: sourcePath,
-    };
+    const tenant = await getTenant();
+    const secrets = await getTenantSecrets(tenant.slug);
+    const rt = secrets?.microsoft?.oneDriveBySecteur?.[odProfile.secteur]?.refreshToken;
+    return rt?.trim() || null;
+  } catch {
+    return null;
   }
 }
 
-async function processStandardItem(
-  job: OcrBatchJob,
-  itemIndex: number,
-  odProfile: Awaited<ReturnType<typeof getOdProfileForUser>>,
-): Promise<OcrBatchResult[]> {
-  const item = job.items[itemIndex];
-  await patchJob(job.jobId, {
-    label: `OCR — ${item.fileName}`,
-    items: job.items.map((it, i) => (i === itemIndex ? { ...it, status: "processing" } : it)),
-  });
-
-  const ocr = await runTextractForS3Key(item.s3Key);
-  await patchJob(job.jobId, { label: `Classement — ${item.fileName}` });
-  const result = await analyzeAndMove(job.accessToken, ocr.text, item.tempPath, item.fileName, odProfile);
-  return [result];
-}
-
-async function processClassItem(
-  job: OcrBatchJob,
-  itemIndex: number,
-  odProfile: Awaited<ReturnType<typeof getOdProfileForUser>>,
-): Promise<OcrBatchResult[]> {
-  const item = job.items[itemIndex];
-  const results: OcrBatchResult[] = [];
-  const sourceTempPath = item.tempPath;
-
-  await patchJob(job.jobId, {
-    label: `OCR classe — ${item.fileName}`,
-    items: job.items.map((it, i) => (i === itemIndex ? { ...it, status: "processing" } : it)),
-  });
-
-  const ocr = await runTextractForS3Key(item.s3Key, 90);
-  await patchJob(job.jobId, { label: `Découpage — ${item.fileName}` });
-
-  const segData = await runDocumentSegmentation({
-    pageTexts: ocr.pageTexts,
-    pageCount: ocr.pageCount,
-  });
-  const segments = segData.segments || [];
-  const mode = segData.mode;
-
-  if (mode === "single" || segments.length <= 1) {
-    const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
-    const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
-    const one = await analyzeAndMove(
-      job.accessToken,
-      slice || ocr.text,
-      sourceTempPath,
-      item.fileName,
-      odProfile,
-    );
-    return [one];
-  }
-
-  await deleteOneDrivePath(job.accessToken, sourceTempPath);
-  const segmentTotal = segments.length;
-
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    const label = `${item.fileName} [p.${seg.pageStart}-${seg.pageEnd}]`;
-    await patchJob(job.jobId, {
-      label: `Segment ${i + 1}/${segmentTotal} — ${label}`,
-    });
-
-    let tempSegPath: string | undefined;
-    try {
-      const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
-      if (!slice.trim()) {
-        results.push({
-          success: false,
-          error: "Aucun texte OCR sur ce segment.",
-          fileName: label,
-        });
-        continue;
-      }
-
-      const pdfBytes = await extractPdfPagesBytes(item.s3Key, seg.pageStart, seg.pageEnd);
-      tempSegPath = segmentTempFileName(item.fileName, seg.pageStart, seg.pageEnd, i);
-      const upload = await uploadBytesToOneDrive(job.accessToken, tempSegPath, pdfBytes);
-      if (!upload.ok) {
-        if (upload.status === 401) throw new TokenExpiredError();
-        throw new Error(`Upload segment OneDrive : ${upload.detail}`);
-      }
-
-      const ai = await analyzeDocMatchEleve(slice, odProfile);
-      if (!ai?.fileName || !ai.oneDriveFolderPath) {
-        results.push({
-          success: false,
-          error: "Élève non identifié sur ce segment — PDF laissé dans Temp.",
-          fileName: label,
-          result: ai,
-          tempOneDrivePath: tempSegPath,
-        });
-        continue;
-      }
-
-      const move = await moveOneDriveFile(
-        job.accessToken,
-        tempSegPath,
-        ai.oneDriveFolderPath,
-        `${ai.fileName}.pdf`,
-      );
-      if (!move.ok) {
-        if (move.status === 401) throw new TokenExpiredError();
-        throw new Error(move.detail);
-      }
-      results.push({ success: true, result: ai, fileName: label });
-    } catch (segErr) {
-      if (segErr instanceof TokenExpiredError) throw segErr;
-      const msg = segErr instanceof Error ? segErr.message : String(segErr);
-      results.push({
-        success: false,
-        error: tempSegPath ? `${msg} — document laissé dans Temp.` : msg,
-        fileName: label,
-        tempOneDrivePath: tempSegPath,
-      });
-    }
-    await sleep(400);
-  }
-
-  return results;
-}
-
-export async function tryClaimBatchJob(jobId: string): Promise<boolean> {
-  const job = await readBatchJob(jobId);
-  if (!job) return false;
-  if (job.status === "completed" || job.status === "failed" || job.status === "needs_token") {
-    return false;
-  }
-
-  if (job.status === "processing" && job.processingStartedAt) {
-    const age = Date.now() - new Date(job.processingStartedAt).getTime();
-    if (age < PROCESSING_ACTIVE_MS) return false;
-    console.warn("[ocr-batch] reprise job stale", jobId, age);
-    await releaseRunLock(jobId);
-  }
-
-  if (job.status !== "pending" && job.status !== "processing") return false;
-
-  await writeBatchJob({
-    ...job,
-    status: "processing",
-    processingStartedAt: new Date().toISOString(),
-    label: job.label || "Traitement en cours…",
-  });
+/** Tente un renouvellement serveur du token (sans onglet ouvert). */
+async function tryServerTokenRefresh(ctx: WorkerCtx): Promise<boolean> {
+  if (!ctx.refreshToken) return false;
+  const res = await getMicrosoftAccessTokenFromRefresh(ctx.refreshToken);
+  if ("error" in res) return false;
+  ctx.token = res.accessToken;
+  await patchJob(ctx.jobId, { accessToken: res.accessToken });
   return true;
 }
 
+/**
+ * Rejoue une opération Graph en gérant un 401 :
+ *  → tente un refresh serveur, sinon lève TokenExpiredError (le job passera needs_token).
+ */
+async function withToken<T extends { ok: boolean; status?: number }>(
+  ctx: WorkerCtx,
+  op: (token: string) => Promise<T>,
+): Promise<T> {
+  let res = await op(ctx.token);
+  if (res.ok || res.status !== 401) return res;
+  if (await tryServerTokenRefresh(ctx)) {
+    res = await op(ctx.token);
+    if (res.ok || res.status !== 401) return res;
+  }
+  throw new TokenExpiredError();
+}
+
+type StepOutcome =
+  | { kind: "continue"; label?: string }
+  | { kind: "wait"; delayMs: number; label?: string }
+  | { kind: "result"; results: OcrBatchResult[]; itemDone: boolean; label?: string };
+
+async function patchItem(
+  jobId: string,
+  itemIndex: number,
+  patch: Partial<OcrBatchJobItem>,
+  extra?: Partial<OcrBatchJob>,
+) {
+  const job = await readBatchJob(jobId);
+  if (!job) return;
+  await writeBatchJob({
+    ...job,
+    ...extra,
+    items: job.items.map((it, i) => (i === itemIndex ? { ...it, ...patch } : it)),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function analyzeAndMove(
+  ctx: WorkerCtx,
+  text: string,
+  sourcePath: string,
+  displayName: string,
+): Promise<OcrBatchResult> {
+  const ai = await analyzeDocMatchEleve(text, ctx.odProfile);
+  if (!ai?.fileName) {
+    return {
+      success: false,
+      error: "Analyse IA incomplète.",
+      fileName: displayName,
+      result: ai,
+      tempOneDrivePath: sourcePath,
+    };
+  }
+  if (!ai.oneDriveFolderPath) {
+    return {
+      success: false,
+      error:
+        "Élève non identifié — le fichier reste dans Temp. Rangez-le à la main ou repassez-le en mode Standard.",
+      fileName: displayName,
+      result: ai,
+      tempOneDrivePath: sourcePath,
+    };
+  }
+  const move = await withToken(ctx, (token) =>
+    moveOneDriveFile(token, sourcePath, ai.oneDriveFolderPath as string, `${ai.fileName}.pdf`),
+  );
+  if (!move.ok) {
+    return {
+      success: false,
+      error: `Déplacement impossible : ${move.detail.slice(0, 200)}`,
+      fileName: displayName,
+      result: ai,
+      tempOneDrivePath: sourcePath,
+    };
+  }
+  return { success: true, result: ai, fileName: displayName };
+}
+
+/** Exécute une seule micro-étape de l'item courant. Ne bloque jamais longtemps. */
+async function stepItem(
+  ctx: WorkerCtx,
+  job: OcrBatchJob,
+  itemIndex: number,
+): Promise<StepOutcome> {
+  const item = job.items[itemIndex];
+  const phase = item.phase ?? "ocr_start";
+
+  if (phase === "ocr_start") {
+    const textractJobId = await startTextractForS3Key(item.s3Key);
+    await patchItem(job.jobId, itemIndex, {
+      status: "processing",
+      phase: "ocr_poll",
+      textractJobId,
+    });
+    return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: `OCR — ${item.fileName}` };
+  }
+
+  if (phase === "ocr_poll") {
+    if (!item.textractJobId) {
+      await patchItem(job.jobId, itemIndex, { phase: "ocr_start" });
+      return { kind: "continue" };
+    }
+    const poll = await pollTextractOnce(item.textractJobId);
+    if (poll.status === "IN_PROGRESS") {
+      return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: `Lecture OCR — ${item.fileName}` };
+    }
+    if (poll.status === "FAILED") {
+      return {
+        kind: "result",
+        itemDone: true,
+        results: [
+          {
+            success: false,
+            error: "OCR Textract a échoué sur ce fichier.",
+            fileName: item.fileName,
+            tempOneDrivePath: item.tempPath,
+          },
+        ],
+      };
+    }
+    const cacheKey = ocrCacheKey(job.jobId, item.id);
+    await writeOcrCache(cacheKey, poll.result);
+    await patchItem(job.jobId, itemIndex, {
+      ocrCacheKey: cacheKey,
+      phase: item.mode === "class" ? "segmenting" : "analyze",
+    });
+    return { kind: "continue", label: `Classement — ${item.fileName}` };
+  }
+
+  const ocr = item.ocrCacheKey ? await readOcrCache(item.ocrCacheKey) : null;
+  if (!ocr) {
+    await patchItem(job.jobId, itemIndex, { phase: "ocr_start", textractJobId: undefined });
+    return { kind: "continue" };
+  }
+
+  if (phase === "analyze") {
+    const result = await analyzeAndMove(ctx, ocr.text, item.tempPath, item.fileName);
+    return { kind: "result", results: [result], itemDone: true };
+  }
+
+  if (phase === "segmenting") {
+    const segData = await runDocumentSegmentation({
+      pageTexts: ocr.pageTexts,
+      pageCount: ocr.pageCount,
+    });
+    const segments = (segData.segments || []) as OcrBatchSegment[];
+
+    if (segData.mode === "single" || segments.length <= 1) {
+      const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
+      const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
+      const one = await analyzeAndMove(ctx, slice || ocr.text, item.tempPath, item.fileName);
+      return { kind: "result", results: [one], itemDone: true };
+    }
+
+    await withToken(ctx, async (token) => {
+      await deleteOneDrivePath(token, item.tempPath);
+      return { ok: true as const };
+    });
+    await patchItem(job.jobId, itemIndex, { phase: "segments", segments, segmentIndex: 0 });
+    return { kind: "continue", label: `Découpage — ${item.fileName}` };
+  }
+
+  // phase === "segments"
+  const segments = item.segments ?? [];
+  const segIndex = item.segmentIndex ?? 0;
+  const total = segments.length;
+  if (segIndex >= total) {
+    return { kind: "result", results: [], itemDone: true };
+  }
+
+  const seg = segments[segIndex];
+  const label = `${item.fileName} [p.${seg.pageStart}-${seg.pageEnd}]`;
+  const isLast = segIndex + 1 >= total;
+  let segResult: OcrBatchResult;
+  let tempSegPath: string | undefined;
+
+  try {
+    const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
+    if (!slice.trim()) {
+      segResult = { success: false, error: "Aucun texte OCR sur ce segment.", fileName: label };
+    } else {
+      const pdfBytes = await extractPdfPagesBytes(item.s3Key, seg.pageStart, seg.pageEnd);
+      tempSegPath = segmentTempFileName(item.fileName, seg.pageStart, seg.pageEnd, segIndex);
+      const segPath = tempSegPath;
+      const upload = await withToken(ctx, (token) => uploadBytesToOneDrive(token, segPath, pdfBytes));
+      if (!upload.ok) {
+        throw new Error(`Upload segment OneDrive : ${upload.detail}`);
+      }
+      segResult = await analyzeAndMove(ctx, slice, tempSegPath, label);
+    }
+  } catch (segErr) {
+    if (segErr instanceof TokenExpiredError) throw segErr;
+    const msg = segErr instanceof Error ? segErr.message : String(segErr);
+    segResult = {
+      success: false,
+      error: tempSegPath ? `${msg} — document laissé dans Temp.` : msg,
+      fileName: label,
+      tempOneDrivePath: tempSegPath,
+    };
+  }
+
+  await patchItem(job.jobId, itemIndex, { segmentIndex: segIndex + 1 });
+  return {
+    kind: "result",
+    results: [segResult],
+    itemDone: isLast,
+    label: `Segment ${segIndex + 1}/${total} — ${item.fileName}`,
+  };
+}
+
 export async function runOcrBatchJob(jobId: string) {
-  const existing = await readBatchJob(jobId);
-  if (!existing) return;
-  if (existing.status === "completed" || existing.status === "failed") return;
+  const pre = await readBatchJob(jobId);
+  if (!pre) return;
+  if (pre.status === "completed" || pre.status === "failed" || pre.status === "needs_token") return;
+  if (pre.nextRunAt && Date.now() < new Date(pre.nextRunAt).getTime()) return;
 
   if (!(await acquireRunLock(jobId))) return;
 
-  let job = await readBatchJob(jobId);
-  if (!job || job.status === "completed" || job.status === "failed") {
-    await releaseRunLock(jobId);
-    return;
-  }
-
-  const startedAt = Date.now();
-  const odProfile = await getOdProfileForUser(job.userId);
+  // Délai d'auto-relance serveur : > 0 si le worker s'interrompt avec du travail restant.
+  let chainDelayMs: number | null = null;
+  const originUrl = pre.originUrl;
 
   try {
-    while (job.currentItemIndex < job.items.length) {
-      job = (await readBatchJob(jobId))!;
-      if (!job || job.status === "failed" || job.status === "completed") break;
+    let job = await readBatchJob(jobId);
+    if (!job || job.status === "completed" || job.status === "failed") return;
 
+    const odProfile = await getOdProfileForUser(job.userId);
+    const ctx: WorkerCtx = {
+      jobId,
+      token: job.accessToken,
+      odProfile,
+      refreshToken: await resolveServerRefreshToken(job, odProfile),
+    };
+
+    await patchJob(jobId, {
+      status: "processing",
+      processingStartedAt: new Date().toISOString(),
+      nextRunAt: undefined,
+    });
+
+    const startedAt = Date.now();
+
+    while (true) {
       if (Date.now() - startedAt > RUN_BUDGET_MS) {
         await patchJob(jobId, {
           status: "processing",
-          label: `Pause serveur — reprise automatique (${job.currentItemIndex}/${job.items.length})…`,
+          nextRunAt: new Date().toISOString(),
+          label: `Reprise automatique… (${job.currentItemIndex}/${job.items.length})`,
         });
-        break;
+        chainDelayMs = 0;
+        return;
+      }
+
+      job = await readBatchJob(jobId);
+      if (!job || job.status === "failed" || job.status === "completed" || job.status === "needs_token") {
+        return;
+      }
+
+      if (job.currentItemIndex >= job.items.length) {
+        const completed = job.results.filter((r) => r.success).length;
+        const failed = job.results.filter((r) => !r.success).length;
+        await patchJob(jobId, {
+          status: "completed",
+          percent: 100,
+          completed,
+          failed,
+          nextRunAt: undefined,
+          label: `Terminé — ${job.results.length} document${job.results.length > 1 ? "s" : ""} traité${job.results.length > 1 ? "s" : ""}`,
+        });
+        await deleteOcrCacheForJob(job);
+        return;
       }
 
       const itemIndex = job.currentItemIndex;
       const item = job.items[itemIndex];
 
       try {
-        const itemResults =
-          item.mode === "class"
-            ? await processClassItem(job, itemIndex, odProfile)
-            : await processStandardItem(job, itemIndex, odProfile);
+        const outcome = await stepItem(ctx, job, itemIndex);
 
-        job = (await patchJob(jobId, {
-          results: [...job.results, ...itemResults],
-          items: job.items.map((it, i) =>
-            i === itemIndex ? { ...it, status: itemResults.every((r) => r.success) ? "done" : "failed" } : it,
-          ),
-          currentItemIndex: itemIndex + 1,
-          ...computeProgress({
-            ...job,
-            currentItemIndex: itemIndex + 1,
-            results: [...job.results, ...itemResults],
-          }),
-        }))!;
-
-        if (itemIndex + 1 < job.items.length) {
-          let pauseMs = interFileDelayMs(itemIndex + 1, job.items.length);
-          if ((itemIndex + 1) % 25 === 0) pauseMs += 10_000;
+        if (outcome.kind === "wait") {
+          // Attente OCR utile : on patiente DANS le budget (jamais de blocage > timeout),
+          // pour que les lots usuels se terminent en une seule invocation (onglet fermable).
+          if (Date.now() - startedAt + outcome.delayMs < RUN_BUDGET_MS) {
+            if (outcome.label) await patchJob(jobId, { label: outcome.label });
+            await sleep(outcome.delayMs);
+            continue;
+          }
+          // Budget presque épuisé : on planifie une reprise (client ou invocation suivante).
           await patchJob(jobId, {
-            label: `Pause Graph (${itemIndex + 1}/${job.items.length})…`,
+            status: "processing",
+            nextRunAt: new Date(Date.now() + outcome.delayMs).toISOString(),
+            label: outcome.label ?? job.label,
           });
-          await sleep(pauseMs);
+          chainDelayMs = outcome.delayMs;
+          return;
         }
+
+        if (outcome.kind === "continue") {
+          if (outcome.label) await patchJob(jobId, { label: outcome.label });
+          continue;
+        }
+
+        // outcome.kind === "result"
+        const current = await readBatchJob(jobId);
+        if (!current) return;
+        const nextResults = [...current.results, ...outcome.results];
+        const nextIndex = outcome.itemDone ? itemIndex + 1 : itemIndex;
+        const prog = computeProgress({ ...current, results: nextResults, currentItemIndex: nextIndex });
+        await writeBatchJob({
+          ...current,
+          results: nextResults,
+          currentItemIndex: nextIndex,
+          items: current.items.map((it, i) =>
+            i === itemIndex && outcome.itemDone
+              ? { ...it, status: outcome.results.every((r) => r.success) ? "done" : "failed" }
+              : it,
+          ),
+          percent: prog.percent,
+          completed: prog.completed,
+          failed: prog.failed,
+          label: outcome.label ?? current.label,
+          updatedAt: new Date().toISOString(),
+        });
+        continue;
       } catch (err) {
         if (err instanceof TokenExpiredError) {
           await patchJob(jobId, {
@@ -388,44 +548,25 @@ export async function runOcrBatchJob(jobId: string) {
             error: "Session OneDrive expirée. Reconnectez Microsoft sur la page pour reprendre.",
             label: "En attente de reconnexion OneDrive…",
           });
-          break;
+          return;
         }
         const message = err instanceof Error ? err.message : String(err);
-        job = (await patchJob(jobId, {
+        const current = await readBatchJob(jobId);
+        if (!current) return;
+        await writeBatchJob({
+          ...current,
           results: [
-            ...job.results,
+            ...current.results,
             { success: false, error: message, fileName: item.fileName, tempOneDrivePath: item.tempPath },
           ],
-          items: job.items.map((it, i) => (i === itemIndex ? { ...it, status: "failed" } : it)),
+          items: current.items.map((it, i) =>
+            i === itemIndex ? { ...it, status: "failed" } : it,
+          ),
           currentItemIndex: itemIndex + 1,
-        }))!;
+          updatedAt: new Date().toISOString(),
+        });
+        continue;
       }
-
-      job = (await readBatchJob(jobId))!;
-      if (!job || job.status === "needs_token") break;
-    }
-
-    job = (await readBatchJob(jobId))!;
-    if (!job || job.status === "needs_token" || job.status === "failed") return;
-
-    if (job.currentItemIndex >= job.items.length) {
-      const completed = job.results.filter((r) => r.success).length;
-      const failed = job.results.filter((r) => !r.success).length;
-      await patchJob(jobId, {
-        status: "completed",
-        percent: 100,
-        completed,
-        failed,
-        label: `Terminé — ${job.results.length} document${job.results.length > 1 ? "s" : ""} traité${job.results.length > 1 ? "s" : ""}`,
-      });
-    } else {
-      const prog = computeProgress(job);
-      await patchJob(jobId, {
-        status: "processing",
-        percent: prog.percent,
-        completed: prog.completed,
-        failed: prog.failed,
-      });
     }
   } catch (error) {
     console.error("[ocr-batch]", error);
@@ -439,6 +580,10 @@ export async function runOcrBatchJob(jobId: string) {
     }
   } finally {
     await releaseRunLock(jobId);
+    // Lock libéré → on peut relancer une invocation fraîche sans collision.
+    if (chainDelayMs !== null) {
+      await fireSelfChain(originUrl, jobId, chainDelayMs);
+    }
   }
 }
 
@@ -446,12 +591,13 @@ export async function resumeBatchJobWithToken(jobId: string, accessToken: string
   const job = await readBatchJob(jobId);
   if (!job) return null;
   if (job.status !== "needs_token") return job;
-  const next = {
+  const next: OcrBatchJob = {
     ...job,
     accessToken,
-    status: "processing" as const,
+    status: "processing",
     error: undefined,
     processingStartedAt: new Date().toISOString(),
+    nextRunAt: undefined,
     label: "Reprise du traitement…",
   };
   await writeBatchJob(next);

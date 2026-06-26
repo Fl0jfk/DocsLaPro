@@ -10,7 +10,18 @@ import {
 } from "./batch-job";
 import { runOcrBatchJob } from "@/app/lib/ocr-batch-process";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
+
+/** Origine HTTP réelle (derrière le proxy Amplify) pour l'auto-relance serveur. */
+function resolveRequestOrigin(req: Request): string | undefined {
+  const explicit = process.env.OCR_WORKER_BASE_URL?.trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (!host) return undefined;
+  const proto =
+    req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 export async function POST(req: Request) {
   const session = await resolveSession();
@@ -65,6 +76,7 @@ export async function POST(req: Request) {
     startedAt: now,
     updatedAt: now,
     accessToken,
+    originUrl: resolveRequestOrigin(req),
     items,
     currentItemIndex: 0,
     results: [],

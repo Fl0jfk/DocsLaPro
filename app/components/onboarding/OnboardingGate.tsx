@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { resolveOnboardingGate } from "@/app/lib/onboarding-gate";
+import { resolveOnboardingGate, isOnboardingExemptPath } from "@/app/lib/onboarding-gate";
 import {
   readOnboardingStatusCache,
   writeOnboardingStatusCache,
@@ -65,7 +65,7 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
     }
   }, [checking, status, pathname, router, reviewMode]);
 
-  if (checking && !status) return null;
+  if (checking && !status && !isOnboardingExemptPath(pathname)) return null;
 
   const decision = status
     ? resolveOnboardingGate({

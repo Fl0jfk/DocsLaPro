@@ -74,30 +74,55 @@ export type OcrTextractResult = {
   pageCount: number;
 };
 
-export async function runTextractForS3Key(
-  key: string,
-  maxAttempts = 90,
-): Promise<OcrTextractResult> {
+function blocksToResult(blocks: Block[]): OcrTextractResult {
+  const pageTexts = blocksToPageTexts(blocks);
+  const pages = Object.keys(pageTexts)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const text = pages.map((p) => `--- Page ${p} ---\n${pageTexts[String(p)]}`).join("\n\n");
+  return { text, pageTexts, pageCount: pages.length };
+}
+
+/** Démarre un job Textract asynchrone et renvoie son JobId (sans attendre la fin). */
+export async function startTextractForS3Key(key: string): Promise<string> {
   const bucket = await getBucketName();
   const start = await textract.send(
     new StartDocumentTextDetectionCommand({
       DocumentLocation: { S3Object: { Bucket: bucket, Name: key } },
     }),
   );
-  const jobId = start.JobId;
-  if (!jobId) throw new Error("Impossible de lancer Textract");
+  if (!start.JobId) throw new Error("Impossible de lancer Textract");
+  return start.JobId;
+}
+
+export type TextractPollResult =
+  | { status: "IN_PROGRESS" }
+  | { status: "FAILED" }
+  | { status: "SUCCEEDED"; result: OcrTextractResult };
+
+/**
+ * Un seul tour de polling Textract (non bloquant pour le budget serverless).
+ * Tant que le job est IN_PROGRESS, la requête revient immédiatement ;
+ * la pagination complète des blocs n'a lieu qu'une fois SUCCEEDED.
+ */
+export async function pollTextractOnce(jobId: string): Promise<TextractPollResult> {
+  const { status, blocks } = await collectBlocks(jobId);
+  if (status === "SUCCEEDED") return { status: "SUCCEEDED", result: blocksToResult(blocks) };
+  if (status === "FAILED") return { status: "FAILED" };
+  return { status: "IN_PROGRESS" };
+}
+
+/** Variante bloquante historique (conservée pour compat ; le worker batch utilise les micro-étapes). */
+export async function runTextractForS3Key(
+  key: string,
+  maxAttempts = 90,
+): Promise<OcrTextractResult> {
+  const jobId = await startTextractForS3Key(key);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const { status, blocks } = await collectBlocks(jobId);
-    if (status === "SUCCEEDED") {
-      const pageTexts = blocksToPageTexts(blocks);
-      const pages = Object.keys(pageTexts)
-        .map(Number)
-        .sort((a, b) => a - b);
-      const text = pages.map((p) => `--- Page ${p} ---\n${pageTexts[String(p)]}`).join("\n\n");
-      return { text, pageTexts, pageCount: pages.length };
-    }
-    if (status === "FAILED") throw new Error("OCR Textract échoué");
+    const poll = await pollTextractOnce(jobId);
+    if (poll.status === "SUCCEEDED") return poll.result;
+    if (poll.status === "FAILED") throw new Error("OCR Textract échoué");
     const delay = attempt < 5 ? 1500 : attempt < 15 ? 2500 : 4000;
     await sleep(delay);
   }

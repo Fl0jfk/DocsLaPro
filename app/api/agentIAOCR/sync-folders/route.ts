@@ -9,9 +9,9 @@ import { listChildFolderNames, ensureChildFolder, ensureFolderPath } from "@/app
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
   filterElevesForSecteur,
-  getOneDriveProfileForClerkUser,
   resolveEleveSecteur,
 } from "@/app/lib/onedrive-eleves";
+import { resolveOneDriveProfileForClerkUserServer } from "@/app/lib/onedrive-user-profiles.server";
 
 const KEY = "eleves.json";
 
@@ -21,12 +21,20 @@ export async function POST(req: Request) {
     if (!gate.ok) return gate.response;
 
     const user = await safeCurrentUser();
-    const profile = user ? getOneDriveProfileForClerkUser(user) : null;
+    const profile = user
+      ? await resolveOneDriveProfileForClerkUserServer({
+          lastName: user.lastName,
+          emailAddresses: user.emailAddresses?.map((e) => ({ emailAddress: e.emailAddress })),
+          primaryEmailAddress: user.primaryEmailAddress
+            ? { emailAddress: user.primaryEmailAddress.emailAddress }
+            : null,
+        })
+      : null;
     if (!profile) {
       return NextResponse.json(
         {
           error:
-            "Profil OneDrive inconnu pour votre compte. Ajoutez votre nom dans onedrive-eleves.ts (comme pour les 3 secrétariats).",
+            "Profil OneDrive inconnu pour votre compte. Configurez le mapping utilisateur → cycle dans Paramètres → Intégrations, ou ajoutez votre nom au mapping en dur.",
         },
         { status: 403 },
       );

@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import * as msal from "@azure/msal-browser";
+import {
+  ONEDRIVE_MSAL_SCOPES,
+  buildOneDriveMsalConfig,
+  fetchMicrosoftOneDrivePublicConfig,
+  storeMsalReturnPath,
+} from "@/app/lib/msal-onedrive-client";
 
-export const ONEDRIVE_SCOPES = ["Files.ReadWrite", "User.Read"];
-
-/** Même redirect que l'agent OCR (déjà enregistré dans Azure AD). */
-function oneDriveRedirectUri() {
-  if (typeof window === "undefined") return "/agentIAOCR";
-  return `${window.location.origin}/agentIAOCR`;
-}
+export const ONEDRIVE_SCOPES = [...ONEDRIVE_MSAL_SCOPES];
 
 let msalInstance: msal.PublicClientApplication | null = null;
 
@@ -49,10 +49,8 @@ export function useOneDriveConnection(): OneDriveConnectionState {
     let cancelled = false;
     (async () => {
       try {
-        const tenantRes = await fetch("/api/tenant/public");
-        const tenant = await tenantRes.json();
-        const ms = tenant.microsoftOneDrive;
-        if (!ms?.enabled || !ms.clientId || !ms.tenantId) {
+        const ms = await fetchMicrosoftOneDrivePublicConfig();
+        if (!ms) {
           if (!cancelled) {
             setOneDriveEnabled(false);
             setMsalReady(true);
@@ -61,15 +59,9 @@ export function useOneDriveConnection(): OneDriveConnectionState {
         }
         if (!cancelled) setOneDriveEnabled(true);
 
-        msalInstance = new msal.PublicClientApplication({
-          auth: {
-            clientId: ms.clientId,
-            authority: `https://login.microsoftonline.com/${ms.tenantId}`,
-            redirectUri: oneDriveRedirectUri(),
-          },
-          cache: { cacheLocation: "localStorage" },
-        });
+        msalInstance = new msal.PublicClientApplication(buildOneDriveMsalConfig(ms));
         await getMsal().initialize();
+        await getMsal().handleRedirectPromise();
         if (cancelled) return;
         setMsalReady(true);
 
@@ -125,14 +117,14 @@ export function useOneDriveConnection(): OneDriveConnectionState {
         token = tokenResponse.accessToken;
       } catch (err) {
         if (err instanceof msal.InteractionRequiredAuthError) {
-          const tokenResponse = await getMsal().acquireTokenPopup({
+          storeMsalReturnPath();
+          await getMsal().acquireTokenRedirect({
             account: accounts[0],
             scopes: ONEDRIVE_SCOPES,
           });
-          token = tokenResponse.accessToken;
-        } else {
-          throw err;
+          return null;
         }
+        throw err;
       }
       const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
         headers: { Authorization: `Bearer ${token}` },
@@ -154,25 +146,19 @@ export function useOneDriveConnection(): OneDriveConnectionState {
     if (!msalReady) return;
     setError(null);
     try {
-      const result = await getMsal().loginPopup({
+      storeMsalReturnPath();
+      await getMsal().loginRedirect({
         scopes: ONEDRIVE_SCOPES,
         prompt: "select_account",
       });
-      const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-        headers: { Authorization: `Bearer ${result.accessToken}` },
-      });
-      if (!verifyRes.ok) {
-        throw new Error("Accès OneDrive refusé pour ce compte Microsoft.");
-      }
-      applySession(result.account, result.accessToken);
     } catch (e: unknown) {
-      if (e instanceof msal.BrowserAuthError && e.errorCode === "user_cancelled") {
-        setError("Connexion annulée.");
+      if (e instanceof msal.BrowserAuthError && e.errorCode === "interaction_in_progress") {
+        setError("Connexion déjà en cours…");
         return;
       }
       setError(e instanceof Error ? e.message : "Échec connexion OneDrive");
     }
-  }, [applySession, msalReady]);
+  }, [msalReady]);
 
   return {
     msalReady,

@@ -9,6 +9,7 @@ const ONBOARDING_EXEMPT_PREFIXES = [
   "/plateforme",
   "/sign-in",
   "/sign-up",
+  "/agentIAOCR/msal-callback",
 ];
 
 export function isOnboardingExemptPath(pathname: string): boolean {
