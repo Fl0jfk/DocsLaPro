@@ -52,6 +52,8 @@ export type OcrBatchJobItem = {
   segments?: OcrBatchSegment[];
   /** Index du prochain segment à traiter (mode classe). */
   segmentIndex?: number;
+  /** Horodatage ISO : verrou optimiste anti-traitement concurrent du même item. */
+  itemClaimedAt?: string;
 };
 
 export type OcrBatchJob = {

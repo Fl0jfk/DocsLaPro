@@ -111,6 +111,8 @@ type BatchJobStatusPayload = {
   failed?: number;
   results?: ProcessResult[];
   error?: string | null;
+  /** true = auto-relance serveur active, pas besoin d'appeler /process depuis le navigateur. */
+  serverManaged?: boolean;
 };
 
 function OneDriveUpDocsOCRAIContent() {
@@ -582,6 +584,7 @@ function OneDriveUpDocsOCRAIContent() {
     if (!activeBatchJobId || batchJobNeedsToken) return;
     let cancelled = false;
     let polls = 0;
+    let serverManaged = false;
 
     const tick = async () => {
       if (cancelled) return;
@@ -589,39 +592,15 @@ function OneDriveUpDocsOCRAIContent() {
         if (polls > 0) await sleep(2000);
         polls += 1;
 
-        if (polls % 4 === 0) {
-          const fresh = await ensureOneDriveConnection();
-          if (fresh) {
-            await fetch("/api/agentIAOCR/batch-job/token", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                jobId: activeBatchJobId,
-                accessToken: fresh,
-                refreshOnly: true,
-              }),
-            });
-          }
-        }
-
-        // Relance le worker (202 rapide). Toutes les ~6 s en phase serveur.
-        if (polls === 1 || polls % 3 === 0) {
-          try {
-            await fetch("/api/agentIAOCR/batch-job/process", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ jobId: activeBatchJobId }),
-            });
-          } catch {
-            /* 504 / réseau : le statut ci-dessous reste la source de vérité */
-          }
-        }
-
         const stRes = await fetch(
           `/api/agentIAOCR/batch-job/status?jobId=${encodeURIComponent(activeBatchJobId)}`,
         );
         if (!stRes.ok || cancelled) return;
         const st = (await stRes.json()) as BatchJobStatusPayload;
+
+        if (typeof st.serverManaged === "boolean") {
+          serverManaged = st.serverManaged;
+        }
 
         applyBatchJobStatusToUi(st);
 
@@ -654,6 +633,35 @@ function OneDriveUpDocsOCRAIContent() {
           persistFinishedBatchJob(activeBatchJobId);
           if (st.status === "failed" && st.error) setError(String(st.error));
           return;
+        }
+
+        // Rafraîchissement token OneDrive (~toutes les 8 s) — utile même en mode serveur.
+        if (polls % 4 === 0) {
+          const fresh = await ensureOneDriveConnection();
+          if (fresh) {
+            await fetch("/api/agentIAOCR/batch-job/token", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                jobId: activeBatchJobId,
+                accessToken: fresh,
+                refreshOnly: true,
+              }),
+            });
+          }
+        }
+
+        // Relance worker côté client uniquement si pas d'auto-relance serveur (évite les doublons).
+        if (!serverManaged && (polls === 1 || polls % 3 === 0)) {
+          try {
+            await fetch("/api/agentIAOCR/batch-job/process", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ jobId: activeBatchJobId }),
+            });
+          } catch {
+            /* 504 / réseau : le statut reste la source de vérité */
+          }
         }
 
         void tick();

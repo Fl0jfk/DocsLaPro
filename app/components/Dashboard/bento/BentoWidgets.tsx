@@ -978,8 +978,8 @@ export function AgentIaBentoWidget({ category }: WidgetProps) {
   const router = useRouter();
 
   const go = useCallback(
-    (mode: "standard" | "class", files: FileList) => {
-      if (!stageDashboardUpload(mode, files)) return;
+    (files: FileList) => {
+      if (!stageDashboardUpload("class", files)) return;
       router.push("/agentIAOCR?from=dashboard");
     },
     [router],
@@ -987,10 +987,10 @@ export function AgentIaBentoWidget({ category }: WidgetProps) {
 
   return (
     <BentoWidget {...widgetHeader(category)}>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <BentoDropZone compact label="PDF unité" onFiles={(f) => go("standard", f)} />
-        <BentoDropZone compact label="Bloc à découper" onFiles={(f) => go("class", f)} />
-      </div>
+      <BentoDropZone
+        label="Déposez vos PDF — détection automatique"
+        onFiles={go}
+      />
     </BentoWidget>
   );
 }

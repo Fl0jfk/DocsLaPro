@@ -38,6 +38,8 @@ const LOCK_TTL_MS = 75_000;
 const RUN_BUDGET_MS = 50_000;
 /** Délai entre deux tours de polling Textract. */
 const OCR_POLL_DELAY_MS = 3_000;
+/** Un item claimé par un autre worker reste exclusif pendant cette durée. */
+const ITEM_CLAIM_TTL_MS = 60_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -259,6 +261,50 @@ async function patchItem(
   });
 }
 
+function hasSuccessfulResult(job: OcrBatchJob, fileName: string): boolean {
+  return job.results.some((r) => r.fileName === fileName && r.success);
+}
+
+/**
+ * Empêche deux workers de traiter le même item en parallèle.
+ * @returns proceed = on continue ; skip-advance = item déjà fini ; defer = autre worker actif.
+ */
+async function resolveItemClaim(
+  jobId: string,
+  job: OcrBatchJob,
+  itemIndex: number,
+): Promise<"proceed" | "skip-advance" | "defer"> {
+  const item = job.items[itemIndex];
+  if (!item) return "skip-advance";
+
+  if (item.status === "done" || item.status === "failed") {
+    log(jobId, `Item "${item.fileName}" déjà ${item.status} — skip.`);
+    return "skip-advance";
+  }
+
+  if (hasSuccessfulResult(job, item.fileName)) {
+    log(jobId, `Item "${item.fileName}" déjà en succès dans results — skip.`);
+    return "skip-advance";
+  }
+
+  if (item.itemClaimedAt && item.status === "processing") {
+    const age = Date.now() - new Date(item.itemClaimedAt).getTime();
+    if (age >= 0 && age < ITEM_CLAIM_TTL_MS) {
+      log(
+        jobId,
+        `Item "${item.fileName}" claimé par autre worker (${Math.round(age / 1000)}s) — attente.`,
+      );
+      return "defer";
+    }
+  }
+
+  await patchItem(jobId, itemIndex, {
+    status: "processing",
+    itemClaimedAt: new Date().toISOString(),
+  });
+  return "proceed";
+}
+
 async function analyzeAndMove(
   ctx: WorkerCtx,
   text: string,
@@ -297,6 +343,13 @@ async function analyzeAndMove(
     moveOneDriveFile(token, sourcePath, ai.oneDriveFolderPath as string, `${ai.fileName}.pdf`),
   );
   if (!move.ok) {
+    if (move.status === 404) {
+      log(
+        ctx.jobId,
+        `Source Temp absente (404) sur "${displayName}" — considéré OK (déjà rangé par une autre passe).`,
+      );
+      return { success: true, result: ai, fileName: displayName };
+    }
     log(ctx.jobId, `ÉCHEC TECHNIQUE "${displayName}" : déplacement (${move.status}) ${move.detail.slice(0, 200)}`);
     return {
       success: false,
@@ -416,6 +469,19 @@ async function stepItem(
   const seg = segments[segIndex];
   const label = `${item.fileName} [p.${seg.pageStart}-${seg.pageEnd}]`;
   const isLast = segIndex + 1 >= total;
+
+  const freshForSeg = await readBatchJob(job.jobId);
+  if (freshForSeg && hasSuccessfulResult(freshForSeg, label)) {
+    log(job.jobId, `Segment déjà en succès "${label}" — skip.`);
+    await patchItem(job.jobId, itemIndex, { segmentIndex: segIndex + 1 });
+    return {
+      kind: "result",
+      results: [],
+      itemDone: isLast,
+      label: `Segment ${segIndex + 1}/${total} — ${item.fileName}`,
+    };
+  }
+
   let segResult: OcrBatchResult;
   let tempSegPath: string | undefined;
 
@@ -565,6 +631,16 @@ export async function runOcrBatchJob(jobId: string) {
       const itemIndex = job.currentItemIndex;
       const item = job.items[itemIndex];
 
+      const claim = await resolveItemClaim(jobId, job, itemIndex);
+      if (claim === "skip-advance") {
+        await patchJob(jobId, { currentItemIndex: itemIndex + 1 });
+        continue;
+      }
+      if (claim === "defer") {
+        chainDelayMs = OCR_POLL_DELAY_MS;
+        return;
+      }
+
       try {
         const outcome = await stepItem(ctx, job, itemIndex);
 
@@ -594,8 +670,22 @@ export async function runOcrBatchJob(jobId: string) {
         // outcome.kind === "result"
         const current = await readBatchJob(jobId);
         if (!current) return;
-        const nextResults = [...current.results, ...outcome.results];
+        const newResults = outcome.results.filter((r) => {
+          if (current.results.some((ex) => ex.fileName === r.fileName && ex.success)) {
+            log(jobId, `Doublon ignoré "${r.fileName}" (déjà succès).`);
+            return false;
+          }
+          return true;
+        });
+        const nextResults = [...current.results, ...newResults];
         const nextIndex = outcome.itemDone ? itemIndex + 1 : itemIndex;
+        const itemSuccess =
+          outcome.itemDone &&
+          outcome.results.every(
+            (r) =>
+              r.success ||
+              current.results.some((ex) => ex.fileName === r.fileName && ex.success),
+          );
         const prog = computeProgress({ ...current, results: nextResults, currentItemIndex: nextIndex });
         await writeBatchJob({
           ...current,
@@ -603,7 +693,11 @@ export async function runOcrBatchJob(jobId: string) {
           currentItemIndex: nextIndex,
           items: current.items.map((it, i) =>
             i === itemIndex && outcome.itemDone
-              ? { ...it, status: outcome.results.every((r) => r.success) ? "done" : "failed" }
+              ? {
+                  ...it,
+                  status: itemSuccess ? "done" : "failed",
+                  itemClaimedAt: undefined,
+                }
               : it,
           ),
           percent: prog.percent,

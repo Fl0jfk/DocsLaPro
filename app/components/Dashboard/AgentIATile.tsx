@@ -75,8 +75,8 @@ export default function AgentIATile({ category, priority }: { category: Categori
   const router = useRouter();
   const isPriorityImage = priority || category.img.includes("reservationsalle.jpg");
 
-  const goWithFiles = (mode: "standard" | "class", files: FileList) => {
-    if (!stageDashboardUpload(mode, files)) return;
+  const goWithFiles = (files: FileList) => {
+    if (!stageDashboardUpload("class", files)) return;
     router.push("/agentIAOCR?from=dashboard");
   };
 
@@ -106,7 +106,9 @@ export default function AgentIATile({ category, priority }: { category: Categori
           >
             {category.name}
           </Link>
-          <p className="text-xs text-stone-500">Déposez un PDF pour lancer l&apos;OCR directement</p>
+          <p className="text-xs text-stone-500">
+            Document élève ou export classe — détection et découpage automatiques
+          </p>
         </div>
         <div className="flex shrink-0 items-center p-3 sm:pl-0">
           <Link href={category.link} className={DASHBOARD_ENTER_CTA}>
@@ -120,7 +122,7 @@ export default function AgentIATile({ category, priority }: { category: Categori
           label="Déposez vos PDF"
           hint="Document élève ou export classe — détection auto"
           multiple
-          onFiles={(files) => goWithFiles("class", files)}
+          onFiles={goWithFiles}
         />
       </div>
     </div>

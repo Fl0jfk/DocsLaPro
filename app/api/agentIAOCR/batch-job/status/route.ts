@@ -22,6 +22,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
   }
 
+  /** Lot géré par auto-relance serveur → le client n'a pas besoin d'appeler /process. */
+  const serverManaged = Boolean(job.originUrl?.trim() && process.env.OCR_WORKER_SECRET?.trim());
+
   return NextResponse.json({
     jobId: job.jobId,
     status: job.status,
@@ -35,5 +38,6 @@ export async function GET(req: Request) {
     error: job.error ?? null,
     startedAt: job.startedAt,
     updatedAt: job.updatedAt,
+    serverManaged,
   });
 }
