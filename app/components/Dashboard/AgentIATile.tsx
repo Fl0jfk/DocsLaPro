@@ -116,16 +116,10 @@ export default function AgentIATile({ category, priority }: { category: Categori
       </div>
       <div className="flex gap-2 border-t border-[color:var(--dash-border)]/80 bg-[color:var(--dash-soft-muted)]/25 p-3">
         <DropSlot
-          badge="Unité"
-          label="PDF unité"
-          hint="1 élève = 1 PDF"
+          badge="PDF"
+          label="Déposez vos PDF"
+          hint="Document élève ou export classe — détection auto"
           multiple
-          onFiles={(files) => goWithFiles("standard", files)}
-        />
-        <DropSlot
-          badge="Découpage"
-          label="Bloc PDF"
-          hint="Export classe, découpe IA"
           onFiles={(files) => goWithFiles("class", files)}
         />
       </div>

@@ -89,7 +89,10 @@ export async function POST(req: Request) {
   await writeBatchJob(job);
   await registerBatchJobForUser(userId, jobId);
 
-  after(() => runOcrBatchJob(jobId).catch((err) => console.error("[ocr-batch] after():", err)));
+  console.log(
+    `[ocr-batch ${jobId}] lot créé — ${items.length} PDF(s), modes=${items.map((i) => i.mode).join(",")}`,
+  );
+  after(() => runOcrBatchJob(jobId).catch((err) => console.error(`[ocr-batch ${jobId}] create after():`, err)));
 
   return NextResponse.json({ ok: true, jobId, total: items.length }, { status: 201 });
 }

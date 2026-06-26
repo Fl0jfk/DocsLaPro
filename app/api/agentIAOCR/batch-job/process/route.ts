@@ -52,8 +52,9 @@ export async function POST(req: Request) {
   }
 
   // Le worker gère lui-même le verrou, la planification (nextRunAt) et les micro-étapes.
+  console.log(`[ocr-batch ${jobId}] process déclenché (client, user=${userId})`);
   after(() =>
-    runOcrBatchJob(jobId).catch((err) => console.error("[ocr-batch/process] after():", err)),
+    runOcrBatchJob(jobId).catch((err) => console.error(`[ocr-batch ${jobId}] process after():`, err)),
   );
 
   return NextResponse.json(

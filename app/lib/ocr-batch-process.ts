@@ -41,6 +41,11 @@ const OCR_POLL_DELAY_MS = 3_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Log serveur traçable dans CloudWatch (préfixe greppable). */
+function log(jobId: string, ...args: unknown[]) {
+  console.log(`[ocr-batch ${jobId}]`, ...args);
+}
+
 function runLockKey(jobId: string) {
   return `${RUN_LOCK_PREFIX}${jobId}.lock`;
 }
@@ -261,8 +266,11 @@ async function analyzeAndMove(
   displayName: string,
 ): Promise<OcrBatchResult> {
   const ai = await analyzeDocMatchEleve(text, ctx.odProfile);
+  const extracted = `nom=${ai?.nom ?? "?"} prénom=${ai?.prénom ?? "?"} ine=${ai?.ine ?? "?"}`;
+  log(ctx.jobId, `analyse "${displayName}" → ${extracted}`, "match:", JSON.stringify(ai?.matchDebug ?? {}));
 
   if (!ai?.fileName) {
+    log(ctx.jobId, `ÉCHEC "${displayName}" : analyse IA incomplète (pas de nom de fichier).`);
     return {
       success: false,
       error: "Analyse IA incomplète.",
@@ -272,6 +280,10 @@ async function analyzeAndMove(
     };
   }
   if (!ai.oneDriveFolderPath) {
+    log(
+      ctx.jobId,
+      `NON RANGÉ "${displayName}" : élève non identifié (profilOneDrive=${ctx.odProfile ? ctx.odProfile.secteur : "AUCUN"}).`,
+    );
     return {
       success: false,
       error:
@@ -285,6 +297,7 @@ async function analyzeAndMove(
     moveOneDriveFile(token, sourcePath, ai.oneDriveFolderPath as string, `${ai.fileName}.pdf`),
   );
   if (!move.ok) {
+    log(ctx.jobId, `ÉCHEC TECHNIQUE "${displayName}" : déplacement (${move.status}) ${move.detail.slice(0, 200)}`);
     return {
       success: false,
       error: `Déplacement impossible : ${move.detail.slice(0, 200)}`,
@@ -293,6 +306,7 @@ async function analyzeAndMove(
       tempOneDrivePath: sourcePath,
     };
   }
+  log(ctx.jobId, `OK "${displayName}" → ${ai.oneDriveFolderPath}/${ai.fileName}.pdf`);
   return { success: true, result: ai, fileName: displayName };
 }
 
@@ -307,6 +321,7 @@ async function stepItem(
 
   if (phase === "ocr_start") {
     const textractJobId = await startTextractForS3Key(item.s3Key);
+    log(job.jobId, `Textract lancé "${item.fileName}" (${item.mode}, phase=${phase})`);
     await patchItem(job.jobId, itemIndex, {
       status: "processing",
       phase: "ocr_poll",
@@ -325,6 +340,7 @@ async function stepItem(
       return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: `Lecture OCR — ${item.fileName}` };
     }
     if (poll.status === "FAILED") {
+      log(job.jobId, `ÉCHEC TECHNIQUE "${item.fileName}" : OCR Textract a échoué.`);
       return {
         kind: "result",
         itemDone: true,
@@ -340,9 +356,16 @@ async function stepItem(
     }
     const cacheKey = ocrCacheKey(job.jobId, item.id);
     await writeOcrCache(cacheKey, poll.result);
+    // Un PDF d'une seule page ne peut pas être découpé : on saute la segmentation.
+    const needsSegmentation = item.mode === "class" && (poll.result.pageCount ?? 1) > 1;
+    const nextPhase = needsSegmentation ? "segmenting" : "analyze";
+    log(
+      job.jobId,
+      `OCR OK "${item.fileName}" — ${poll.result.pageCount} page(s) → phase=${nextPhase}`,
+    );
     await patchItem(job.jobId, itemIndex, {
       ocrCacheKey: cacheKey,
-      phase: item.mode === "class" ? "segmenting" : "analyze",
+      phase: nextPhase,
     });
     return { kind: "continue", label: `Classement — ${item.fileName}` };
   }
@@ -364,6 +387,10 @@ async function stepItem(
       pageCount: ocr.pageCount,
     });
     const segments = (segData.segments || []) as OcrBatchSegment[];
+    log(
+      job.jobId,
+      `Segmentation "${item.fileName}" → mode=${segData.mode}, ${segments.length} segment(s), ${ocr.pageCount} page(s)`,
+    );
 
     if (segData.mode === "single" || segments.length <= 1) {
       const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
@@ -372,10 +399,8 @@ async function stepItem(
       return { kind: "result", results: [one], itemDone: true };
     }
 
-    await withToken(ctx, async (token) => {
-      await deleteOneDrivePath(token, item.tempPath);
-      return { ok: true as const };
-    });
+    // L'original (classe entière) n'est PAS supprimé ici : il ne le sera qu'une fois
+    // tous les morceaux déposés dans Temp, pour ne jamais perdre la source.
     await patchItem(job.jobId, itemIndex, { phase: "segments", segments, segmentIndex: 0 });
     return { kind: "continue", label: `Découpage — ${item.fileName}` };
   }
@@ -395,28 +420,54 @@ async function stepItem(
   let tempSegPath: string | undefined;
 
   try {
+    // 1) On dépose TOUJOURS le morceau dans Temp avant toute analyse : ainsi aucun bloc
+    //    n'est perdu si l'analyse échoue ou si l'élève n'est pas identifié.
+    const pdfBytes = await extractPdfPagesBytes(item.s3Key, seg.pageStart, seg.pageEnd);
+    tempSegPath = segmentTempFileName(item.fileName, seg.pageStart, seg.pageEnd, segIndex);
+    const segPath = tempSegPath;
+    const upload = await withToken(ctx, (token) => uploadBytesToOneDrive(token, segPath, pdfBytes));
+    if (!upload.ok) {
+      throw new Error(`Upload segment OneDrive : ${upload.detail}`);
+    }
+    log(job.jobId, `Segment déposé Temp "${label}" → ${tempSegPath}`);
+
+    // 2) Texte du segment. S'il est vide, le morceau reste dans Temp (jamais perdu).
     const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
     if (!slice.trim()) {
-      segResult = { success: false, error: "Aucun texte OCR sur ce segment.", fileName: label };
+      log(job.jobId, `Segment texte vide "${label}" — morceau laissé dans Temp.`);
+      segResult = {
+        success: false,
+        error: "Texte du segment vide — morceau laissé dans Temp, à classer à la main.",
+        fileName: label,
+        tempOneDrivePath: tempSegPath,
+      };
     } else {
-      const pdfBytes = await extractPdfPagesBytes(item.s3Key, seg.pageStart, seg.pageEnd);
-      tempSegPath = segmentTempFileName(item.fileName, seg.pageStart, seg.pageEnd, segIndex);
-      const segPath = tempSegPath;
-      const upload = await withToken(ctx, (token) => uploadBytesToOneDrive(token, segPath, pdfBytes));
-      if (!upload.ok) {
-        throw new Error(`Upload segment OneDrive : ${upload.detail}`);
-      }
       segResult = await analyzeAndMove(ctx, slice, tempSegPath, label);
     }
   } catch (segErr) {
     if (segErr instanceof TokenExpiredError) throw segErr;
     const msg = segErr instanceof Error ? segErr.message : String(segErr);
+    log(job.jobId, `ÉCHEC TECHNIQUE segment "${label}" : ${msg}`);
     segResult = {
       success: false,
       error: tempSegPath ? `${msg} — document laissé dans Temp.` : msg,
       fileName: label,
       tempOneDrivePath: tempSegPath,
     };
+  }
+
+  // Une fois le DERNIER morceau déposé, on supprime l'original (classe entière) du Temp.
+  if (isLast) {
+    try {
+      await withToken(ctx, async (token) => {
+        await deleteOneDrivePath(token, item.tempPath);
+        return { ok: true as const };
+      });
+      log(job.jobId, `Original supprimé Temp "${item.tempPath}" (dernier segment traité).`);
+    } catch (delErr) {
+      if (delErr instanceof TokenExpiredError) throw delErr;
+      log(job.jobId, `Suppression original Temp échouée "${item.tempPath}" :`, delErr);
+    }
   }
 
   await patchItem(job.jobId, itemIndex, { segmentIndex: segIndex + 1 });
@@ -434,7 +485,10 @@ export async function runOcrBatchJob(jobId: string) {
   if (pre.status === "completed" || pre.status === "failed" || pre.status === "needs_token") return;
   if (pre.nextRunAt && Date.now() < new Date(pre.nextRunAt).getTime()) return;
 
-  if (!(await acquireRunLock(jobId))) return;
+  if (!(await acquireRunLock(jobId))) {
+    log(jobId, "lock non acquis — une autre invocation traite déjà ce lot (ou lock récent).");
+    return;
+  }
 
   // Délai d'auto-relance serveur : > 0 si le worker s'interrompt avec du travail restant.
   let chainDelayMs: number | null = null;
@@ -451,6 +505,18 @@ export async function runOcrBatchJob(jobId: string) {
       odProfile,
       refreshToken: await resolveServerRefreshToken(job, odProfile),
     };
+    log(
+      jobId,
+      `démarrage — ${job.items.length} item(s), reprise à ${job.currentItemIndex}, ` +
+        `profilOneDrive=${odProfile ? `${odProfile.secteur} (${odProfile.basePath})` : "AUCUN ⚠️"}, ` +
+        `refreshTokenServeur=${ctx.refreshToken ? "oui" : "non"}`,
+    );
+    if (!odProfile) {
+      log(
+        jobId,
+        "⚠️ AUCUN profil OneDrive → risque « élève non identifié ». Vérifier Paramètres → Intégrations.",
+      );
+    }
 
     await patchJob(jobId, {
       status: "processing",
@@ -462,6 +528,10 @@ export async function runOcrBatchJob(jobId: string) {
 
     while (true) {
       if (Date.now() - startedAt > RUN_BUDGET_MS) {
+        log(
+          jobId,
+          `budget épuisé (${RUN_BUDGET_MS}ms) — reprise planifiée à l'item ${job.currentItemIndex}/${job.items.length}.`,
+        );
         await patchJob(jobId, {
           status: "processing",
           nextRunAt: new Date().toISOString(),
@@ -487,6 +557,7 @@ export async function runOcrBatchJob(jobId: string) {
           nextRunAt: undefined,
           label: `Terminé — ${job.results.length} document${job.results.length > 1 ? "s" : ""} traité${job.results.length > 1 ? "s" : ""}`,
         });
+        log(jobId, `TERMINÉ — ${completed} succès / ${failed} échec(s) sur ${job.results.length} résultat(s)`);
         await deleteOcrCacheForJob(job);
         return;
       }
@@ -544,6 +615,7 @@ export async function runOcrBatchJob(jobId: string) {
         continue;
       } catch (err) {
         if (err instanceof TokenExpiredError) {
+          log(jobId, `needs_token — session OneDrive expirée sur "${item.fileName}".`);
           await patchJob(jobId, {
             status: "needs_token",
             error: "Session OneDrive expirée. Reconnectez Microsoft sur la page pour reprendre.",
@@ -552,6 +624,7 @@ export async function runOcrBatchJob(jobId: string) {
           return;
         }
         const message = err instanceof Error ? err.message : String(err);
+        log(jobId, `ÉCHEC TECHNIQUE "${item.fileName}" : ${message}`);
         const current = await readBatchJob(jobId);
         if (!current) return;
         await writeBatchJob({
@@ -570,7 +643,7 @@ export async function runOcrBatchJob(jobId: string) {
       }
     }
   } catch (error) {
-    console.error("[ocr-batch]", error);
+    console.error(`[ocr-batch ${jobId}]`, error);
     const j = await readBatchJob(jobId);
     if (j && j.status !== "completed") {
       await patchJob(jobId, {
@@ -583,6 +656,7 @@ export async function runOcrBatchJob(jobId: string) {
     await releaseRunLock(jobId);
     // Lock libéré → on peut relancer une invocation fraîche sans collision.
     if (chainDelayMs !== null) {
+      log(jobId, `auto-relance dans ${chainDelayMs}ms (origin=${originUrl ?? "?"})`);
       await fireSelfChain(originUrl, jobId, chainDelayMs);
     }
   }

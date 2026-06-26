@@ -3,7 +3,6 @@ import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from "rea
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import * as msal from "@azure/msal-browser";
-import { buildTextFromPages } from "@/app/lib/eleves-config";
 import { consumeDashboardUpload } from "@/app/lib/dashboard-upload-bridge";
 import { getOneDriveProfileForClerkUser } from "@/app/lib/onedrive-user-profiles";
 import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
@@ -88,18 +87,6 @@ type ProcessResult = {
   tempOneDrivePath?: string;
 };
 
-type OcrData = {
-  text: string;
-  pageTexts: Record<string, string>;
-  pageCount: number;
-};
-
-type Segment = {
-  pageStart: number;
-  pageEnd: number;
-  label?: string;
-};
-
 const INITIAL_OCR_PROCESSING_STATUS = {
   percent: 0,
   total: 0,
@@ -141,9 +128,7 @@ function OneDriveUpDocsOCRAIContent() {
   const [ocrResults, setOcrResults] = useState<ProcessResult[]>([]);
   const [processingStatus, setProcessingStatus] = useState(INITIAL_OCR_PROCESSING_STATUS);
   const [ocrResultsSessionId, setOcrResultsSessionId] = useState(0);
-  const [pendingStandardFiles, setPendingStandardFiles] = useState<File[]>([]);
   const [pendingClassFiles, setPendingClassFiles] = useState<File[]>([]);
-  const [isDraggingStandard, setIsDraggingStandard] = useState(false);
   const [isDraggingClass, setIsDraggingClass] = useState(false);
 
   const [elevesCount, setElevesCount] = useState<number | null>(null);
@@ -174,7 +159,6 @@ function OneDriveUpDocsOCRAIContent() {
   const [mefMessage, setMefMessage] = useState("");
   const elevesInputRef = useRef<HTMLInputElement | null>(null);
   const mefInputRef = useRef<HTMLInputElement | null>(null);
-  const standardInputRef = useRef<HTMLInputElement | null>(null);
   const classInputRef = useRef<HTMLInputElement | null>(null);
   const oneDriveTokenRef = useRef<string | null>(null);
   const ocrSessionIdRef = useRef(0);
@@ -313,11 +297,7 @@ function OneDriveUpDocsOCRAIContent() {
     (async () => {
       const token = await ensureOneDriveConnection();
       if (!token) return;
-      if (staged.mode === "standard") {
-        setPendingStandardFiles((prev) => [...prev, ...staged.files]);
-      } else {
-        setPendingClassFiles((prev) => [...prev, ...staged.files]);
-      }
+      setPendingClassFiles((prev) => [...prev, ...staged.files]);
     })();
   }, [ensureOneDriveConnection, msalReady]);
 
@@ -336,14 +316,12 @@ function OneDriveUpDocsOCRAIContent() {
     if (clearResults) setOcrResults([]);
     setError("");
     setProcessingStatus(INITIAL_OCR_PROCESSING_STATUS);
-    if (standardInputRef.current) standardInputRef.current.value = "";
     if (classInputRef.current) classInputRef.current.value = "";
   }, []);
 
   const prepareOcrSessionForNewBatch = useCallback(() => {
     abortOcrInFlight();
     resetOcrSessionUi(true);
-    setPendingStandardFiles([]);
     setPendingClassFiles([]);
     localStorage.removeItem(BATCH_JOB_LAST_RESULTS_KEY);
   }, [abortOcrInFlight, resetOcrSessionUi]);
@@ -403,49 +381,7 @@ function OneDriveUpDocsOCRAIContent() {
     }
   };
 
-  const pollOcr = async (
-    jobId: string,
-    maxAttempts: number,
-    signal: AbortSignal,
-    onPoll?: (attempt: number, maxAttempts: number) => void,
-  ): Promise<OcrData> => {
-    for (let i = 0; i < maxAttempts; i++) {
-      if (signal.aborted) {
-        throw new DOMException("Session OCR interrompue.", "AbortError");
-      }
-      onPoll?.(i + 1, maxAttempts);
-      const r = await fetch("/api/agentIAOCR/ocr-result", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId }),
-        signal,
-      });
-      if (!r.ok) throw new Error(await r.text());
-      const data = await r.json();
-      if (data.text) {
-        return {
-          text: data.text,
-          pageTexts: data.pageTexts || {},
-          pageCount: data.pageCount || 0,
-        };
-      }
-      if (data.status === "IN_PROGRESS") {
-        await new Promise((res) => setTimeout(res, 5000));
-      } else {
-        throw new Error("OCR Textract a échoué : " + JSON.stringify(data));
-      }
-    }
-    throw new Error("Timeout OCR : aucun texte retourné");
-  };
-
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-  /** Pause entre fichiers : plus le lot est gros, plus on espace les appels Graph. */
-  const interFileDelayMs = (processedCount: number, totalEstimate: number) => {
-    const base = totalEstimate >= 100 ? 2000 : totalEstimate >= 50 ? 1200 : 400;
-    const extra = Math.floor(processedCount / 25) * 800;
-    return Math.min(6000, base + extra);
-  };
 
   const parseRetryAfterMs = (res: Response, attempt: number): number => {
     const raw = res.headers.get("Retry-After");
@@ -528,488 +464,6 @@ function OneDriveUpDocsOCRAIContent() {
     return { key, tempPath };
   };
 
-  const deleteOneDrivePath = async (token: string, itemPath: string) => {
-    try {
-      const res = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/root:/${itemPath}:`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok && res.status !== 404) {
-        console.warn("[agentIAOCR] Suppression Temp:", itemPath, await res.text());
-      }
-    } catch (e) {
-      console.warn("[agentIAOCR] Suppression Temp:", itemPath, e);
-    }
-  };
-
-  const segmentTempFileName = (
-    originalName: string,
-    pageStart: number,
-    pageEnd: number,
-    index: number
-  ) => {
-    const base = originalName.replace(/\.pdf$/i, "").replace(/[<>:"/\\|?*]/g, "_");
-    return `Temp/${base}_p${pageStart}-${pageEnd}_${index + 1}.pdf`;
-  };
-
-  const analyzeAndMove = async (
-    token: string,
-    text: string,
-    sourcePath: string,
-    displayName: string,
-    signal: AbortSignal,
-  ): Promise<ProcessResult> => {
-    try {
-      const r4 = await fetch("/api/agentIAOCR/analyze-doc-match-eleve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-        signal,
-      });
-      if (!r4.ok) throw new Error(await r4.text());
-      const ai = await r4.json();
-      if (!ai?.fileName) {
-        return {
-          success: false,
-          error: "Analyse IA incomplète.",
-          fileName: displayName,
-          result: ai,
-          tempOneDrivePath: sourcePath,
-        };
-      }
-      const newFileName = `${ai.fileName}.pdf`;
-      const targetFolderPath = ai.oneDriveFolderPath || null;
-      if (!targetFolderPath) {
-        return {
-          success: false,
-          error:
-            "Élève non identifié — le fichier reste dans le dossier Temp. Rangez-le à la main dans le dossier élève, ou repassez-le en mode Standard (un PDF = un document).",
-          fileName: displayName,
-          result: ai,
-          tempOneDrivePath: sourcePath,
-        };
-      }
-      const moveRes = await fetch("/api/agentIAOCR/move-file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accessToken: token,
-          sourcePath,
-          targetFolderPath,
-          newFileName,
-        }),
-        signal,
-      });
-      if (moveRes.status === 401) {
-        const refreshed = await ensureOneDriveConnection();
-        if (refreshed) {
-          const retry = await fetch("/api/agentIAOCR/move-file", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              accessToken: refreshed,
-              sourcePath,
-              targetFolderPath,
-              newFileName,
-            }),
-            signal,
-          });
-          if (retry.ok) {
-            return { success: true, result: ai, fileName: displayName };
-          }
-        }
-      }
-      if (!moveRes.ok) {
-        throw new Error(
-          "Le fichier n'a pas pu être déplacé : " + (await moveRes.text())
-        );
-      }
-      return { success: true, result: ai, fileName: displayName };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        error: message,
-        fileName: displayName,
-        tempOneDrivePath: sourcePath,
-      };
-    }
-  };
-
-  const processSingleFile = async (file: File, signal: AbortSignal): Promise<ProcessResult> => {
-    try {
-      const token = await ensureOneDriveConnection();
-      if (!token) throw new Error("Pas de token OneDrive disponible");
-      const { key, tempPath } = await uploadToS3AndOneDrive(file, token, signal);
-      const r2 = await fetch("/api/agentIAOCR/ocr-process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key }),
-        signal,
-      });
-      if (!r2.ok) throw new Error(await r2.text());
-      const { jobId } = await r2.json();
-      if (!jobId) throw new Error("Impossible de lancer Textract");
-      const ocr = await pollOcr(jobId, 30, signal);
-      return await analyzeAndMove(token, ocr.text, tempPath, file.name, signal);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        error: message,
-        fileName: file.name,
-        tempOneDrivePath: `Temp/${file.name}`,
-      };
-    }
-  };
-
-  const processClassFile = async (
-    file: File,
-    signal: AbortSignal,
-    onStep?: (info: {
-      results: ProcessResult[];
-      label: string;
-      percent: number;
-      documentTotal?: number;
-      pageCount?: number;
-    }) => void,
-  ): Promise<ProcessResult[]> => {
-    const results: ProcessResult[] = [];
-    const sourceTempPath = `Temp/${file.name}`;
-    const report = (
-      label: string,
-      percent: number,
-      extra?: { documentTotal?: number; pageCount?: number },
-    ) => {
-      if (signal.aborted) return;
-      onStep?.({
-        results: [...results],
-        label,
-        percent,
-        documentTotal: extra?.documentTotal,
-        pageCount: extra?.pageCount,
-      });
-    };
-    try {
-      const token = await ensureOneDriveConnection();
-      if (!token) throw new Error("Pas de token OneDrive disponible");
-      report(`Envoi de ${file.name}…`, 4);
-      const { key } = await uploadToS3AndOneDrive(file, token, signal);
-
-      report(`Lancement OCR de ${file.name}…`, 8);
-      const r2 = await fetch("/api/agentIAOCR/ocr-process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key }),
-        signal,
-      });
-      if (!r2.ok) throw new Error(await r2.text());
-      const { jobId } = await r2.json();
-      if (!jobId) throw new Error("Impossible de lancer Textract");
-
-      const ocr = await pollOcr(jobId, 90, signal, (attempt, max) => {
-        const pct = 8 + Math.round((38 * attempt) / max);
-        report(
-          `Lecture OCR (Textract) — tentative ${attempt}/${max}…`,
-          pct,
-        );
-      });
-
-      const pageCount = ocr.pageCount || 0;
-      report(
-        pageCount > 0
-          ? `OCR terminé — ${pageCount} page${pageCount > 1 ? "s" : ""} lues`
-          : `OCR terminé — analyse du découpage…`,
-        48,
-        { pageCount: pageCount || undefined },
-      );
-
-      report(`Découpage de ${file.name}…`, 52);
-      const segRes = await fetch("/api/agentIAOCR/segment-document", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageTexts: ocr.pageTexts,
-          pageCount: ocr.pageCount,
-        }),
-        signal,
-      });
-      if (!segRes.ok) throw new Error(await segRes.text());
-      const segData = await segRes.json();
-      const segments: Segment[] = segData.segments || [];
-      const mode = segData.mode as string;
-      const segPageCount =
-        typeof segData.pageCount === "number" && segData.pageCount > 0
-          ? segData.pageCount
-          : pageCount;
-
-      if (segPageCount > 0 && segments.length > 0) {
-        const maxSegPage = Math.max(...segments.map((s) => s.pageEnd));
-        if (maxSegPage < segPageCount) {
-          console.warn(
-            "[OCR] Segmentation incomplète:",
-            maxSegPage,
-            "/",
-            segPageCount,
-            "pages",
-          );
-        }
-      }
-
-      if (mode === "single" || segments.length <= 1) {
-        const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
-        const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
-        report(`Classement de ${file.name}…`, 72, { documentTotal: 1 });
-        const one = await analyzeAndMove(
-          token,
-          slice || ocr.text,
-          sourceTempPath,
-          file.name,
-          signal,
-        );
-        results.push(one);
-        report(`Terminé : ${file.name}`, 100, { documentTotal: 1 });
-        return results;
-      }
-
-      const segmentTotal = segments.length;
-      report(
-        `Export classe — ${segmentTotal} document${segmentTotal > 1 ? "s" : ""} détecté${segmentTotal > 1 ? "s" : ""} (${pageCount} pages)`,
-        56,
-        { documentTotal: segmentTotal, pageCount: pageCount || undefined },
-      );
-
-      await deleteOneDrivePath(token, sourceTempPath);
-
-      for (let i = 0; i < segments.length; i++) {
-        if (signal.aborted) {
-          throw new DOMException("Session OCR interrompue.", "AbortError");
-        }
-        const seg = segments[i];
-        const label = `${file.name} [p.${seg.pageStart}-${seg.pageEnd}]`;
-        const segmentPct =
-          56 + Math.round((44 * i) / Math.max(segmentTotal, 1));
-        report(
-          `Segment ${i + 1} / ${segmentTotal} — ${label}`,
-          segmentPct,
-          { documentTotal: segmentTotal, pageCount: pageCount || undefined },
-        );
-        let tempSegPath: string | undefined;
-        try {
-          const segToken = (await ensureOneDriveConnection()) ?? token;
-          const slice = buildTextFromPages(
-            ocr.pageTexts,
-            seg.pageStart,
-            seg.pageEnd,
-            ocr.text,
-          );
-          if (!slice.trim()) {
-            results.push({
-              success: false,
-              error:
-                "Aucun texte OCR sur ce segment — pas de PDF généré. Réexportez ce document si besoin.",
-              fileName: label,
-            });
-            report(
-              `Segment ${i + 1} / ${segmentTotal} — texte vide`,
-              56 + Math.round((44 * (i + 1)) / Math.max(segmentTotal, 1)),
-              { documentTotal: segmentTotal, pageCount: pageCount || undefined },
-            );
-            continue;
-          }
-
-          const extractRes = await fetch("/api/agentIAOCR/extract-pages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              key,
-              pageStart: seg.pageStart,
-              pageEnd: seg.pageEnd,
-              filename: `${file.name.replace(/\.pdf$/i, "")}_seg${i + 1}`,
-            }),
-            signal,
-          });
-          if (!extractRes.ok) {
-            throw new Error(await extractRes.text());
-          }
-          const { downloadUrl } = await extractRes.json();
-          const pdfRes = await fetch(downloadUrl, { signal });
-          if (!pdfRes.ok) throw new Error("Téléchargement du segment PDF échoué");
-          const pdfBlob = await pdfRes.blob();
-
-          tempSegPath = segmentTempFileName(
-            file.name,
-            seg.pageStart,
-            seg.pageEnd,
-            i
-          );
-          const odPut = await fetch(
-            `https://graph.microsoft.com/v1.0/me/drive/root:/${tempSegPath}:/content`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${segToken}`,
-                "Content-Type": "application/pdf",
-              },
-              body: pdfBlob,
-              signal,
-            }
-          );
-          if (odPut.status === 401) {
-            const refreshed = await ensureOneDriveConnection();
-            if (!refreshed) {
-              throw new Error(
-                "Session OneDrive expirée (401) pendant le découpage — reconnectez Microsoft.",
-              );
-            }
-            const retryPut = await fetch(
-              `https://graph.microsoft.com/v1.0/me/drive/root:/${tempSegPath}:/content`,
-              {
-                method: "PUT",
-                headers: {
-                  Authorization: `Bearer ${refreshed}`,
-                  "Content-Type": "application/pdf",
-                },
-                body: pdfBlob,
-                signal,
-              }
-            );
-            if (!retryPut.ok) {
-              throw new Error("Upload segment OneDrive : " + (await retryPut.text()));
-            }
-          } else if (!odPut.ok) {
-            throw new Error("Upload segment OneDrive : " + (await odPut.text()));
-          }
-
-          const moveToken = (await ensureOneDriveConnection()) ?? segToken;
-
-          const r4 = await fetch("/api/agentIAOCR/analyze-doc-match-eleve", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: slice }),
-            signal,
-          });
-          if (!r4.ok) throw new Error(await r4.text());
-          const ai = await r4.json();
-
-          if (!ai?.fileName || !ai.oneDriveFolderPath) {
-            results.push({
-              success: false,
-              error:
-                "Élève non identifié sur ce segment — le PDF découpé reste dans Temp. Rangez-le à la main ou repassez-le en mode Standard.",
-              fileName: label,
-              result: ai,
-              tempOneDrivePath: tempSegPath,
-            });
-            report(
-              `Segment ${i + 1} / ${segmentTotal} — élève non identifié`,
-              56 + Math.round((44 * (i + 1)) / Math.max(segmentTotal, 1)),
-              { documentTotal: segmentTotal, pageCount: pageCount || undefined },
-            );
-            continue;
-          }
-
-          const segmentOdName = `${ai.fileName}.pdf`;
-
-          const moveRes = await fetch("/api/agentIAOCR/move-file", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              accessToken: moveToken,
-              sourcePath: tempSegPath,
-              targetFolderPath: ai.oneDriveFolderPath,
-              newFileName: segmentOdName,
-            }),
-            signal,
-          });
-          if (moveRes.status === 401) {
-            const refreshed = await ensureOneDriveConnection();
-            if (refreshed) {
-              const retryMove = await fetch("/api/agentIAOCR/move-file", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  accessToken: refreshed,
-                  sourcePath: tempSegPath,
-                  targetFolderPath: ai.oneDriveFolderPath,
-                  newFileName: segmentOdName,
-                }),
-                signal,
-              });
-              if (!retryMove.ok) {
-                throw new Error(await retryMove.text());
-              }
-            } else {
-              throw new Error("Session OneDrive expirée lors du rangement du segment.");
-            }
-          } else if (!moveRes.ok) {
-            throw new Error(await moveRes.text());
-          }
-          results.push({ success: true, result: ai, fileName: label });
-        } catch (segErr: unknown) {
-          const msg = segErr instanceof Error ? segErr.message : String(segErr);
-          results.push({
-            success: false,
-            error: tempSegPath
-              ? `${msg} — document découpé laissé dans Temp.`
-              : msg,
-            fileName: label,
-            tempOneDrivePath: tempSegPath,
-          });
-        }
-        report(
-          `Segment ${i + 1} / ${segmentTotal} traité`,
-          56 + Math.round((44 * (i + 1)) / Math.max(segmentTotal, 1)),
-          { documentTotal: segmentTotal, pageCount: pageCount || undefined },
-        );
-        await new Promise((r) => setTimeout(r, 800));
-      }
-
-      report(
-        `Export classe terminé — ${segmentTotal} document${segmentTotal > 1 ? "s" : ""}`,
-        100,
-        { documentTotal: segmentTotal, pageCount: pageCount || undefined },
-      );
-
-      return results;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      results.push({
-        success: false,
-        error: message,
-        fileName: file.name,
-        tempOneDrivePath: sourceTempPath,
-      });
-      return results;
-    }
-  };
-
-  async function processInBatches<T, R>(
-    items: T[],
-    batchSize: number,
-    processFn: (item: T) => Promise<R>,
-    onProgress: (results: R[]) => void,
-    onBetweenFiles?: (info: { processed: number; total: number; pauseMs: number }) => void | Promise<void>,
-  ): Promise<R[]> {
-    const results: R[] = [];
-    for (let i = 0; i < items.length; i += batchSize) {
-      const batch = items.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch.map(processFn));
-      results.push(...batchResults);
-      onProgress(results);
-      if (i + batchSize < items.length) {
-        const processed = results.length;
-        let pauseMs = interFileDelayMs(processed, items.length);
-        if (processed > 0 && processed % 25 === 0) {
-          pauseMs += 10_000;
-        }
-        await onBetweenFiles?.({ processed, total: items.length, pauseMs });
-        await sleep(pauseMs);
-      }
-    }
-    return results;
-  }
-
   const applyProcessingProgress = (
     patch: {
       label: string;
@@ -1024,42 +478,6 @@ function OneDriveUpDocsOCRAIContent() {
   ) => {
     if (sessionId != null && !isActiveOcrSession(sessionId)) return;
     setProcessingStatus(patch);
-  };
-
-  const mergeClassProgress = (
-    allResults: ProcessResult[],
-    classBase: number,
-    info: {
-      results: ProcessResult[];
-      label: string;
-      percent: number;
-      documentTotal?: number;
-      pageCount?: number;
-    },
-    stdShare: number,
-    classShare: number,
-    sessionId: number,
-  ) => {
-    const merged = [...allResults, ...info.results];
-    const completed = merged.filter((r) => r.success).length;
-    const failed = merged.filter((r) => !r.success).length;
-    const done = completed + failed;
-    const overallPercent = Math.min(
-      100,
-      Math.round(stdShare * 100 + classShare * info.percent),
-    );
-    const totalKnown = info.documentTotal != null;
-    const total = totalKnown ? classBase + (info.documentTotal ?? 0) : 0;
-
-    applyProcessingProgress({
-      percent: overallPercent,
-      label: info.label,
-      done: totalKnown ? classBase + info.results.length : done,
-      total: totalKnown ? total : 0,
-      totalKnown,
-      completed,
-      failed,
-    }, sessionId);
   };
 
   const cancelOcrProcessing = useCallback(async () => {
@@ -1251,10 +669,7 @@ function OneDriveUpDocsOCRAIContent() {
     };
   }, [activeBatchJobId, batchJobNeedsToken, ensureOneDriveConnection, applyBatchJobStatusToUi, persistFinishedBatchJob]);
 
-  const runProcessing = async (
-    standardFiles: File[],
-    classFiles: File[],
-  ) => {
+  const runProcessing = async (files: File[]) => {
     const token = await ensureOneDriveConnection();
     if (!token) return;
 
@@ -1269,10 +684,9 @@ function OneDriveUpDocsOCRAIContent() {
     setBatchJobNeedsToken(false);
     setActiveBatchJobId(null);
 
-    const allEntries: { file: File; mode: "standard" | "class" }[] = [
-      ...standardFiles.map((file) => ({ file, mode: "standard" as const })),
-      ...classFiles.map((file) => ({ file, mode: "class" as const })),
-    ];
+    const allEntries: { file: File; mode: "standard" | "class" }[] = files.map(
+      (file) => ({ file, mode: "class" as const }),
+    );
 
     applyProcessingProgress(
       {
@@ -1372,48 +786,40 @@ function OneDriveUpDocsOCRAIContent() {
       );
     } finally {
       if (isActiveOcrSession(sessionId)) {
-        if (standardInputRef.current) standardInputRef.current.value = "";
         if (classInputRef.current) classInputRef.current.value = "";
       }
     }
   };
 
   useEffect(() => {
-    const hasWork =
-      pendingStandardFiles.length > 0 || pendingClassFiles.length > 0;
+    const hasWork = pendingClassFiles.length > 0;
     if (!hasWork || ocrProcessing || processingLockRef.current || !msalReady) return;
 
     processingLockRef.current = true;
-    const standard = [...pendingStandardFiles];
-    const classF = [...pendingClassFiles];
-    setPendingStandardFiles([]);
+    const files = [...pendingClassFiles];
     setPendingClassFiles([]);
 
-    void runProcessing(standard, classF).finally(() => {
+    void runProcessing(files).finally(() => {
       processingLockRef.current = false;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    pendingStandardFiles,
-    pendingClassFiles,
-    ocrProcessing,
-    msalReady,
-  ]);
+  }, [pendingClassFiles, ocrProcessing, msalReady]);
 
-  const enqueueOcrFiles = (
-    fileList: FileList | File[],
-    mode: "standard" | "class",
-  ) => {
-    const pdfs = Array.from(fileList).filter(
+  const enqueueOcrFiles = (fileList: FileList | File[]) => {
+    const all = Array.from(fileList);
+    const pdfs = all.filter(
       (f) => f.type === "application/pdf" || f.name.endsWith(".pdf"),
     );
     if (pdfs.length === 0) {
       setError("Seuls les fichiers PDF sont acceptés.");
       return;
     }
+    if (pdfs.length !== all.length) {
+      setError("Seuls les fichiers PDF sont acceptés.");
+    }
     if (!canAcceptNewOcrFiles()) return;
 
-    const hasPending = pendingStandardFiles.length > 0 || pendingClassFiles.length > 0;
+    const hasPending = pendingClassFiles.length > 0;
     const hasPriorSession =
       !hasPending &&
       (ocrResults.length > 0 ||
@@ -1424,30 +830,15 @@ function OneDriveUpDocsOCRAIContent() {
       prepareOcrSessionForNewBatch();
     }
 
-    if (mode === "standard") {
-      setPendingStandardFiles((prev) => [...prev, ...pdfs]);
-    } else {
-      if (pdfs.length !== Array.from(fileList).length) {
-        setError("Seuls les fichiers PDF sont acceptés.");
-      }
-      setPendingClassFiles((prev) => [...prev, ...pdfs]);
-    }
+    setPendingClassFiles((prev) => [...prev, ...pdfs]);
   };
 
-  const enqueueStandard = async (fileList: FileList | File[]) => {
+  const enqueueAuto = async (fileList: FileList | File[]) => {
     if (!oneDriveVerified || !oneDriveTokenRef.current) {
       const token = await ensureOneDriveConnection();
       if (!token) return;
     }
-    enqueueOcrFiles(fileList, "standard");
-  };
-
-  const enqueueClass = async (fileList: FileList | File[]) => {
-    if (!oneDriveVerified || !oneDriveTokenRef.current) {
-      const token = await ensureOneDriveConnection();
-      if (!token) return;
-    }
-    enqueueOcrFiles(fileList, "class");
+    enqueueOcrFiles(fileList);
   };
 
   const handleStartFreshOcrSession = () => {
@@ -1455,7 +846,6 @@ function OneDriveUpDocsOCRAIContent() {
     abortOcrInFlight();
     ocrSessionIdRef.current += 1;
     resetOcrSessionUi(true);
-    setPendingStandardFiles([]);
     setPendingClassFiles([]);
   };
 
@@ -1870,83 +1260,15 @@ function OneDriveUpDocsOCRAIContent() {
             </p>
             <p className="text-sm text-slate-600">
               {dropsAvailable
-                ? "Choisissez la zone adaptée à vos fichiers."
-                : "Les zones ci-dessous restent désactivées tant que OneDrive n'est pas connecté."}
+                ? "Déposez vos PDF : l'outil détecte automatiquement s'il s'agit d'un document par élève ou d'un export de classe entière à découper."
+                : "La zone ci-dessous reste désactivée tant que OneDrive n'est pas connecté."}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="mb-8">
             <div
               id="ocr-drop-standard"
               data-tour="drop-standard"
-              onDragOver={
-                dropDisabled
-                  ? undefined
-                  : (e) => {
-                      e.preventDefault();
-                      setIsDraggingStandard(true);
-                    }
-              }
-              onDragLeave={() => setIsDraggingStandard(false)}
-              onDrop={
-                dropDisabled
-                  ? undefined
-                  : (e) => {
-                      e.preventDefault();
-                      setIsDraggingStandard(false);
-                      if (e.dataTransfer.files?.length) {
-                        enqueueStandard(e.dataTransfer.files);
-                      }
-                    }
-              }
-              onClick={() => !dropDisabled && standardInputRef.current?.click()}
-              className={dropZoneClass(isDraggingStandard, "blue")}
-            >
-              <span className="inline-block mb-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-black uppercase rounded-full">
-                Standard
-              </span>
-              <div className="mb-3 min-h-[4rem] flex items-center justify-center">
-                {ocrProcessing ? (
-                  <ProcessingSpinner size="text-6xl" />
-                ) : (
-                  <span className="text-5xl">📄</span>
-                )}
-              </div>
-              <h3 className="text-lg font-bold text-gray-800 mb-2">
-                {!dropsAvailable
-                  ? "Connexion OneDrive requise"
-                  : checkingOneDrive
-                    ? "Vérification OneDrive…"
-                    : ocrProcessing
-                      ? "Analyse en cours…"
-                      : "Un PDF = un document"}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {!dropsAvailable
-                  ? "Connectez-vous à l'étape 1 pour débloquer le dépôt de fichiers."
-                  : checkingOneDrive
-                    ? "Connexion Microsoft vérifiée avant tout traitement."
-                    : ocrProcessing
-                      ? "Traitement en cours — patientez."
-                      : "Un fichier PDF par élève (bulletin, courrier…). Glissez-déposez ou cliquez pour choisir."}
-              </p>
-              <input
-                ref={standardInputRef}
-                type="file"
-                className="hidden"
-                multiple
-                accept="application/pdf,.pdf"
-                onChange={(e) => {
-                  if (e.target.files) {
-                    enqueueStandard(e.target.files);
-                    e.target.value = "";
-                  }
-                }}
-              />
-            </div>
-
-            <div
-              data-tour="drop-class"
               onDragOver={
                 dropDisabled
                   ? undefined
@@ -1963,21 +1285,18 @@ function OneDriveUpDocsOCRAIContent() {
                       e.preventDefault();
                       setIsDraggingClass(false);
                       if (e.dataTransfer.files?.length) {
-                        enqueueClass(e.dataTransfer.files);
+                        enqueueAuto(e.dataTransfer.files);
                       }
                     }
               }
               onClick={() => !dropDisabled && classInputRef.current?.click()}
-              className={dropZoneClass(isDraggingClass, "violet")}
+              className={dropZoneClass(isDraggingClass, "blue")}
             >
-              <span className="inline-block mb-2 px-2 py-0.5 bg-violet-100 text-violet-800 text-[10px] font-black uppercase rounded-full">
-                Expérimental
-              </span>
               <div className="mb-3 min-h-[4rem] flex items-center justify-center">
                 {ocrProcessing ? (
                   <ProcessingSpinner size="text-6xl" />
                 ) : (
-                  <span className="text-5xl">📚</span>
+                  <span className="text-5xl">📄</span>
                 )}
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-2">
@@ -1987,7 +1306,7 @@ function OneDriveUpDocsOCRAIContent() {
                     ? "Vérification OneDrive…"
                     : ocrProcessing
                       ? "Analyse en cours…"
-                      : "Export classe entière"}
+                      : "Déposez vos PDF — détection automatique"}
               </h3>
               <p className="text-sm text-gray-500">
                 {!dropsAvailable
@@ -1995,17 +1314,18 @@ function OneDriveUpDocsOCRAIContent() {
                   : checkingOneDrive
                     ? "Connexion Microsoft vérifiée avant tout traitement."
                     : ocrProcessing
-                      ? "Découpe et rangement en cours…"
-                      : "Un seul PDF multi-pages (export classe). L'outil découpe et range automatiquement par élève."}
+                      ? "Traitement en cours — patientez."
+                      : "Un document par élève OU un export de classe entière : l'outil reconnaît, découpe si besoin et range automatiquement. Glissez-déposez (plusieurs fichiers possibles) ou cliquez."}
               </p>
               <input
                 ref={classInputRef}
                 type="file"
                 className="hidden"
+                multiple
                 accept="application/pdf,.pdf"
                 onChange={(e) => {
-                  if (e.target.files?.[0]) {
-                    enqueueClass([e.target.files[0]]);
+                  if (e.target.files) {
+                    enqueueAuto(e.target.files);
                     e.target.value = "";
                   }
                 }}
@@ -2090,11 +1410,8 @@ function OneDriveUpDocsOCRAIContent() {
                     Ouvrez OneDrive → dossier <strong>Temp</strong> → déplacez le PDF dans le bon dossier élève ;
                   </li>
                   <li>
-                    ou repassez le fichier en mode <strong>Standard</strong> (« un PDF = un document ») si vous
-                    l&apos;avez déjà séparé ;
-                  </li>
-                  <li>
-                    n&apos;utilisez pas à nouveau le mode « Export classe » : la découpe a déjà eu lieu.
+                    ou, si le document n&apos;a pas été reconnu, vérifiez qu&apos;il est lisible et que l&apos;élève
+                    figure bien dans la liste, puis redéposez-le.
                   </li>
                 </ul>
               </div>

@@ -35,9 +35,10 @@ export async function POST(req: Request) {
   after(async () => {
     try {
       if (delayMs > 0) await sleep(delayMs);
+      console.log(`[ocr-batch ${jobId}] internal-run déclenché (auto-relance, delay=${delayMs}ms)`);
       await runOcrBatchJob(jobId);
     } catch (err) {
-      console.error("[ocr-batch/internal-run] after():", err);
+      console.error(`[ocr-batch ${jobId}] internal-run after():`, err);
     }
   });
 

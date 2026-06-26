@@ -160,13 +160,8 @@ export const MODULE_TOURS: ModuleTourDefinition[] = [
       },
       {
         target: "drop-standard",
-        title: "Dépôt Standard",
-        body: "Un PDF = un document pour un élève (bulletin, courrier…). Glissez-déposez ou cliquez pour choisir. L'IA lit le document et propose le classement.",
-      },
-      {
-        target: "drop-class",
-        title: "Dépôt export classe",
-        body: "Un seul PDF multi-pages exporté depuis Pronote (toute une classe). L'outil découpe et range chaque page chez le bon élève.",
+        title: "Dépôt des PDF",
+        body: "Une seule zone pour tout : un document par élève (bulletin, courrier…) ou un export de classe entière (PDF multi-pages depuis Pronote). L'outil détecte automatiquement le cas, découpe si nécessaire et range chaque document chez le bon élève. Vous pouvez déposer plusieurs fichiers à la fois.",
       },
       {
         title: "Vérification",
