@@ -7,6 +7,10 @@ import { useAppContext } from "@/app/hooks/useAppContext";
 import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
 
 import { CUISINE_DAYS_UI as CUISINE_DAYS, CUISINE_ROWS_UI as CUISINE_ROWS } from "@/app/lib/travels-cuisine-form";
+import TravelsOwnerAssignSection, {
+  resolveTripOwnerFields,
+  type TravelsOwnerFields,
+} from "@/app/components/travels/TravelsOwnerAssignSection";
 
 function ComplexTripFormContent() {
   const { user, isLoaded } = useUser();
@@ -16,6 +20,8 @@ function ComplexTripFormContent() {
   const busProgramRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [ownerOverride, setOwnerOverride] = useState<TravelsOwnerFields | null>(null);
+  const [ownerAssignPending, setOwnerAssignPending] = useState(false);
   const [showPiqueNiqueModal, setShowPiqueNiqueModal] = useState(false);
   const [showBusRecapModal, setShowBusRecapModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -101,11 +107,12 @@ function ComplexTripFormContent() {
   const executeSubmit = async () => {
     setLoading(true);
     const tripId = `trip-${Date.now()}`;
+    const ownerFields = resolveTripOwnerFields(user, ownerOverride);
     const payload = {
       id: tripId,
-      ownerId: user?.id,
-      ownerName: user?.fullName || "Professeur inconnu",
-      ownerEmail: user?.primaryEmailAddress?.emailAddress,
+      ownerId: ownerFields.ownerId,
+      ownerName: ownerFields.ownerName,
+      ownerEmail: ownerFields.ownerEmail,
       status: "EN_ATTENTE_DIR_INITIAL",
       type: "COMPLEX",
       createdAt: new Date().toISOString(),
@@ -125,8 +132,8 @@ function ComplexTripFormContent() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
               tripData: payload,
-              userEmail: user?.primaryEmailAddress?.emailAddress,
-              userName: user?.fullName 
+              userEmail: ownerFields.ownerEmail,
+              userName: ownerFields.ownerName,
             }),
           });
         }
@@ -143,6 +150,10 @@ function ComplexTripFormContent() {
   };
   const handleSubmitAttempt = (e: React.FormEvent) => {
     e.preventDefault();
+    if (ownerAssignPending) {
+      alert("Sélectionnez l'enseignant responsable du dossier.");
+      return;
+    }
     if (formData.needsBus) {
       setShowBusRecapModal(true);
     } else {
@@ -162,6 +173,10 @@ function ComplexTripFormContent() {
       <form onSubmit={handleSubmitAttempt} className="space-y-6">
         <div className="bg-white p-8 border rounded-3xl shadow-sm space-y-6">
           <div className="text-slate-400 uppercase text-xs font-bold tracking-widest border-b pb-4">1. Projet Pédagogique</div>
+          <TravelsOwnerAssignSection
+            onOwnerFieldsChange={setOwnerOverride}
+            onPendingChange={setOwnerAssignPending}
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold mb-2">Intitulé du séjour</label>

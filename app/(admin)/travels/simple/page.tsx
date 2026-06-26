@@ -9,6 +9,10 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
 import { useAppContext } from "@/app/hooks/useAppContext";
+import TravelsOwnerAssignSection, {
+  resolveTripOwnerFields,
+  type TravelsOwnerFields,
+} from "@/app/components/travels/TravelsOwnerAssignSection";
 
 const CUISINE_DAYS = [
   { key: "lundi",    label: "Lun." },
@@ -44,6 +48,9 @@ function SimpleTripFormContent() {
   const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [ownerOverride, setOwnerOverride] = useState<TravelsOwnerFields | null>(null);
+  const [loadedOwner, setLoadedOwner] = useState<TravelsOwnerFields | null>(null);
+  const [ownerAssignPending, setOwnerAssignPending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -94,6 +101,13 @@ function SimpleTripFormContent() {
               attachments: trip.data.attachments || [],
               piqueNiqueDetails: trip.data.piqueNiqueDetails || formData.piqueNiqueDetails,
             });
+            if (trip.ownerId) {
+              setLoadedOwner({
+                ownerId: trip.ownerId,
+                ownerName: trip.ownerName || "Enseignant",
+                ownerEmail: trip.ownerEmail || "",
+              });
+            }
           }
           setFetching(false);
         })
@@ -146,6 +160,14 @@ function SimpleTripFormContent() {
   if (!isLoaded || fetching) return <div className="p-10 text-center font-medium">Chargement du dossier...</div>;
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (ownerAssignPending) {
+      alert("Sélectionnez l'enseignant responsable du dossier.");
+      return;
+    }
+    const ownerFields =
+      editId && loadedOwner?.ownerId
+        ? loadedOwner
+        : resolveTripOwnerFields(user, ownerOverride);
     if (formData.coutTotal > 0 && (!formData.nbEleves || Number(formData.nbEleves) <= 0)) {
       alert("Veuillez préciser le nombre d'élèves pour un voyage avec budget.");
       return;
@@ -191,9 +213,9 @@ function SimpleTripFormContent() {
           };
           const tripData: Record<string, unknown> = {
             id,
-            ownerId: user?.id,
-            ownerName: user?.fullName,
-            ownerEmail: user?.primaryEmailAddress?.emailAddress,
+            ownerId: ownerFields.ownerId,
+            ownerName: ownerFields.ownerName,
+            ownerEmail: ownerFields.ownerEmail,
             type: "SIMPLE",
             status: "EN_ATTENTE_DIR_INITIAL",
             data: dataPayload,
@@ -204,7 +226,10 @@ function SimpleTripFormContent() {
                 date: now,
                 user: user?.fullName,
                 action: "CREE",
-                note: `Série récurrente (${i + 1}/${dates.length})`,
+                note:
+                  ownerOverride?.ownerId && ownerOverride.ownerId !== user?.id
+                    ? `Créé par l'administratif pour ${ownerFields.ownerName} (${i + 1}/${dates.length})`
+                    : `Série récurrente (${i + 1}/${dates.length})`,
               },
             ],
           };
@@ -237,9 +262,9 @@ function SimpleTripFormContent() {
       const tripId = editId || crypto.randomUUID();
       const tripData = {
         id: tripId,
-        ownerId: user?.id,
-        ownerName: user?.fullName,
-        ownerEmail: user?.primaryEmailAddress?.emailAddress,
+        ownerId: ownerFields.ownerId,
+        ownerName: ownerFields.ownerName,
+        ownerEmail: ownerFields.ownerEmail,
         type: "SIMPLE",
         status: "EN_ATTENTE_DIR_INITIAL",
         data: formData,
@@ -280,6 +305,11 @@ function SimpleTripFormContent() {
         <div className="md:col-span-2 space-y-4 border-b pb-4 text-slate-400 uppercase text-xs font-bold tracking-widest">
           Informations Générales
         </div>
+        <TravelsOwnerAssignSection
+          disabled={Boolean(editId)}
+          onOwnerFieldsChange={setOwnerOverride}
+          onPendingChange={setOwnerAssignPending}
+        />
         <div className="md:col-span-2">
           <label className="block text-sm font-semibold mb-2">Intitulé de la sortie</label>
           <input required value={formData.title} className="w-full p-3 bg-slate-50 border rounded-xl outline-indigo-500" placeholder="Ex: Sortie Laser Game" onChange={e => setFormData({...formData, title: e.target.value})} />

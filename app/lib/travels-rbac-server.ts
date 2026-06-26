@@ -2,22 +2,14 @@ import { safeCurrentUser } from "@/app/lib/intranet-session";
 
 import { canSignTravelsDirectionForEtab } from "@/app/lib/establishments";
 import { isTripOwner, isTripOwnerOrCreator } from "@/app/lib/travels-direction-permissions";
+import { userHasAdministratifRole, userHasComptaRoleFromMetadata } from "@/app/lib/travels-roles";
 import type { TravelsTrip } from "@/app/lib/travels-types";
 
-const norm = (v: string) =>
-  v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\s-]+/g, "");
-
 export function userHasComptaRole(user: { publicMetadata?: Record<string, unknown> } | null): boolean {
-  const raw = user?.publicMetadata?.role;
-  const roles: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
-  return roles.includes("comptabilité") || roles.some((r) => norm(String(r)).includes("comptabilite"));
+  return userHasComptaRoleFromMetadata(user?.publicMetadata);
 }
 
-export function userHasAdministratifRole(user: { publicMetadata?: Record<string, unknown> } | null): boolean {
-  const raw = user?.publicMetadata?.role;
-  const roles: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
-  return roles.some((r) => norm(String(r)).includes("administratif"));
-}
+export { userHasAdministratifRole };
 
 export async function assertTravelsTripAccess(
   trip: TravelsTrip,

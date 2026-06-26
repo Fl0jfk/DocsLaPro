@@ -9,6 +9,7 @@ import {
 } from "@/app/lib/tenant-mail";
 import IMAGE_CATALOG from "./image-catalog.json";
 import { notifyComptaTravelsPhase, type TravelsTripForNotify } from "@/app/lib/travels-notify";
+import { applyTravelsOwnerAssignment } from "@/app/lib/travels-owner-server";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { canSignTravelsDirectionForEtab, resolveDirectorForEstablishment } from "@/app/lib/establishments";
@@ -69,6 +70,21 @@ export async function POST(req: Request) {
     const tripRel = `travels/${tripId}.json`;
     const existingHit = await getJson<Record<string, unknown>>(tripRel);
     const existingOnS3 = existingHit?.data ?? null;
+    const me = await safeCurrentUser();
+    const ownerGate = await applyTravelsOwnerAssignment(
+      objectToSave as Record<string, unknown>,
+      me
+        ? {
+            id: me.id,
+            fullName: me.fullName,
+            primaryEmailAddress: me.primaryEmailAddress,
+            publicMetadata: me.publicMetadata as Record<string, unknown>,
+          }
+        : null,
+    );
+    if (!ownerGate.ok) {
+      return NextResponse.json({ error: ownerGate.error }, { status: ownerGate.status });
+    }
     if (existingOnS3 && Array.isArray(existingOnS3.receivedDevis)) {
       objectToSave.receivedDevis = mergeReceivedDevis(
         objectToSave.receivedDevis,

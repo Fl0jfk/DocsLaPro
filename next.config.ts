@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { contentSecurityPolicyHeaderValue } from "./app/lib/content-security-policy";
+import { contentSecurityPolicyHeaderValue, crossOriginOpenerPolicyHeaderValue } from "./app/lib/content-security-policy";
 
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value: contentSecurityPolicyHeaderValue(),
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: crossOriginOpenerPolicyHeaderValue(),
           },
         ],
       },

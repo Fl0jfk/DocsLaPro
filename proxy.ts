@@ -38,7 +38,7 @@ import {
   intranetRolesFromSessionClaims,
   publicMetadataFromSessionClaims,
 } from '@/app/lib/intranet-roles';
-import { contentSecurityPolicyHeaderValue } from '@/app/lib/content-security-policy';
+import { contentSecurityPolicyHeaderValue, crossOriginOpenerPolicyHeaderValue } from '@/app/lib/content-security-policy';
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -137,6 +137,7 @@ function withTenantHeaders(response: NextResponse, tenant: TenantConfig): NextRe
   response.headers.set(TENANT_SLUG_HEADER, tenant.slug);
   response.headers.set("x-tenant-bucket", tenant.dataBucket);
   response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue());
+  response.headers.set("Cross-Origin-Opener-Policy", crossOriginOpenerPolicyHeaderValue());
   return response;
 }
 
