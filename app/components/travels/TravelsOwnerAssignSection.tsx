@@ -2,9 +2,8 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
-import DomainAssigneePicker, {
-  type ClerkAssigneeOption,
-} from "@/app/components/domain-planning/DomainAssigneePicker";
+import TravelsTeacherPicker from "@/app/components/travels/TravelsTeacherPicker";
+import type { ClerkAssigneeOption } from "@/app/components/domain-planning/DomainAssigneePicker";
 import { userHasAdministratifRoleFromMetadata } from "@/app/lib/travels-roles";
 
 export type TravelsOwnerFields = {
@@ -102,16 +101,14 @@ export default function TravelsOwnerAssignSection({
       {assignForOther && (
         <div className="pt-2 border-t border-amber-200/80">
           <label className="block text-xs font-bold uppercase tracking-widest text-amber-900/70 mb-2">
-            Enseignant responsable (Clerk)
+            Enseignant responsable
           </label>
-          <div className="rounded-xl overflow-hidden border border-amber-200 bg-slate-900">
-            <DomainAssigneePicker
-              users={users}
-              value={selectedId}
-              loading={loadingUsers}
-              onChange={(u) => setSelectedId(u?.clerkUserId ?? "")}
-            />
-          </div>
+          <TravelsTeacherPicker
+            users={users}
+            value={selectedId}
+            loading={loadingUsers}
+            onChange={(u) => setSelectedId(u?.clerkUserId ?? "")}
+          />
           {assignForOther && !selectedId && !loadingUsers && (
             <p className="mt-2 text-xs font-semibold text-amber-800">
               Sélectionnez un utilisateur avant d&apos;enregistrer.
