@@ -15,6 +15,7 @@ import { useDashboardQuickLinks } from "@/app/hooks/useDashboardQuickLinks";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import { hasRole } from "@/app/lib/absences-types";
 import { hasGlobalAdminRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
+import { isEleveBienEtreProfile } from "@/app/lib/bien-etre-profile";
 import DashboardThemeRoot from "@/app/components/Dashboard/DashboardThemeRoot";
 import { dash } from "@/app/lib/dashboard-brand";
 import { isBentoFooterAdminModule } from "@/app/lib/dashboard-bento-constraints";
@@ -53,6 +54,12 @@ export default function Home() {
   }, [isLoaded, user, data]);
 
   const quickLinks = useDashboardQuickLinks(user?.id, catalogQuickLinks);
+
+  const eleveBienEtre = useMemo(() => {
+    if (!user) return false;
+    const roles = intranetRolesFromMetadata(user.publicMetadata);
+    return isEleveBienEtreProfile(roles);
+  }, [user]);
 
   if (!isLoaded) return null;
 
@@ -106,9 +113,18 @@ export default function Home() {
         ) : (
           user && (
             <div className={`mx-auto mt-8 w-full max-w-3xl rounded-2xl border bg-white/80 px-6 py-12 text-center shadow-sm ${dash.border}`}>
-              <p className="text-sm font-medium text-stone-500">
-                Aucun contenu disponible pour votre profil.
-              </p>
+              {eleveBienEtre ? (
+                <>
+                  <p className="text-lg font-black text-violet-900 mb-2">Espace bien-être</p>
+                  <p className="text-sm text-stone-600 leading-relaxed">
+                    Ouvre la bulle <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-sm">💜</span> en bas à
+                    droite pour parler au bot d&apos;écoute. Ce n&apos;est pas le même assistant que pour le personnel de
+                    l&apos;établissement.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm font-medium text-stone-500">Aucun contenu disponible pour votre profil.</p>
+              )}
             </div>
           )
         )}

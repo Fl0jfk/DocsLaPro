@@ -12,6 +12,7 @@ import {
 import type { TravelsDirectionDashboard } from "@/app/lib/travels-direction-dashboard";
 import { isTripTravelDatePast } from "@/app/lib/travels-trip-helpers";
 import type { TravelsTrip } from "@/app/lib/travels-types";
+import { normalizeTravelImageUrl } from "@/app/lib/travels-image-url";
 import { useAppContext } from "@/app/hooks/useAppContext";
 import { GROUPE_SCOLAIRE_LABEL } from "@/app/lib/travels-establishments";
 import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
@@ -203,9 +204,10 @@ function TripDashboardContent() {
         <div data-tour="travels-list" className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {filteredTrips.map((trip) => {
             const isComplex = trip.type === "COMPLEX" || Boolean((trip.data as { transport?: unknown })?.transport);
-            const imageUrl =
+            const imageUrl = normalizeTravelImageUrl(
               (typeof trip.imageUrl === "string" && trip.imageUrl) ||
-              (typeof trip.data?.imageUrl === "string" ? trip.data.imageUrl : undefined);
+                (typeof trip.data?.imageUrl === "string" ? trip.data.imageUrl : undefined),
+            );
             const defaultEtab = etabFilterOptions.showGroupe ? GROUPE_SCOLAIRE_LABEL : etabFilterOptions.labels[0] || "Établissement";
             const etabLabel = trip.data?.etablissement || defaultEtab;
             const etabStyle = ETAB_STYLE[etabLabel] ?? ETAB_STYLE[GROUPE_SCOLAIRE_LABEL];

@@ -125,8 +125,8 @@ export default function BienEtreConfigPage() {
             </label>
 
             <p className="text-xs text-slate-500">
-              Les comptes élèves doivent avoir le rôle <strong>eleve</strong> dans Scola. Page élève :{" "}
-              <code className="bg-slate-100 px-1 rounded">/bien-etre</code>
+              Les comptes élèves utilisent la bulle <strong>💜 bien-être</strong> sur le tableau de bord (pas Nico).
+              Référent : <code className="bg-slate-100 px-1 rounded">/bien-etre/referent</code>
             </p>
 
             <button

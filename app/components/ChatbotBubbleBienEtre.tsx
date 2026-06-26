@@ -60,10 +60,9 @@ export default function ChatbotBubbleBienEtre() {
     const data = await res.json();
     setEnabled(data.enabled === true);
     setWelcome(String(data.welcomeMessage || ""));
-    const hist = Array.isArray(data.messages) ? data.messages : [];
-    setMessages(hist.length > 0 ? hist : welcome ? [] : []);
+    setMessages(Array.isArray(data.messages) ? data.messages : []);
     setSuggestSignalement(data.suggestSignalement === true);
-  }, [welcome]);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && isSignedIn && open) loadSession();

@@ -5,6 +5,7 @@ import {
   compareTripsByTravelDate,
   isTripEligibleForPurge,
 } from "@/app/lib/travels-trip-helpers";
+import { normalizeTripImageFields } from "@/app/lib/travels-image-url";
 import type { TravelsTrip } from "@/app/lib/travels-types";
 
 async function purgeOldTrips(trips: TravelsTrip[]): Promise<TravelsTrip[]> {
@@ -32,7 +33,7 @@ export async function GET() {
     const hit = await getJson<TravelsTrip[]>("travels/index.json");
     const trips = Array.isArray(hit?.data) ? hit.data : [];
     const afterPurge = await purgeOldTrips(trips);
-    const sortedTrips = [...afterPurge].sort(compareTripsByTravelDate);
+    const sortedTrips = [...afterPurge].sort(compareTripsByTravelDate).map(normalizeTripImageFields);
     return NextResponse.json(sortedTrips);
   } catch (error) {
     console.error("Erreur S3 List:", error);

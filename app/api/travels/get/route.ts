@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getJson } from "@/app/lib/s3-storage";
 import { requireAuth } from "@/app/lib/intranet-auth";
+import { normalizeTripImageFields } from "@/app/lib/travels-image-url";
+import type { TravelsTrip } from "@/app/lib/travels-types";
 
 export async function GET(req: Request) {
   const gate = await requireAuth();
@@ -11,7 +13,7 @@ export async function GET(req: Request) {
   try {
     const hit = await getJson<unknown>( `travels/${id}.json`);
     if (!hit?.data) return NextResponse.json({ error: "Impossible de récupérer le dossier" }, { status: 404 });
-    return NextResponse.json(hit.data);
+    return NextResponse.json(normalizeTripImageFields(hit.data as TravelsTrip));
   } catch (error) {
     console.error("Erreur S3 Get:", error);
     return NextResponse.json({ error: "Impossible de récupérer le dossier" }, { status: 500 });

@@ -78,6 +78,7 @@ export const INTRANET_ALWAYS_ALLOWED_PREFIXES = [
 /** Profil élève : accès minimal (dashboard + bulle bien-être). */
 export const INTRANET_ELEVE_ALLOWED_PREFIXES = [
   "/dashboard",
+  "/bien-etre",
   "/api/dashboard",
   "/api/bien-etre",
   "/api/app/context",

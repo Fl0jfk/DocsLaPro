@@ -32,7 +32,7 @@ import {
   canAccessIntranetPath,
   isOrgAdminFromSession,
 } from '@/app/lib/intranet-modules';
-import { hasMasterRole, isEleveOnlyRoleSet } from '@/app/lib/intranet-role-utils';
+import { hasMasterRole } from '@/app/lib/intranet-role-utils';
 import {
   intranetRolesFromMetadata,
   intranetRolesFromSessionClaims,

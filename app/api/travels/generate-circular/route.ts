@@ -3,6 +3,7 @@ import { resolveSession } from "@/app/lib/intranet-session";
 
 import { jsPDF } from 'jspdf';
 import { drawPdfLetterhead, getSchoolLetterhead, loadSchoolLogoForPdf } from "@/app/lib/pdf-branding";
+import { normalizeTravelImageUrl } from "@/app/lib/travels-image-url";
 import { parseTravelsS3KeyFromUrl } from "@/app/lib/travels-s3";
 import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
 import {  TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand} from "@aws-sdk/client-textract";
@@ -131,7 +132,7 @@ export async function POST(req: Request) {
     let currentY = HEADER_H + 2;
     if (tripData.imageUrl) {
       try {
-        const imgRes = await fetch(tripData.imageUrl);
+        const imgRes = await fetch(normalizeTravelImageUrl(tripData.imageUrl) || tripData.imageUrl);
         const imgBuf = Buffer.from(await imgRes.arrayBuffer());
         const imgData = `data:image/jpeg;base64,${imgBuf.toString("base64")}`;
         docPdf.addImage(imgData, "JPEG", 0, currentY, W, BANNER_H);

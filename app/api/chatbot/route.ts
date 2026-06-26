@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { isEleveBienEtreProfile, intranetRolesFromUnknown } from "@/app/lib/bien-etre-profile";
 import { buildContextFromEntries, readKnowledgeDocument, readKnowledgeIndex, selectDomainByMessage } from "@/app/lib/knowledge";
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
 
 export const runtime = "nodejs";
@@ -64,6 +66,17 @@ async function classifyDomainWithMistral(message: string, domains: Array<{ id: s
 
 export async function POST(req: Request) {
   try {
+    const user = await safeCurrentUser();
+    if (user && isEleveBienEtreProfile(intranetRolesFromUnknown(user.publicMetadata))) {
+      return NextResponse.json(
+        {
+          error: "Utilise la bulle bien-être 💜 (bot d'écoute), pas l'assistant institutionnel.",
+          code: "BIEN_ETRE_ONLY",
+        },
+        { status: 403 },
+      );
+    }
+
     const body = (await req.json()) as ChatRequest;
     const message = (body.message ?? "").trim();
     const wantsRequest = /\b(demande|ticket|requete|requête|support|incident)\b/i.test(message);
