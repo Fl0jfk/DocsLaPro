@@ -195,22 +195,36 @@ export async function analyzeDocMatchEleve(
     const { ine, nom, prénom } = extracted;
     const hasNom = nom && nom !== "non_trouvé";
     const hasPrenom = prénom && prénom !== "non_trouvé";
-    if (ine && ine !== "non_trouvé") {
-      const ineNorm = normalizeIne(ine);
-      if (ineNorm) {
-        const found = eleves.find((e) => e.ine && normalizeIne(e.ine) === ineNorm);
-        if (found) matchedEleve = found;
+    const ineNorm = ine && ine !== "non_trouvé" ? normalizeIne(ine) : "";
+    const elevesWithIne = allEleves.filter((e) => e.ine && normalizeIne(e.ine)).length;
+
+    // 1) INE = identifiant national unique → recherché sur TOUTE la liste,
+    //    indépendamment du filtre secteur (sinon un élève hors pool est perdu).
+    let ineMatched = false;
+    if (ineNorm) {
+      const found = allEleves.find((e) => e.ine && normalizeIne(e.ine) === ineNorm);
+      if (found) {
+        matchedEleve = found;
+        ineMatched = true;
       }
     }
+
+    // 2) Nom/prénom flou : d'abord le pool secteur, repli sur toute la liste si rien.
+    let bestNameScore = 0;
     if (!matchedEleve && (hasNom || hasPrenom)) {
-      const scored = eleves
-        .map((e) => ({
-          eleve: e,
-          score: nameSimilarity(hasNom ? nom : "", hasPrenom ? prénom : "", e.nom, e.prenom),
-        }))
-        .filter((s) => s.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
+      const scoreList = (list: typeof eleves) =>
+        list
+          .map((e) => ({
+            eleve: e,
+            score: nameSimilarity(hasNom ? nom : "", hasPrenom ? prénom : "", e.nom, e.prenom),
+          }))
+          .filter((s) => s.score > 0)
+          .sort((a, b) => b.score - a.score);
+      let scored = scoreList(eleves).slice(0, 5);
+      if (scored.length === 0 && eleves.length !== allEleves.length) {
+        scored = scoreList(allEleves).slice(0, 5);
+      }
+      bestNameScore = scored[0]?.score ?? 0;
       if (scored.length > 0) {
         const shortlist = scored.map((s) => s.eleve);
         const shortlistDescription = shortlist
@@ -260,6 +274,14 @@ export async function analyzeDocMatchEleve(
         }
       }
     }
+    matchDebug = {
+      ...matchDebug,
+      ineProvided: Boolean(ineNorm),
+      elevesWithIne,
+      ineMatched,
+      bestNameScore: Math.round(bestNameScore * 100) / 100,
+      matchedBy: matchedEleve ? (ineMatched ? "ine" : "name") : null,
+    };
     if (matchedEleve && odProfile) {
       oneDriveFolderPath = oneDrivePathForEleve(odProfile.basePath, resolveEleveFolderName(matchedEleve));
     }
