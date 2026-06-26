@@ -41,11 +41,6 @@ const OCR_POLL_DELAY_MS = 3_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Log serveur traçable dans CloudWatch (préfixe greppable). */
-function log(jobId: string, ...args: unknown[]) {
-  console.log(`[ocr-batch ${jobId}]`, ...args);
-}
-
 function runLockKey(jobId: string) {
   return `${RUN_LOCK_PREFIX}${jobId}.lock`;
 }
@@ -266,11 +261,8 @@ async function analyzeAndMove(
   displayName: string,
 ): Promise<OcrBatchResult> {
   const ai = await analyzeDocMatchEleve(text, ctx.odProfile);
-  const extracted = `nom=${ai?.nom ?? "?"} prénom=${ai?.prénom ?? "?"} ine=${ai?.ine ?? "?"}`;
-  log(ctx.jobId, `analyse "${displayName}" → ${extracted}`, "match:", JSON.stringify(ai?.matchDebug ?? {}));
 
   if (!ai?.fileName) {
-    log(ctx.jobId, `ÉCHEC "${displayName}" : analyse IA incomplète (pas de nom de fichier).`);
     return {
       success: false,
       error: "Analyse IA incomplète.",
@@ -280,10 +272,6 @@ async function analyzeAndMove(
     };
   }
   if (!ai.oneDriveFolderPath) {
-    log(
-      ctx.jobId,
-      `NON RANGÉ "${displayName}" : élève non identifié (profilOneDrive=${ctx.odProfile ? ctx.odProfile.secteur : "AUCUN"}).`,
-    );
     return {
       success: false,
       error:
@@ -297,7 +285,6 @@ async function analyzeAndMove(
     moveOneDriveFile(token, sourcePath, ai.oneDriveFolderPath as string, `${ai.fileName}.pdf`),
   );
   if (!move.ok) {
-    log(ctx.jobId, `ÉCHEC TECHNIQUE "${displayName}" : déplacement (${move.status}) ${move.detail.slice(0, 200)}`);
     return {
       success: false,
       error: `Déplacement impossible : ${move.detail.slice(0, 200)}`,
@@ -306,7 +293,6 @@ async function analyzeAndMove(
       tempOneDrivePath: sourcePath,
     };
   }
-  log(ctx.jobId, `OK "${displayName}" → ${ai.oneDriveFolderPath}/${ai.fileName}.pdf`);
   return { success: true, result: ai, fileName: displayName };
 }
 
@@ -321,7 +307,6 @@ async function stepItem(
 
   if (phase === "ocr_start") {
     const textractJobId = await startTextractForS3Key(item.s3Key);
-    log(job.jobId, `Textract lancé "${item.fileName}" (${item.mode})`);
     await patchItem(job.jobId, itemIndex, {
       status: "processing",
       phase: "ocr_poll",
@@ -340,7 +325,6 @@ async function stepItem(
       return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: `Lecture OCR — ${item.fileName}` };
     }
     if (poll.status === "FAILED") {
-      log(job.jobId, `ÉCHEC TECHNIQUE "${item.fileName}" : OCR Textract a échoué.`);
       return {
         kind: "result",
         itemDone: true,
@@ -354,7 +338,6 @@ async function stepItem(
         ],
       };
     }
-    log(job.jobId, `OCR OK "${item.fileName}" — ${poll.result.pageCount} page(s)`);
     const cacheKey = ocrCacheKey(job.jobId, item.id);
     await writeOcrCache(cacheKey, poll.result);
     await patchItem(job.jobId, itemIndex, {
@@ -468,15 +451,6 @@ export async function runOcrBatchJob(jobId: string) {
       odProfile,
       refreshToken: await resolveServerRefreshToken(job, odProfile),
     };
-    log(
-      jobId,
-      `démarrage — ${job.items.length} item(s), reprise à ${job.currentItemIndex}, ` +
-        `profilOneDrive=${odProfile ? `${odProfile.secteur} (${odProfile.basePath})` : "AUCUN ⚠️"}, ` +
-        `refreshTokenServeur=${ctx.refreshToken ? "oui" : "non"}`,
-    );
-    if (!odProfile) {
-      log(jobId, "⚠️ AUCUN profil OneDrive pour le créateur du lot → tous les fichiers finiront « élève non identifié ». Configurez Paramètres → Intégrations (mapping compte → cycle).");
-    }
 
     await patchJob(jobId, {
       status: "processing",
@@ -513,7 +487,6 @@ export async function runOcrBatchJob(jobId: string) {
           nextRunAt: undefined,
           label: `Terminé — ${job.results.length} document${job.results.length > 1 ? "s" : ""} traité${job.results.length > 1 ? "s" : ""}`,
         });
-        log(jobId, `TERMINÉ — ${completed} succès / ${failed} échec(s) sur ${job.results.length} résultat(s)`);
         await deleteOcrCacheForJob(job);
         return;
       }
@@ -571,7 +544,6 @@ export async function runOcrBatchJob(jobId: string) {
         continue;
       } catch (err) {
         if (err instanceof TokenExpiredError) {
-          log(jobId, `needs_token — session OneDrive expirée (refresh serveur indisponible) sur "${item.fileName}".`);
           await patchJob(jobId, {
             status: "needs_token",
             error: "Session OneDrive expirée. Reconnectez Microsoft sur la page pour reprendre.",
@@ -580,7 +552,6 @@ export async function runOcrBatchJob(jobId: string) {
           return;
         }
         const message = err instanceof Error ? err.message : String(err);
-        log(jobId, `ÉCHEC TECHNIQUE "${item.fileName}" : ${message}`);
         const current = await readBatchJob(jobId);
         if (!current) return;
         await writeBatchJob({
