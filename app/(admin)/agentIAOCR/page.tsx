@@ -1580,10 +1580,40 @@ function OneDriveUpDocsOCRAIContent() {
     if (err.includes("ocr") || err.includes("texte")) {
       return "Le texte du PDF est illisible ou trop pauvre pour une analyse fiable.";
     }
-    if (err.includes("déplacé") || err.includes("deplace") || err.includes("folder")) {
+    if (err.includes("déplacé") || err.includes("deplace") || err.includes("folder") || err.includes("graph")) {
       return "Le dossier de destination n'a pas pu être créé ou atteint sur OneDrive.";
     }
     return "Le rangement automatique n'a pas abouti pour ce fichier.";
+  };
+
+  /** Distingue un échec « métier » (à classer à la main) d'une vraie erreur technique. */
+  const failureCategory = (
+    result: ProcessResult,
+  ): { label: string; technical: boolean } => {
+    const err = (result.error || "").toLowerCase();
+    if (err.includes("élève") || err.includes("eleve") || err.includes("identifi")) {
+      return { label: "Élève non trouvé", technical: false };
+    }
+    if (err.includes("incomplet") || err.includes("filename")) {
+      return { label: "Lecture incomplète", technical: false };
+    }
+    if (err.includes("ocr") || err.includes("textract")) {
+      return { label: "OCR échoué", technical: true };
+    }
+    if (
+      err.includes("token") ||
+      err.includes("onedrive") ||
+      err.includes("graph") ||
+      err.includes("déplac") ||
+      err.includes("deplac") ||
+      err.includes("upload") ||
+      err.includes("401") ||
+      err.includes("429") ||
+      err.includes("500")
+    ) {
+      return { label: "Erreur technique", technical: true };
+    }
+    return { label: "Échec", technical: true };
   };
 
   const failedResults = ocrResults.filter((r) => !r.success);
@@ -2114,8 +2144,12 @@ function OneDriveUpDocsOCRAIContent() {
                           {result.fileName}
                         </p>
                         {!result.success && (
-                          <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black uppercase">
-                            Temp → Standard ou manuel
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase text-white ${
+                              failureCategory(result).technical ? "bg-orange-600" : "bg-red-600"
+                            }`}
+                          >
+                            {failureCategory(result).label}
                           </span>
                         )}
                       </div>
@@ -2128,6 +2162,11 @@ function OneDriveUpDocsOCRAIContent() {
                           <p className="text-sm text-red-600 mt-1 font-medium">
                             {failureHint(result)}
                           </p>
+                          {result.error ? (
+                            <p className="text-[11px] text-slate-500 mt-1 font-mono break-words">
+                              Détail : {result.error}
+                            </p>
+                          ) : null}
                           {result.tempOneDrivePath ? (
                             <p className="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg">
                               Fichier dans OneDrive → dossier{" "}
