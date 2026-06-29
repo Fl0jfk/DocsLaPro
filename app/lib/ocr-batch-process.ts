@@ -13,12 +13,13 @@ import {
   type OcrBatchResult,
   type OcrBatchSegment,
 } from "@/app/api/agentIAOCR/batch-job/batch-job";
-import { analyzeDocMatchEleve } from "@/app/lib/ocr-analyze-eleve";
+import { analyzeDocMatchEleve, loadKnownStudentsForSegmentation } from "@/app/lib/ocr-analyze-eleve";
+import type { KnownStudent } from "@/app/lib/ocr-segmentation";
 import { extractPdfPagesBytes, getPdfPageCountFromS3 } from "@/app/lib/ocr-extract-pages";
 import {
   deleteOneDrivePath,
   moveOneDriveFile,
-  uploadBytesToOneDrive,
+  uploadBytesToOneDriveUnique,
 } from "@/app/lib/ocr-graph-ops";
 import { runDocumentSegmentation, resolveSegmentationEngine } from "@/app/lib/ocr-segment-run";
 import { pollTextractOnce, startTextractForS3Key } from "@/app/lib/ocr-textract";
@@ -280,11 +281,6 @@ async function deleteOcrCacheForJob(job: OcrBatchJob) {
   );
 }
 
-function segmentTempFileName(originalName: string, pageStart: number, pageEnd: number, index: number) {
-  const base = originalName.replace(/\.pdf$/i, "").replace(/[<>:"/\\|?*]/g, "_");
-  return `Temp/${base}_p${pageStart}-${pageEnd}_${index + 1}.pdf`;
-}
-
 import { buildBatchProgressView, computeProgress } from "@/app/lib/ocr-batch-progress";
 
 async function patchJob(jobId: string, patch: Partial<OcrBatchJob>) {
@@ -323,6 +319,8 @@ type WorkerCtx = {
   token: string;
   odProfile: OneDriveUserProfile | null;
   refreshToken: string | null;
+  /** Élèves connus (eleves.json) — découpage ancré identité, chargés une seule fois par invocation. */
+  knownStudents: KnownStudent[];
 };
 
 async function resolveServerRefreshToken(
@@ -391,6 +389,37 @@ async function patchItem(
 
 function hasSuccessfulResult(job: OcrBatchJob, fileName: string): boolean {
   return job.results.some((r) => r.fileName === fileName && r.success);
+}
+
+/** Fusionne les résultats sans perdre un succès déjà enregistré (polls / écritures concurrentes). */
+function mergeBatchResults(existing: OcrBatchResult[], incoming: OcrBatchResult[]): OcrBatchResult[] {
+  const byName = new Map<string, OcrBatchResult>();
+  for (const r of existing) byName.set(r.fileName, r);
+  for (const r of incoming) {
+    const prev = byName.get(r.fileName);
+    if (!prev) {
+      byName.set(r.fileName, r);
+      continue;
+    }
+    if (r.success && !prev.success) byName.set(r.fileName, r);
+    else if (!r.success && prev.success) continue;
+    else byName.set(r.fileName, r);
+  }
+  const order = [...existing.map((r) => r.fileName), ...incoming.map((r) => r.fileName)];
+  const seen = new Set<string>();
+  const merged: OcrBatchResult[] = [];
+  for (const name of order) {
+    if (seen.has(name)) continue;
+    const row = byName.get(name);
+    if (row) {
+      merged.push(row);
+      seen.add(name);
+    }
+  }
+  for (const [name, row] of byName) {
+    if (!seen.has(name)) merged.push(row);
+  }
+  return merged;
 }
 
 /**
@@ -525,6 +554,83 @@ async function analyzeAndMove(
   ocrTrace(ctx.jobId, "onedrive", "move-ok", "document rangé", {
     displayName,
     destination: `${ai.oneDriveFolderPath}/${ai.fileName}.pdf`,
+  });
+  return { success: true, result: ai, fileName: displayName };
+}
+
+/**
+ * Classe un segment découpé : texte OCR déjà en cache (pas de re-OCR),
+ * PDF extrait depuis S3, dépôt direct dans le dossier élève.
+ * Le PDF classe entier reste dans Temp (originalTempPath) jusqu'à la fin du lot.
+ */
+async function analyzeAndFileSegment(
+  ctx: WorkerCtx,
+  text: string,
+  pdfBytes: Uint8Array,
+  displayName: string,
+  originalTempPath: string,
+  knownStudent?: { ine?: string; nom: string; prenom: string; folderName: string },
+): Promise<OcrBatchResult> {
+  const trace: OcrTraceCtx = { batchJobId: ctx.jobId, fileName: displayName };
+  ocrTrace(ctx.jobId, "classify", "segment-start", "classement segment (texte OCR existant)", {
+    displayName,
+    textChars: text.length,
+    pdfBytes: pdfBytes.length,
+    originalTempPath,
+    prematchedEleve: knownStudent?.folderName ?? null,
+  });
+
+  const ai = await analyzeDocMatchEleve(text, ctx.odProfile, trace, { segmentMode: true, knownStudent });
+
+  if (!ai?.fileName) {
+    return {
+      success: false,
+      error: "Analyse IA incomplète.",
+      fileName: displayName,
+      result: ai,
+      tempOneDrivePath: originalTempPath,
+    };
+  }
+  if (!ai.oneDriveFolderPath) {
+    return {
+      success: false,
+      error:
+        "Élève non identifié — le PDF classe entier reste dans Temp pour traitement manuel.",
+      fileName: displayName,
+      result: ai,
+      tempOneDrivePath: originalTempPath,
+    };
+  }
+
+  ocrTrace(ctx.jobId, "onedrive", "segment-upload-dest", "dépôt direct dossier élève", {
+    folder: ai.oneDriveFolderPath,
+    fileName: ai.fileName,
+  });
+
+  const upload = await withToken(ctx, (token) =>
+    uploadBytesToOneDriveUnique(token, ai.oneDriveFolderPath as string, `${ai.fileName}.pdf`, pdfBytes),
+  );
+  if (!upload.ok) {
+    ocrTrace(
+      ctx.jobId,
+      "onedrive",
+      "segment-upload-fail",
+      "dépôt dossier élève impossible",
+      { detail: upload.detail.slice(0, 300) },
+      "error",
+    );
+    return {
+      success: false,
+      error: `Dépôt élève impossible : ${upload.detail.slice(0, 200)}`,
+      fileName: displayName,
+      result: ai,
+      tempOneDrivePath: originalTempPath,
+    };
+  }
+
+  ocrTrace(ctx.jobId, "onedrive", "segment-upload-ok", "segment rangé", {
+    destination: upload.path,
+    fileName: upload.fileName,
   });
   return { success: true, result: ai, fileName: displayName };
 }
@@ -676,11 +782,13 @@ async function stepItem(
     const engine =
       item.segmentationEngine ?? resolveSegmentationEngine(ocr.pageCount ?? item.pdfPageCount ?? 0);
     const engineHint =
-      engine === "mistral_chunked"
-        ? "Mistral découpe par blocs (coupures entre documents uniquement)"
-        : engine === "mistral"
-          ? "Mistral cherche les frontières de chaque document"
-          : "repérage automatique des documents (règles locales, sans IA)";
+      ctx.knownStudents.length > 0
+        ? "repérage des élèves connus (INE + noms) pour grouper les pages de chaque bulletin"
+        : engine === "mistral_chunked"
+          ? "Mistral découpe par blocs (coupures entre documents uniquement)"
+          : engine === "mistral"
+            ? "Mistral cherche les frontières de chaque document"
+            : "repérage automatique des documents (règles locales, sans IA)";
     ocrTrace(job.jobId, "segment", "start", "découpage documents", {
       fileName: item.fileName,
       pageCount: ocr.pageCount,
@@ -692,7 +800,7 @@ async function stepItem(
       updatedAt: new Date().toISOString(),
     });
     const segData = await runDocumentSegmentation(
-      { pageTexts: ocr.pageTexts, pageCount: ocr.pageCount },
+      { pageTexts: ocr.pageTexts, pageCount: ocr.pageCount, knownStudents: ctx.knownStudents },
       trace,
     );
     const segments = (segData.segments || []) as OcrBatchSegment[];
@@ -757,41 +865,28 @@ async function stepItem(
   }
 
   let segResult: OcrBatchResult;
-  let tempSegPath: string | undefined;
 
   try {
-    ocrTrace(job.jobId, "item", "segment-extract", "extraction pages PDF segment", {
-      s3Key: item.s3Key,
-      pages: `${seg.pageStart}-${seg.pageEnd}`,
-    });
-    const pdfBytes = await extractPdfPagesBytes(item.s3Key, seg.pageStart, seg.pageEnd);
-    tempSegPath = segmentTempFileName(item.fileName, seg.pageStart, seg.pageEnd, segIndex);
-    const segPath = tempSegPath;
-    ocrTrace(job.jobId, "onedrive", "segment-upload", "upload segment vers Temp", {
-      tempPath: segPath,
-      bytes: pdfBytes.length,
-    });
-    const upload = await withToken(ctx, (token) => uploadBytesToOneDrive(token, segPath, pdfBytes));
-    if (!upload.ok) {
-      throw new Error(`Upload segment OneDrive : ${upload.detail}`);
-    }
-    ocrTrace(job.jobId, "onedrive", "segment-upload-ok", "segment déposé Temp", { label, tempSegPath });
-
     const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
     if (!slice.trim()) {
-      ocrTrace(job.jobId, "item", "segment-empty", "texte segment vide — laissé dans Temp", { label }, "warn");
+      ocrTrace(job.jobId, "item", "segment-empty", "texte segment vide", { label }, "warn");
       segResult = {
         success: false,
-        error: "Texte du segment vide — morceau laissé dans Temp, à classer à la main.",
+        error: "Texte du segment vide — PDF classe entier laissé dans Temp.",
         fileName: label,
-        tempOneDrivePath: tempSegPath,
+        tempOneDrivePath: item.tempPath,
       };
     } else {
-      ocrTrace(job.jobId, "item", "segment-classify", "analyse segment", {
-        label,
-        textChars: slice.length,
+      ocrTrace(job.jobId, "item", "segment-extract", "extraction pages PDF depuis S3 (OCR déjà fait)", {
+        s3Key: item.s3Key,
+        pages: `${seg.pageStart}-${seg.pageEnd}`,
       });
-      segResult = await analyzeAndMove(ctx, slice, tempSegPath, label);
+      const pdfBytes = await extractPdfPagesBytes(item.s3Key, seg.pageStart, seg.pageEnd);
+      const knownStudent =
+        seg.folderName && seg.nom && seg.prenom
+          ? { ine: seg.ine, nom: seg.nom, prenom: seg.prenom, folderName: seg.folderName }
+          : undefined;
+      segResult = await analyzeAndFileSegment(ctx, slice, pdfBytes, label, item.tempPath, knownStudent);
     }
   } catch (segErr) {
     if (segErr instanceof TokenExpiredError) throw segErr;
@@ -799,27 +894,47 @@ async function stepItem(
     ocrTrace(job.jobId, "item", "segment-error", "échec technique segment", { label, error: msg }, "error");
     segResult = {
       success: false,
-      error: tempSegPath ? `${msg} — document laissé dans Temp.` : msg,
+      error: `${msg} — PDF classe entier laissé dans Temp (${item.fileName}).`,
       fileName: label,
-      tempOneDrivePath: tempSegPath,
+      tempOneDrivePath: item.tempPath,
     };
   }
 
   if (isLast) {
-    try {
-      await withToken(ctx, async (token) => {
-        await deleteOneDrivePath(token, item.tempPath);
-        return { ok: true as const };
-      });
-      ocrTrace(job.jobId, "onedrive", "original-deleted", "original classe supprimé du Temp", {
-        tempPath: item.tempPath,
-      });
-    } catch (delErr) {
-      if (delErr instanceof TokenExpiredError) throw delErr;
-      ocrTrace(job.jobId, "onedrive", "original-delete-fail", "suppression original Temp échouée", {
-        tempPath: item.tempPath,
-        error: delErr instanceof Error ? delErr.message : String(delErr),
-      }, "warn");
+    const freshEnd = await readBatchJob(job.jobId);
+    const segPrefix = `${item.fileName} [p.`;
+    const priorSegFailures = (freshEnd?.results ?? job.results).some(
+      (r) =>
+        r.fileName.startsWith(segPrefix) &&
+        !r.success &&
+        r.tempOneDrivePath === item.tempPath,
+    );
+    const keepOriginalInTemp = priorSegFailures || !segResult.success;
+    if (keepOriginalInTemp) {
+      ocrTrace(
+        job.jobId,
+        "onedrive",
+        "original-kept",
+        "PDF classe conservé dans Temp (segments en échec ou dernier segment non classé)",
+        { tempPath: item.tempPath },
+        "warn",
+      );
+    } else {
+      try {
+        await withToken(ctx, async (token) => {
+          await deleteOneDrivePath(token, item.tempPath);
+          return { ok: true as const };
+        });
+        ocrTrace(job.jobId, "onedrive", "original-deleted", "original classe supprimé du Temp", {
+          tempPath: item.tempPath,
+        });
+      } catch (delErr) {
+        if (delErr instanceof TokenExpiredError) throw delErr;
+        ocrTrace(job.jobId, "onedrive", "original-delete-fail", "suppression original Temp échouée", {
+          tempPath: item.tempPath,
+          error: delErr instanceof Error ? delErr.message : String(delErr),
+        }, "warn");
+      }
     }
   }
 
@@ -885,17 +1000,20 @@ export async function runOcrBatchJob(jobId: string) {
     if (!job || job.status === "completed" || job.status === "failed") return;
 
     const odProfile = await getOdProfileForUser(job.userId);
+    const knownStudents = await loadKnownStudentsForSegmentation(odProfile);
     const ctx: WorkerCtx = {
       jobId,
       token: job.accessToken,
       odProfile,
       refreshToken: await resolveServerRefreshToken(job, odProfile),
+      knownStudents,
     };
     ocrTrace(jobId, "worker", "start", "worker démarré", {
       totalItems: job.items.length,
       currentItemIndex: job.currentItemIndex,
       profilOneDrive: odProfile ? `${odProfile.secteur} (${odProfile.basePath})` : null,
       refreshTokenServeur: Boolean(ctx.refreshToken),
+      knownStudents: knownStudents.length,
       runBudgetMs: RUN_BUDGET_MS,
     });
     if (!odProfile) {
@@ -1026,7 +1144,7 @@ export async function runOcrBatchJob(jobId: string) {
           }
           return true;
         });
-        const nextResults = [...current.results, ...newResults];
+        const nextResults = mergeBatchResults(current.results, newResults);
         const nextIndex = outcome.itemDone ? itemIndex + 1 : itemIndex;
         const itemSuccess =
           outcome.itemDone &&

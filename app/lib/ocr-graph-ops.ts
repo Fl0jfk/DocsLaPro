@@ -15,27 +15,63 @@ export function parseGraphRetryAfterMs(res: Response, attempt: number): number {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+function graphConflict(detail: string, status: number): boolean {
+  return (
+    status === 412 ||
+    status === 409 ||
+    detail.includes("resourceModified") ||
+    detail.includes("nameAlreadyExists") ||
+    detail.includes("eTag")
+  );
+}
+
+/** Vérifie si un fichier existe déjà à ce chemin OneDrive. */
+export async function oneDriveItemExists(
+  accessToken: string,
+  itemPath: string,
+): Promise<boolean> {
+  const res = await fetch(`${GRAPH_BASE}/me/drive/root:/${itemPath}:`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return res.ok;
+}
+
 export async function uploadBytesToOneDrive(
   accessToken: string,
   itemPath: string,
   bytes: Uint8Array | Buffer,
   contentType = "application/pdf",
 ): Promise<{ ok: true } | { ok: false; status: number; detail: string }> {
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await fetch(`${GRAPH_BASE}/me/drive/root:/${itemPath}:/content`, {
+  const body = bytes instanceof Buffer ? new Uint8Array(bytes) : bytes;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const replace = attempt === 0;
+    const url = replace
+      ? `${GRAPH_BASE}/me/drive/root:/${itemPath}:/content?@microsoft.graph.conflictBehavior=replace`
+      : `${GRAPH_BASE}/me/drive/root:/${itemPath}:/content`;
+
+    const res = await fetch(url, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": contentType,
       },
-      body: bytes,
+      body: body as BodyInit,
     });
+
     if (res.status === 429) {
       await sleep(parseGraphRetryAfterMs(res, attempt));
       continue;
     }
+
     if (!res.ok) {
-      return { ok: false, status: res.status, detail: (await res.text()).slice(0, 300) };
+      const detail = (await res.text()).slice(0, 500);
+      if (graphConflict(detail, res.status) && attempt < 4) {
+        await deleteOneDrivePath(accessToken, itemPath);
+        await sleep(400 + attempt * 300);
+        continue;
+      }
+      return { ok: false, status: res.status, detail };
     }
     return { ok: true };
   }
@@ -112,7 +148,7 @@ export async function moveOneDriveFile(
     suffix++;
   }
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const moveRes = await fetch(`${GRAPH_BASE}/drives/${driveId}/items/${sourceItemId}`, {
       method: "PATCH",
       headers: {
@@ -129,9 +165,41 @@ export async function moveOneDriveFile(
       continue;
     }
     if (!moveRes.ok) {
-      return { ok: false, status: moveRes.status, detail: await moveRes.text() };
+      const detail = await moveRes.text();
+      if (graphConflict(detail, moveRes.status) && attempt < 5) {
+        suffix++;
+        safeName = `${base} (${suffix})${ext}`;
+        await sleep(300 + attempt * 200);
+        continue;
+      }
+      return { ok: false, status: moveRes.status, detail };
     }
     return { ok: true, finalFileName: safeName };
   }
   return { ok: false, status: 429, detail: "Limite OneDrive lors du déplacement" };
+}
+
+/** Dépose un PDF dans un dossier élève avec suffixe (2), (3)… si le nom existe déjà. */
+export async function uploadBytesToOneDriveUnique(
+  accessToken: string,
+  folderPath: string,
+  baseFileName: string,
+  bytes: Uint8Array | Buffer,
+): Promise<{ ok: true; path: string; fileName: string } | { ok: false; status: number; detail: string }> {
+  const folder = folderPath.replace(/\/+$/, "");
+  const raw = baseFileName.trim() || "Document.pdf";
+  const dot = raw.lastIndexOf(".");
+  const base = dot > 0 ? raw.slice(0, dot) : raw;
+  const ext = dot > 0 ? raw.slice(dot) : ".pdf";
+
+  for (let n = 0; n < 8; n++) {
+    const fileName = n === 0 ? `${base}${ext}` : `${base} (${n + 1})${ext}`;
+    const itemPath = `${folder}/${fileName}`;
+    const res = await uploadBytesToOneDrive(accessToken, itemPath, bytes);
+    if (res.ok) return { ok: true, path: itemPath, fileName };
+    if (!graphConflict(res.detail, res.status)) {
+      return res;
+    }
+  }
+  return { ok: false, status: 409, detail: "Impossible de déposer le fichier (conflits de nom)" };
 }

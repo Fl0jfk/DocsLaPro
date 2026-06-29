@@ -5,7 +5,19 @@ export type OcrDocumentSegment = {
   nom?: string;
   prenom?: string;
   ine?: string;
+  /** Dossier élève déjà résolu (découpage ancré identité) — évite un re-matching IA. */
+  folderName?: string;
   label?: string;
+};
+
+/** Élève connu (eleves.json), pré-normalisé pour le découpage ancré identité. */
+export type KnownStudent = {
+  ine: string;
+  nom: string;
+  prenom: string;
+  folderName: string;
+  normNom: string;
+  normPrenom: string;
 };
 
 const HEAD_CHARS = 500;
@@ -64,6 +76,141 @@ function pageFingerprint(pageText: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
   return `h:${head.slice(0, 120)}`;
+}
+
+/* ───────────────────────── Découpage ancré sur l'identité élève ─────────────────────────
+ * Le découpage le plus fiable n'essaie pas de "deviner" des frontières génériques : il
+ * s'appuie sur l'INE et la liste connue des élèves (eleves.json). Une page = un propriétaire
+ * (l'élève dont c'est le bulletin). Les pages consécutives d'un même élève forment UN document.
+ * Une page sans identité détectée = continuation du document courant (on ne coupe JAMAIS dessus).
+ */
+
+function normTextForMatch(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normAlnum(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+export type PageOwner = {
+  key: string;
+  ine?: string;
+  nom?: string;
+  prenom?: string;
+  folderName?: string;
+  via: "ine" | "name";
+};
+
+/**
+ * Identité de l'élève "propriétaire" d'une page.
+ * 1) INE d'un élève connu présent dans la page → match sûr.
+ * 2) Sinon nom + prénom d'un (et un seul) élève connu présents dans l'en-tête de page.
+ * Renvoie null si rien d'exploitable (la page sera rattachée au document courant).
+ */
+export function detectPageOwner(pageText: string, students: KnownStudent[]): PageOwner | null {
+  if (!pageText.trim() || students.length === 0) return null;
+
+  const alnum = normAlnum(pageText);
+  for (const s of students) {
+    if (s.ine && s.ine.length >= 8 && alnum.includes(s.ine)) {
+      return {
+        key: `ine:${s.ine}`,
+        ine: s.ine,
+        nom: s.nom,
+        prenom: s.prenom,
+        folderName: s.folderName,
+        via: "ine",
+      };
+    }
+  }
+
+  // En-tête de page : c'est là que figure le nom du titulaire du bulletin.
+  const head = normTextForMatch(pageText.slice(0, 1000));
+  const hits = students.filter(
+    (s) =>
+      s.normNom.length >= 2 &&
+      s.normPrenom.length >= 2 &&
+      head.includes(s.normNom) &&
+      head.includes(s.normPrenom),
+  );
+  if (hits.length === 1) {
+    const s = hits[0];
+    return {
+      key: s.ine ? `ine:${s.ine}` : `stu:${s.folderName}`,
+      ine: s.ine || undefined,
+      nom: s.nom,
+      prenom: s.prenom,
+      folderName: s.folderName,
+      via: "name",
+    };
+  }
+  return null;
+}
+
+export type IdentityAnchoredResult = {
+  segments: OcrDocumentSegment[];
+  detectedPages: number;
+  distinctOwners: number;
+  pageCount: number;
+};
+
+/** Découpe le PDF en groupant les pages consécutives d'un même élève (INE/nom connus). */
+export function identityAnchoredSegments(
+  pageTexts: Record<string, string>,
+  pageCount: number,
+  students: KnownStudent[],
+): IdentityAnchoredResult {
+  const owners: (PageOwner | null)[] = [];
+  for (let p = 1; p <= pageCount; p++) {
+    owners.push(detectPageOwner(pageTexts[String(p)] || "", students));
+  }
+
+  const detectedPages = owners.filter(Boolean).length;
+  const distinctOwners = new Set(owners.filter((o): o is PageOwner => Boolean(o)).map((o) => o.key)).size;
+
+  const makeSeg = (start: number, end: number, owner: PageOwner | null): OcrDocumentSegment => ({
+    pageStart: start,
+    pageEnd: end,
+    nom: owner?.nom,
+    prenom: owner?.prenom,
+    ine: owner?.ine,
+    folderName: owner?.folderName,
+    label: owner
+      ? `${owner.prenom ?? ""} ${owner.nom ?? ""}`.trim() || `Pages ${start}-${end}`
+      : start === end
+        ? `Page ${start}`
+        : `Pages ${start}-${end}`,
+  });
+
+  const segments: OcrDocumentSegment[] = [];
+  let segStart = 1;
+  let segOwner: PageOwner | null = null;
+
+  for (let p = 1; p <= pageCount; p++) {
+    const id = owners[p - 1];
+    if (!id) continue; // page sans identité → continuation
+    if (segOwner === null) {
+      segOwner = id; // adopte l'identité (rattache d'éventuelles pages de garde initiales)
+    } else if (id.key !== segOwner.key) {
+      segments.push(makeSeg(segStart, p - 1, segOwner));
+      segStart = p;
+      segOwner = id;
+    }
+  }
+  segments.push(makeSeg(segStart, pageCount, segOwner));
+
+  return { segments, detectedPages, distinctOwners, pageCount };
 }
 
 /**
@@ -212,17 +359,13 @@ export function heuristicClassSegments(
   }
   segments.push({ pageStart: segStart, pageEnd: pages[pages.length - 1] });
 
-  if (segments.length <= 1 && pageCount > 1) {
-    // Dernier repli : 1 page = 1 document (évite un seul segment géant ambigu).
-    const onePerPage = pages.map((p) => ({
-      pageStart: p,
-      pageEnd: p,
-      label: `Page ${p}`,
-    }));
-    return { mode: "multi", segments: onePerPage };
+  // Aucune frontière fiable trouvée → on NE découpe PAS page par page (cause de bugs).
+  // On préfère un seul document couvrant tout le PDF, quitte à le classer en un bloc.
+  if (segments.length <= 1) {
+    return { mode: "single", segments: [{ pageStart: 1, pageEnd: pageCount }] };
   }
 
-  return { mode: segments.length > 1 ? "multi" : "single", segments };
+  return { mode: "multi", segments };
 }
 
 /** Pages couvertes par les segments (1-indexées). */
@@ -233,57 +376,41 @@ export function maxSegmentPageEnd(segments: OcrDocumentSegment[]): number {
 
 /**
  * Complète les segments si l'IA n'a vu qu'une partie du PDF (digest tronqué).
- * Les pages manquantes reçoivent un segment chacune.
+ * Les pages manquantes sont RATTACHÉES au segment voisin (continuation du même document),
+ * jamais transformées en mini-documents d'une page (ce qui produisait le découpage page/page).
  */
 export function ensureFullPageCoverage(
   segments: OcrDocumentSegment[],
   pageCount: number,
 ): { segments: OcrDocumentSegment[]; coverageFixed: boolean } {
-  if (pageCount <= 0) {
+  if (pageCount <= 0 || segments.length === 0) {
     return { segments, coverageFixed: false };
   }
 
-  const covered = new Set<number>();
-  for (const s of segments) {
-    for (let p = s.pageStart; p <= s.pageEnd; p++) {
-      covered.add(p);
+  const sorted = [...segments].sort((a, b) => a.pageStart - b.pageStart);
+  let fixed = false;
+
+  // Étend chaque segment jusqu'au début du suivant pour absorber les pages manquantes intermédiaires.
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gapStart = sorted[i].pageEnd + 1;
+    const nextStart = sorted[i + 1].pageStart;
+    if (nextStart > gapStart) {
+      sorted[i] = { ...sorted[i], pageEnd: nextStart - 1 };
+      fixed = true;
     }
   }
 
-  const missing: number[] = [];
-  for (let p = 1; p <= pageCount; p++) {
-    if (!covered.has(p)) missing.push(p);
+  // Pages de garde avant le premier segment → rattachées au premier document.
+  if (sorted[0].pageStart > 1) {
+    sorted[0] = { ...sorted[0], pageStart: 1 };
+    fixed = true;
+  }
+  // Pages restantes après le dernier segment → rattachées au dernier document.
+  const last = sorted[sorted.length - 1];
+  if (last.pageEnd < pageCount) {
+    sorted[sorted.length - 1] = { ...last, pageEnd: pageCount };
+    fixed = true;
   }
 
-  if (missing.length === 0) {
-    return { segments, coverageFixed: false };
-  }
-
-  const extra: OcrDocumentSegment[] = [];
-  let start = missing[0];
-  let prev = missing[0];
-  for (let i = 1; i < missing.length; i++) {
-    if (missing[i] === prev + 1) {
-      prev = missing[i];
-      continue;
-    }
-    extra.push({
-      pageStart: start,
-      pageEnd: prev,
-      label:
-        start === prev ? `Page ${start}` : `Pages ${start}-${prev}`,
-    });
-    start = missing[i];
-    prev = missing[i];
-  }
-  extra.push({
-    pageStart: start,
-    pageEnd: prev,
-    label: start === prev ? `Page ${start}` : `Pages ${start}-${prev}`,
-  });
-
-  return {
-    segments: [...segments, ...extra].sort((a, b) => a.pageStart - b.pageStart),
-    coverageFixed: true,
-  };
+  return { segments: sorted, coverageFixed: fixed };
 }

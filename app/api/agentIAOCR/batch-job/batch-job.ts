@@ -33,6 +33,11 @@ export type OcrBatchSegment = {
   pageStart: number;
   pageEnd: number;
   label?: string;
+  /** Élève déjà identifié au découpage (ancrage identité) — évite un re-matching IA. */
+  ine?: string;
+  nom?: string;
+  prenom?: string;
+  folderName?: string;
 };
 
 /**
@@ -68,7 +73,7 @@ export type OcrBatchJobItem = {
   /** Nombre de pages du PDF (renseigné après OCR Textract). */
   pageCount?: number;
   /** Moteur de découpage prévu ou utilisé (après OCR, avant classement). */
-  segmentationEngine?: "mistral" | "mistral_chunked" | "heuristic";
+  segmentationEngine?: "identity" | "mistral" | "mistral_chunked" | "heuristic";
   /** Horodatage ISO : verrou optimiste anti-traitement concurrent du même item. */
   itemClaimedAt?: string;
 };

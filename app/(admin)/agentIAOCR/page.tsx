@@ -81,7 +81,7 @@ type OcrProgressDetail = {
   ocrPagesRead: number | null;
   segmentIndex: number | null;
   segmentTotal: number | null;
-  segmentationEngine: "mistral" | "mistral_chunked" | "heuristic" | null;
+  segmentationEngine: "identity" | "mistral" | "mistral_chunked" | "heuristic" | null;
   documentsProcessed: number;
   documentsSucceeded: number;
   documentsFailed: number;
@@ -97,6 +97,34 @@ type OcrServerTraceEntry = {
   message: string;
   data?: Record<string, unknown>;
 };
+
+/** Ne jamais faire régresser la liste de résultats affichée (poll S3 parfois en retard). */
+function mergeOcrResultsForUi(prev: ProcessResult[], incoming: ProcessResult[]): ProcessResult[] {
+  if (incoming.length === 0 && prev.length > 0) return prev;
+  const byName = new Map<string, ProcessResult>();
+  for (const r of prev) byName.set(r.fileName, r);
+  for (const r of incoming) {
+    const ex = byName.get(r.fileName);
+    if (!ex) byName.set(r.fileName, r);
+    else if (r.success && !ex.success) byName.set(r.fileName, r);
+    else if (incoming.length >= prev.length) byName.set(r.fileName, r);
+  }
+  if (incoming.length >= prev.length) {
+    return incoming.map((r) => byName.get(r.fileName) ?? r);
+  }
+  const order = [...prev.map((r) => r.fileName), ...incoming.map((r) => r.fileName)];
+  const seen = new Set<string>();
+  const merged: ProcessResult[] = [];
+  for (const name of order) {
+    if (seen.has(name)) continue;
+    const row = byName.get(name);
+    if (row) {
+      merged.push(row);
+      seen.add(name);
+    }
+  }
+  return merged;
+}
 
 type BatchJobStatusPayload = {
   jobId?: string;
@@ -355,22 +383,31 @@ function OneDriveUpDocsOCRAIContent() {
     if (incomingJobId && activeBatchJobIdRef.current !== incomingJobId) return;
 
     const pct = st.progress?.percent ?? st.percent;
-    setProcessingStatus({
+    const succeeded =
+      st.progress?.documentsSucceeded ??
+      (typeof st.completed === "number" ? st.completed : undefined);
+    const failedCount =
+      st.progress?.documentsFailed ?? (typeof st.failed === "number" ? st.failed : undefined);
+
+    setProcessingStatus((prev) => ({
       percent: typeof pct === "number" ? pct : 0,
       label: st.progress?.label || st.label || "",
       done: typeof st.currentItemIndex === "number" ? st.currentItemIndex : 0,
       total: typeof st.totalItems === "number" ? st.totalItems : 0,
       totalKnown: true,
-      completed: st.progress?.documentsSucceeded ?? (typeof st.completed === "number" ? st.completed : 0),
-      failed: st.progress?.documentsFailed ?? (typeof st.failed === "number" ? st.failed : 0),
-    });
+      completed:
+        typeof succeeded === "number"
+          ? Math.max(prev.completed, succeeded)
+          : prev.completed,
+      failed:
+        typeof failedCount === "number" ? Math.max(prev.failed, failedCount) : prev.failed,
+    }));
     setProgressDetail(st.progress ?? null);
     if (Array.isArray(st.traceLog)) {
       setServerTraceLog(st.traceLog);
     }
     if (Array.isArray(st.results)) {
-      setOcrResults(st.results);
-      setOcrResultsSessionId((id) => id + 1);
+      setOcrResults((prev) => mergeOcrResultsForUi(prev, st.results!));
     }
   }, []);
 
@@ -1110,6 +1147,11 @@ function OneDriveUpDocsOCRAIContent() {
     (ocrResults.length > 0 || processingStatus.done > 0 || processingStatus.percent >= 100);
   const isUploadPhase = ocrProcessing && !activeBatchJobId;
   const isServerPhase = ocrProcessing && Boolean(activeBatchJobId) && !batchJobNeedsToken;
+  const sessionDocSucceeded =
+    progressDetail?.documentsSucceeded ?? ocrResults.filter((r) => r.success).length;
+  const sessionDocFailed =
+    progressDetail?.documentsFailed ?? ocrResults.filter((r) => !r.success).length;
+  const sessionDocTotal = progressDetail?.segmentTotal ?? null;
   const progressPercent = progressDetail?.percent ?? processingStatus.percent;
   const progressCaption = isUploadPhase
     ? processingStatus.totalKnown && processingStatus.total > 1
@@ -1126,13 +1168,15 @@ function OneDriveUpDocsOCRAIContent() {
           : "Lecture OCR en cours…"
         : progressDetail.phase === "segmenting"
           ? progressDetail.pageCount
-            ? progressDetail.segmentationEngine === "heuristic"
-              ? `Découpage auto · ${progressDetail.pageCount} p.`
-              : progressDetail.segmentationEngine === "mistral_chunked"
-                ? `Mistral blocs · ${progressDetail.pageCount} p.`
-                : progressDetail.segmentationEngine === "mistral"
-                  ? `Mistral · ${progressDetail.pageCount} p.`
-                  : `Découpage · ${progressDetail.pageCount} p.`
+            ? progressDetail.segmentationEngine === "identity"
+              ? `Repérage élèves · ${progressDetail.pageCount} p.`
+              : progressDetail.segmentationEngine === "heuristic"
+                ? `Découpage auto · ${progressDetail.pageCount} p.`
+                : progressDetail.segmentationEngine === "mistral_chunked"
+                  ? `Mistral blocs · ${progressDetail.pageCount} p.`
+                  : progressDetail.segmentationEngine === "mistral"
+                    ? `Mistral · ${progressDetail.pageCount} p.`
+                    : `Découpage · ${progressDetail.pageCount} p.`
             : "Découpage en cours…"
           : progressDetail.fileTotal > 1
             ? `Fichier ${progressDetail.fileIndex} / ${progressDetail.fileTotal}`
@@ -1587,13 +1631,15 @@ function OneDriveUpDocsOCRAIContent() {
                         <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
                           <p className="text-[10px] font-bold uppercase text-slate-400">Documents</p>
                           <p className="font-black text-slate-500">
-                            {progressDetail.segmentationEngine === "heuristic"
-                              ? "Découpage auto…"
-                              : progressDetail.segmentationEngine === "mistral_chunked"
-                                ? "Mistral (blocs)…"
-                                : progressDetail.segmentationEngine === "mistral"
-                                  ? "Mistral…"
-                                  : "En cours…"}
+                            {progressDetail.segmentationEngine === "identity"
+                              ? "Repérage élèves…"
+                              : progressDetail.segmentationEngine === "heuristic"
+                                ? "Découpage auto…"
+                                : progressDetail.segmentationEngine === "mistral_chunked"
+                                  ? "Mistral (blocs)…"
+                                  : progressDetail.segmentationEngine === "mistral"
+                                    ? "Mistral…"
+                                    : "En cours…"}
                           </p>
                         </div>
                       ) : null}
@@ -1616,7 +1662,13 @@ function OneDriveUpDocsOCRAIContent() {
                     ) : null}
                     {progressDetail.phase === "segmenting" ? (
                       <p className="text-[11px] text-slate-500 leading-relaxed">
-                        {progressDetail.segmentationEngine === "heuristic" ? (
+                        {progressDetail.segmentationEngine === "identity" ? (
+                          <>
+                            <strong className="text-slate-700">Textract a terminé.</strong> Les pages
+                            sont regroupées par élève (INE + noms de votre liste) : chaque bulletin
+                            multi-pages reste entier, aucun découpage page par page.
+                          </>
+                        ) : progressDetail.segmentationEngine === "heuristic" ? (
                           <>
                             <strong className="text-slate-700">Textract a terminé.</strong> Repli
                             automatique (règles locales) — utilisé seulement si Mistral échoue.
@@ -1835,9 +1887,21 @@ function OneDriveUpDocsOCRAIContent() {
             ) : null}
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 bg-gray-50 rounded-2xl text-center">
-                <span className="text-xs text-gray-600 block">Traités</span>
+                <span className="text-xs text-gray-600 block">
+                  {progressDetail?.phase === "segments" && progressDetail.segmentTotal
+                    ? "Documents"
+                    : "Fichiers"}
+                </span>
                 <span className="font-black text-lg">
-                  {processingStatus.totalKnown ? (
+                  {progressDetail?.phase === "segments" && progressDetail.segmentTotal ? (
+                    <>
+                      {progressDetail.segmentIndex ?? 0}
+                      <span className="text-sm font-bold text-gray-400">
+                        {" "}
+                        / {progressDetail.segmentTotal}
+                      </span>
+                    </>
+                  ) : processingStatus.totalKnown ? (
                     <>
                       {processingStatus.done}
                       <span className="text-sm font-bold text-gray-400">
@@ -1852,17 +1916,19 @@ function OneDriveUpDocsOCRAIContent() {
               </div>
               <div className="p-3 bg-green-50 rounded-2xl text-center">
                 <span className="text-xs text-green-700 block">Succès</span>
-                <span className="font-black text-lg text-green-600">
-                  {processingStatus.completed}
-                </span>
+                <span className="font-black text-lg text-green-600">{sessionDocSucceeded}</span>
               </div>
               <div className="p-3 bg-red-50 rounded-2xl text-center">
                 <span className="text-xs text-red-700 block">Échecs</span>
-                <span className="font-black text-lg text-red-600">
-                  {processingStatus.failed}
-                </span>
+                <span className="font-black text-lg text-red-600">{sessionDocFailed}</span>
               </div>
             </div>
+            {sessionDocTotal && progressDetail?.phase === "segments" ? (
+              <p className="text-[11px] text-slate-500 mt-3 text-center">
+                Classement document par document — chaque bulletin passe par Mistral puis OneDrive (~15–30 s
+                / document).
+              </p>
+            ) : null}
           </div>
 
           {failedResults.length > 0 && (

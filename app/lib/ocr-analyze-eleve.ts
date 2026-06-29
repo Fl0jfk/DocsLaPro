@@ -11,12 +11,40 @@ import {
 import type { OneDriveUserProfile } from "@/app/lib/onedrive-user-profiles";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
 import { ocrTraceCtx, type OcrTraceCtx } from "@/app/lib/ocr-trace";
+import type { KnownStudent } from "@/app/lib/ocr-segmentation";
 
 const KEY = "eleves.json";
 
 async function getElevesFromS3(): Promise<EleveConfig[]> {
   const hit = await getJson<EleveConfig[]>(KEY);
   return Array.isArray(hit?.data) ? hit.data : [];
+}
+
+/**
+ * Liste des élèves connus, pré-normalisée pour le découpage ancré identité.
+ * Filtrée par secteur (réduit les faux positifs de nom) quand un profil OneDrive est fourni.
+ */
+export async function loadKnownStudentsForSegmentation(
+  odProfile: OneDriveUserProfile | null,
+): Promise<KnownStudent[]> {
+  try {
+    const mefMap = await loadMefSecteurMap();
+    const allEleves = await getElevesFromS3();
+    const { eleves } = buildElevesPoolForOcrMatching(allEleves, odProfile, mefMap);
+    const pool = eleves.length > 0 ? eleves : allEleves;
+    return pool
+      .map((e) => ({
+        ine: e.ine ? normalizeIne(e.ine) : "",
+        nom: e.nom ?? "",
+        prenom: e.prenom ?? "",
+        folderName: resolveEleveFolderName(e),
+        normNom: normalize(e.nom ?? ""),
+        normPrenom: normalize(e.prenom ?? ""),
+      }))
+      .filter((s) => s.normNom || s.ine);
+  } catch {
+    return [];
+  }
 }
 
 function normalize(str: string): string {
@@ -96,11 +124,45 @@ export type OcrAnalyzeResult = {
   [key: string]: any;
 };
 
+export type AnalyzeDocMatchOptions = {
+  /**
+   * Segment déjà découpé : texte OCR du morceau uniquement.
+   * 1 appel Mistral (small), matching local si score fort, nommage sans 2e/3e appel IA.
+   */
+  segmentMode?: boolean;
+  /**
+   * Élève déjà identifié au découpage (ancrage identité) : on saute TOUT le matching
+   * (INE/nom/shortlist Mistral) et on range directement dans son dossier.
+   */
+  knownStudent?: { ine?: string; nom: string; prenom: string; folderName: string };
+};
+
+function buildFileNameFromExtracted(extracted: Record<string, unknown>): string {
+  const pick = (key: string): string | null => {
+    const v = extracted[key];
+    if (typeof v !== "string" || !v.trim() || v === "non_trouvé") return null;
+    return v.trim();
+  };
+  const parts = [
+    pick("type"),
+    pick("période") ?? pick("periode"),
+    pick("classe"),
+    pick("nom"),
+    pick("prénom") ?? pick("prenom"),
+  ].filter((p): p is string => Boolean(p));
+  const raw = parts.join(" ").trim();
+  if (!raw) return "Document";
+  return raw.replace(/[<>:"/\\|?*]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+}
+
 export async function analyzeDocMatchEleve(
   text: string,
   odProfile: OneDriveUserProfile | null,
   trace?: OcrTraceCtx,
+  options?: AnalyzeDocMatchOptions,
 ): Promise<OcrAnalyzeResult> {
+  const segmentMode = Boolean(options?.segmentMode);
+  const extractModel = segmentMode ? "mistral-small-latest" : "mistral-medium";
   ocrTraceCtx(trace, "classify", "start", "analyzeDocMatchEleve", {
     textChars: text.length,
     odSecteur: odProfile?.secteur ?? null,
@@ -142,7 +204,8 @@ export async function analyzeDocMatchEleve(
     `;
 
   ocrTraceCtx(trace, "classify", "mistral-extract", "appel Mistral extraction", {
-    model: "mistral-medium",
+    model: extractModel,
+    segmentMode,
     textChars: text.length,
   });
 
@@ -153,7 +216,7 @@ export async function analyzeDocMatchEleve(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "mistral-medium",
+      model: extractModel,
       messages: [{ role: "user", content: extractionPrompt }],
       temperature: 0,
       response_format: { type: "json_object" },
@@ -211,6 +274,21 @@ export async function analyzeDocMatchEleve(
   let matchedEleve: { ine: string; nom: string; prenom: string; folderName: string } | null = null;
   let matchDebug: Record<string, unknown> = {};
 
+  const knownStudent = options?.knownStudent;
+  if (knownStudent && odProfile) {
+    // Élève déjà identifié au découpage : aucun appel IA de matching.
+    matchedEleve = {
+      ine: knownStudent.ine ?? "",
+      nom: knownStudent.nom,
+      prenom: knownStudent.prenom,
+      folderName: knownStudent.folderName,
+    };
+    oneDriveFolderPath = oneDrivePathForEleve(odProfile.basePath, resolveEleveFolderName(matchedEleve));
+    matchDebug = { matchedBy: "segmentation-identity", folderName: knownStudent.folderName };
+    ocrTraceCtx(trace, "classify", "match-prematched", "élève fourni par le découpage (pas de matching IA)", {
+      folderName: knownStudent.folderName,
+    });
+  } else {
   try {
     const mefMap = await loadMefSecteurMap();
     const allEleves = await getElevesFromS3();
@@ -272,7 +350,13 @@ export async function analyzeDocMatchEleve(
           score: Math.round(s.score * 100) / 100,
         })),
       });
-      if (scored.length > 0) {
+      if (segmentMode && scored.length > 0 && scored[0].score >= 1.4) {
+        matchedEleve = scored[0].eleve;
+        ocrTraceCtx(trace, "classify", "match-name-auto", "élève retenu par score (sans 2e appel Mistral)", {
+          score: Math.round(scored[0].score * 100) / 100,
+          folderName: matchedEleve.folderName,
+        });
+      } else if (scored.length > 0) {
         const shortlist = scored.map((s) => s.eleve);
         const shortlistDescription = shortlist
           .map((e, idx) => `${idx + 1}. INE: ${e.ine}, Nom: ${e.nom}, Prénom: ${e.prenom}, Dossier: ${e.folderName}`)
@@ -350,9 +434,15 @@ export async function analyzeDocMatchEleve(
     }, "error");
     matchDebug = { ...matchDebug, matchingError: e instanceof Error ? e.message : String(e) };
   }
+  }
 
   ocrTraceCtx(trace, "classify", "match-summary", "résumé matching", matchDebug);
 
+  let fileName: string;
+  if (segmentMode) {
+    fileName = buildFileNameFromExtracted(extracted);
+    ocrTraceCtx(trace, "classify", "local-naming", "nom de fichier dérivé des champs extraits", { fileName });
+  } else {
   const namingPrompt = `
       Tu es un système de nommage de fichiers pour une école.
       Voici les informations extraites d'un document :
@@ -393,8 +483,9 @@ export async function analyzeDocMatchEleve(
     throw new Error(`Erreur Mistral naming: ${errText}`);
   }
   const namingData = await namingResponse.json();
-  let fileName = namingData.choices?.[0]?.message?.content?.trim() || "";
+  fileName = namingData.choices?.[0]?.message?.content?.trim() || "";
   fileName = fileName.replace(/[<>:"/\\|?*]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  }
 
   ocrTraceCtx(trace, "classify", "done", "analyse terminée", {
     fileName: fileName || null,

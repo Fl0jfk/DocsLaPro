@@ -6,8 +6,10 @@ import {
   ensureFullPageCoverage,
   findDocumentBoundaryAfterPages,
   heuristicClassSegments,
+  identityAnchoredSegments,
   mergeAdjacentSegments,
   slicePageTexts,
+  type KnownStudent,
   type OcrDocumentSegment,
 } from "@/app/lib/ocr-segmentation";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
@@ -21,7 +23,10 @@ export const MISTRAL_SINGLE_CALL_MAX_PAGES = 30;
 /** Taille max d'un bloc Mistral (coupures uniquement entre documents). */
 export const MISTRAL_CHUNK_MAX_PAGES = 30;
 
-export type SegmentationEngine = "mistral" | "mistral_chunked" | "heuristic";
+export type SegmentationEngine = "identity" | "mistral" | "mistral_chunked" | "heuristic";
+
+/** Couverture minimale (pages avec élève détecté) pour faire confiance au découpage par identité. */
+const IDENTITY_MIN_COVERAGE = 0.5;
 
 export function resolveSegmentationEngine(pageCount: number): SegmentationEngine {
   return pageCount > MISTRAL_SINGLE_CALL_MAX_PAGES ? "mistral_chunked" : "mistral";
@@ -101,13 +106,15 @@ Tu analyses un export PDF scolaire (souvent Charlemagne : bulletins de toute une
 
 ${pagesHint}
 
-Détermine les DOCUMENTS LOGIQUES DISTINCTS (souvent un document par élève).
+Détermine les DOCUMENTS LOGIQUES DISTINCTS (souvent un bulletin par élève).
 
-Règles :
-- Un élève = un segment (1 ou plusieurs pages consécutives).
+Règles IMPORTANTES :
+- Le bulletin d'UN élève s'étale TRÈS SOUVENT sur PLUSIEURS pages consécutives : regroupe-les en UN seul segment.
+- Ne crée un nouveau segment QUE lorsqu'un NOUVEL élève commence (nouveau nom/prénom/INE en en-tête de page).
+- Une page sans nom d'élève clairement nouveau est la SUITE du document précédent : ne la sépare pas.
+- N'émets JAMAIS un segment d'une seule page par défaut : ne le fais que si chaque page concerne vraiment un élève différent.
 - Segments sans chevauchement, couvrant toutes les pages du bloc.
 - Ne devine pas : nom/prénom/ine seulement si visibles dans le résumé de page.
-- En cas de doute, préfère couper entre deux pages plutôt qu'au milieu d'un document.
 
 JSON uniquement :
 {"mode":"single"|"multi","segments":[{"pageStart":1,"pageEnd":1,"nom":null,"prenom":null,"ine":null,"label":"..."}]}
@@ -254,17 +261,21 @@ export async function runDocumentSegmentation(
     pageTexts?: Record<string, string> | null;
     pageCount?: number;
     text?: string;
+    /** Élèves connus (eleves.json) — active le découpage ancré identité (fiable, sans IA). */
+    knownStudents?: KnownStudent[];
   },
   trace?: OcrTraceCtx,
 ) {
   const pageTexts = input.pageTexts && typeof input.pageTexts === "object" ? input.pageTexts : null;
   const pageCount = typeof input.pageCount === "number" && input.pageCount > 0 ? input.pageCount : 0;
   const text = typeof input.text === "string" ? input.text : "";
+  const knownStudents = Array.isArray(input.knownStudents) ? input.knownStudents : [];
 
   ocrTraceCtx(trace, "segment", "run-start", "runDocumentSegmentation", {
     pageCount,
     hasPageTexts: Boolean(pageTexts && Object.keys(pageTexts).length > 0),
     textChars: text.length,
+    knownStudents: knownStudents.length,
   });
 
   let resolvedPageCount =
@@ -273,6 +284,38 @@ export async function runDocumentSegmentation(
       : pageTexts
         ? Object.keys(pageTexts).length
         : 0;
+
+  // ── Priorité 1 : découpage ancré sur l'identité élève (INE + noms connus). ──
+  // Le plus fiable et le plus rapide : aucun appel IA, fonctionne même sur 100+ pages.
+  if (pageTexts && resolvedPageCount > 1 && knownStudents.length > 0) {
+    const anchored = identityAnchoredSegments(pageTexts, resolvedPageCount, knownStudents);
+    const coverage = anchored.detectedPages / resolvedPageCount;
+    ocrTraceCtx(trace, "segment", "identity-try", "découpage ancré identité", {
+      detectedPages: anchored.detectedPages,
+      pageCount: resolvedPageCount,
+      coverage: Math.round(coverage * 100) / 100,
+      distinctOwners: anchored.distinctOwners,
+      minCoverage: IDENTITY_MIN_COVERAGE,
+    });
+    if (coverage >= IDENTITY_MIN_COVERAGE) {
+      const segs =
+        anchored.distinctOwners <= 1
+          ? [{ ...anchored.segments[0], pageStart: 1, pageEnd: resolvedPageCount }]
+          : anchored.segments;
+      ocrTraceCtx(trace, "segment", "identity-ok", "découpage par identité retenu", {
+        segmentCount: segs.length,
+        segments: segs.map((s) => ({ p: `${s.pageStart}-${s.pageEnd}`, eleve: s.folderName ?? s.label ?? null })),
+      });
+      return {
+        ...finalizeSegments(segs.length > 1 ? "multi" : "single", segs, resolvedPageCount),
+        pageCount: resolvedPageCount,
+        engine: "identity" as const,
+      };
+    }
+    ocrTraceCtx(trace, "segment", "identity-skip", "couverture identité insuffisante — repli IA", {
+      coverage: Math.round(coverage * 100) / 100,
+    }, "warn");
+  }
 
   if (pageTexts && resolvedPageCount > MISTRAL_SINGLE_CALL_MAX_PAGES) {
     ocrTraceCtx(trace, "segment", "route-chunked", "PDF > 30 pages → mistral_chunked", {
