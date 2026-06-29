@@ -12,7 +12,10 @@ export type SuppliesPdfInput = {
   suppliesByChild: Record<string, SuppliesPdfSection[]>;
 };
 
-const HEADER_LOGO_BOX = 13;
+const HEADER_HEIGHT = 30;
+const HEADER_LOGO_BOX = 26;
+const HEADER_SEPARATOR_GAP = 2;
+const CONTENT_TOP = HEADER_HEIGHT + HEADER_SEPARATOR_GAP + 6;
 
 /** Génère le PDF liste de fournitures (même rendu que l'envoi par email). */
 export async function buildSuppliesListPdf(input: SuppliesPdfInput): Promise<{ buffer: Buffer; filename: string }> {
@@ -27,7 +30,7 @@ export async function buildSuppliesListPdf(input: SuppliesPdfInput): Promise<{ b
 
   const drawHeader = () => {
     doc.setFillColor(30, 41, 59);
-    doc.rect(0, 0, W, 20, "F");
+    doc.rect(0, 0, W, HEADER_HEIGHT, "F");
     let titleX = ML;
     if (logo) {
       const fitted = fitImageInBox(
@@ -36,21 +39,22 @@ export async function buildSuppliesListPdf(input: SuppliesPdfInput): Promise<{ b
         HEADER_LOGO_BOX,
         HEADER_LOGO_BOX,
       );
-      const logoY = 3.5 + (HEADER_LOGO_BOX - fitted.height) / 2;
+      const logoY = (HEADER_HEIGHT - fitted.height) / 2;
       doc.addImage(logo.dataUri, logo.format, ML, logoY, fitted.width, fitted.height);
-      titleX = ML + HEADER_LOGO_BOX + 4;
+      titleX = ML + HEADER_LOGO_BOX + 5;
     }
+    const titleY = HEADER_HEIGHT / 2 + 2;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
-    doc.text("Liste de fournitures scolaires", titleX, 12);
+    doc.text("Liste de fournitures scolaires", titleX, titleY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(226, 232, 240);
-    doc.text(new Date().toLocaleDateString("fr-FR"), MR, 12, { align: "right" });
+    doc.text(new Date().toLocaleDateString("fr-FR"), MR, titleY, { align: "right" });
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.3);
-    doc.line(ML, 24, MR, 24);
+    doc.line(ML, HEADER_HEIGHT + HEADER_SEPARATOR_GAP, MR, HEADER_HEIGHT + HEADER_SEPARATOR_GAP);
   };
 
   const checkbox = (x: number, y: number) => {
@@ -65,11 +69,11 @@ export async function buildSuppliesListPdf(input: SuppliesPdfInput): Promise<{ b
     doc.setTextColor(51, 65, 85);
   };
 
-  let y = 32;
+  let y = CONTENT_TOP;
   const newContentPage = () => {
     doc.addPage();
     drawHeader();
-    y = 32;
+    y = CONTENT_TOP;
   };
 
   drawHeader();

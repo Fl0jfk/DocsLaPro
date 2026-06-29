@@ -5,6 +5,17 @@ import { PDFDocument } from "pdf-lib";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 
+/** Nombre de pages du PDF sur S3 (métadonnées fichier, avant Textract). */
+export async function getPdfPageCountFromS3(key: string): Promise<number> {
+  const bucket = await getBucketName();
+  const s3 = await getTenantDataS3Client();
+  const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const bytes = await obj.Body?.transformToByteArray();
+  if (!bytes?.length) throw new Error("PDF introuvable sur S3");
+  const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  return src.getPageCount();
+}
+
 export async function extractPdfPagesBytes(
   key: string,
   pageStart: number,

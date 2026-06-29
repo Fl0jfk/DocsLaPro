@@ -49,23 +49,65 @@ function blocksToPageTexts(blocks: Block[]): Record<string, string> {
   return pageTexts;
 }
 
-async function collectBlocks(jobId: string): Promise<{ status: string; blocks: Block[] }> {
-  const blocks: Block[] = [];
-  let nextToken: string | undefined;
-  let jobStatus = "IN_PROGRESS";
+function countDistinctPagesInBlocks(blocks: Block[]): number {
+  const pages = new Set<number>();
+  for (const b of blocks) {
+    if (b.Page && b.Page > 0) pages.add(b.Page);
+  }
+  return pages.size;
+}
 
-  do {
+function maxPageInBlocks(blocks: Block[]): number {
+  let max = 0;
+  for (const b of blocks) {
+    if (b.Page && b.Page > max) max = b.Page;
+  }
+  return max;
+}
+
+async function collectAllBlocks(jobId: string, initialBlocks: Block[], initialToken?: string): Promise<Block[]> {
+  const blocks = [...initialBlocks];
+  let nextToken = initialToken;
+  while (nextToken) {
     const result = await textract.send(
       new GetDocumentTextDetectionCommand({ JobId: jobId, NextToken: nextToken }),
     );
-    jobStatus = result.JobStatus ?? jobStatus;
-    if (result.JobStatus === "FAILED") return { status: "FAILED", blocks: [] };
     if (result.Blocks?.length) blocks.push(...result.Blocks);
     nextToken = result.NextToken;
-    if (!nextToken && jobStatus !== "SUCCEEDED") return { status: jobStatus, blocks: [] };
-  } while (nextToken);
+  }
+  return blocks;
+}
 
-  return { status: jobStatus, blocks };
+async function pollTextractStatus(jobId: string): Promise<{
+  status: string;
+  blocks: Block[];
+  pagesRead: number;
+  maxPageSeen: number;
+}> {
+  const result = await textract.send(new GetDocumentTextDetectionCommand({ JobId: jobId }));
+  const status = result.JobStatus ?? "IN_PROGRESS";
+  const blocks = result.Blocks ?? [];
+
+  if (status === "SUCCEEDED") {
+    const allBlocks = await collectAllBlocks(jobId, blocks, result.NextToken);
+    return {
+      status,
+      blocks: allBlocks,
+      pagesRead: countDistinctPagesInBlocks(allBlocks),
+      maxPageSeen: maxPageInBlocks(allBlocks),
+    };
+  }
+
+  if (status === "FAILED") {
+    return { status, blocks: [], pagesRead: 0, maxPageSeen: 0 };
+  }
+
+  return {
+    status,
+    blocks,
+    pagesRead: countDistinctPagesInBlocks(blocks),
+    maxPageSeen: maxPageInBlocks(blocks),
+  };
 }
 
 export type OcrTextractResult = {
@@ -96,20 +138,26 @@ export async function startTextractForS3Key(key: string): Promise<string> {
 }
 
 export type TextractPollResult =
-  | { status: "IN_PROGRESS" }
+  | { status: "IN_PROGRESS"; pagesRead: number; maxPageSeen: number }
   | { status: "FAILED" }
-  | { status: "SUCCEEDED"; result: OcrTextractResult };
+  | { status: "SUCCEEDED"; result: OcrTextractResult; pagesRead: number };
 
 /**
  * Un seul tour de polling Textract (non bloquant pour le budget serverless).
- * Tant que le job est IN_PROGRESS, la requête revient immédiatement ;
- * la pagination complète des blocs n'a lieu qu'une fois SUCCEEDED.
+ * En IN_PROGRESS : pages lues d'après les blocs déjà publiés par Textract (peut rester à 0 longtemps).
+ * En SUCCEEDED : pagination complète des blocs.
  */
 export async function pollTextractOnce(jobId: string): Promise<TextractPollResult> {
-  const { status, blocks } = await collectBlocks(jobId);
-  if (status === "SUCCEEDED") return { status: "SUCCEEDED", result: blocksToResult(blocks) };
+  const { status, blocks, pagesRead, maxPageSeen } = await pollTextractStatus(jobId);
+  if (status === "SUCCEEDED") {
+    return { status: "SUCCEEDED", result: blocksToResult(blocks), pagesRead };
+  }
   if (status === "FAILED") return { status: "FAILED" };
-  return { status: "IN_PROGRESS" };
+  return {
+    status: "IN_PROGRESS",
+    pagesRead: pagesRead || maxPageSeen,
+    maxPageSeen,
+  };
 }
 
 /** Variante bloquante historique (conservée pour compat ; le worker batch utilise les micro-étapes). */

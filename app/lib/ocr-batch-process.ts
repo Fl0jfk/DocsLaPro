@@ -13,7 +13,7 @@ import {
   type OcrBatchSegment,
 } from "@/app/api/agentIAOCR/batch-job/batch-job";
 import { analyzeDocMatchEleve } from "@/app/lib/ocr-analyze-eleve";
-import { extractPdfPagesBytes } from "@/app/lib/ocr-extract-pages";
+import { extractPdfPagesBytes, getPdfPageCountFromS3 } from "@/app/lib/ocr-extract-pages";
 import {
   deleteOneDrivePath,
   moveOneDriveFile,
@@ -367,13 +367,27 @@ async function stepItem(
 
   if (phase === "ocr_start") {
     const textractJobId = await startTextractForS3Key(item.s3Key);
-    log(job.jobId, `Textract lancé "${item.fileName}" (${item.mode}, phase=${phase})`);
+    let pdfPageCount: number | undefined;
+    try {
+      pdfPageCount = await getPdfPageCountFromS3(item.s3Key);
+    } catch {
+      /* métadonnées PDF indisponibles — on attendra Textract */
+    }
+    log(
+      job.jobId,
+      `Textract lancé "${item.fileName}" (${item.mode}, ${pdfPageCount ?? "?"} page(s) PDF)`,
+    );
     await patchItem(job.jobId, itemIndex, {
       status: "processing",
       phase: "ocr_poll",
       textractJobId,
+      pdfPageCount,
+      ocrPagesRead: 0,
     });
-    return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: `OCR — ${item.fileName}` };
+    const ocrLabel = pdfPageCount
+      ? `Lecture OCR — ${item.fileName} : 0 / ${pdfPageCount} page(s)…`
+      : `OCR — ${item.fileName}`;
+    return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: ocrLabel };
   }
 
   if (phase === "ocr_poll") {
@@ -383,7 +397,17 @@ async function stepItem(
     }
     const poll = await pollTextractOnce(item.textractJobId);
     if (poll.status === "IN_PROGRESS") {
-      return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: `Lecture OCR — ${item.fileName}` };
+      const pagesRead = Math.max(item.ocrPagesRead ?? 0, poll.pagesRead);
+      const pdfTotal = item.pdfPageCount;
+      if (pagesRead !== item.ocrPagesRead) {
+        await patchItem(job.jobId, itemIndex, { ocrPagesRead: pagesRead });
+      }
+      const label = pdfTotal
+        ? pagesRead > 0
+          ? `Lecture OCR — ${item.fileName} : page ${pagesRead} / ${pdfTotal}…`
+          : `Lecture OCR — ${item.fileName} : 0 / ${pdfTotal} page(s), Textract en cours…`
+        : `Lecture OCR — ${item.fileName}`;
+      return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label };
     }
     if (poll.status === "FAILED") {
       log(job.jobId, `ÉCHEC TECHNIQUE "${item.fileName}" : OCR Textract a échoué.`);
@@ -413,6 +437,7 @@ async function stepItem(
       ocrCacheKey: cacheKey,
       phase: nextPhase,
       pageCount: poll.result.pageCount,
+      ocrPagesRead: poll.result.pageCount,
     });
     const ocrLabel = needsSegmentation
       ? `OCR terminé — ${poll.result.pageCount} page(s), découpage à venir…`
@@ -457,7 +482,7 @@ async function stepItem(
     await patchItem(job.jobId, itemIndex, { phase: "segments", segments, segmentIndex: 0 });
     return {
       kind: "continue",
-      label: `Découpage terminé — ${segments.length} bulletin${segments.length > 1 ? "s" : ""} détecté${segments.length > 1 ? "s" : ""}, classement…`,
+      label: `Découpage terminé — ${segments.length} document${segments.length > 1 ? "s" : ""} détecté${segments.length > 1 ? "s" : ""}, classement…`,
     };
   }
 

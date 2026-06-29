@@ -77,6 +77,8 @@ type OcrProgressDetail = {
   fileIndex: number;
   fileTotal: number;
   pageCount: number | null;
+  pdfPageCount: number | null;
+  ocrPagesRead: number | null;
   segmentIndex: number | null;
   segmentTotal: number | null;
   documentsProcessed: number;
@@ -960,13 +962,23 @@ function OneDriveUpDocsOCRAIContent() {
     (ocrResults.length > 0 || processingStatus.done > 0 || processingStatus.percent >= 100);
   const progressPercent = progressDetail?.percent ?? processingStatus.percent;
   const progressCaption = progressDetail
-    ? progressDetail.segmentTotal
-      ? `Segment ${progressDetail.segmentIndex ?? 0} / ${progressDetail.segmentTotal}`
-      : progressDetail.fileTotal > 1
-        ? `Fichier ${progressDetail.fileIndex} / ${progressDetail.fileTotal}`
-        : progressDetail.pageCount
-          ? `${progressDetail.pageCount} page${progressDetail.pageCount > 1 ? "s" : ""}`
-          : ""
+    ? progressDetail.phase === "segments" && progressDetail.segmentTotal
+      ? `Document ${progressDetail.segmentIndex ?? 0} / ${progressDetail.segmentTotal}`
+      : progressDetail.phase === "ocr"
+        ? progressDetail.pdfPageCount
+          ? progressDetail.ocrPagesRead && progressDetail.ocrPagesRead > 0
+            ? `Page ${progressDetail.ocrPagesRead} / ${progressDetail.pdfPageCount}`
+            : `0 / ${progressDetail.pdfPageCount} page(s)`
+          : "Lecture OCR en cours…"
+        : progressDetail.phase === "segmenting"
+          ? progressDetail.pageCount
+            ? `Découpage · ${progressDetail.pageCount} page${progressDetail.pageCount > 1 ? "s" : ""}`
+            : "Découpage en cours…"
+          : progressDetail.fileTotal > 1
+            ? `Fichier ${progressDetail.fileIndex} / ${progressDetail.fileTotal}`
+            : progressDetail.pageCount
+              ? `${progressDetail.pageCount} page${progressDetail.pageCount > 1 ? "s" : ""}`
+              : ""
     : processingStatus.totalKnown
       ? `${processingStatus.done} / ${processingStatus.total} document${processingStatus.total > 1 ? "s" : ""}`
       : "";
@@ -1332,18 +1344,32 @@ function OneDriveUpDocsOCRAIContent() {
                       <p className="text-xs text-slate-600 font-mono truncate">{progressDetail.fileName}</p>
                     ) : null}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                      {progressDetail.pageCount ? (
+                      {progressDetail.phase === "ocr" && progressDetail.pdfPageCount ? (
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Lecture OCR</p>
+                          <p className="font-black text-slate-800">
+                            {progressDetail.ocrPagesRead && progressDetail.ocrPagesRead > 0
+                              ? `${progressDetail.ocrPagesRead} / ${progressDetail.pdfPageCount}`
+                              : `0 / ${progressDetail.pdfPageCount}`}
+                          </p>
+                        </div>
+                      ) : progressDetail.pageCount ? (
                         <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
                           <p className="text-[10px] font-bold uppercase text-slate-400">Pages PDF</p>
                           <p className="font-black text-slate-800">{progressDetail.pageCount}</p>
                         </div>
                       ) : null}
-                      {progressDetail.segmentTotal ? (
+                      {progressDetail.phase === "segments" && progressDetail.segmentTotal ? (
                         <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
-                          <p className="text-[10px] font-bold uppercase text-slate-400">Bulletins</p>
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Documents</p>
                           <p className="font-black text-slate-800">
                             {progressDetail.segmentIndex ?? 0} / {progressDetail.segmentTotal}
                           </p>
+                        </div>
+                      ) : progressDetail.phase === "segmenting" ? (
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Documents</p>
+                          <p className="font-black text-slate-500">Analyse IA…</p>
                         </div>
                       ) : null}
                       <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
@@ -1356,7 +1382,19 @@ function OneDriveUpDocsOCRAIContent() {
                         </p>
                       </div>
                     </div>
-                    {progressDetail.segmentTotal && progressDetail.segmentIndex ? (
+                    {progressDetail.phase === "ocr" && progressDetail.pdfPageCount ? (
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        {progressDetail.ocrPagesRead && progressDetail.ocrPagesRead > 0
+                          ? "Textract publie les pages au fur et à mesure quand AWS les rend disponibles."
+                          : `PDF de ${progressDetail.pdfPageCount} page${progressDetail.pdfPageCount > 1 ? "s" : ""} — le compteur peut rester à 0 plusieurs minutes pendant l'analyse Textract.`}
+                      </p>
+                    ) : null}
+                    {progressDetail.phase === "segmenting" ? (
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Le découpage IA (Mistral) analyse tout le PDF en une réponse — pas de progression page par page ; le nombre de documents s&apos;affiche une fois le découpage terminé.
+                      </p>
+                    ) : null}
+                    {progressDetail.phase === "segments" && progressDetail.segmentTotal && progressDetail.segmentIndex ? (
                       <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                         <div
                           className="bg-indigo-500 h-full transition-all duration-500"

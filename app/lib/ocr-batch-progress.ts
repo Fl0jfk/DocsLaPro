@@ -18,6 +18,8 @@ export type OcrBatchProgressView = {
   fileIndex: number;
   fileTotal: number;
   pageCount: number | null;
+  pdfPageCount: number | null;
+  ocrPagesRead: number | null;
   segmentIndex: number | null;
   segmentTotal: number | null;
   documentsProcessed: number;
@@ -27,11 +29,21 @@ export type OcrBatchProgressView = {
   idleSeconds: number;
 };
 
+/** Nombre de pages connu uniquement après Textract (pas pendant ocr_start / ocr_poll). */
+function isPageCountKnown(item: OcrBatchJobItem | null): boolean {
+  if (!item?.pageCount || item.pageCount < 1) return false;
+  const phase = item.phase ?? "ocr_start";
+  return phase !== "ocr_start" && phase !== "ocr_poll";
+}
+
+/** Nombre de documents connus uniquement une fois le découpage terminé. */
+function areSegmentsKnown(item: OcrBatchJobItem | null): boolean {
+  return item?.phase === "segments" && (item.segments?.length ?? 0) > 0;
+}
+
 function itemWeight(item: OcrBatchJobItem): number {
   if (item.segments && item.segments.length > 0) return item.segments.length;
-  if (item.mode === "class" && item.pageCount && item.pageCount > 1) {
-    return Math.max(Math.ceil(item.pageCount / 2), 6);
-  }
+  // Avant découpage : on ne devine pas le nombre de documents à partir des pages.
   return 1;
 }
 
@@ -41,10 +53,16 @@ function itemCompletedWeight(item: OcrBatchJobItem): number {
   if (item.phase === "segments" && item.segments?.length) {
     return Math.min(item.segmentIndex ?? 0, item.segments.length);
   }
-  if (item.phase === "segmenting") return w * 0.65;
-  if (item.phase === "analyze") return w * 0.9;
-  if (item.phase === "ocr_poll") return w * 0.35;
-  if (item.phase === "ocr_start") return w * 0.08;
+  if (item.phase === "segmenting") return 0.7;
+  if (item.phase === "analyze") return 0.9;
+  if (item.phase === "ocr_poll" || item.phase === "ocr_start") {
+    const total = item.pdfPageCount;
+    const read = item.ocrPagesRead ?? 0;
+    if (total && total > 0 && read > 0) return Math.min(0.88, (read / total) * 0.88);
+    if (total && total > 0) return 0.1;
+  }
+  if (item.phase === "ocr_poll") return 0.4;
+  if (item.phase === "ocr_start") return 0.08;
   return 0;
 }
 
@@ -78,17 +96,24 @@ function buildLabel(job: OcrBatchJob, item: OcrBatchJobItem | null, phase: OcrBa
   }
 
   const name = item.fileName;
-  const pages = item.pageCount;
+  const pagesKnown = isPageCountKnown(item);
+  const pages = pagesKnown ? item.pageCount : undefined;
 
   if (phase === "ocr") {
-    return pages
-      ? `Lecture OCR — ${name} (${pages} page${pages > 1 ? "s" : ""}, Textract peut prendre plusieurs minutes)`
-      : `Lecture OCR — ${name} (Textract en cours, gros PDF = plusieurs minutes)`;
+    const total = item.pdfPageCount;
+    const read = item.ocrPagesRead ?? 0;
+    if (total && read > 0) {
+      return `Lecture OCR — ${name} : page ${read} / ${total} (Textract)…`;
+    }
+    if (total) {
+      return `Lecture OCR — ${name} : 0 / ${total} page(s), Textract en cours…`;
+    }
+    return `Lecture OCR — ${name} (Textract en cours, gros PDF = plusieurs minutes)`;
   }
 
   if (phase === "segmenting") {
     return pages
-      ? `Découpage IA — ${name} : analyse de ${pages} pages pour repérer chaque bulletin…`
+      ? `Découpage IA — ${name} : analyse de ${pages} page${pages > 1 ? "s" : ""} pour repérer chaque document…`
       : `Découpage IA — ${name} : repérage des documents dans le PDF…`;
   }
 
@@ -146,12 +171,14 @@ export function buildBatchProgressView(job: OcrBatchJob): OcrBatchProgressView {
     fileName: currentItem?.fileName ?? null,
     fileIndex: fileTotal > 0 ? fileIndex : 0,
     fileTotal,
-    pageCount: currentItem?.pageCount ?? null,
-    segmentIndex:
-      currentItem?.phase === "segments" && currentItem.segments?.length
-        ? Math.min((currentItem.segmentIndex ?? 0) + 1, currentItem.segments.length)
-        : null,
-    segmentTotal: currentItem?.segments?.length ?? null,
+    pageCount: isPageCountKnown(currentItem) ? (currentItem?.pageCount ?? null) : null,
+    pdfPageCount: currentItem?.pdfPageCount ?? null,
+    ocrPagesRead:
+      resolveUiPhase(currentItem) === "ocr" ? (currentItem?.ocrPagesRead ?? null) : null,
+    segmentIndex: areSegmentsKnown(currentItem)
+      ? Math.min((currentItem!.segmentIndex ?? 0) + 1, currentItem!.segments!.length)
+      : null,
+    segmentTotal: areSegmentsKnown(currentItem) ? (currentItem!.segments!.length ?? null) : null,
     documentsProcessed: job.results.length,
     documentsSucceeded: job.results.filter((r) => r.success).length,
     documentsFailed: job.results.filter((r) => !r.success).length,
