@@ -81,6 +81,7 @@ type OcrProgressDetail = {
   ocrPagesRead: number | null;
   segmentIndex: number | null;
   segmentTotal: number | null;
+  segmentationEngine: "mistral" | "mistral_chunked" | "heuristic" | null;
   documentsProcessed: number;
   documentsSucceeded: number;
   documentsFailed: number;
@@ -972,7 +973,13 @@ function OneDriveUpDocsOCRAIContent() {
           : "Lecture OCR en cours…"
         : progressDetail.phase === "segmenting"
           ? progressDetail.pageCount
-            ? `Découpage · ${progressDetail.pageCount} page${progressDetail.pageCount > 1 ? "s" : ""}`
+            ? progressDetail.segmentationEngine === "heuristic"
+              ? `Découpage auto · ${progressDetail.pageCount} p.`
+              : progressDetail.segmentationEngine === "mistral_chunked"
+                ? `Mistral blocs · ${progressDetail.pageCount} p.`
+                : progressDetail.segmentationEngine === "mistral"
+                  ? `Mistral · ${progressDetail.pageCount} p.`
+                  : `Découpage · ${progressDetail.pageCount} p.`
             : "Découpage en cours…"
           : progressDetail.fileTotal > 1
             ? `Fichier ${progressDetail.fileIndex} / ${progressDetail.fileTotal}`
@@ -994,7 +1001,7 @@ function OneDriveUpDocsOCRAIContent() {
   };
 
   const phaseSteps: { id: string; label: string }[] = [
-    { id: "ocr", label: "1. Lecture OCR" },
+    { id: "ocr", label: "1. OCR Textract" },
     { id: "segmenting", label: "2. Découpage" },
     { id: "segments", label: "3. Classement" },
   ];
@@ -1369,7 +1376,15 @@ function OneDriveUpDocsOCRAIContent() {
                       ) : progressDetail.phase === "segmenting" ? (
                         <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
                           <p className="text-[10px] font-bold uppercase text-slate-400">Documents</p>
-                          <p className="font-black text-slate-500">Analyse IA…</p>
+                          <p className="font-black text-slate-500">
+                            {progressDetail.segmentationEngine === "heuristic"
+                              ? "Découpage auto…"
+                              : progressDetail.segmentationEngine === "mistral_chunked"
+                                ? "Mistral (blocs)…"
+                                : progressDetail.segmentationEngine === "mistral"
+                                  ? "Mistral…"
+                                  : "En cours…"}
+                          </p>
                         </div>
                       ) : null}
                       <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
@@ -1391,7 +1406,36 @@ function OneDriveUpDocsOCRAIContent() {
                     ) : null}
                     {progressDetail.phase === "segmenting" ? (
                       <p className="text-[11px] text-slate-500 leading-relaxed">
-                        Le découpage IA (Mistral) analyse tout le PDF en une réponse — pas de progression page par page ; le nombre de documents s&apos;affiche une fois le découpage terminé.
+                        {progressDetail.segmentationEngine === "heuristic" ? (
+                          <>
+                            <strong className="text-slate-700">Textract a terminé.</strong> Repli
+                            automatique (règles locales) — utilisé seulement si Mistral échoue.
+                          </>
+                        ) : progressDetail.segmentationEngine === "mistral_chunked" ? (
+                          <>
+                            <strong className="text-slate-700">Textract a terminé.</strong> Mistral
+                            analyse le PDF en plusieurs blocs (~30 pages max), en ne coupant qu&apos;entre
+                            deux documents (pas au milieu d&apos;un bulletin sur 2 pages).
+                          </>
+                        ) : progressDetail.segmentationEngine === "mistral" ? (
+                          <>
+                            <strong className="text-slate-700">Textract a terminé.</strong> Mistral lit
+                            tout le PDF en une fois pour repérer chaque document (environ 15–30 s, sans
+                            progression page par page).
+                          </>
+                        ) : (
+                          <>
+                            <strong className="text-slate-700">Textract a terminé.</strong> Découpage en
+                            cours pour séparer les documents du PDF…
+                          </>
+                        )}
+                      </p>
+                    ) : null}
+                    {progressDetail.phase === "segments" ? (
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        <strong className="text-slate-700">Découpage terminé.</strong> Chaque document est
+                        maintenant analysé un par un par Mistral puis rangé sur OneDrive — c&apos;est
+                        l&apos;étape la plus longue sur un gros lot.
                       </p>
                     ) : null}
                     {progressDetail.phase === "segments" && progressDetail.segmentTotal && progressDetail.segmentIndex ? (

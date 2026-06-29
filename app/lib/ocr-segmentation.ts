@@ -67,6 +67,113 @@ function pageFingerprint(pageText: string): string {
 }
 
 /**
+ * Pages N où une coupure est probablement sûre (entre la page N et N+1).
+ * Basé sur changement d'INE ou de contenu — ne coupe pas au milieu d'un bulletin 2 pages.
+ */
+export function findDocumentBoundaryAfterPages(
+  pageTexts: Record<string, string>,
+  pageCount: number,
+): number[] {
+  if (pageCount <= 1) return [];
+
+  const pages = Array.from({ length: pageCount }, (_, i) => i + 1);
+  const fingerprints = pages.map((p) => pageFingerprint(pageTexts[String(p)] || ""));
+  const cuts: number[] = [];
+
+  for (let i = 1; i < pages.length; i++) {
+    const prev = fingerprints[i - 1];
+    const curr = fingerprints[i];
+    const sameStudent =
+      prev.startsWith("ine:") && curr.startsWith("ine:") && prev === curr;
+    if (sameStudent) continue;
+
+    const boundary =
+      prev !== curr &&
+      (prev !== "h:" || curr !== "h:") &&
+      ((prev.startsWith("ine:") && curr.startsWith("ine:") && prev !== curr) ||
+        !prev.startsWith("ine:") ||
+        !curr.startsWith("ine:"));
+
+    if (boundary) cuts.push(pages[i - 1]);
+  }
+
+  return cuts;
+}
+
+/** Blocs de pages pour Mistral : ≤ maxPages, coupures uniquement aux frontières détectées. */
+export function buildSafeMistralChunks(
+  pageCount: number,
+  cutAfterPages: number[],
+  maxPagesPerChunk: number,
+): Array<{ start: number; end: number }> {
+  if (pageCount <= 0) return [];
+  if (pageCount <= maxPagesPerChunk) return [{ start: 1, end: pageCount }];
+
+  const cuts = new Set(cutAfterPages.filter((p) => p >= 1 && p < pageCount));
+  const chunks: Array<{ start: number; end: number }> = [];
+  let start = 1;
+
+  while (start <= pageCount) {
+    let end = Math.min(start + maxPagesPerChunk - 1, pageCount);
+
+    if (end < pageCount && cuts.size > 0) {
+      while (end > start && !cuts.has(end)) end--;
+      if (!cuts.has(end) && end < pageCount) {
+        let extended = Math.min(start + maxPagesPerChunk - 1, pageCount);
+        while (extended < pageCount && !cuts.has(extended)) extended++;
+        end = extended >= pageCount ? pageCount : extended;
+      }
+    }
+
+    if (end < start) end = start;
+    chunks.push({ start, end });
+    start = end + 1;
+  }
+
+  return chunks;
+}
+
+export function slicePageTexts(
+  pageTexts: Record<string, string>,
+  start: number,
+  end: number,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (let p = start; p <= end; p++) {
+    const key = String(p);
+    if (pageTexts[key] !== undefined) out[key] = pageTexts[key];
+  }
+  return out;
+}
+
+/** Fusionne les segments adjacents (même élève sur une frontière de bloc). */
+export function mergeAdjacentSegments(segments: OcrDocumentSegment[]): OcrDocumentSegment[] {
+  const sorted = [...segments].sort((a, b) => a.pageStart - b.pageStart);
+  const merged: OcrDocumentSegment[] = [];
+
+  for (const seg of sorted) {
+    const last = merged[merged.length - 1];
+    if (!last) {
+      merged.push({ ...seg });
+      continue;
+    }
+    const sameIne =
+      last.ine && seg.ine && last.ine.toUpperCase() === seg.ine.toUpperCase();
+    const adjacent = last.pageEnd + 1 === seg.pageStart;
+    if (adjacent && sameIne) {
+      last.pageEnd = Math.max(last.pageEnd, seg.pageEnd);
+      if (!last.ine && seg.ine) last.ine = seg.ine;
+      if (!last.nom && seg.nom) last.nom = seg.nom;
+      if (!last.prenom && seg.prenom) last.prenom = seg.prenom;
+      continue;
+    }
+    merged.push({ ...seg });
+  }
+
+  return merged;
+}
+
+/**
  * Repli si Mistral dépasse le timeout Amplify (~30 s).
  * Export Charlemagne : souvent 1 bulletin = 1 page, ou 2 pages si INE identique.
  */
@@ -105,7 +212,8 @@ export function heuristicClassSegments(
   }
   segments.push({ pageStart: segStart, pageEnd: pages[pages.length - 1] });
 
-  if (segments.length <= 1) {
+  if (segments.length <= 1 && pageCount > 1) {
+    // Dernier repli : 1 page = 1 document (évite un seul segment géant ambigu).
     const onePerPage = pages.map((p) => ({
       pageStart: p,
       pageEnd: p,
@@ -114,7 +222,7 @@ export function heuristicClassSegments(
     return { mode: "multi", segments: onePerPage };
   }
 
-  return { mode: "multi", segments };
+  return { mode: segments.length > 1 ? "multi" : "single", segments };
 }
 
 /** Pages couvertes par les segments (1-indexées). */

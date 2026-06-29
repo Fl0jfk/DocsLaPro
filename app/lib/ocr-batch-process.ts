@@ -19,7 +19,7 @@ import {
   moveOneDriveFile,
   uploadBytesToOneDrive,
 } from "@/app/lib/ocr-graph-ops";
-import { runDocumentSegmentation } from "@/app/lib/ocr-segment-run";
+import { runDocumentSegmentation, resolveSegmentationEngine } from "@/app/lib/ocr-segment-run";
 import { pollTextractOnce, startTextractForS3Key } from "@/app/lib/ocr-textract";
 import { buildTextFromPages } from "@/app/lib/eleves-config";
 import { resolveOneDriveProfileForClerkUserServer } from "@/app/lib/onedrive-user-profiles.server";
@@ -438,6 +438,9 @@ async function stepItem(
       phase: nextPhase,
       pageCount: poll.result.pageCount,
       ocrPagesRead: poll.result.pageCount,
+      segmentationEngine: needsSegmentation
+        ? resolveSegmentationEngine(poll.result.pageCount ?? 1)
+        : undefined,
     });
     const ocrLabel = needsSegmentation
       ? `OCR terminé — ${poll.result.pageCount} page(s), découpage à venir…`
@@ -457,14 +460,24 @@ async function stepItem(
   }
 
   if (phase === "segmenting") {
+    const engine =
+      item.segmentationEngine ?? resolveSegmentationEngine(ocr.pageCount ?? item.pdfPageCount ?? 0);
+    const engineHint =
+      engine === "mistral_chunked"
+        ? "Mistral découpe par blocs (coupures entre documents uniquement)"
+        : engine === "mistral"
+          ? "Mistral cherche les frontières de chaque document"
+          : "repérage automatique des documents (règles locales, sans IA)";
     await patchJob(job.jobId, {
-      label: `Découpage IA — ${item.fileName} (${ocr.pageCount} page${ocr.pageCount > 1 ? "s" : ""})…`,
+      label: `Textract terminé — ${engineHint} (${ocr.pageCount} page${ocr.pageCount > 1 ? "s" : ""})…`,
+      updatedAt: new Date().toISOString(),
     });
     const segData = await runDocumentSegmentation({
       pageTexts: ocr.pageTexts,
       pageCount: ocr.pageCount,
     });
     const segments = (segData.segments || []) as OcrBatchSegment[];
+    await patchItem(job.jobId, itemIndex, { segmentationEngine: segData.engine ?? engine });
     log(
       job.jobId,
       `Segmentation "${item.fileName}" → mode=${segData.mode}, ${segments.length} segment(s), ${ocr.pageCount} page(s)`,

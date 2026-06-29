@@ -58,6 +58,8 @@ export type OcrBatchJobItem = {
   ocrPagesRead?: number;
   /** Nombre de pages du PDF (renseigné après OCR Textract). */
   pageCount?: number;
+  /** Moteur de découpage prévu ou utilisé (après OCR, avant classement). */
+  segmentationEngine?: "mistral" | "mistral_chunked" | "heuristic";
   /** Horodatage ISO : verrou optimiste anti-traitement concurrent du même item. */
   itemClaimedAt?: string;
 };

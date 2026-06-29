@@ -1,4 +1,5 @@
 import type { OcrBatchJob, OcrBatchJobItem } from "@/app/api/agentIAOCR/batch-job/batch-job";
+import { resolveSegmentationEngine, type SegmentationEngine } from "@/app/lib/ocr-segment-run";
 
 export type OcrBatchProgressPhase =
   | "pending"
@@ -22,6 +23,7 @@ export type OcrBatchProgressView = {
   ocrPagesRead: number | null;
   segmentIndex: number | null;
   segmentTotal: number | null;
+  segmentationEngine: SegmentationEngine | null;
   documentsProcessed: number;
   documentsSucceeded: number;
   documentsFailed: number;
@@ -77,15 +79,22 @@ function resolveUiPhase(item: OcrBatchJobItem | null): OcrBatchProgressPhase {
   return "pending";
 }
 
-const PHASE_LABELS: Record<OcrBatchProgressPhase, string> = {
-  pending: "En attente",
-  ocr: "Lecture OCR (Textract)",
-  segmenting: "Découpage du PDF",
-  segments: "Classement des morceaux",
-  analyze: "Classement",
-  done: "Terminé",
-  idle: "—",
-};
+function resolveSegmentationEngineForItem(item: OcrBatchJobItem | null): SegmentationEngine | null {
+  if (!item) return null;
+  if (item.segmentationEngine) return item.segmentationEngine;
+  const pages = item.pageCount ?? item.pdfPageCount;
+  if (!pages || pages < 1) return null;
+  if ((item.phase ?? "ocr_start") === "ocr_start" || item.phase === "ocr_poll") return null;
+  return resolveSegmentationEngine(pages);
+}
+
+function segmentingPhaseLabel(item: OcrBatchJobItem | null): string {
+  const engine = resolveSegmentationEngineForItem(item);
+  if (engine === "heuristic") return "Découpage automatique (Textract terminé)";
+  if (engine === "mistral_chunked") return "Découpage Mistral par blocs (Textract terminé)";
+  if (engine === "mistral") return "Découpage IA Mistral (Textract terminé)";
+  return "Découpage (Textract terminé)";
+}
 
 function buildLabel(job: OcrBatchJob, item: OcrBatchJobItem | null, phase: OcrBatchProgressPhase): string {
   if (!item) {
@@ -112,9 +121,25 @@ function buildLabel(job: OcrBatchJob, item: OcrBatchJobItem | null, phase: OcrBa
   }
 
   if (phase === "segmenting") {
+    const engine = resolveSegmentationEngineForItem(item);
+    if (engine === "heuristic") {
+      return pages
+        ? `Textract terminé — repérage automatique des documents sur ${pages} page${pages > 1 ? "s" : ""}…`
+        : `Textract terminé — repérage automatique des documents…`;
+    }
+    if (engine === "mistral_chunked") {
+      return pages
+        ? `Textract terminé — Mistral découpe ${pages} pages par blocs (aux frontières de documents)…`
+        : `Textract terminé — Mistral découpe par blocs…`;
+    }
+    if (engine === "mistral") {
+      return pages
+        ? `Textract terminé — Mistral analyse ${pages} page${pages > 1 ? "s" : ""} pour repérer chaque document…`
+        : `Textract terminé — Mistral repère les documents dans le PDF…`;
+    }
     return pages
-      ? `Découpage IA — ${name} : analyse de ${pages} page${pages > 1 ? "s" : ""} pour repérer chaque document…`
-      : `Découpage IA — ${name} : repérage des documents dans le PDF…`;
+      ? `Textract terminé — découpage de ${pages} page${pages > 1 ? "s" : ""} en cours…`
+      : `Textract terminé — découpage en cours…`;
   }
 
   if (phase === "segments" && item.segments?.length) {
@@ -122,7 +147,7 @@ function buildLabel(job: OcrBatchJob, item: OcrBatchJobItem | null, phase: OcrBa
     const current = Math.min((item.segmentIndex ?? 0) + 1, total);
     const seg = item.segments[item.segmentIndex ?? 0];
     const pageHint = seg ? ` (pages ${seg.pageStart}–${seg.pageEnd})` : "";
-    return `Classement ${current}/${total} — ${name}${pageHint}`;
+    return `Classement document ${current}/${total} — ${name}${pageHint} (Mistral + OneDrive)`;
   }
 
   if (phase === "analyze") {
@@ -159,6 +184,20 @@ export function buildBatchProgressView(job: OcrBatchJob): OcrBatchProgressView {
         : job.percent;
 
   const phase = job.status === "completed" ? "done" : resolveUiPhase(currentItem);
+  const phaseLabel =
+    phase === "segmenting"
+      ? segmentingPhaseLabel(currentItem)
+      : phase === "segments"
+        ? "Classement document par document"
+        : phase === "ocr"
+          ? "Lecture OCR (Textract)"
+          : phase === "analyze"
+            ? "Classement"
+            : phase === "done"
+              ? "Terminé"
+              : phase === "pending"
+                ? "En attente"
+                : "—";
   const label = buildLabel(job, currentItem, phase);
   const updatedAt = job.updatedAt || job.startedAt;
   const idleSeconds = Math.max(0, Math.round((Date.now() - new Date(updatedAt).getTime()) / 1000));
@@ -167,7 +206,7 @@ export function buildBatchProgressView(job: OcrBatchJob): OcrBatchProgressView {
     percent,
     label,
     phase,
-    phaseLabel: PHASE_LABELS[phase],
+    phaseLabel,
     fileName: currentItem?.fileName ?? null,
     fileIndex: fileTotal > 0 ? fileIndex : 0,
     fileTotal,
@@ -179,6 +218,7 @@ export function buildBatchProgressView(job: OcrBatchJob): OcrBatchProgressView {
       ? Math.min((currentItem!.segmentIndex ?? 0) + 1, currentItem!.segments!.length)
       : null,
     segmentTotal: areSegmentsKnown(currentItem) ? (currentItem!.segments!.length ?? null) : null,
+    segmentationEngine: resolveSegmentationEngineForItem(currentItem),
     documentsProcessed: job.results.length,
     documentsSucceeded: job.results.filter((r) => r.success).length,
     documentsFailed: job.results.filter((r) => !r.success).length,
