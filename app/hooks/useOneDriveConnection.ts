@@ -8,6 +8,11 @@ import {
   fetchMicrosoftOneDrivePublicConfig,
   storeMsalReturnPath,
 } from "@/app/lib/msal-onedrive-client";
+import {
+  obtainValidOneDriveAccessToken,
+  pickCachedAccessToken,
+  tryRestoreOneDriveAccessToken,
+} from "@/app/lib/onedrive-msal-session";
 
 export const ONEDRIVE_SCOPES = [...ONEDRIVE_MSAL_SCOPES];
 
@@ -68,16 +73,8 @@ export function useOneDriveConnection(): OneDriveConnectionState {
         const accounts = getMsal().getAllAccounts();
         if (accounts.length > 0) {
           try {
-            const tokenResponse = await getMsal().acquireTokenSilent({
-              account: accounts[0],
-              scopes: ONEDRIVE_SCOPES,
-            });
-            const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-              headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
-            });
-            if (!cancelled) {
-              applySession(accounts[0], verifyRes.ok ? tokenResponse.accessToken : null);
-            }
+            const token = await tryRestoreOneDriveAccessToken(getMsal(), accounts[0]);
+            if (!cancelled) applySession(accounts[0], token);
           } catch {
             if (!cancelled) applySession(accounts[0], null);
           }
@@ -108,28 +105,14 @@ export function useOneDriveConnection(): OneDriveConnectionState {
         setError("Connectez-vous à OneDrive (bouton Connexion Microsoft).");
         return null;
       }
-      let token: string;
-      try {
-        const tokenResponse = await getMsal().acquireTokenSilent({
-          account: accounts[0],
-          scopes: ONEDRIVE_SCOPES,
-        });
-        token = tokenResponse.accessToken;
-      } catch (err) {
-        if (err instanceof msal.InteractionRequiredAuthError) {
-          storeMsalReturnPath();
-          await getMsal().acquireTokenRedirect({
-            account: accounts[0],
-            scopes: ONEDRIVE_SCOPES,
-          });
-          return null;
-        }
-        throw err;
+
+      const cached = pickCachedAccessToken(accessToken);
+      if (cached) {
+        applySession(accounts[0], cached);
+        return cached;
       }
-      const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!verifyRes.ok) throw new Error("Session OneDrive expirée ou accès refusé.");
+
+      const token = await obtainValidOneDriveAccessToken(getMsal(), accounts[0]);
       applySession(accounts[0], token);
       return token;
     } catch (e: unknown) {
@@ -140,7 +123,7 @@ export function useOneDriveConnection(): OneDriveConnectionState {
     } finally {
       setChecking(false);
     }
-  }, [applySession, msalReady, oneDriveEnabled]);
+  }, [accessToken, applySession, msalReady, oneDriveEnabled]);
 
   const login = useCallback(async () => {
     if (!msalReady) return;

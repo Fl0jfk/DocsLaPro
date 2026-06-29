@@ -6,13 +6,14 @@ const isDev = process.env.NODE_ENV !== "production";
 export function contentSecurityPolicyHeaderValue(): string {
   return `
   default-src 'self' https://login.microsoftonline.com/;
-  frame-src 'self'
+  frame-src 'self' blob:
     https://www.google.com/maps/
     https://maps.google.com/
     https://login.microsoftonline.com
     https://*.microsoftonline.com
     https://login.live.com
     https://login.microsoft.com;
+  object-src 'self' blob: data:;
   connect-src 'self'
     https://*.s3.eu-west-3.amazonaws.com
     https://*.s3.amazonaws.com

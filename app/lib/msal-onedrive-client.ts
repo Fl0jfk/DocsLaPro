@@ -2,7 +2,7 @@
 
 import type { Configuration } from "@azure/msal-browser";
 
-export const ONEDRIVE_MSAL_SCOPES = ["Files.ReadWrite", "User.Read"] as const;
+export const ONEDRIVE_MSAL_SCOPES = ["Files.ReadWrite", "User.Read", "offline_access"] as const;
 
 /** Page légère — la popup MSAL ne doit pas charger toute l'app OCR. */
 export const ONEDRIVE_MSAL_CALLBACK_PATH = "/agentIAOCR/msal-callback";

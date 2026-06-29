@@ -1,44 +1,51 @@
-/** Ouvre la boîte d'impression du navigateur pour un PDF (blob). */
-export function printPdfBlob(blob: Blob): void {
-  const url = URL.createObjectURL(blob);
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none";
+"use client";
 
-  const cleanup = () => {
-    URL.revokeObjectURL(url);
-    iframe.remove();
-  };
+import type { FournituresChild } from "@/app/lib/fournitures-types";
 
-  iframe.onload = () => {
-    const win = iframe.contentWindow;
-    if (!win) {
-      cleanup();
-      return;
-    }
+export type SuppliesPrintPayload = {
+  children: FournituresChild[];
+  suppliesByChild: Record<string, Array<{ title: string; items: string[] }>>;
+};
 
-    const onAfterPrint = () => {
-      win.removeEventListener("afterprint", onAfterPrint);
-      cleanup();
-    };
-    win.addEventListener("afterprint", onAfterPrint);
+/** Ouvre le PDF (même rendu que l'e-mail) dans un nouvel onglet — sans blob: ni iframe (compatible CSP). */
+export function openSuppliesPdfForPrint(payload: SuppliesPrintPayload): boolean {
+  try {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/api/supplies/pdf";
+    form.target = "_blank";
+    form.acceptCharset = "UTF-8";
+    form.style.display = "none";
 
-    setTimeout(() => {
-      try {
-        win.focus();
-        win.print();
-      } catch {
-        cleanup();
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-    }, 150);
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "payload";
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
 
-    // Repli si afterprint n'est pas déclenché (certains navigateurs)
-    window.setTimeout(() => {
-      if (document.body.contains(iframe)) cleanup();
-    }, 120_000);
-  };
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  iframe.src = url;
-  document.body.appendChild(iframe);
+/** Soumet le PDF dans la fenêtre courante (page /simulateurFournitures/print). */
+export function submitSuppliesPdfInCurrentWindow(payloadJson: string): void {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/supplies/pdf";
+  form.target = "_self";
+  form.acceptCharset = "UTF-8";
+
+  const input = document.createElement("input");
+  input.type = "hidden";
+  input.name = "payload";
+  input.value = payloadJson;
+  form.appendChild(input);
+
+  document.body.appendChild(form);
+  form.submit();
 }

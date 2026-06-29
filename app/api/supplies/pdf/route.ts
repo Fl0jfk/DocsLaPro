@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getToolboxConfig } from "@/app/lib/toolbox-config";
-import type { FournituresChild } from "@/app/lib/fournitures-types";
 import { buildSuppliesListPdf } from "@/app/lib/fournitures-supplies-pdf";
+import { parseSuppliesPdfRequest } from "@/app/lib/fournitures-print-payload";
 
-/** Génère le PDF liste de fournitures (impression navigateur). */
+/** Génère le PDF liste de fournitures (JSON ou formulaire `payload`). */
 export async function POST(req: Request) {
   try {
     const toolbox = await getToolboxConfig();
@@ -11,18 +11,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Simulateur fournitures désactivé." }, { status: 404 });
     }
 
-    const body = await req.json();
-    const children = (body?.children || []) as FournituresChild[];
-
-    if (!Array.isArray(children) || children.length === 0) {
-      return NextResponse.json({ error: "Ajoutez au moins un enfant." }, { status: 400 });
-    }
-
-    const suppliesByChild = (body?.suppliesByChild || {}) as Record<
-      string,
-      Array<{ title: string; items: string[] }>
-    >;
-
+    const { children, suppliesByChild } = await parseSuppliesPdfRequest(req);
     const { buffer, filename } = await buildSuppliesListPdf({ children, suppliesByChild });
 
     return new NextResponse(new Uint8Array(buffer), {
@@ -35,6 +24,9 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message === "Ajoutez au moins un enfant." || message === "Payload manquant.") {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
     console.error("supplies/pdf error:", message);
     return NextResponse.json({ error: "Échec de la génération du PDF.", details: message }, { status: 500 });
   }

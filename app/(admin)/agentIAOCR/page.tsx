@@ -12,6 +12,11 @@ import {
   fetchMicrosoftOneDrivePublicConfig,
   storeMsalReturnPath,
 } from "@/app/lib/msal-onedrive-client";
+import {
+  obtainValidOneDriveAccessToken,
+  pickCachedAccessToken,
+  tryRestoreOneDriveAccessToken,
+} from "@/app/lib/onedrive-msal-session";
 
 const ONEDRIVE_SCOPES = [...ONEDRIVE_MSAL_SCOPES];
 
@@ -31,50 +36,12 @@ function setMsalActiveAccount(account: msal.AccountInfo | null) {
   if (account) getMsalInstance().setActiveAccount(account);
 }
 
-async function verifyOneDriveToken(token: string): Promise<boolean> {
-  try {
-    const verifyRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return verifyRes.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function acquireOneDriveAccessToken(
-  account: msal.AccountInfo,
-  opts?: { forceRefresh?: boolean },
-): Promise<string> {
-  const tokenResponse = await getMsalInstance().acquireTokenSilent({
-    account,
-    scopes: ONEDRIVE_SCOPES,
-    forceRefresh: opts?.forceRefresh ?? false,
-  });
-  return tokenResponse.accessToken;
-}
-
-/** Token Graph valide — silent, puis forceRefresh, puis popup si nécessaire. */
 async function obtainValidOneDriveToken(account: msal.AccountInfo): Promise<string> {
-  try {
-    let token = await acquireOneDriveAccessToken(account);
-    if (await verifyOneDriveToken(token)) return token;
+  return obtainValidOneDriveAccessToken(getMsalInstance(), account);
+}
 
-    token = await acquireOneDriveAccessToken(account, { forceRefresh: true });
-    if (await verifyOneDriveToken(token)) return token;
-  } catch (err) {
-    if (!(err instanceof msal.InteractionRequiredAuthError)) throw err;
-  }
-
-  const tokenResponse = await getMsalInstance().acquireTokenPopup({
-    account,
-    scopes: ONEDRIVE_SCOPES,
-  });
-  setMsalActiveAccount(tokenResponse.account ?? account);
-  if (!(await verifyOneDriveToken(tokenResponse.accessToken))) {
-    throw new Error("Session OneDrive expirée ou accès refusé. Reconnectez-vous.");
-  }
-  return tokenResponse.accessToken;
+async function restoreOneDriveToken(account: msal.AccountInfo): Promise<string | null> {
+  return tryRestoreOneDriveAccessToken(getMsalInstance(), account);
 }
 
 type ProcessResult = {
@@ -194,8 +161,8 @@ function OneDriveUpDocsOCRAIContent() {
       }
       setMsalActiveAccount(activeAccount);
 
-      const cachedToken = oneDriveTokenRef.current;
-      if (cachedToken && (await verifyOneDriveToken(cachedToken))) {
+      const cachedToken = pickCachedAccessToken(oneDriveTokenRef.current);
+      if (cachedToken) {
         applyOneDriveSession(activeAccount, cachedToken);
         setError("");
         return cachedToken;
@@ -254,7 +221,7 @@ function OneDriveUpDocsOCRAIContent() {
         if (redirectResult?.account) {
           setMsalActiveAccount(redirectResult.account);
           try {
-            const token = await obtainValidOneDriveToken(redirectResult.account);
+            const token = await restoreOneDriveToken(redirectResult.account);
             applyOneDriveSession(redirectResult.account, token);
           } catch {
             applyOneDriveSession(redirectResult.account, null);
@@ -266,7 +233,7 @@ function OneDriveUpDocsOCRAIContent() {
         if (!redirectResult?.account && accounts.length > 0) {
           setMsalActiveAccount(accounts[0]);
           try {
-            const token = await obtainValidOneDriveToken(accounts[0]);
+            const token = await restoreOneDriveToken(accounts[0]);
             applyOneDriveSession(accounts[0], token);
           } catch {
             applyOneDriveSession(accounts[0], null);
@@ -380,6 +347,22 @@ function OneDriveUpDocsOCRAIContent() {
       setError(
         `Erreur connexion OneDrive : ${err?.message || "échec inconnu"}. Choisissez votre compte professionnel (@ac-normandie.fr ou @laprovidence-nicolasbarre.fr).`,
       );
+    }
+  };
+
+  const reconnectOneDrive = async () => {
+    if (!msalReady) return;
+    setError("");
+    try {
+      storeMsalReturnPath();
+      const activeAccount = getMsalActiveAccount();
+      await getMsalInstance().loginRedirect({
+        scopes: ONEDRIVE_SCOPES,
+        prompt: "consent",
+        ...(activeAccount ? { account: activeAccount } : {}),
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Échec de la reconnexion OneDrive.");
     }
   };
 
@@ -637,7 +620,8 @@ function OneDriveUpDocsOCRAIContent() {
 
         // Rafraîchissement token OneDrive (~toutes les 8 s) — utile même en mode serveur.
         if (polls % 4 === 0) {
-          const fresh = await ensureOneDriveConnection();
+          const cached = pickCachedAccessToken(oneDriveTokenRef.current);
+          const fresh = cached ?? (await ensureOneDriveConnection());
           if (fresh) {
             await fetch("/api/agentIAOCR/batch-job/token", {
               method: "POST",
@@ -1199,13 +1183,24 @@ function OneDriveUpDocsOCRAIContent() {
             </p>
           </div>
           {!dropsAvailable && (
-            <button
-              type="button"
-              onClick={login}
-              className="shrink-0 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all"
-            >
-              Se connecter à OneDrive
-            </button>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={login}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all"
+              >
+                Se connecter à OneDrive
+              </button>
+              {account ? (
+                <button
+                  type="button"
+                  onClick={() => void reconnectOneDrive()}
+                  className="px-6 py-3 bg-white border border-blue-300 text-blue-800 font-bold rounded-xl hover:bg-blue-50 transition-all"
+                >
+                  Reconnecter (consentement)
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
       </div>
