@@ -101,6 +101,7 @@ type BatchJobStatusPayload = {
   results?: ProcessResult[];
   error?: string | null;
   serverManaged?: boolean;
+  serverSelfRelays?: boolean;
   progress?: OcrProgressDetail;
 };
 
@@ -161,6 +162,8 @@ function OneDriveUpDocsOCRAIContent() {
   const [oneDriveVerified, setOneDriveVerified] = useState(false);
   const [activeBatchJobId, setActiveBatchJobId] = useState<string | null>(null);
   const [batchJobNeedsToken, setBatchJobNeedsToken] = useState(false);
+  const [batchPollIssue, setBatchPollIssue] = useState<"offline" | "auth" | null>(null);
+  const [batchServerSelfRelays, setBatchServerSelfRelays] = useState(false);
   const [progressDetail, setProgressDetail] = useState<OcrProgressDetail | null>(null);
 
   const applyOneDriveSession = useCallback((activeAccount: msal.AccountInfo | null, token: string | null) => {
@@ -559,6 +562,59 @@ function OneDriveUpDocsOCRAIContent() {
     setError("");
   }, [activeBatchJobId, ensureOneDriveConnection]);
 
+  const triggerBatchWorker = useCallback(async (jobId: string) => {
+    try {
+      await fetch("/api/agentIAOCR/batch-job/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      });
+    } catch {
+      /* le statut reste la source de vérité */
+    }
+  }, []);
+
+  const resumeBatchTracking = useCallback(async () => {
+    const jobId = activeBatchJobIdRef.current;
+    if (!jobId) return;
+    setBatchPollIssue(null);
+    setError("");
+    try {
+      const stRes = await fetch(
+        `/api/agentIAOCR/batch-job/status?jobId=${encodeURIComponent(jobId)}`,
+      );
+      if (stRes.status === 401) {
+        setBatchPollIssue("auth");
+        setError(
+          "Session expirée — reconnectez-vous à l'intranet (Clerk), puis recliquez sur « Reprendre le suivi ».",
+        );
+        return;
+      }
+      if (!stRes.ok) {
+        setBatchPollIssue("offline");
+        setError("Impossible de joindre le serveur. Vérifiez votre connexion internet.");
+        return;
+      }
+      const st = (await stRes.json()) as BatchJobStatusPayload;
+      applyBatchJobStatusToUi(st, jobId);
+      if (st.status === "completed" || st.status === "failed") {
+        setOcrProcessing(false);
+        activeBatchJobIdRef.current = null;
+        setActiveBatchJobId(null);
+        persistFinishedBatchJob(jobId);
+        return;
+      }
+      if (st.status === "needs_token") {
+        setBatchJobNeedsToken(true);
+        return;
+      }
+      await triggerBatchWorker(jobId);
+    } catch {
+      setBatchPollIssue("offline");
+      setError("Connexion interrompue. Le traitement peut continuer côté serveur — réessayez dans un instant.");
+    }
+  }, [applyBatchJobStatusToUi, persistFinishedBatchJob, triggerBatchWorker]);
+
   useEffect(() => {
     if (!clerkUser?.id) return;
     void (async () => {
@@ -612,21 +668,49 @@ function OneDriveUpDocsOCRAIContent() {
     let cancelled = false;
     let polls = 0;
     let serverManaged = false;
+    let consecutiveFailures = 0;
 
     const tick = async () => {
       if (cancelled) return;
       try {
-        if (polls > 0) await sleep(2000);
+        if (polls > 0) {
+          const delay =
+            consecutiveFailures > 0
+              ? Math.min(30_000, 2000 * 2 ** Math.min(consecutiveFailures, 4))
+              : 2000;
+          await sleep(delay);
+        }
         polls += 1;
 
         const stRes = await fetch(
           `/api/agentIAOCR/batch-job/status?jobId=${encodeURIComponent(activeBatchJobId)}`,
         );
-        if (!stRes.ok || cancelled) return;
+        if (cancelled) return;
+
+        if (!stRes.ok) {
+          consecutiveFailures += 1;
+          if (stRes.status === 401) {
+            setBatchPollIssue("auth");
+            setError(
+              "Session intranet expirée (veille / réseau coupé). Reconnectez-vous puis utilisez « Reprendre le suivi » — le lot peut avoir continué sur le serveur.",
+            );
+          } else {
+            setBatchPollIssue("offline");
+          }
+          void tick();
+          return;
+        }
+
+        consecutiveFailures = 0;
+        setBatchPollIssue(null);
+
         const st = (await stRes.json()) as BatchJobStatusPayload;
 
         if (typeof st.serverManaged === "boolean") {
           serverManaged = st.serverManaged;
+        }
+        if (typeof st.serverSelfRelays === "boolean") {
+          setBatchServerSelfRelays(st.serverSelfRelays);
         }
 
         applyBatchJobStatusToUi(st, activeBatchJobId);
@@ -642,6 +726,7 @@ function OneDriveUpDocsOCRAIContent() {
             if (resumeRes.ok) {
               setBatchJobNeedsToken(false);
               setError("");
+              await triggerBatchWorker(activeBatchJobId);
               void tick();
               return;
             }
@@ -680,22 +765,18 @@ function OneDriveUpDocsOCRAIContent() {
           }
         }
 
-        // Relance worker côté client uniquement si pas d'auto-relance serveur (évite les doublons).
+        // Relance worker côté client si pas d'auto-relance serveur (onglet = chef d'orchestre).
         if (!serverManaged && (polls === 1 || polls % 3 === 0)) {
-          try {
-            await fetch("/api/agentIAOCR/batch-job/process", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ jobId: activeBatchJobId }),
-            });
-          } catch {
-            /* 504 / réseau : le statut reste la source de vérité */
-          }
+          await triggerBatchWorker(activeBatchJobId);
         }
 
         void tick();
       } catch (e) {
-        if (!cancelled) console.warn("[agentIAOCR] poll batch:", e);
+        if (!cancelled) {
+          consecutiveFailures += 1;
+          setBatchPollIssue("offline");
+          console.warn("[agentIAOCR] poll batch:", e);
+        }
         void tick();
       }
     };
@@ -704,7 +785,14 @@ function OneDriveUpDocsOCRAIContent() {
     return () => {
       cancelled = true;
     };
-  }, [activeBatchJobId, batchJobNeedsToken, ensureOneDriveConnection, applyBatchJobStatusToUi, persistFinishedBatchJob]);
+  }, [
+    activeBatchJobId,
+    batchJobNeedsToken,
+    ensureOneDriveConnection,
+    applyBatchJobStatusToUi,
+    persistFinishedBatchJob,
+    triggerBatchWorker,
+  ]);
 
   const runProcessing = async (files: File[]) => {
     const token = await ensureOneDriveConnection();
@@ -807,13 +895,18 @@ function OneDriveUpDocsOCRAIContent() {
       const jobId = created.jobId as string | undefined;
       if (!jobId) throw new Error("Impossible de créer le traitement serveur");
 
+      const serverRelays = Boolean(created.serverSelfRelays);
+      setBatchServerSelfRelays(serverRelays);
+
       localStorage.setItem(BATCH_JOB_STORAGE_KEY, jobId);
       activeBatchJobIdRef.current = jobId;
       setActiveBatchJobId(jobId);
       applyProcessingProgress(
         {
           percent: 40,
-          label: `Traitement serveur lancé (${items.length} PDF) — vous pouvez quitter cette page`,
+          label: serverRelays
+            ? `Traitement serveur lancé (${items.length} PDF) — vous pouvez quitter cette page`
+            : `Traitement lancé (${items.length} PDF) — gardez cet onglet ouvert`,
           done: 0,
           total: items.length,
           totalKnown: true,
@@ -1149,6 +1242,28 @@ function OneDriveUpDocsOCRAIContent() {
         </div>
       )}
 
+      {batchPollIssue && activeBatchJobId && !batchJobNeedsToken && (
+        <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 rounded-r-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="font-bold">
+              {batchPollIssue === "auth" ? "Suivi interrompu (session)" : "Suivi interrompu (réseau)"}
+            </p>
+            <p className="text-sm">
+              {batchPollIssue === "auth"
+                ? "La connexion intranet a expiré (veille, onglet en arrière-plan, Wi‑Fi coupé). Le traitement peut avoir continué sur le serveur."
+                : "Connexion internet coupée ou ordinateur en veille. Le traitement peut avoir continué sur le serveur."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void resumeBatchTracking()}
+            className="shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl"
+          >
+            Reprendre le suivi
+          </button>
+        </div>
+      )}
+
       {batchJobNeedsToken && activeBatchJobId && (
         <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 rounded-r-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -1176,7 +1291,7 @@ function OneDriveUpDocsOCRAIContent() {
         </div>
       )}
 
-      {(isServerPhase || (ocrProcessing && activeBatchJobId)) && !batchJobNeedsToken && (
+      {(isServerPhase || (ocrProcessing && activeBatchJobId)) && !batchJobNeedsToken && batchServerSelfRelays && (
         <div className="mb-6 p-5 bg-emerald-50 border-2 border-emerald-400 rounded-2xl flex gap-4 items-start justify-between shadow-sm">
           <div className="flex gap-4 items-start min-w-0">
             <span
@@ -1197,6 +1312,34 @@ function OneDriveUpDocsOCRAIContent() {
             type="button"
             onClick={() => void cancelOcrProcessing()}
             className="shrink-0 px-4 py-2 bg-white border border-emerald-500 text-emerald-900 font-bold rounded-xl hover:bg-emerald-100"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
+
+      {(isServerPhase || (ocrProcessing && activeBatchJobId)) && !batchJobNeedsToken && !batchServerSelfRelays && (
+        <div className="mb-6 p-5 bg-amber-50 border-2 border-amber-400 rounded-2xl flex gap-4 items-start justify-between shadow-sm">
+          <div className="flex gap-4 items-start min-w-0">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white text-xl font-bold"
+              aria-hidden
+            >
+              !
+            </span>
+            <div>
+              <p className="text-lg font-extrabold text-amber-950">Gardez cet onglet ouvert</p>
+              <p className="text-sm text-amber-900 mt-1 leading-relaxed">
+                L&apos;auto-relance serveur n&apos;est pas active sur cet environnement. Le traitement avance
+                tant que cette page reste ouverte (veille ou fermeture = arrêt). Contactez l&apos;administrateur
+                pour activer <code className="text-xs">OCR_WORKER_SECRET</code> en production.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void cancelOcrProcessing()}
+            className="shrink-0 px-4 py-2 bg-white border border-amber-500 text-amber-900 font-bold rounded-xl hover:bg-amber-100"
           >
             Annuler
           </button>
@@ -1333,13 +1476,23 @@ function OneDriveUpDocsOCRAIContent() {
               <p className="text-2xl font-extrabold text-blue-900 tracking-tight">
                 {isServerPhase ? "Traitement serveur en cours…" : "Envoi des fichiers…"}
               </p>
-              {isServerPhase && (
+              {isServerPhase && batchServerSelfRelays && (
                 <div className="flex items-center gap-3 rounded-2xl bg-white/80 border border-emerald-300 px-5 py-3 max-w-lg">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white font-bold">
                     ✓
                   </span>
                   <p className="text-sm font-semibold text-emerald-950 text-left">
                     Vous pouvez fermer cet onglet — revenez plus tard pour suivre la progression.
+                  </p>
+                </div>
+              )}
+              {isServerPhase && !batchServerSelfRelays && (
+                <div className="flex items-center gap-3 rounded-2xl bg-white/80 border border-amber-300 px-5 py-3 max-w-lg">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white font-bold">
+                    !
+                  </span>
+                  <p className="text-sm font-semibold text-amber-950 text-left">
+                    Gardez cet onglet ouvert — sans auto-relance serveur, le traitement s&apos;arrête si vous partez.
                   </p>
                 </div>
               )}
@@ -1483,9 +1636,20 @@ function OneDriveUpDocsOCRAIContent() {
                       </div>
                     ) : null}
                     {formatIdleHint(progressDetail.idleSeconds) ? (
-                      <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
-                        {formatIdleHint(progressDetail.idleSeconds)}
-                      </p>
+                      <div className="space-y-2">
+                        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
+                          {formatIdleHint(progressDetail.idleSeconds)}
+                        </p>
+                        {progressDetail.idleSeconds >= 300 && activeBatchJobId ? (
+                          <button
+                            type="button"
+                            onClick={() => void resumeBatchTracking()}
+                            className="w-full px-3 py-2 text-xs font-bold rounded-xl bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            Reprendre le suivi et relancer le worker
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 ) : null}

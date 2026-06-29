@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/onedrive-eleves";
 import type { OneDriveUserProfile } from "@/app/lib/onedrive-user-profiles";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
+import { ocrTraceCtx, type OcrTraceCtx } from "@/app/lib/ocr-trace";
 
 const KEY = "eleves.json";
 
@@ -98,9 +99,18 @@ export type OcrAnalyzeResult = {
 export async function analyzeDocMatchEleve(
   text: string,
   odProfile: OneDriveUserProfile | null,
+  trace?: OcrTraceCtx,
 ): Promise<OcrAnalyzeResult> {
+  ocrTraceCtx(trace, "classify", "start", "analyzeDocMatchEleve", {
+    textChars: text.length,
+    odSecteur: odProfile?.secteur ?? null,
+  });
+
   const mistralKey = await getMistralApiKey();
-  if (!mistralKey) throw new Error("Service IA non configuré (MISTRAL_API_KEY).");
+  if (!mistralKey) {
+    ocrTraceCtx(trace, "classify", "no-key", "MISTRAL_API_KEY manquante", undefined, "error");
+    throw new Error("Service IA non configuré (MISTRAL_API_KEY).");
+  }
 
   const extractionPrompt = `
       Analyse ce document scolaire et extrais UNIQUEMENT les informations suivantes si elles sont clairement présentes dans le texte :
@@ -131,6 +141,11 @@ export async function analyzeDocMatchEleve(
       }
     `;
 
+  ocrTraceCtx(trace, "classify", "mistral-extract", "appel Mistral extraction", {
+    model: "mistral-medium",
+    textChars: text.length,
+  });
+
   const extractionResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -145,7 +160,12 @@ export async function analyzeDocMatchEleve(
     }),
   });
   if (!extractionResponse.ok) {
-    throw new Error(`Erreur Mistral extraction: ${await extractionResponse.text()}`);
+    const errText = await extractionResponse.text();
+    ocrTraceCtx(trace, "classify", "mistral-extract-fail", "Mistral extraction HTTP erreur", {
+      status: extractionResponse.status,
+      body: errText.slice(0, 300),
+    }, "error");
+    throw new Error(`Erreur Mistral extraction: ${errText}`);
   }
 
   const extractionData = await extractionResponse.json();
@@ -159,6 +179,9 @@ export async function analyzeDocMatchEleve(
   const jsonStartIndex = extractionResult.indexOf("{");
   const jsonEndIndex = extractionResult.lastIndexOf("}");
   if (jsonStartIndex === -1 || jsonEndIndex === -1) {
+    ocrTraceCtx(trace, "classify", "extract-parse-fail", "pas de JSON dans réponse Mistral", {
+      raw: extractionResult.slice(0, 200),
+    }, "error");
     throw new Error("Aucun JSON trouvé dans la réponse Mistral");
   }
   const cleanJson = extractionResult.substring(jsonStartIndex, jsonEndIndex + 1);
@@ -174,6 +197,15 @@ export async function analyzeDocMatchEleve(
       throw new Error(`JSON invalide après extraction: ${String(parseError)}`);
     }
   }
+
+  ocrTraceCtx(trace, "classify", "extracted", "champs extraits du document", {
+    type: extracted.type,
+    nom: extracted.nom,
+    prenom: extracted.prénom,
+    ine: extracted.ine,
+    classe: extracted.classe,
+    periode: extracted.période,
+  });
 
   let oneDriveFolderPath: string | null = null;
   let matchedEleve: { ine: string; nom: string; prenom: string; folderName: string } | null = null;
@@ -206,6 +238,14 @@ export async function analyzeDocMatchEleve(
       if (found) {
         matchedEleve = found;
         ineMatched = true;
+        ocrTraceCtx(trace, "classify", "match-ine", "élève trouvé par INE", {
+          ine: ineNorm,
+          folderName: found.folderName,
+        });
+      } else {
+        ocrTraceCtx(trace, "classify", "match-ine-miss", "INE extrait mais absent de eleves.json", {
+          ine: ineNorm,
+        }, "warn");
       }
     }
 
@@ -225,6 +265,13 @@ export async function analyzeDocMatchEleve(
         scored = scoreList(allEleves).slice(0, 5);
       }
       bestNameScore = scored[0]?.score ?? 0;
+      ocrTraceCtx(trace, "classify", "match-name-shortlist", "shortlist nom/prénom", {
+        candidates: scored.map((s) => ({
+          nom: s.eleve.nom,
+          prenom: s.eleve.prenom,
+          score: Math.round(s.score * 100) / 100,
+        })),
+      });
       if (scored.length > 0) {
         const shortlist = scored.map((s) => s.eleve);
         const shortlistDescription = shortlist
@@ -270,7 +317,19 @@ export async function analyzeDocMatchEleve(
           }
           if (selectedIndex > 0 && selectedIndex <= shortlist.length) {
             matchedEleve = shortlist[selectedIndex - 1];
+            ocrTraceCtx(trace, "classify", "match-name-mistral", "élève choisi par Mistral shortlist", {
+              selectedIndex,
+              folderName: matchedEleve.folderName,
+            });
+          } else {
+            ocrTraceCtx(trace, "classify", "match-name-miss", "Mistral n'a pas choisi d'élève dans la shortlist", {
+              selectedIndex,
+            }, "warn");
           }
+        } else {
+          ocrTraceCtx(trace, "classify", "match-name-http-fail", "appel Mistral sélection élève échoué", {
+            status: selectionResponse.status,
+          }, "warn");
         }
       }
     }
@@ -286,9 +345,13 @@ export async function analyzeDocMatchEleve(
       oneDriveFolderPath = oneDrivePathForEleve(odProfile.basePath, resolveEleveFolderName(matchedEleve));
     }
   } catch (e) {
-    console.error("[ocr-analyze] matching:", e);
+    ocrTraceCtx(trace, "classify", "match-error", "erreur matching élève", {
+      error: e instanceof Error ? e.message : String(e),
+    }, "error");
     matchDebug = { ...matchDebug, matchingError: e instanceof Error ? e.message : String(e) };
   }
+
+  ocrTraceCtx(trace, "classify", "match-summary", "résumé matching", matchDebug);
 
   const namingPrompt = `
       Tu es un système de nommage de fichiers pour une école.
@@ -307,6 +370,8 @@ export async function analyzeDocMatchEleve(
       Réponds UNIQUEMENT avec le nom de fichier (sans extension), rien d'autre.
     `;
 
+  ocrTraceCtx(trace, "classify", "mistral-naming", "appel Mistral nommage fichier");
+
   const namingResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -320,11 +385,24 @@ export async function analyzeDocMatchEleve(
     }),
   });
   if (!namingResponse.ok) {
-    throw new Error(`Erreur Mistral naming: ${await namingResponse.text()}`);
+    const errText = await namingResponse.text();
+    ocrTraceCtx(trace, "classify", "naming-fail", "Mistral naming HTTP erreur", {
+      status: namingResponse.status,
+      body: errText.slice(0, 200),
+    }, "error");
+    throw new Error(`Erreur Mistral naming: ${errText}`);
   }
   const namingData = await namingResponse.json();
   let fileName = namingData.choices?.[0]?.message?.content?.trim() || "";
   fileName = fileName.replace(/[<>:"/\\|?*]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+
+  ocrTraceCtx(trace, "classify", "done", "analyse terminée", {
+    fileName: fileName || null,
+    oneDriveFolderPath,
+    matchedEleve: matchedEleve
+      ? { nom: matchedEleve.nom, prenom: matchedEleve.prenom, folderName: matchedEleve.folderName }
+      : null,
+  });
 
   return {
     ...extracted,

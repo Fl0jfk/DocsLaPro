@@ -7,6 +7,7 @@ import {
   type Block,
 } from "@aws-sdk/client-textract";
 import { getBucketName } from "@/app/lib/s3-storage";
+import { ocrTraceCtx, type OcrTraceCtx } from "@/app/lib/ocr-trace";
 
 const textract = new TextractClient({
   region: process.env.REGION,
@@ -126,14 +127,19 @@ function blocksToResult(blocks: Block[]): OcrTextractResult {
 }
 
 /** Démarre un job Textract asynchrone et renvoie son JobId (sans attendre la fin). */
-export async function startTextractForS3Key(key: string): Promise<string> {
+export async function startTextractForS3Key(key: string, trace?: OcrTraceCtx): Promise<string> {
   const bucket = await getBucketName();
+  ocrTraceCtx(trace, "textract", "aws-start", "StartDocumentTextDetection", { s3Key: key, bucket });
   const start = await textract.send(
     new StartDocumentTextDetectionCommand({
       DocumentLocation: { S3Object: { Bucket: bucket, Name: key } },
     }),
   );
-  if (!start.JobId) throw new Error("Impossible de lancer Textract");
+  if (!start.JobId) {
+    ocrTraceCtx(trace, "textract", "aws-start-fail", "pas de JobId Textract", { s3Key: key }, "error");
+    throw new Error("Impossible de lancer Textract");
+  }
+  ocrTraceCtx(trace, "textract", "aws-started", "job Textract créé", { textractJobId: start.JobId, s3Key: key });
   return start.JobId;
 }
 
@@ -147,12 +153,31 @@ export type TextractPollResult =
  * En IN_PROGRESS : pages lues d'après les blocs déjà publiés par Textract (peut rester à 0 longtemps).
  * En SUCCEEDED : pagination complète des blocs.
  */
-export async function pollTextractOnce(jobId: string): Promise<TextractPollResult> {
+export async function pollTextractOnce(
+  jobId: string,
+  trace?: OcrTraceCtx,
+): Promise<TextractPollResult> {
   const { status, blocks, pagesRead, maxPageSeen } = await pollTextractStatus(jobId);
   if (status === "SUCCEEDED") {
-    return { status: "SUCCEEDED", result: blocksToResult(blocks), pagesRead };
+    const result = blocksToResult(blocks);
+    ocrTraceCtx(trace, "textract", "aws-succeeded", "Textract SUCCEEDED", {
+      textractJobId: jobId,
+      pageCount: result.pageCount,
+      textChars: result.text.length,
+      blocksCount: blocks.length,
+    });
+    return { status: "SUCCEEDED", result, pagesRead };
   }
-  if (status === "FAILED") return { status: "FAILED" };
+  if (status === "FAILED") {
+    ocrTraceCtx(trace, "textract", "aws-failed", "Textract FAILED", { textractJobId: jobId }, "error");
+    return { status: "FAILED" };
+  }
+  ocrTraceCtx(trace, "textract", "aws-poll", "Textract IN_PROGRESS", {
+    textractJobId: jobId,
+    pagesRead: pagesRead || maxPageSeen,
+    maxPageSeen,
+    partialBlocks: blocks.length,
+  });
   return {
     status: "IN_PROGRESS",
     pagesRead: pagesRead || maxPageSeen,

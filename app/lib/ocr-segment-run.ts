@@ -11,6 +11,7 @@ import {
   type OcrDocumentSegment,
 } from "@/app/lib/ocr-segmentation";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
+import { ocrTraceCtx, type OcrTraceCtx } from "@/app/lib/ocr-trace";
 
 const MISTRAL_TIMEOUT_MS = 22_000;
 const SEGMENTATION_MODEL = "mistral-small-latest";
@@ -78,10 +79,13 @@ function finalizeSegments(mode: "single" | "multi", segments: DocumentSegment[],
 async function callMistralSegmentation(
   digest: string,
   pageCount: number,
-  opts?: { absoluteStart?: number; absoluteEnd?: number },
+  opts?: { absoluteStart?: number; absoluteEnd?: number; trace?: OcrTraceCtx },
 ): Promise<{ mode: "single" | "multi"; segments: DocumentSegment[] } | null> {
   const apiKey = await getMistralApiKey();
-  if (!apiKey) return null;
+  if (!apiKey) {
+    ocrTraceCtx(opts?.trace, "segment", "mistral-skip", "pas de clé Mistral", undefined, "warn");
+    return null;
+  }
 
   const absStart = opts?.absoluteStart;
   const absEnd = opts?.absoluteEnd;
@@ -116,6 +120,16 @@ ${digest.slice(0, DIGEST_PROMPT_LIMIT)}
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MISTRAL_TIMEOUT_MS);
+  const chunkLabel =
+    opts?.absoluteStart && opts?.absoluteEnd
+      ? `p.${opts.absoluteStart}-${opts.absoluteEnd}`
+      : `pages=${pageCount}`;
+
+  ocrTraceCtx(opts?.trace, "segment", "mistral-call", "appel Mistral segmentation", {
+    chunk: chunkLabel,
+    digestChars: digest.length,
+    model: SEGMENTATION_MODEL,
+  });
 
   try {
     const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
@@ -133,11 +147,29 @@ ${digest.slice(0, DIGEST_PROMPT_LIMIT)}
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      ocrTraceCtx(opts?.trace, "segment", "mistral-http-fail", "Mistral segmentation HTTP erreur", {
+        status: res.status,
+        chunk: chunkLabel,
+      }, "warn");
+      return null;
+    }
     const data = await res.json();
     const raw = data.choices?.[0]?.message?.content || "";
-    return parseSegmentationJson(raw);
-  } catch {
+    const parsed = parseSegmentationJson(raw);
+    ocrTraceCtx(opts?.trace, "segment", "mistral-ok", "réponse Mistral segmentation", {
+      chunk: chunkLabel,
+      parsed: parsed
+        ? { mode: parsed.mode, segmentCount: parsed.segments.length }
+        : null,
+      rawChars: raw.length,
+    });
+    return parsed;
+  } catch (err) {
+    ocrTraceCtx(opts?.trace, "segment", "mistral-error", "Mistral segmentation exception", {
+      chunk: chunkLabel,
+      error: err instanceof Error ? err.message : String(err),
+    }, "warn");
     return null;
   } finally {
     clearTimeout(timer);
@@ -148,14 +180,19 @@ async function segmentChunkWithMistral(
   pageTexts: Record<string, string>,
   start: number,
   end: number,
+  trace?: OcrTraceCtx,
 ): Promise<DocumentSegment[] | null> {
   const chunkTexts = slicePageTexts(pageTexts, start, end);
   const built = buildPageDigestForSegmentation(chunkTexts, end - start + 1);
-  if (!built.digest.trim()) return null;
+  if (!built.digest.trim()) {
+    ocrTraceCtx(trace, "segment", "chunk-empty", "digest vide pour bloc", { pages: `${start}-${end}` }, "warn");
+    return null;
+  }
 
   const result = await callMistralSegmentation(built.digest, end - start + 1, {
     absoluteStart: start,
     absoluteEnd: end,
+    trace,
   });
   if (!result?.segments.length) return null;
 
@@ -173,18 +210,34 @@ async function segmentChunkWithMistral(
 async function segmentWithMistralChunks(
   pageTexts: Record<string, string>,
   pageCount: number,
+  trace?: OcrTraceCtx,
 ): Promise<{ mode: "single" | "multi"; segments: DocumentSegment[] } | null> {
   const boundaries = findDocumentBoundaryAfterPages(pageTexts, pageCount);
   const chunks = buildSafeMistralChunks(pageCount, boundaries, MISTRAL_CHUNK_MAX_PAGES);
+  ocrTraceCtx(trace, "segment", "chunks-plan", "plan découpage par blocs", {
+    pageCount,
+    boundariesCount: boundaries.length,
+    chunks: chunks.map((c) => `${c.start}-${c.end}`),
+  });
   if (chunks.length === 0) return null;
 
   const allSegments: DocumentSegment[] = [];
 
-  for (const chunk of chunks) {
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const chunk = chunks[ci];
+    ocrTraceCtx(trace, "segment", "chunk-start", `bloc ${ci + 1}/${chunks.length}`, {
+      pages: `${chunk.start}-${chunk.end}`,
+    });
+    const mistralSegs = await segmentChunkWithMistral(pageTexts, chunk.start, chunk.end, trace);
     const segs =
-      (await segmentChunkWithMistral(pageTexts, chunk.start, chunk.end)) ??
+      mistralSegs ??
       heuristicClassSegments(slicePageTexts(pageTexts, chunk.start, chunk.end), chunk.end - chunk.start + 1)
         .segments;
+    ocrTraceCtx(trace, "segment", "chunk-done", `bloc ${ci + 1}/${chunks.length} segmenté`, {
+      pages: `${chunk.start}-${chunk.end}`,
+      segmentCount: segs.length,
+      fallbackHeuristic: !mistralSegs,
+    });
     allSegments.push(...segs);
   }
 
@@ -196,14 +249,23 @@ async function segmentWithMistralChunks(
   };
 }
 
-export async function runDocumentSegmentation(input: {
-  pageTexts?: Record<string, string> | null;
-  pageCount?: number;
-  text?: string;
-}) {
+export async function runDocumentSegmentation(
+  input: {
+    pageTexts?: Record<string, string> | null;
+    pageCount?: number;
+    text?: string;
+  },
+  trace?: OcrTraceCtx,
+) {
   const pageTexts = input.pageTexts && typeof input.pageTexts === "object" ? input.pageTexts : null;
   const pageCount = typeof input.pageCount === "number" && input.pageCount > 0 ? input.pageCount : 0;
   const text = typeof input.text === "string" ? input.text : "";
+
+  ocrTraceCtx(trace, "segment", "run-start", "runDocumentSegmentation", {
+    pageCount,
+    hasPageTexts: Boolean(pageTexts && Object.keys(pageTexts).length > 0),
+    textChars: text.length,
+  });
 
   let resolvedPageCount =
     pageCount > 0
@@ -213,7 +275,10 @@ export async function runDocumentSegmentation(input: {
         : 0;
 
   if (pageTexts && resolvedPageCount > MISTRAL_SINGLE_CALL_MAX_PAGES) {
-    const chunked = await segmentWithMistralChunks(pageTexts, resolvedPageCount);
+    ocrTraceCtx(trace, "segment", "route-chunked", "PDF > 30 pages → mistral_chunked", {
+      resolvedPageCount,
+    });
+    const chunked = await segmentWithMistralChunks(pageTexts, resolvedPageCount, trace);
     if (chunked) {
       return {
         ...finalizeSegments(chunked.mode, chunked.segments, resolvedPageCount),
@@ -246,16 +311,27 @@ export async function runDocumentSegmentation(input: {
   let engine: SegmentationEngine = "mistral";
 
   if (pageTexts && resolvedPageCount > 0 && digestTooLongForMistral) {
-    const chunked = await segmentWithMistralChunks(pageTexts, resolvedPageCount);
+    ocrTraceCtx(trace, "segment", "route-digest-long", "digest trop long → blocs ou heuristique", {
+      digestChars: digest.length,
+      limit: DIGEST_PROMPT_LIMIT,
+    });
+    const chunked = await segmentWithMistralChunks(pageTexts, resolvedPageCount, trace);
     if (chunked) {
       result = chunked;
       engine = "mistral_chunked";
     } else {
       result = heuristicClassSegments(pageTexts, resolvedPageCount);
       engine = "heuristic";
+      ocrTraceCtx(trace, "segment", "heuristic-fallback", "repli heuristique (chunked échoué)", {
+        segmentCount: result.segments.length,
+      }, "warn");
     }
   } else {
-    result = (await callMistralSegmentation(digest, resolvedPageCount)) ?? null;
+    ocrTraceCtx(trace, "segment", "route-single", "appel Mistral unique", {
+      resolvedPageCount,
+      digestChars: digest.length,
+    });
+    result = (await callMistralSegmentation(digest, resolvedPageCount, { trace })) ?? null;
     if (result && resolvedPageCount > 0) {
       const fixed = ensureFullPageCoverage(result.segments, resolvedPageCount);
       result = {
@@ -267,10 +343,23 @@ export async function runDocumentSegmentation(input: {
     if (!result && pageTexts && resolvedPageCount > 0) {
       result = heuristicClassSegments(pageTexts, resolvedPageCount);
       engine = "heuristic";
+      ocrTraceCtx(trace, "segment", "heuristic-fallback", "repli heuristique (Mistral single échoué)", {
+        segmentCount: result.segments.length,
+      }, "warn");
     }
   }
 
-  if (!result) throw new Error("Segmentation impossible");
+  if (!result) {
+    ocrTraceCtx(trace, "segment", "fail", "segmentation impossible", undefined, "error");
+    throw new Error("Segmentation impossible");
+  }
+
+  ocrTraceCtx(trace, "segment", "run-done", "segmentation terminée", {
+    engine,
+    mode: result.mode,
+    segmentCount: result.segments.length,
+    pageCount: resolvedPageCount,
+  });
 
   return {
     ...finalizeSegments(result.mode, result.segments, resolvedPageCount),

@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { resolveSession } from "@/app/lib/intranet-session";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import {
@@ -8,19 +8,20 @@ import {
   type OcrBatchJob,
   type OcrBatchJobItem,
 } from "./batch-job";
-import { runOcrBatchJob } from "@/app/lib/ocr-batch-process";
+import { runOcrBatchJob, resolveWorkerOrigin, kickOcrBatchWorker } from "@/app/lib/ocr-batch-process";
+import { ocrTrace } from "@/app/lib/ocr-trace";
 
 export const maxDuration = 60;
 
 /** Origine HTTP réelle (derrière le proxy Amplify) pour l'auto-relance serveur. */
 function resolveRequestOrigin(req: Request): string | undefined {
-  const explicit = process.env.OCR_WORKER_BASE_URL?.trim();
-  if (explicit) return explicit.replace(/\/+$/, "");
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
-  if (!host) return undefined;
-  const proto =
-    req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
+  if (host) {
+    const proto =
+      req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+    return `${proto}://${host}`.replace(/\/+$/, "");
+  }
+  return resolveWorkerOrigin(null);
 }
 
 export async function POST(req: Request) {
@@ -89,10 +90,24 @@ export async function POST(req: Request) {
   await writeBatchJob(job);
   await registerBatchJobForUser(userId, jobId);
 
-  console.log(
-    `[ocr-batch ${jobId}] lot créé — ${items.length} PDF(s), modes=${items.map((i) => i.mode).join(",")}`,
-  );
-  after(() => runOcrBatchJob(jobId).catch((err) => console.error(`[ocr-batch ${jobId}] create after():`, err)));
+  const origin = job.originUrl;
+  const serverSelfRelays = Boolean(process.env.OCR_WORKER_SECRET?.trim() && origin);
 
-  return NextResponse.json({ ok: true, jobId, total: items.length }, { status: 201 });
+  ocrTrace(jobId, "api", "create", "lot créé", {
+    totalItems: items.length,
+    modes: items.map((i) => i.mode),
+    originUrl: origin ?? null,
+    serverSelfRelays,
+    items: items.map((i) => ({ fileName: i.fileName, mode: i.mode, s3Key: i.s3Key, tempPath: i.tempPath })),
+  });
+  await kickOcrBatchWorker(jobId, origin).catch((err) =>
+    ocrTrace(jobId, "api", "kick-fail", "échec kick initial", {
+      error: err instanceof Error ? err.message : String(err),
+    }, "error"),
+  );
+
+  return NextResponse.json(
+    { ok: true, jobId, total: items.length, serverSelfRelays },
+    { status: 201 },
+  );
 }

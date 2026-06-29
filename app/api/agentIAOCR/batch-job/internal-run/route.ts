@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { runOcrBatchJob } from "@/app/lib/ocr-batch-process";
+import { ocrTrace } from "@/app/lib/ocr-trace";
 
 /**
  * Relance interne du worker OCR (auto-chaînage serveur, onglet fermé).
@@ -32,13 +33,17 @@ export async function POST(req: Request) {
   }
   const delayMs = Math.max(0, Math.min(8_000, Number(body.delayMs) || 0));
 
+  ocrTrace(jobId, "api", "internal-run", "requête internal-run acceptée", { delayMs });
+
   after(async () => {
     try {
       if (delayMs > 0) await sleep(delayMs);
-      console.log(`[ocr-batch ${jobId}] internal-run déclenché (auto-relance, delay=${delayMs}ms)`);
+      ocrTrace(jobId, "api", "internal-run-exec", "exécution worker après internal-run");
       await runOcrBatchJob(jobId);
     } catch (err) {
-      console.error(`[ocr-batch ${jobId}] internal-run after():`, err);
+      ocrTrace(jobId, "api", "internal-run-error", "internal-run after() en erreur", {
+        error: err instanceof Error ? err.message : String(err),
+      }, "error");
     }
   });
 

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { after } from "next/server";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   ocrCacheKey,
@@ -30,22 +31,28 @@ import { getTenant } from "@/app/lib/tenant-context";
 import { getTenantSecrets } from "@/app/lib/tenant-registry";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
+import {
+  ocrTrace,
+  summarizeBatchItem,
+  summarizeBatchJob,
+  type OcrTraceCtx,
+} from "@/app/lib/ocr-trace";
 
 const RUN_LOCK_PREFIX = "agentIAOCR/batch-locks/";
 /** Au-delà de cet âge, un lock est considéré orphelin (worker tué) et peut être volé. */
 const LOCK_TTL_MS = 75_000;
 /** Budget d'une invocation `after()` — on s'arrête bien avant le timeout de la fonction. */
-const RUN_BUDGET_MS = 50_000;
+const RUN_BUDGET_MS = 55_000;
 /** Délai entre deux tours de polling Textract. */
-const OCR_POLL_DELAY_MS = 3_000;
+const OCR_POLL_DELAY_MS = 2_000;
 /** Un item claimé par un autre worker reste exclusif pendant cette durée. */
 const ITEM_CLAIM_TTL_MS = 60_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Log serveur traçable dans CloudWatch (préfixe greppable). */
-function log(jobId: string, ...args: unknown[]) {
-  console.log(`[ocr-batch ${jobId}]`, ...args);
+function itemCtx(job: OcrBatchJob, itemIndex: number): OcrTraceCtx {
+  const item = job.items[itemIndex];
+  return { batchJobId: job.jobId, fileName: item?.fileName, itemIndex };
 }
 
 function runLockKey(jobId: string) {
@@ -80,11 +87,15 @@ async function putLock(jobId: string): Promise<boolean> {
         IfNoneMatch: "*",
       }),
     );
+    ocrTrace(jobId, "lock", "acquire", "lock S3 acquis (nouveau)");
     return true;
   } catch (e: unknown) {
     const meta = (e as { $metadata?: { httpStatusCode?: number } }).$metadata;
     const name = (e as { name?: string }).name;
-    if (meta?.httpStatusCode === 412 || name === "PreconditionFailed") return false;
+    if (meta?.httpStatusCode === 412 || name === "PreconditionFailed") {
+      ocrTrace(jobId, "lock", "busy", "lock déjà détenu par un autre worker");
+      return false;
+    }
     throw e;
   }
 }
@@ -94,10 +105,20 @@ async function acquireRunLock(jobId: string): Promise<boolean> {
   if (await putLock(jobId)) return true;
 
   const acquiredAt = await readLockAcquiredAt(jobId);
-  if (acquiredAt !== null && Date.now() - acquiredAt < LOCK_TTL_MS) return false;
+  const ageMs = acquiredAt !== null ? Date.now() - acquiredAt : null;
+  if (acquiredAt !== null && ageMs !== null && ageMs < LOCK_TTL_MS) {
+    ocrTrace(jobId, "lock", "wait", "lock actif — attente", { lockAgeMs: ageMs, lockTtlMs: LOCK_TTL_MS });
+    return false;
+  }
 
+  ocrTrace(jobId, "lock", "steal", "lock orphelin — vol et réacquisition", {
+    lockAgeMs: ageMs,
+    lockTtlMs: LOCK_TTL_MS,
+  });
   await releaseRunLock(jobId);
-  return putLock(jobId);
+  const stolen = await putLock(jobId);
+  if (stolen) ocrTrace(jobId, "lock", "stolen", "lock volé avec succès");
+  return stolen;
 }
 
 async function releaseRunLock(jobId: string) {
@@ -106,28 +127,113 @@ async function releaseRunLock(jobId: string) {
     await s3Client.send(
       new DeleteObjectCommand({ Bucket: await getBucketName(), Key: runLockKey(jobId) }),
     );
+    ocrTrace(jobId, "lock", "release", "lock S3 libéré");
   } catch {
-    /* ignore */
+    ocrTrace(jobId, "lock", "release-fail", "échec libération lock (ignoré)", undefined, "warn");
   }
 }
 
 /**
- * Auto-relance serveur : ré-invoque le worker via un endpoint interne (secret partagé),
- * pour que le lot se termine même si l'onglet est fermé. Sans secret/origine → no-op
- * (on retombe sur le ré-déclenchement par le navigateur tant qu'il est ouvert).
+ * Origine HTTP pour l'auto-relance (job → env → plateforme).
  */
-async function fireSelfChain(originUrl: string | undefined, jobId: string, delayMs: number) {
+export function resolveWorkerOrigin(job?: Pick<OcrBatchJob, "originUrl"> | null): string | undefined {
+  const fromJob = job?.originUrl?.trim();
+  if (fromJob) return fromJob.replace(/\/+$/, "");
+  const explicit = process.env.OCR_WORKER_BASE_URL?.trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const app = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.PLATFORM_APP_URL?.trim();
+  return app ? app.replace(/\/+$/, "") : undefined;
+}
+
+/**
+ * Planifie la prochaine invocation du worker (HTTP interne si possible, sinon after()).
+ * Permet au lot d'avancer même si l'onglet est fermé ou le PC en veille.
+ */
+async function scheduleWorkerContinuation(
+  originUrl: string | undefined,
+  jobId: string,
+  delayMs: number,
+): Promise<void> {
+  const delay = Math.max(0, Math.min(8_000, delayMs));
   const secret = process.env.OCR_WORKER_SECRET?.trim();
-  if (!secret || !originUrl) return;
-  try {
-    await fetch(`${originUrl.replace(/\/+$/, "")}/api/agentIAOCR/batch-job/internal-run`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-ocr-worker-secret": secret },
-      body: JSON.stringify({ jobId, delayMs }),
-    });
-  } catch (err) {
-    console.error("[ocr-batch] auto-relance échouée:", err);
+  const origin = originUrl || resolveWorkerOrigin(null);
+
+  if (secret && origin) {
+    try {
+      const res = await fetch(`${origin}/api/agentIAOCR/batch-job/internal-run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ocr-worker-secret": secret,
+        },
+        body: JSON.stringify({ jobId, delayMs: delay }),
+      });
+      if (res.ok) {
+        ocrTrace(jobId, "relay", "http-ok", "auto-relance HTTP acceptée", { delayMs: delay, origin });
+        return;
+      }
+      ocrTrace(jobId, "relay", "http-fail", "auto-relance HTTP refusée — repli after()", {
+        status: res.status,
+        origin,
+      }, "warn");
+    } catch (err) {
+      ocrTrace(jobId, "relay", "http-error", "auto-relance HTTP échouée — repli after()", {
+        origin,
+        error: err instanceof Error ? err.message : String(err),
+      }, "warn");
+    }
+  } else {
+    ocrTrace(jobId, "relay", "after-fallback", "auto-relance via after() (pas de chaîne HTTP)", {
+      hasSecret: Boolean(secret),
+      origin: origin ?? null,
+      delayMs: delay,
+    }, secret && !origin ? "warn" : "info");
   }
+
+  after(async () => {
+    try {
+      if (delay > 0) await sleep(delay);
+      ocrTrace(jobId, "relay", "after-run", "exécution worker via after()");
+      await runOcrBatchJob(jobId);
+    } catch (err) {
+      ocrTrace(jobId, "relay", "after-error", "after() relance en erreur", {
+        error: err instanceof Error ? err.message : String(err),
+      }, "error");
+    }
+  });
+}
+
+/** Démarre ou relance le worker (chaîne HTTP interne si configurée). */
+export async function kickOcrBatchWorker(jobId: string, originUrl?: string): Promise<void> {
+  ocrTrace(jobId, "relay", "kick", "démarrage / relance worker demandée", {
+    origin: originUrl ?? resolveWorkerOrigin(null) ?? null,
+    hasSecret: Boolean(process.env.OCR_WORKER_SECRET?.trim()),
+  });
+  await scheduleWorkerContinuation(originUrl, jobId, 0);
+}
+
+/** Lot bloqué sans mise à jour récente — candidat à une relance serveur. */
+export function isBatchJobStale(job: OcrBatchJob): boolean {
+  if (job.status !== "processing" && job.status !== "pending") return false;
+  const updatedAt = new Date(job.updatedAt).getTime();
+  const staleByUpdate = !Number.isNaN(updatedAt) && Date.now() - updatedAt > LOCK_TTL_MS;
+  let staleByNextRun = false;
+  if (job.nextRunAt) {
+    const next = new Date(job.nextRunAt).getTime();
+    staleByNextRun = !Number.isNaN(next) && Date.now() > next + 3_000;
+  }
+  const stale = staleByUpdate || staleByNextRun;
+  if (stale) {
+    ocrTrace(job.jobId, "worker", "stale", "lot considéré bloqué", {
+      status: job.status,
+      updatedAt: job.updatedAt,
+      nextRunAt: job.nextRunAt ?? null,
+      staleByUpdate,
+      staleByNextRun,
+      ...summarizeBatchJob(job),
+    }, "warn");
+  }
+  return stale;
 }
 
 async function deleteOcrCacheForJob(job: OcrBatchJob) {
@@ -271,30 +377,36 @@ async function resolveItemClaim(
   if (!item) return "skip-advance";
 
   if (item.status === "done" || item.status === "failed") {
-    log(jobId, `Item "${item.fileName}" déjà ${item.status} — skip.`);
+    ocrTrace(jobId, "item", "skip", `item déjà ${item.status}`, summarizeBatchItem(item));
     return "skip-advance";
   }
 
   if (hasSuccessfulResult(job, item.fileName)) {
-    log(jobId, `Item "${item.fileName}" déjà en succès dans results — skip.`);
+    ocrTrace(jobId, "item", "skip", "item déjà en succès dans results", summarizeBatchItem(item));
     return "skip-advance";
   }
 
   if (item.itemClaimedAt && item.status === "processing") {
     const age = Date.now() - new Date(item.itemClaimedAt).getTime();
     if (age >= 0 && age < ITEM_CLAIM_TTL_MS) {
-      log(
-        jobId,
-        `Item "${item.fileName}" claimé par autre worker (${Math.round(age / 1000)}s) — attente.`,
-      );
+      ocrTrace(jobId, "item", "defer", "item claimé par autre worker", {
+        ...summarizeBatchItem(item),
+        claimAgeMs: age,
+        claimTtlMs: ITEM_CLAIM_TTL_MS,
+      });
       return "defer";
     }
+    ocrTrace(jobId, "item", "claim-expired", "claim expiré — reprise", {
+      ...summarizeBatchItem(item),
+      claimAgeMs: age,
+    });
   }
 
   await patchItem(jobId, itemIndex, {
     status: "processing",
     itemClaimedAt: new Date().toISOString(),
   });
+  ocrTrace(jobId, "item", "claim", "item claimé par ce worker", summarizeBatchItem(item));
   return "proceed";
 }
 
@@ -304,12 +416,25 @@ async function analyzeAndMove(
   sourcePath: string,
   displayName: string,
 ): Promise<OcrBatchResult> {
-  const ai = await analyzeDocMatchEleve(text, ctx.odProfile);
+  const trace: OcrTraceCtx = { batchJobId: ctx.jobId, fileName: displayName };
+  ocrTrace(ctx.jobId, "classify", "start", "analyse + classement document", {
+    displayName,
+    sourcePath,
+    textChars: text.length,
+    odSecteur: ctx.odProfile?.secteur ?? null,
+  });
+
+  const ai = await analyzeDocMatchEleve(text, ctx.odProfile, trace);
   const extracted = `nom=${ai?.nom ?? "?"} prénom=${ai?.prénom ?? "?"} ine=${ai?.ine ?? "?"}`;
-  log(ctx.jobId, `analyse "${displayName}" → ${extracted}`, "match:", JSON.stringify(ai?.matchDebug ?? {}));
+  ocrTrace(ctx.jobId, "classify", "extracted", extracted, {
+    displayName,
+    matchDebug: ai?.matchDebug ?? {},
+    fileName: ai?.fileName ?? null,
+    oneDriveFolderPath: ai?.oneDriveFolderPath ?? null,
+  });
 
   if (!ai?.fileName) {
-    log(ctx.jobId, `ÉCHEC "${displayName}" : analyse IA incomplète (pas de nom de fichier).`);
+    ocrTrace(ctx.jobId, "classify", "fail", "analyse IA incomplète (pas de nom de fichier)", { displayName }, "warn");
     return {
       success: false,
       error: "Analyse IA incomplète.",
@@ -319,9 +444,17 @@ async function analyzeAndMove(
     };
   }
   if (!ai.oneDriveFolderPath) {
-    log(
+    ocrTrace(
       ctx.jobId,
-      `NON RANGÉ "${displayName}" : élève non identifié (profilOneDrive=${ctx.odProfile ? ctx.odProfile.secteur : "AUCUN"}).`,
+      "classify",
+      "no-match",
+      "élève non identifié — fichier laissé dans Temp",
+      {
+        displayName,
+        profilOneDrive: ctx.odProfile ? ctx.odProfile.secteur : null,
+        extracted: { nom: ai.nom, prenom: ai.prénom, ine: ai.ine },
+      },
+      "warn",
     );
     return {
       success: false,
@@ -332,18 +465,26 @@ async function analyzeAndMove(
       tempOneDrivePath: sourcePath,
     };
   }
+  ocrTrace(ctx.jobId, "onedrive", "move-start", "déplacement OneDrive", {
+    from: sourcePath,
+    to: `${ai.oneDriveFolderPath}/${ai.fileName}.pdf`,
+  });
   const move = await withToken(ctx, (token) =>
     moveOneDriveFile(token, sourcePath, ai.oneDriveFolderPath as string, `${ai.fileName}.pdf`),
   );
   if (!move.ok) {
     if (move.status === 404) {
-      log(
-        ctx.jobId,
-        `Source Temp absente (404) sur "${displayName}" — considéré OK (déjà rangé par une autre passe).`,
-      );
+      ocrTrace(ctx.jobId, "onedrive", "move-skip-404", "source Temp absente — déjà rangé", { displayName });
       return { success: true, result: ai, fileName: displayName };
     }
-    log(ctx.jobId, `ÉCHEC TECHNIQUE "${displayName}" : déplacement (${move.status}) ${move.detail.slice(0, 200)}`);
+    ocrTrace(
+      ctx.jobId,
+      "onedrive",
+      "move-fail",
+      "déplacement impossible",
+      { displayName, status: move.status, detail: move.detail.slice(0, 300) },
+      "error",
+    );
     return {
       success: false,
       error: `Déplacement impossible : ${move.detail.slice(0, 200)}`,
@@ -352,11 +493,13 @@ async function analyzeAndMove(
       tempOneDrivePath: sourcePath,
     };
   }
-  log(ctx.jobId, `OK "${displayName}" → ${ai.oneDriveFolderPath}/${ai.fileName}.pdf`);
+  ocrTrace(ctx.jobId, "onedrive", "move-ok", "document rangé", {
+    displayName,
+    destination: `${ai.oneDriveFolderPath}/${ai.fileName}.pdf`,
+  });
   return { success: true, result: ai, fileName: displayName };
 }
 
-/** Exécute une seule micro-étape de l'item courant. Ne bloque jamais longtemps. */
 async function stepItem(
   ctx: WorkerCtx,
   job: OcrBatchJob,
@@ -364,19 +507,30 @@ async function stepItem(
 ): Promise<StepOutcome> {
   const item = job.items[itemIndex];
   const phase = item.phase ?? "ocr_start";
+  const trace = itemCtx(job, itemIndex);
+
+  ocrTrace(job.jobId, "item", "step", `micro-étape phase=${phase}`, summarizeBatchItem(item));
 
   if (phase === "ocr_start") {
-    const textractJobId = await startTextractForS3Key(item.s3Key);
+    ocrTrace(job.jobId, "textract", "start", "lancement Textract", {
+      fileName: item.fileName,
+      mode: item.mode,
+      s3Key: item.s3Key,
+    });
+    const textractJobId = await startTextractForS3Key(item.s3Key, trace);
     let pdfPageCount: number | undefined;
     try {
       pdfPageCount = await getPdfPageCountFromS3(item.s3Key);
-    } catch {
-      /* métadonnées PDF indisponibles — on attendra Textract */
+      ocrTrace(job.jobId, "textract", "pdf-meta", "nombre de pages PDF (métadonnées)", {
+        fileName: item.fileName,
+        pdfPageCount,
+      });
+    } catch (metaErr) {
+      ocrTrace(job.jobId, "textract", "pdf-meta-fail", "métadonnées PDF indisponibles", {
+        fileName: item.fileName,
+        error: metaErr instanceof Error ? metaErr.message : String(metaErr),
+      }, "warn");
     }
-    log(
-      job.jobId,
-      `Textract lancé "${item.fileName}" (${item.mode}, ${pdfPageCount ?? "?"} page(s) PDF)`,
-    );
     await patchItem(job.jobId, itemIndex, {
       status: "processing",
       phase: "ocr_poll",
@@ -387,21 +541,32 @@ async function stepItem(
     const ocrLabel = pdfPageCount
       ? `Lecture OCR — ${item.fileName} : 0 / ${pdfPageCount} page(s)…`
       : `OCR — ${item.fileName}`;
+    ocrTrace(job.jobId, "textract", "polling", "passage en ocr_poll", {
+      textractJobId,
+      pdfPageCount: pdfPageCount ?? null,
+    });
     return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label: ocrLabel };
   }
 
   if (phase === "ocr_poll") {
     if (!item.textractJobId) {
+      ocrTrace(job.jobId, "textract", "reset", "textractJobId manquant — retour ocr_start", undefined, "warn");
       await patchItem(job.jobId, itemIndex, { phase: "ocr_start" });
       return { kind: "continue" };
     }
-    const poll = await pollTextractOnce(item.textractJobId);
+    const poll = await pollTextractOnce(item.textractJobId, trace);
     if (poll.status === "IN_PROGRESS") {
       const pagesRead = Math.max(item.ocrPagesRead ?? 0, poll.pagesRead);
       const pdfTotal = item.pdfPageCount;
       if (pagesRead !== item.ocrPagesRead) {
         await patchItem(job.jobId, itemIndex, { ocrPagesRead: pagesRead });
       }
+      ocrTrace(job.jobId, "textract", "poll", "Textract en cours", {
+        textractJobId: item.textractJobId,
+        pagesRead,
+        pdfTotal: pdfTotal ?? null,
+        maxPageSeen: poll.maxPageSeen ?? null,
+      });
       const label = pdfTotal
         ? pagesRead > 0
           ? `Lecture OCR — ${item.fileName} : page ${pagesRead} / ${pdfTotal}…`
@@ -410,7 +575,10 @@ async function stepItem(
       return { kind: "wait", delayMs: OCR_POLL_DELAY_MS, label };
     }
     if (poll.status === "FAILED") {
-      log(job.jobId, `ÉCHEC TECHNIQUE "${item.fileName}" : OCR Textract a échoué.`);
+      ocrTrace(job.jobId, "textract", "fail", "Textract FAILED", {
+        fileName: item.fileName,
+        textractJobId: item.textractJobId,
+      }, "error");
       return {
         kind: "result",
         itemDone: true,
@@ -426,21 +594,26 @@ async function stepItem(
     }
     const cacheKey = ocrCacheKey(job.jobId, item.id);
     await writeOcrCache(cacheKey, poll.result);
-    // Un PDF d'une seule page ne peut pas être découpé : on saute la segmentation.
     const needsSegmentation = item.mode === "class" && (poll.result.pageCount ?? 1) > 1;
     const nextPhase = needsSegmentation ? "segmenting" : "analyze";
-    log(
-      job.jobId,
-      `OCR OK "${item.fileName}" — ${poll.result.pageCount} page(s) → phase=${nextPhase}`,
-    );
+    const segEngine = needsSegmentation
+      ? resolveSegmentationEngine(poll.result.pageCount ?? 1)
+      : undefined;
+    ocrTrace(job.jobId, "textract", "done", "OCR terminé", {
+      fileName: item.fileName,
+      pageCount: poll.result.pageCount,
+      textChars: poll.result.text.length,
+      needsSegmentation,
+      nextPhase,
+      segmentationEngine: segEngine ?? null,
+      cacheKey,
+    });
     await patchItem(job.jobId, itemIndex, {
       ocrCacheKey: cacheKey,
       phase: nextPhase,
       pageCount: poll.result.pageCount,
       ocrPagesRead: poll.result.pageCount,
-      segmentationEngine: needsSegmentation
-        ? resolveSegmentationEngine(poll.result.pageCount ?? 1)
-        : undefined,
+      segmentationEngine: segEngine,
     });
     const ocrLabel = needsSegmentation
       ? `OCR terminé — ${poll.result.pageCount} page(s), découpage à venir…`
@@ -450,12 +623,23 @@ async function stepItem(
 
   const ocr = item.ocrCacheKey ? await readOcrCache(item.ocrCacheKey) : null;
   if (!ocr) {
+    ocrTrace(job.jobId, "item", "cache-miss", "cache OCR absent — retour ocr_start", summarizeBatchItem(item), "warn");
     await patchItem(job.jobId, itemIndex, { phase: "ocr_start", textractJobId: undefined });
     return { kind: "continue" };
   }
 
   if (phase === "analyze") {
+    ocrTrace(job.jobId, "item", "analyze", "mode standard / PDF unitaire", {
+      fileName: item.fileName,
+      mode: item.mode,
+      pageCount: ocr.pageCount,
+    });
     const result = await analyzeAndMove(ctx, ocr.text, item.tempPath, item.fileName);
+    ocrTrace(job.jobId, "item", "analyze-done", "résultat analyse", {
+      fileName: item.fileName,
+      success: result.success,
+      error: result.error ?? null,
+    });
     return { kind: "result", results: [result], itemDone: true };
   }
 
@@ -468,30 +652,43 @@ async function stepItem(
         : engine === "mistral"
           ? "Mistral cherche les frontières de chaque document"
           : "repérage automatique des documents (règles locales, sans IA)";
+    ocrTrace(job.jobId, "segment", "start", "découpage documents", {
+      fileName: item.fileName,
+      pageCount: ocr.pageCount,
+      engine,
+      engineHint,
+    });
     await patchJob(job.jobId, {
       label: `Textract terminé — ${engineHint} (${ocr.pageCount} page${ocr.pageCount > 1 ? "s" : ""})…`,
       updatedAt: new Date().toISOString(),
     });
-    const segData = await runDocumentSegmentation({
-      pageTexts: ocr.pageTexts,
-      pageCount: ocr.pageCount,
-    });
+    const segData = await runDocumentSegmentation(
+      { pageTexts: ocr.pageTexts, pageCount: ocr.pageCount },
+      trace,
+    );
     const segments = (segData.segments || []) as OcrBatchSegment[];
     await patchItem(job.jobId, itemIndex, { segmentationEngine: segData.engine ?? engine });
-    log(
-      job.jobId,
-      `Segmentation "${item.fileName}" → mode=${segData.mode}, ${segments.length} segment(s), ${ocr.pageCount} page(s)`,
-    );
+    ocrTrace(job.jobId, "segment", "done", "segmentation terminée", {
+      fileName: item.fileName,
+      mode: segData.mode,
+      engine: segData.engine,
+      segmentCount: segments.length,
+      segments: segments.map((s) => ({
+        p: `${s.pageStart}-${s.pageEnd}`,
+        label: s.label ?? null,
+      })),
+    });
 
     if (segData.mode === "single" || segments.length <= 1) {
       const seg = segments[0] || { pageStart: 1, pageEnd: ocr.pageCount || 1 };
+      ocrTrace(job.jobId, "segment", "single", "un seul document — classement direct", {
+        pages: `${seg.pageStart}-${seg.pageEnd}`,
+      });
       const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
       const one = await analyzeAndMove(ctx, slice || ocr.text, item.tempPath, item.fileName);
       return { kind: "result", results: [one], itemDone: true };
     }
 
-    // L'original (classe entière) n'est PAS supprimé ici : il ne le sera qu'une fois
-    // tous les morceaux déposés dans Temp, pour ne jamais perdre la source.
     await patchItem(job.jobId, itemIndex, { phase: "segments", segments, segmentIndex: 0 });
     return {
       kind: "continue",
@@ -504,6 +701,7 @@ async function stepItem(
   const segIndex = item.segmentIndex ?? 0;
   const total = segments.length;
   if (segIndex >= total) {
+    ocrTrace(job.jobId, "item", "segments-done", "tous les segments traités", { total });
     return { kind: "result", results: [], itemDone: true };
   }
 
@@ -511,9 +709,15 @@ async function stepItem(
   const label = `${item.fileName} [p.${seg.pageStart}-${seg.pageEnd}]`;
   const isLast = segIndex + 1 >= total;
 
+  ocrTrace(job.jobId, "item", "segment", `classement segment ${segIndex + 1}/${total}`, {
+    label,
+    pages: `${seg.pageStart}-${seg.pageEnd}`,
+    isLast,
+  });
+
   const freshForSeg = await readBatchJob(job.jobId);
   if (freshForSeg && hasSuccessfulResult(freshForSeg, label)) {
-    log(job.jobId, `Segment déjà en succès "${label}" — skip.`);
+    ocrTrace(job.jobId, "item", "segment-skip", "segment déjà en succès", { label });
     await patchItem(job.jobId, itemIndex, { segmentIndex: segIndex + 1 });
     return {
       kind: "result",
@@ -527,21 +731,26 @@ async function stepItem(
   let tempSegPath: string | undefined;
 
   try {
-    // 1) On dépose TOUJOURS le morceau dans Temp avant toute analyse : ainsi aucun bloc
-    //    n'est perdu si l'analyse échoue ou si l'élève n'est pas identifié.
+    ocrTrace(job.jobId, "item", "segment-extract", "extraction pages PDF segment", {
+      s3Key: item.s3Key,
+      pages: `${seg.pageStart}-${seg.pageEnd}`,
+    });
     const pdfBytes = await extractPdfPagesBytes(item.s3Key, seg.pageStart, seg.pageEnd);
     tempSegPath = segmentTempFileName(item.fileName, seg.pageStart, seg.pageEnd, segIndex);
     const segPath = tempSegPath;
+    ocrTrace(job.jobId, "onedrive", "segment-upload", "upload segment vers Temp", {
+      tempPath: segPath,
+      bytes: pdfBytes.length,
+    });
     const upload = await withToken(ctx, (token) => uploadBytesToOneDrive(token, segPath, pdfBytes));
     if (!upload.ok) {
       throw new Error(`Upload segment OneDrive : ${upload.detail}`);
     }
-    log(job.jobId, `Segment déposé Temp "${label}" → ${tempSegPath}`);
+    ocrTrace(job.jobId, "onedrive", "segment-upload-ok", "segment déposé Temp", { label, tempSegPath });
 
-    // 2) Texte du segment. S'il est vide, le morceau reste dans Temp (jamais perdu).
     const slice = buildTextFromPages(ocr.pageTexts, seg.pageStart, seg.pageEnd, ocr.text);
     if (!slice.trim()) {
-      log(job.jobId, `Segment texte vide "${label}" — morceau laissé dans Temp.`);
+      ocrTrace(job.jobId, "item", "segment-empty", "texte segment vide — laissé dans Temp", { label }, "warn");
       segResult = {
         success: false,
         error: "Texte du segment vide — morceau laissé dans Temp, à classer à la main.",
@@ -549,12 +758,16 @@ async function stepItem(
         tempOneDrivePath: tempSegPath,
       };
     } else {
+      ocrTrace(job.jobId, "item", "segment-classify", "analyse segment", {
+        label,
+        textChars: slice.length,
+      });
       segResult = await analyzeAndMove(ctx, slice, tempSegPath, label);
     }
   } catch (segErr) {
     if (segErr instanceof TokenExpiredError) throw segErr;
     const msg = segErr instanceof Error ? segErr.message : String(segErr);
-    log(job.jobId, `ÉCHEC TECHNIQUE segment "${label}" : ${msg}`);
+    ocrTrace(job.jobId, "item", "segment-error", "échec technique segment", { label, error: msg }, "error");
     segResult = {
       success: false,
       error: tempSegPath ? `${msg} — document laissé dans Temp.` : msg,
@@ -563,20 +776,31 @@ async function stepItem(
     };
   }
 
-  // Une fois le DERNIER morceau déposé, on supprime l'original (classe entière) du Temp.
   if (isLast) {
     try {
       await withToken(ctx, async (token) => {
         await deleteOneDrivePath(token, item.tempPath);
         return { ok: true as const };
       });
-      log(job.jobId, `Original supprimé Temp "${item.tempPath}" (dernier segment traité).`);
+      ocrTrace(job.jobId, "onedrive", "original-deleted", "original classe supprimé du Temp", {
+        tempPath: item.tempPath,
+      });
     } catch (delErr) {
       if (delErr instanceof TokenExpiredError) throw delErr;
-      log(job.jobId, `Suppression original Temp échouée "${item.tempPath}" :`, delErr);
+      ocrTrace(job.jobId, "onedrive", "original-delete-fail", "suppression original Temp échouée", {
+        tempPath: item.tempPath,
+        error: delErr instanceof Error ? delErr.message : String(delErr),
+      }, "warn");
     }
   }
 
+  ocrTrace(job.jobId, "item", "segment-result", "résultat segment", {
+    label,
+    success: segResult.success,
+    error: segResult.error ?? null,
+    segmentIndex: segIndex + 1,
+    total,
+  });
   await patchItem(job.jobId, itemIndex, { segmentIndex: segIndex + 1 });
   return {
     kind: "result",
@@ -587,19 +811,45 @@ async function stepItem(
 }
 
 export async function runOcrBatchJob(jobId: string) {
+  const invokeStartedAt = Date.now();
+  ocrTrace(jobId, "worker", "invoke", "runOcrBatchJob appelé");
+
   const pre = await readBatchJob(jobId);
-  if (!pre) return;
-  if (pre.status === "completed" || pre.status === "failed" || pre.status === "needs_token") return;
-  if (pre.nextRunAt && Date.now() < new Date(pre.nextRunAt).getTime()) return;
+  if (!pre) {
+    ocrTrace(jobId, "worker", "abort", "job introuvable", undefined, "warn");
+    return;
+  }
+  if (pre.status === "completed" || pre.status === "failed" || pre.status === "needs_token") {
+    ocrTrace(jobId, "worker", "skip", "job déjà terminal", { status: pre.status });
+    return;
+  }
+
+  const workerOrigin = resolveWorkerOrigin(pre);
+  ocrTrace(jobId, "worker", "context", "état initial du lot", {
+    ...summarizeBatchJob(pre),
+    workerOrigin: workerOrigin ?? null,
+    hasWorkerSecret: Boolean(process.env.OCR_WORKER_SECRET?.trim()),
+  });
+
+  if (pre.nextRunAt && Date.now() < new Date(pre.nextRunAt).getTime()) {
+    const delay = Math.min(8_000, new Date(pre.nextRunAt).getTime() - Date.now());
+    ocrTrace(jobId, "worker", "defer-nextRunAt", "nextRunAt futur — relance planifiée", {
+      nextRunAt: pre.nextRunAt,
+      delayMs: delay,
+    });
+    await scheduleWorkerContinuation(workerOrigin, jobId, delay);
+    return;
+  }
 
   if (!(await acquireRunLock(jobId))) {
-    log(jobId, "lock non acquis — une autre invocation traite déjà ce lot (ou lock récent).");
+    ocrTrace(jobId, "worker", "defer-lock", "lock non acquis — nouvelle tentative planifiée", undefined, "warn");
+    await scheduleWorkerContinuation(workerOrigin, jobId, 4_000);
     return;
   }
 
   // Délai d'auto-relance serveur : > 0 si le worker s'interrompt avec du travail restant.
   let chainDelayMs: number | null = null;
-  const originUrl = pre.originUrl;
+  const originUrl = workerOrigin;
 
   try {
     let job = await readBatchJob(jobId);
@@ -612,16 +862,21 @@ export async function runOcrBatchJob(jobId: string) {
       odProfile,
       refreshToken: await resolveServerRefreshToken(job, odProfile),
     };
-    log(
-      jobId,
-      `démarrage — ${job.items.length} item(s), reprise à ${job.currentItemIndex}, ` +
-        `profilOneDrive=${odProfile ? `${odProfile.secteur} (${odProfile.basePath})` : "AUCUN ⚠️"}, ` +
-        `refreshTokenServeur=${ctx.refreshToken ? "oui" : "non"}`,
-    );
+    ocrTrace(jobId, "worker", "start", "worker démarré", {
+      totalItems: job.items.length,
+      currentItemIndex: job.currentItemIndex,
+      profilOneDrive: odProfile ? `${odProfile.secteur} (${odProfile.basePath})` : null,
+      refreshTokenServeur: Boolean(ctx.refreshToken),
+      runBudgetMs: RUN_BUDGET_MS,
+    });
     if (!odProfile) {
-      log(
+      ocrTrace(
         jobId,
-        "⚠️ AUCUN profil OneDrive → risque « élève non identifié ». Vérifier Paramètres → Intégrations.",
+        "worker",
+        "warn-profile",
+        "AUCUN profil OneDrive — risque élève non identifié",
+        undefined,
+        "warn",
       );
     }
 
@@ -634,11 +889,14 @@ export async function runOcrBatchJob(jobId: string) {
     const startedAt = Date.now();
 
     while (true) {
-      if (Date.now() - startedAt > RUN_BUDGET_MS) {
-        log(
-          jobId,
-          `budget épuisé (${RUN_BUDGET_MS}ms) — reprise planifiée à l'item ${job.currentItemIndex}/${job.items.length}.`,
-        );
+      const elapsedMs = Date.now() - startedAt;
+      if (elapsedMs > RUN_BUDGET_MS) {
+        ocrTrace(jobId, "worker", "budget", "budget invocation épuisé — reprise planifiée", {
+          elapsedMs,
+          runBudgetMs: RUN_BUDGET_MS,
+          currentItemIndex: job.currentItemIndex,
+          totalItems: job.items.length,
+        });
         await patchJob(jobId, {
           status: "processing",
           nextRunAt: new Date().toISOString(),
@@ -664,13 +922,25 @@ export async function runOcrBatchJob(jobId: string) {
           nextRunAt: undefined,
           label: `Terminé — ${job.results.length} document${job.results.length > 1 ? "s" : ""} traité${job.results.length > 1 ? "s" : ""}`,
         });
-        log(jobId, `TERMINÉ — ${completed} succès / ${failed} échec(s) sur ${job.results.length} résultat(s)`);
+        ocrTrace(jobId, "worker", "complete", "lot terminé", {
+          completed,
+          failed,
+          totalResults: job.results.length,
+          durationMs: Date.now() - invokeStartedAt,
+        });
         await deleteOcrCacheForJob(job);
         return;
       }
 
       const itemIndex = job.currentItemIndex;
       const item = job.items[itemIndex];
+
+      ocrTrace(jobId, "worker", "loop", "tour de boucle", {
+        elapsedMs: Date.now() - startedAt,
+        itemIndex,
+        fileName: item?.fileName,
+        phase: item?.phase ?? "ocr_start",
+      });
 
       const claim = await resolveItemClaim(jobId, job, itemIndex);
       if (claim === "skip-advance") {
@@ -686,14 +956,20 @@ export async function runOcrBatchJob(jobId: string) {
         const outcome = await stepItem(ctx, job, itemIndex);
 
         if (outcome.kind === "wait") {
-          // Attente OCR utile : on patiente DANS le budget (jamais de blocage > timeout),
-          // pour que les lots usuels se terminent en une seule invocation (onglet fermable).
+          ocrTrace(jobId, "worker", "wait", "attente micro-étape", {
+            delayMs: outcome.delayMs,
+            label: outcome.label ?? null,
+            elapsedMs: Date.now() - startedAt,
+          });
           if (Date.now() - startedAt + outcome.delayMs < RUN_BUDGET_MS) {
             if (outcome.label) await patchJob(jobId, { label: outcome.label });
             await sleep(outcome.delayMs);
             continue;
           }
-          // Budget presque épuisé : on planifie une reprise (client ou invocation suivante).
+          ocrTrace(jobId, "worker", "defer-wait", "budget insuffisant pour wait — report nextRunAt", {
+            delayMs: outcome.delayMs,
+            elapsedMs: Date.now() - startedAt,
+          });
           await patchJob(jobId, {
             status: "processing",
             nextRunAt: new Date(Date.now() + outcome.delayMs).toISOString(),
@@ -704,6 +980,9 @@ export async function runOcrBatchJob(jobId: string) {
         }
 
         if (outcome.kind === "continue") {
+          ocrTrace(jobId, "worker", "continue", "micro-étape continue sans résultat", {
+            label: outcome.label ?? null,
+          });
           if (outcome.label) await patchJob(jobId, { label: outcome.label });
           continue;
         }
@@ -713,7 +992,7 @@ export async function runOcrBatchJob(jobId: string) {
         if (!current) return;
         const newResults = outcome.results.filter((r) => {
           if (current.results.some((ex) => ex.fileName === r.fileName && ex.success)) {
-            log(jobId, `Doublon ignoré "${r.fileName}" (déjà succès).`);
+            ocrTrace(jobId, "worker", "dedup", "doublon ignoré (déjà succès)", { fileName: r.fileName });
             return false;
           }
           return true;
@@ -728,6 +1007,13 @@ export async function runOcrBatchJob(jobId: string) {
               current.results.some((ex) => ex.fileName === r.fileName && ex.success),
           );
         const prog = computeProgress({ ...current, results: nextResults, currentItemIndex: nextIndex });
+        ocrTrace(jobId, "worker", "result", "résultats micro-étape enregistrés", {
+          newResults: newResults.map((r) => ({ fileName: r.fileName, success: r.success, error: r.error })),
+          itemDone: outcome.itemDone,
+          nextItemIndex: nextIndex,
+          percent: prog.percent,
+          itemSuccess,
+        });
         await writeBatchJob({
           ...current,
           results: nextResults,
@@ -750,7 +1036,9 @@ export async function runOcrBatchJob(jobId: string) {
         continue;
       } catch (err) {
         if (err instanceof TokenExpiredError) {
-          log(jobId, `needs_token — session OneDrive expirée sur "${item.fileName}".`);
+          ocrTrace(jobId, "worker", "needs_token", "session OneDrive expirée", {
+            fileName: item.fileName,
+          }, "warn");
           await patchJob(jobId, {
             status: "needs_token",
             error: "Session OneDrive expirée. Reconnectez Microsoft sur la page pour reprendre.",
@@ -759,7 +1047,10 @@ export async function runOcrBatchJob(jobId: string) {
           return;
         }
         const message = err instanceof Error ? err.message : String(err);
-        log(jobId, `ÉCHEC TECHNIQUE "${item.fileName}" : ${message}`);
+        ocrTrace(jobId, "worker", "item-error", "échec technique item", {
+          fileName: item.fileName,
+          error: message,
+        }, "error");
         const current = await readBatchJob(jobId);
         if (!current) return;
         await writeBatchJob({
@@ -778,7 +1069,10 @@ export async function runOcrBatchJob(jobId: string) {
       }
     }
   } catch (error) {
-    console.error(`[ocr-batch ${jobId}]`, error);
+    ocrTrace(jobId, "worker", "fatal", "erreur fatale worker", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack?.slice(0, 500) : undefined,
+    }, "error");
     const j = await readBatchJob(jobId);
     if (j && j.status !== "completed") {
       await patchJob(jobId, {
@@ -789,11 +1083,32 @@ export async function runOcrBatchJob(jobId: string) {
     }
   } finally {
     await releaseRunLock(jobId);
-    // Lock libéré → on peut relancer une invocation fraîche sans collision.
+    const snapshot = await readBatchJob(jobId);
+    const stillRunning =
+      snapshot &&
+      snapshot.status === "processing" &&
+      snapshot.currentItemIndex < snapshot.items.length;
+    const chainOrigin = resolveWorkerOrigin(snapshot) ?? originUrl;
+
     if (chainDelayMs !== null) {
-      log(jobId, `auto-relance dans ${chainDelayMs}ms (origin=${originUrl ?? "?"})`);
-      await fireSelfChain(originUrl, jobId, chainDelayMs);
+      ocrTrace(jobId, "relay", "chain", "auto-relance planifiée (finally)", {
+        chainDelayMs,
+        origin: chainOrigin ?? null,
+        stillRunning,
+      });
+      await scheduleWorkerContinuation(chainOrigin, jobId, chainDelayMs);
+    } else if (stillRunning) {
+      ocrTrace(jobId, "relay", "safety", "lot incomplet — relance de sécurité serveur", {
+        origin: chainOrigin ?? null,
+        ...summarizeBatchJob(snapshot!),
+      }, "warn");
+      await scheduleWorkerContinuation(chainOrigin, jobId, 0);
     }
+    ocrTrace(jobId, "worker", "invoke-end", "fin invocation runOcrBatchJob", {
+      durationMs: Date.now() - invokeStartedAt,
+      stillRunning,
+      chainDelayMs,
+    });
   }
 }
 

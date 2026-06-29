@@ -1,7 +1,8 @@
 import { after, NextResponse } from "next/server";
 import { resolveSession } from "@/app/lib/intranet-session";
 import { readBatchJob } from "../batch-job";
-import { runOcrBatchJob } from "@/app/lib/ocr-batch-process";
+import { kickOcrBatchWorker, resolveWorkerOrigin, runOcrBatchJob } from "@/app/lib/ocr-batch-process";
+import { ocrTrace, summarizeBatchJob } from "@/app/lib/ocr-trace";
 
 /**
  * Réponse HTTP rapide — le worker tourne via after() en micro-étapes non bloquantes.
@@ -51,11 +52,31 @@ export async function POST(req: Request) {
     );
   }
 
-  // Le worker gère lui-même le verrou, la planification (nextRunAt) et les micro-étapes.
-  console.log(`[ocr-batch ${jobId}] process déclenché (client, user=${userId})`);
-  after(() =>
-    runOcrBatchJob(jobId).catch((err) => console.error(`[ocr-batch ${jobId}] process after():`, err)),
-  );
+  ocrTrace(jobId, "api", "process", "process déclenché par client", {
+    userId,
+    jobStatus: job.status,
+    ...summarizeBatchJob(job),
+  });
+  const origin = resolveWorkerOrigin(job);
+  if (process.env.OCR_WORKER_SECRET?.trim() && origin) {
+    await kickOcrBatchWorker(jobId, origin).catch((err) =>
+      ocrTrace(jobId, "api", "process-kick-fail", "échec kick process", {
+        error: err instanceof Error ? err.message : String(err),
+      }, "error"),
+    );
+  } else {
+    ocrTrace(jobId, "api", "process-after", "repli after() (pas de chaîne HTTP)", {
+      hasSecret: Boolean(process.env.OCR_WORKER_SECRET?.trim()),
+      origin: origin ?? null,
+    }, "warn");
+    after(() =>
+      runOcrBatchJob(jobId).catch((err) =>
+        ocrTrace(jobId, "api", "process-after-error", "process after() en erreur", {
+          error: err instanceof Error ? err.message : String(err),
+        }, "error"),
+      ),
+    );
+  }
 
   return NextResponse.json(
     { ok: true, accepted: true, detail: "Traitement OCR relancé en arrière-plan." },
