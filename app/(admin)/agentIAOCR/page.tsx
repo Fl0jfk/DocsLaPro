@@ -992,6 +992,8 @@ function OneDriveUpDocsOCRAIContent() {
     !ocrProcessing &&
     !processingLockRef.current &&
     (ocrResults.length > 0 || processingStatus.done > 0 || processingStatus.percent >= 100);
+  const isUploadPhase = ocrProcessing && !activeBatchJobId;
+  const isServerPhase = ocrProcessing && Boolean(activeBatchJobId) && !batchJobNeedsToken;
   const progressPercent = progressDetail?.percent ?? processingStatus.percent;
   const progressCaption = isUploadPhase
     ? processingStatus.totalKnown && processingStatus.total > 1
@@ -1109,9 +1111,6 @@ function OneDriveUpDocsOCRAIContent() {
   };
 
   const failedResults = ocrResults.filter((r) => !r.success);
-
-  const isUploadPhase = ocrProcessing && !activeBatchJobId;
-  const isServerPhase = ocrProcessing && Boolean(activeBatchJobId) && !batchJobNeedsToken;
 
   const ProcessingSpinner = ({ size = "text-7xl" }: { size?: string }) => (
     <span
