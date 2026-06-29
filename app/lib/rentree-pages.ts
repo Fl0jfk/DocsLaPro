@@ -37,11 +37,27 @@ function pageFromLegacy(est: Establishment, legacy: RentreeLinksByLevel): Rentre
   };
 }
 
-function pageFromExisting(est: Establishment, page: RentreeEstablishmentPage): RentreeEstablishmentPage {
-  const sections =
+function rentreePageHasItems(sections: RentreeSection[]): boolean {
+  return sections.some((s) => s.items.length > 0);
+}
+
+function pageFromExisting(
+  est: Establishment,
+  page: RentreeEstablishmentPage,
+  legacyLinks: RentreeLinksByLevel[],
+): RentreeEstablishmentPage {
+  let sections =
     Array.isArray(page.sections) && page.sections.length > 0
       ? normalizeRentreeSections(cloneSections(page.sections))
       : DEFAULT_RENTREE_SECTIONS.map((s) => ({ ...s, items: [] }));
+
+  if (!rentreePageHasItems(sections)) {
+    const legacy = legacyForKind(est.kind, legacyLinks);
+    if (legacy && rentreePageHasItems(legacy.sections)) {
+      sections = normalizeRentreeSections(cloneSections(legacy.sections));
+    }
+  }
+
   return {
     establishmentId: est.id,
     label: String(page.label || est.label).trim() || est.label,
@@ -61,12 +77,22 @@ export function syncRentreePages(
 ): RentreeEstablishmentPage[] {
   const active = getActiveEstablishments(establishments);
   if (active.length === 0) {
-    return pages.length > 0 ? pages.map((p) => pageFromExisting({ id: p.establishmentId, label: p.label }, p)) : [];
+    return pages.length > 0
+      ? pages.map((p) => pageFromExisting({ id: p.establishmentId, label: p.label }, p, legacyLinks))
+      : [];
   }
 
   return active.map((est) => {
     const existing = pages.find((p) => p.establishmentId === est.id);
-    if (existing) return pageFromExisting(est, existing);
+    if (existing) return pageFromExisting(est, existing, legacyLinks);
+
+    const sameKindWithContent = pages.find((p) => {
+      if (p.establishmentId === est.id || !rentreePageHasItems(p.sections)) return false;
+      const linked = establishments.find((e) => e.id === p.establishmentId);
+      return linked?.kind === est.kind;
+    });
+    if (sameKindWithContent) return pageFromExisting(est, sameKindWithContent, legacyLinks);
+
     const legacy = legacyForKind(est.kind, legacyLinks);
     if (legacy) return pageFromLegacy(est, legacy);
     const blank = emptyRentreePage(est.id, est.label);

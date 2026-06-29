@@ -177,6 +177,12 @@ function RentreePageContent({
     () => (active?.sections ?? []).find((s) => isInternatRentreeSection(s)),
     [active?.sections],
   );
+  const hasVisibleContent = useMemo(
+    () =>
+      mainSections.some((s) => s.items.length > 0) ||
+      Boolean(internatSection && internatSection.items.length > 0),
+    [mainSections, internatSection],
+  );
 
   const setEstablishment = (establishmentId: string) => {
     const url = new URL(window.location.href);
@@ -246,9 +252,7 @@ function RentreePageContent({
         <div className="flex items-center justify-between gap-4 flex-wrap mb-8 mt-8">
           <h2 className="text-3xl font-black text-slate-900">{active.label}</h2>
         </div>
-        {active.sections.length === 0 ? (
-          <p className="text-slate-500 text-sm">Contenu en cours de préparation.</p>
-        ) : (
+        {hasVisibleContent ? (
           <div className="space-y-10">
             {mainSections.map((section) => (
               <RentreeSectionPanel key={section.title} section={section} accent={a} />
@@ -257,6 +261,8 @@ function RentreePageContent({
               <RentreeSectionPanel section={internatSection} accent={a} variant="internat" />
             ) : null}
           </div>
+        ) : (
+          <p className="text-slate-500 text-sm">Contenu en cours de préparation.</p>
         )}
       </main>
 
