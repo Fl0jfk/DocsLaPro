@@ -90,6 +90,7 @@ type OcrProgressDetail = {
 };
 
 type BatchJobStatusPayload = {
+  jobId?: string;
   status?: string;
   label?: string;
   percent?: number;
@@ -155,6 +156,7 @@ function OneDriveUpDocsOCRAIContent() {
   const ocrAbortRef = useRef<AbortController | null>(null);
   const ocrProcessingRef = useRef(false);
   const processingLockRef = useRef(false);
+  const activeBatchJobIdRef = useRef<string | null>(null);
   const [checkingOneDrive, setCheckingOneDrive] = useState(false);
   const [oneDriveVerified, setOneDriveVerified] = useState(false);
   const [activeBatchJobId, setActiveBatchJobId] = useState<string | null>(null);
@@ -296,6 +298,10 @@ function OneDriveUpDocsOCRAIContent() {
     ocrProcessingRef.current = ocrProcessing;
   }, [ocrProcessing]);
 
+  useEffect(() => {
+    activeBatchJobIdRef.current = activeBatchJobId;
+  }, [activeBatchJobId]);
+
   const abortOcrInFlight = useCallback(() => {
     ocrAbortRef.current?.abort();
     ocrAbortRef.current = new AbortController();
@@ -315,10 +321,16 @@ function OneDriveUpDocsOCRAIContent() {
     abortOcrInFlight();
     resetOcrSessionUi(true);
     setPendingClassFiles([]);
+    setActiveBatchJobId(null);
+    activeBatchJobIdRef.current = null;
+    localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
     localStorage.removeItem(BATCH_JOB_LAST_RESULTS_KEY);
   }, [abortOcrInFlight, resetOcrSessionUi]);
 
-  const applyBatchJobStatusToUi = useCallback((st: BatchJobStatusPayload) => {
+  const applyBatchJobStatusToUi = useCallback((st: BatchJobStatusPayload, jobId?: string | null) => {
+    const incomingJobId = jobId ?? st.jobId ?? null;
+    if (incomingJobId && activeBatchJobIdRef.current !== incomingJobId) return;
+
     const pct = st.progress?.percent ?? st.percent;
     setProcessingStatus({
       percent: typeof pct === "number" ? pct : 0,
@@ -518,8 +530,10 @@ function OneDriveUpDocsOCRAIContent() {
     }
 
     setOcrProcessing(false);
+    activeBatchJobIdRef.current = null;
     setActiveBatchJobId(null);
     setBatchJobNeedsToken(false);
+    setProgressDetail(null);
     localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
     setProcessingStatus({
       ...INITIAL_OCR_PROCESSING_STATUS,
@@ -570,17 +584,22 @@ function OneDriveUpDocsOCRAIContent() {
         const st = (await stRes.json()) as BatchJobStatusPayload & { jobId?: string };
 
         if (st.status === "pending" || st.status === "processing" || st.status === "needs_token") {
+          activeBatchJobIdRef.current = jobId;
           setActiveBatchJobId(jobId);
           setOcrProcessing(true);
-          applyBatchJobStatusToUi(st);
+          applyBatchJobStatusToUi(st, jobId);
           if (st.status === "needs_token") setBatchJobNeedsToken(true);
           return;
         }
 
         if (st.status === "completed" || st.status === "failed") {
           persistFinishedBatchJob(jobId);
-          applyBatchJobStatusToUi(st);
+          if (Array.isArray(st.results)) {
+            setOcrResults(st.results);
+            setOcrResultsSessionId((id) => id + 1);
+          }
           if (st.status === "failed" && st.error) setError(String(st.error));
+          return;
         }
       } catch {
         /* ignore */
@@ -610,7 +629,7 @@ function OneDriveUpDocsOCRAIContent() {
           serverManaged = st.serverManaged;
         }
 
-        applyBatchJobStatusToUi(st);
+        applyBatchJobStatusToUi(st, activeBatchJobId);
 
         if (st.status === "needs_token") {
           const fresh = await ensureOneDriveConnection();
@@ -637,6 +656,7 @@ function OneDriveUpDocsOCRAIContent() {
 
         if (st.status === "completed" || st.status === "failed") {
           setOcrProcessing(false);
+          activeBatchJobIdRef.current = null;
           setActiveBatchJobId(null);
           persistFinishedBatchJob(activeBatchJobId);
           if (st.status === "failed" && st.error) setError(String(st.error));
@@ -699,7 +719,15 @@ function OneDriveUpDocsOCRAIContent() {
     setError("");
     setOcrResults([]);
     setBatchJobNeedsToken(false);
+    activeBatchJobIdRef.current = null;
     setActiveBatchJobId(null);
+    setProgressDetail(null);
+    localStorage.removeItem(BATCH_JOB_STORAGE_KEY);
+    setProcessingStatus({
+      ...INITIAL_OCR_PROCESSING_STATUS,
+      percent: 1,
+      label: "Préparation de l'envoi…",
+    });
 
     const allEntries: { file: File; mode: "standard" | "class" }[] = files.map(
       (file) => ({ file, mode: "class" as const }),
@@ -780,6 +808,7 @@ function OneDriveUpDocsOCRAIContent() {
       if (!jobId) throw new Error("Impossible de créer le traitement serveur");
 
       localStorage.setItem(BATCH_JOB_STORAGE_KEY, jobId);
+      activeBatchJobIdRef.current = jobId;
       setActiveBatchJobId(jobId);
       applyProcessingProgress(
         {
@@ -835,6 +864,8 @@ function OneDriveUpDocsOCRAIContent() {
       setError("Seuls les fichiers PDF sont acceptés.");
     }
     if (!canAcceptNewOcrFiles()) return;
+
+    setProgressDetail(null);
 
     const hasPending = pendingClassFiles.length > 0;
     const hasPriorSession =
@@ -962,7 +993,11 @@ function OneDriveUpDocsOCRAIContent() {
     !processingLockRef.current &&
     (ocrResults.length > 0 || processingStatus.done > 0 || processingStatus.percent >= 100);
   const progressPercent = progressDetail?.percent ?? processingStatus.percent;
-  const progressCaption = progressDetail
+  const progressCaption = isUploadPhase
+    ? processingStatus.totalKnown && processingStatus.total > 1
+      ? `Fichier ${Math.min(processingStatus.done + 1, processingStatus.total)} / ${processingStatus.total}`
+      : "Envoi en cours…"
+    : progressDetail
     ? progressDetail.phase === "segments" && progressDetail.segmentTotal
       ? `Document ${progressDetail.segmentIndex ?? 0} / ${progressDetail.segmentTotal}`
       : progressDetail.phase === "ocr"
