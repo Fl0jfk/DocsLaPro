@@ -76,6 +76,8 @@ export type OcrBatchJobItem = {
   segmentationEngine?: "identity" | "mistral" | "mistral_chunked" | "heuristic";
   /** Horodatage ISO : verrou optimiste anti-traitement concurrent du même item. */
   itemClaimedAt?: string;
+  /** Nombre d'erreurs techniques consécutives sur cet item (retry borné avant échec définitif). */
+  errorCount?: number;
 };
 
 export type OcrBatchJob = {

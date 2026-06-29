@@ -196,15 +196,14 @@ function OneDriveUpDocsOCRAIContent() {
   const ocrProcessingRef = useRef(false);
   const processingLockRef = useRef(false);
   const activeBatchJobIdRef = useRef<string | null>(null);
+  /** Pics monotones par session : empêchent les compteurs UI de régresser (poll S3 en retard). */
+  const progressPeakRef = useRef<{ percent: number; totalDocs: number }>({ percent: 0, totalDocs: 0 });
   const [checkingOneDrive, setCheckingOneDrive] = useState(false);
   const [oneDriveVerified, setOneDriveVerified] = useState(false);
   const [activeBatchJobId, setActiveBatchJobId] = useState<string | null>(null);
   const [batchJobNeedsToken, setBatchJobNeedsToken] = useState(false);
   const [batchPollIssue, setBatchPollIssue] = useState<"offline" | "auth" | null>(null);
   const [batchServerSelfRelays, setBatchServerSelfRelays] = useState(false);
-  const [serverTraceLog, setServerTraceLog] = useState<OcrServerTraceEntry[]>([]);
-  const [showServerTrace, setShowServerTrace] = useState(true);
-  const serverTraceEndRef = useRef<HTMLDivElement | null>(null);
   const [progressDetail, setProgressDetail] = useState<OcrProgressDetail | null>(null);
 
   const applyOneDriveSession = useCallback((activeAccount: msal.AccountInfo | null, token: string | null) => {
@@ -357,16 +356,14 @@ function OneDriveUpDocsOCRAIContent() {
     if (clearResults) setOcrResults([]);
     setError("");
     setProgressDetail(null);
-    setServerTraceLog([]);
     setProcessingStatus(INITIAL_OCR_PROCESSING_STATUS);
     if (classInputRef.current) classInputRef.current.value = "";
   }, []);
 
+  // Nouveau lot → on repart de zéro pour les pics monotones (sinon le total d'un lot précédent reste).
   useEffect(() => {
-    if (showServerTrace && serverTraceLog.length > 0) {
-      serverTraceEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-  }, [serverTraceLog, showServerTrace]);
+    progressPeakRef.current = { percent: 0, totalDocs: 0 };
+  }, [activeBatchJobId]);
 
   const prepareOcrSessionForNewBatch = useCallback(() => {
     abortOcrInFlight();
@@ -403,9 +400,6 @@ function OneDriveUpDocsOCRAIContent() {
         typeof failedCount === "number" ? Math.max(prev.failed, failedCount) : prev.failed,
     }));
     setProgressDetail(st.progress ?? null);
-    if (Array.isArray(st.traceLog)) {
-      setServerTraceLog(st.traceLog);
-    }
     if (Array.isArray(st.results)) {
       setOcrResults((prev) => mergeOcrResultsForUi(prev, st.results!));
     }
@@ -668,7 +662,8 @@ function OneDriveUpDocsOCRAIContent() {
         setBatchJobNeedsToken(true);
         return;
       }
-      await triggerBatchWorker(jobId);
+      // /process exécute un chunk synchrone (jusqu'à ~55s) : on ne bloque pas le bouton.
+      void triggerBatchWorker(jobId);
     } catch {
       setBatchPollIssue("offline");
       setError("Connexion interrompue. Le traitement peut continuer côté serveur — réessayez dans un instant.");
@@ -729,6 +724,18 @@ function OneDriveUpDocsOCRAIContent() {
     let polls = 0;
     let serverManaged = false;
     let consecutiveFailures = 0;
+    let pendingTerminal = 0;
+    // Garde « un seul chunk en vol » : /process exécute désormais un chunk SYNCHRONE (jusqu'à ~55s).
+    // On le lance sans bloquer la boucle de poll (l'UI continue de se rafraîchir via /status),
+    // et on enchaîne le chunk suivant dès que le précédent rend la main.
+    let workerInFlight = false;
+    const driveWorker = (id: string) => {
+      if (workerInFlight || cancelled) return;
+      workerInFlight = true;
+      void triggerBatchWorker(id).finally(() => {
+        workerInFlight = false;
+      });
+    };
 
     const tick = async () => {
       if (cancelled) return;
@@ -786,7 +793,7 @@ function OneDriveUpDocsOCRAIContent() {
             if (resumeRes.ok) {
               setBatchJobNeedsToken(false);
               setError("");
-              await triggerBatchWorker(activeBatchJobId);
+              driveWorker(activeBatchJobId);
               void tick();
               return;
             }
@@ -800,6 +807,14 @@ function OneDriveUpDocsOCRAIContent() {
         }
 
         if (st.status === "completed" || st.status === "failed") {
+          // Un état terminal peut être TRANSITOIRE (un worker concurrent côté serveur relance le
+          // lot juste après). On confirme sur 2 sondages consécutifs avant d'arrêter le suivi —
+          // sinon l'interface se figeait et proposait à tort de redéposer un fichier.
+          pendingTerminal += 1;
+          if (pendingTerminal < 2) {
+            void tick();
+            return;
+          }
           setOcrProcessing(false);
           activeBatchJobIdRef.current = null;
           setActiveBatchJobId(null);
@@ -807,6 +822,7 @@ function OneDriveUpDocsOCRAIContent() {
           if (st.status === "failed" && st.error) setError(String(st.error));
           return;
         }
+        pendingTerminal = 0;
 
         // Rafraîchissement token OneDrive (~toutes les 8 s) — utile même en mode serveur.
         if (polls % 4 === 0) {
@@ -825,9 +841,11 @@ function OneDriveUpDocsOCRAIContent() {
           }
         }
 
-        // Relance worker : toujours au 1er poll + secours périodique (même en mode serveur).
-        if (polls === 1 || polls % 5 === 0 || !serverManaged) {
-          await triggerBatchWorker(activeBatchJobId);
+        // Moteur d'avancement : en mode client (pas d'auto-relance serveur), on pilote le worker
+        // à chaque poll (le garde workerInFlight enchaîne les chunks sans les empiler). En mode
+        // serveur, la chaîne tourne en arrière-plan : on se contente d'un secours périodique.
+        if (!serverManaged || polls === 1 || polls % 5 === 0) {
+          driveWorker(activeBatchJobId);
         }
 
         void tick();
@@ -1147,19 +1165,36 @@ function OneDriveUpDocsOCRAIContent() {
     (ocrResults.length > 0 || processingStatus.done > 0 || processingStatus.percent >= 100);
   const isUploadPhase = ocrProcessing && !activeBatchJobId;
   const isServerPhase = ocrProcessing && Boolean(activeBatchJobId) && !batchJobNeedsToken;
-  const sessionDocSucceeded =
-    progressDetail?.documentsSucceeded ?? ocrResults.filter((r) => r.success).length;
-  const sessionDocFailed =
-    progressDetail?.documentsFailed ?? ocrResults.filter((r) => !r.success).length;
-  const sessionDocTotal = progressDetail?.segmentTotal ?? null;
-  const progressPercent = progressDetail?.percent ?? processingStatus.percent;
+  // Compteurs de session : même source que la liste de résultats (ocrResults, fusionnée et
+  // monotone). On ne s'appuie PAS sur progressDetail brut, qui peut régresser (poll S3 en retard
+  // ou écriture concurrente côté serveur) et provoquait les sauts 8→7→5 / le sous-comptage.
+  const sessionDocSucceeded = ocrResults.filter((r) => r.success).length;
+  const sessionDocFailed = ocrResults.filter((r) => !r.success).length;
+  const sessionDocProcessed = sessionDocSucceeded + sessionDocFailed;
+  const rawDocTotal =
+    progressDetail?.phase === "segments" && progressDetail.segmentTotal
+      ? progressDetail.segmentTotal
+      : 0;
+  // Pic monotone du total de documents (ne redescend jamais pendant un lot).
+  const displayDocTotal = Math.max(progressPeakRef.current.totalDocs, rawDocTotal, sessionDocProcessed);
+  const sessionDocTotal = displayDocTotal > 0 ? displayDocTotal : null;
+  // Pendant le classement, le % suit EXACTEMENT le ratio "documents traités / total"
+  // (9/12 → 75 %) pour ne plus afficher un % incohérent avec le compteur. Sinon, poids serveur.
+  const rawPercent = progressDetail?.percent ?? processingStatus.percent ?? 0;
+  const ratioPercent =
+    progressDetail?.phase === "segments" && sessionDocTotal
+      ? Math.round((sessionDocProcessed / sessionDocTotal) * 100)
+      : rawPercent;
+  const displayPercent = Math.min(100, Math.max(progressPeakRef.current.percent, ratioPercent));
+  progressPeakRef.current = { percent: displayPercent, totalDocs: displayDocTotal };
+  const progressPercent = displayPercent;
   const progressCaption = isUploadPhase
     ? processingStatus.totalKnown && processingStatus.total > 1
       ? `Fichier ${Math.min(processingStatus.done + 1, processingStatus.total)} / ${processingStatus.total}`
       : "Envoi en cours…"
     : progressDetail
-    ? progressDetail.phase === "segments" && progressDetail.segmentTotal
-      ? `Document ${progressDetail.segmentIndex ?? 0} / ${progressDetail.segmentTotal}`
+    ? progressDetail.phase === "segments" && sessionDocTotal
+      ? `Document ${sessionDocProcessed} / ${sessionDocTotal}`
       : progressDetail.phase === "ocr"
         ? progressDetail.pdfPageCount
           ? progressDetail.ocrPagesRead && progressDetail.ocrPagesRead > 0
@@ -1620,11 +1655,11 @@ function OneDriveUpDocsOCRAIContent() {
                           <p className="font-black text-slate-800">{progressDetail.pageCount}</p>
                         </div>
                       ) : null}
-                      {progressDetail.phase === "segments" && progressDetail.segmentTotal ? (
+                      {progressDetail.phase === "segments" && sessionDocTotal ? (
                         <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
                           <p className="text-[10px] font-bold uppercase text-slate-400">Documents</p>
                           <p className="font-black text-slate-800">
-                            {progressDetail.segmentIndex ?? 0} / {progressDetail.segmentTotal}
+                            {sessionDocProcessed} / {sessionDocTotal}
                           </p>
                         </div>
                       ) : progressDetail.phase === "segmenting" ? (
@@ -1700,12 +1735,12 @@ function OneDriveUpDocsOCRAIContent() {
                         l&apos;étape la plus longue sur un gros lot.
                       </p>
                     ) : null}
-                    {progressDetail.phase === "segments" && progressDetail.segmentTotal && progressDetail.segmentIndex ? (
+                    {progressDetail.phase === "segments" && sessionDocTotal ? (
                       <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                         <div
                           className="bg-indigo-500 h-full transition-all duration-500"
                           style={{
-                            width: `${Math.min(100, Math.round((progressDetail.segmentIndex / progressDetail.segmentTotal) * 100))}%`,
+                            width: `${Math.min(100, Math.round((sessionDocProcessed / sessionDocTotal) * 100))}%`,
                           }}
                         />
                       </div>
@@ -1728,56 +1763,6 @@ function OneDriveUpDocsOCRAIContent() {
                     ) : null}
                   </div>
                 ) : null}
-                {(ocrProcessing && activeBatchJobId) || serverTraceLog.length > 0 ? (
-                  <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950 text-left overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setShowServerTrace((v) => !v)}
-                      className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left bg-slate-900 hover:bg-slate-800 border-b border-slate-800"
-                    >
-                      <span className="text-[11px] font-black uppercase tracking-wide text-slate-200">
-                        Journal serveur
-                        <span className="ml-2 font-mono text-slate-400 normal-case">
-                          ({serverTraceLog.length} ligne{serverTraceLog.length > 1 ? "s" : ""})
-                        </span>
-                      </span>
-                      <span className="text-slate-400 text-xs">{showServerTrace ? "Masquer" : "Afficher"}</span>
-                    </button>
-                    {showServerTrace ? (
-                      <div className="max-h-52 overflow-y-auto p-3 font-mono text-[10px] leading-relaxed text-slate-300 space-y-1">
-                        {serverTraceLog.length === 0 ? (
-                          <p className="text-amber-400">
-                            Aucun événement serveur enregistré. Soit le worker n&apos;a pas démarré, soit la
-                            dernière version (journal S3) n&apos;est pas encore déployée.
-                          </p>
-                        ) : (
-                          serverTraceLog.map((line, i) => (
-                            <div
-                              key={`${line.t}-${i}`}
-                              className={
-                                line.level === "error"
-                                  ? "text-red-400"
-                                  : line.level === "warn"
-                                    ? "text-amber-300"
-                                    : "text-slate-300"
-                              }
-                            >
-                              <span className="text-slate-500">
-                                {new Date(line.t).toLocaleTimeString("fr-FR", { hour12: false })}
-                              </span>{" "}
-                              <span className="text-indigo-400">[{line.scope}]</span>{" "}
-                              <span className="text-sky-400">[{line.phase}]</span> {line.message}
-                              {line.data ? (
-                                <span className="text-slate-500"> {JSON.stringify(line.data)}</span>
-                              ) : null}
-                            </div>
-                          ))
-                        )}
-                        <div ref={serverTraceEndRef} />
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
                 {processingStatus.label ? (
                   <p className="mt-3 text-center text-sm font-semibold text-blue-900/90">
                     {processingStatus.label}
@@ -1787,6 +1772,8 @@ function OneDriveUpDocsOCRAIContent() {
             </div>
           )}
 
+          {!ocrProcessing ? (
+          <>
           <div className="mb-4">
             <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
               Étape 2 — Dépôt des PDF
@@ -1865,6 +1852,8 @@ function OneDriveUpDocsOCRAIContent() {
               />
             </div>
           </div>
+          </>
+          ) : null}
 
           <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 mb-8">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -1888,17 +1877,15 @@ function OneDriveUpDocsOCRAIContent() {
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 bg-gray-50 rounded-2xl text-center">
                 <span className="text-xs text-gray-600 block">
-                  {progressDetail?.phase === "segments" && progressDetail.segmentTotal
-                    ? "Documents"
-                    : "Fichiers"}
+                  {sessionDocTotal ? "Documents" : "Fichiers"}
                 </span>
                 <span className="font-black text-lg">
-                  {progressDetail?.phase === "segments" && progressDetail.segmentTotal ? (
+                  {sessionDocTotal ? (
                     <>
-                      {progressDetail.segmentIndex ?? 0}
+                      {sessionDocProcessed}
                       <span className="text-sm font-bold text-gray-400">
                         {" "}
-                        / {progressDetail.segmentTotal}
+                        / {sessionDocTotal}
                       </span>
                     </>
                   ) : processingStatus.totalKnown ? (

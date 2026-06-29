@@ -1,13 +1,16 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { resolveSession } from "@/app/lib/intranet-session";
 import { readBatchJob } from "../batch-job";
-import { kickOcrBatchWorker, resolveWorkerOrigin, runOcrBatchJob } from "@/app/lib/ocr-batch-process";
+import { runOcrBatchJob } from "@/app/lib/ocr-batch-process";
 import { ocrTrace, summarizeBatchJob } from "@/app/lib/ocr-trace";
+import { flushOcrJobTraces } from "@/app/lib/ocr-job-trace-store";
 
 /**
- * Réponse HTTP rapide — le worker tourne via after() en micro-étapes non bloquantes.
- * maxDuration élevé pour laisser le worker enchaîner plusieurs items par invocation
- * (il s'auto-limite via RUN_BUDGET_MS bien en deçà de ce plafond).
+ * Moteur d'avancement piloté par le client (page ouverte).
+ * Exécute UN chunk du worker de façon SYNCHRONE pendant la requête (selfChain=false) :
+ * c'est fiable sur Amplify car cela ne dépend ni de after() ni d'un secret d'auto-relance.
+ * Le verrou S3 garantit qu'on ne double-traite pas si une chaîne serveur tourne déjà en arrière-plan.
+ * Le client rappelle cette route à chaque sondage pour enchaîner les chunks jusqu'à la fin.
  */
 export const maxDuration = 60;
 
@@ -52,34 +55,26 @@ export async function POST(req: Request) {
     );
   }
 
-  ocrTrace(jobId, "api", "process", "process déclenché par client", {
+  ocrTrace(jobId, "api", "process", "process déclenché par client (exécution synchrone d'un chunk)", {
     userId,
     jobStatus: job.status,
     ...summarizeBatchJob(job),
   });
-  const origin = resolveWorkerOrigin(job);
-  if (process.env.OCR_WORKER_SECRET?.trim() && origin) {
-    await kickOcrBatchWorker(jobId, origin).catch((err) =>
-      ocrTrace(jobId, "api", "process-kick-fail", "échec kick process", {
-        error: err instanceof Error ? err.message : String(err),
-      }, "error"),
-    );
-  } else {
-    ocrTrace(jobId, "api", "process-after", "repli after() (pas de chaîne HTTP)", {
-      hasSecret: Boolean(process.env.OCR_WORKER_SECRET?.trim()),
-      origin: origin ?? null,
-    }, "warn");
-    after(() =>
-      runOcrBatchJob(jobId).catch((err) =>
-        ocrTrace(jobId, "api", "process-after-error", "process after() en erreur", {
-          error: err instanceof Error ? err.message : String(err),
-        }, "error"),
-      ),
-    );
+
+  try {
+    // selfChain=false : un seul chunk, pas d'auto-relance serveur — le client rappellera /process.
+    await runOcrBatchJob(jobId, { selfChain: false });
+    await flushOcrJobTraces(jobId);
+  } catch (err) {
+    ocrTrace(jobId, "api", "process-error", "chunk worker synchrone en erreur", {
+      error: err instanceof Error ? err.message : String(err),
+    }, "error");
+    // On ne propage pas : le statut reste la source de vérité côté client, qui relancera.
   }
 
+  const fresh = (await readBatchJob(jobId)) ?? job;
   return NextResponse.json(
-    { ok: true, accepted: true, detail: "Traitement OCR relancé en arrière-plan." },
-    { status: 202 },
+    { ok: true, status: fresh.status, detail: "Chunk de traitement OCR exécuté." },
+    { status: 200 },
   );
 }

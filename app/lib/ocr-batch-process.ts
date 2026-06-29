@@ -49,6 +49,10 @@ const RUN_BUDGET_MS = 55_000;
 const OCR_POLL_DELAY_MS = 2_000;
 /** Un item claimé par un autre worker reste exclusif pendant cette durée. */
 const ITEM_CLAIM_TTL_MS = 60_000;
+/** Tentatives sur une erreur technique avant d'abandonner DÉFINITIVEMENT un document. */
+const MAX_ITEM_ERRORS = 3;
+/** Petite pause avant de réessayer un item en erreur transitoire (S3 / réseau). */
+const ITEM_RETRY_DELAY_MS = 1_500;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -954,9 +958,21 @@ async function stepItem(
   };
 }
 
-export async function runOcrBatchJob(jobId: string) {
+/**
+ * @param opts.selfChain
+ *   true (défaut) : le worker s'auto-relance côté serveur (chaîne HTTP interne / after())
+ *     pour avancer même onglet fermé — utilisé par la création et internal-run.
+ *   false : un seul chunk est exécuté puis on rend la main SANS planifier de relance serveur.
+ *     C'est le client (poll /process) qui relancera. Fiable quand la page reste ouverte,
+ *     même sans secret d'auto-relance configuré sur Amplify.
+ */
+export async function runOcrBatchJob(
+  jobId: string,
+  opts?: { selfChain?: boolean },
+) {
+  const selfChain = opts?.selfChain !== false;
   const invokeStartedAt = Date.now();
-  ocrTrace(jobId, "worker", "invoke", "runOcrBatchJob appelé");
+  ocrTrace(jobId, "worker", "invoke", "runOcrBatchJob appelé", { selfChain });
 
   const pre = await readBatchJob(jobId);
   if (!pre) {
@@ -980,14 +996,15 @@ export async function runOcrBatchJob(jobId: string) {
     ocrTrace(jobId, "worker", "defer-nextRunAt", "nextRunAt futur — relance planifiée", {
       nextRunAt: pre.nextRunAt,
       delayMs: delay,
+      selfChain,
     });
-    await scheduleWorkerContinuation(workerOrigin, jobId, delay);
+    if (selfChain) await scheduleWorkerContinuation(workerOrigin, jobId, delay);
     return;
   }
 
   if (!(await acquireRunLock(jobId))) {
-    ocrTrace(jobId, "worker", "defer-lock", "lock non acquis — nouvelle tentative planifiée", undefined, "warn");
-    await scheduleWorkerContinuation(workerOrigin, jobId, 4_000);
+    ocrTrace(jobId, "worker", "defer-lock", "lock non acquis — nouvelle tentative planifiée", { selfChain }, "warn");
+    if (selfChain) await scheduleWorkerContinuation(workerOrigin, jobId, 4_000);
     return;
   }
 
@@ -1059,6 +1076,20 @@ export async function runOcrBatchJob(jobId: string) {
       }
 
       if (job.currentItemIndex >= job.items.length) {
+        // Garde anti-complétion prématurée : ne JAMAIS marquer « terminé » s'il reste un document
+        // non clos (index avancé à tort par une écriture concurrente / un recalage). On recale
+        // l'index sur le premier item inachevé plutôt que de figer le lot trop tôt.
+        const firstUnfinished = job.items.findIndex(
+          (it) => it.status !== "done" && it.status !== "failed",
+        );
+        if (firstUnfinished >= 0) {
+          ocrTrace(jobId, "worker", "complete-guard", "fin de file mais document non terminé — recalage", {
+            firstUnfinished,
+            itemStatuses: job.items.map((it) => it.status),
+          }, "warn");
+          await patchJob(jobId, { currentItemIndex: firstUnfinished });
+          continue;
+        }
         const completed = job.results.filter((r) => r.success).length;
         const failed = job.results.filter((r) => !r.success).length;
         await patchJob(jobId, {
@@ -1166,11 +1197,13 @@ export async function runOcrBatchJob(jobId: string) {
           results: nextResults,
           currentItemIndex: nextIndex,
           items: current.items.map((it, i) =>
-            i === itemIndex && outcome.itemDone
+            i === itemIndex
               ? {
                   ...it,
-                  status: itemSuccess ? "done" : "failed",
-                  itemClaimedAt: undefined,
+                  errorCount: 0,
+                  ...(outcome.itemDone
+                    ? { status: itemSuccess ? ("done" as const) : ("failed" as const), itemClaimedAt: undefined }
+                    : {}),
                 }
               : it,
           ),
@@ -1194,12 +1227,33 @@ export async function runOcrBatchJob(jobId: string) {
           return;
         }
         const message = err instanceof Error ? err.message : String(err);
-        ocrTrace(jobId, "worker", "item-error", "échec technique item", {
-          fileName: item.fileName,
-          error: message,
-        }, "error");
         const current = await readBatchJob(jobId);
         if (!current) return;
+        const prevErrors = current.items[itemIndex]?.errorCount ?? 0;
+        const errorCount = prevErrors + 1;
+        if (errorCount < MAX_ITEM_ERRORS) {
+          // Erreur probablement transitoire (S3 / réseau / Graph) : on NE fait PAS échouer tout
+          // le document. On réessaie le même item depuis sa phase courante (segmentIndex conservé),
+          // ce qui évite qu'un simple hoquet S3 abandonne un PDF classe à moitié traité.
+          ocrTrace(jobId, "worker", "item-retry", "échec technique item — nouvelle tentative", {
+            fileName: item.fileName,
+            error: message,
+            attempt: errorCount,
+            maxAttempts: MAX_ITEM_ERRORS,
+          }, "warn");
+          await patchItem(jobId, itemIndex, {
+            errorCount,
+            itemClaimedAt: undefined,
+            status: "processing",
+          });
+          await sleep(ITEM_RETRY_DELAY_MS);
+          continue;
+        }
+        ocrTrace(jobId, "worker", "item-error", "échec technique item (définitif après tentatives)", {
+          fileName: item.fileName,
+          error: message,
+          attempts: errorCount,
+        }, "error");
         await writeBatchJob({
           ...current,
           results: [
@@ -1207,7 +1261,7 @@ export async function runOcrBatchJob(jobId: string) {
             { success: false, error: message, fileName: item.fileName, tempOneDrivePath: item.tempPath },
           ],
           items: current.items.map((it, i) =>
-            i === itemIndex ? { ...it, status: "failed" } : it,
+            i === itemIndex ? { ...it, status: "failed", itemClaimedAt: undefined, errorCount } : it,
           ),
           currentItemIndex: itemIndex + 1,
           updatedAt: new Date().toISOString(),
@@ -1237,7 +1291,13 @@ export async function runOcrBatchJob(jobId: string) {
       snapshot.currentItemIndex < snapshot.items.length;
     const chainOrigin = resolveWorkerOrigin(snapshot) ?? originUrl;
 
-    if (chainDelayMs !== null) {
+    if (!selfChain) {
+      // Mode piloté par le client : pas d'auto-relance serveur, le prochain /process reprendra.
+      ocrTrace(jobId, "relay", "client-driven", "fin de chunk — reprise déléguée au client (pas d'auto-relance)", {
+        stillRunning,
+        chainDelayMs,
+      });
+    } else if (chainDelayMs !== null) {
       ocrTrace(jobId, "relay", "chain", "auto-relance planifiée (finally)", {
         chainDelayMs,
         origin: chainOrigin ?? null,

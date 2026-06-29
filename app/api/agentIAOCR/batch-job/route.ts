@@ -115,7 +115,9 @@ export async function POST(req: Request) {
     }
   });
 
-  await kickOcrBatchWorker(jobId, origin).catch((err) =>
+  // Kick non bloquant : on renvoie le jobId immédiatement. Le worker démarre via after()
+  // (autonomie onglet fermé si secret configuré) ET via le pilotage client (/process synchrone).
+  void kickOcrBatchWorker(jobId, origin).catch((err) =>
     ocrTrace(jobId, "api", "kick-fail", "échec kick initial", {
       error: err instanceof Error ? err.message : String(err),
     }, "error"),
