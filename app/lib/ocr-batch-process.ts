@@ -213,9 +213,19 @@ export async function kickOcrBatchWorker(jobId: string, originUrl?: string): Pro
   await scheduleWorkerContinuation(originUrl, jobId, 0);
 }
 
-/** Lot bloqué sans mise à jour récente — candidat à une relance serveur. */
+/** Lot jamais démarré ou bloqué — candidat à une relance serveur. */
+const PENDING_KICK_MS = 12_000;
+const KICK_DEBOUNCE_MS = 15_000;
+
 export function isBatchJobStale(job: OcrBatchJob): boolean {
   if (job.status !== "processing" && job.status !== "pending") return false;
+
+  // Lot créé mais worker jamais passé en processing (cas le plus fréquent sur Amplify).
+  if (job.status === "pending" && !job.processingStartedAt) {
+    const started = new Date(job.startedAt).getTime();
+    if (!Number.isNaN(started) && Date.now() - started >= PENDING_KICK_MS) return true;
+  }
+
   const updatedAt = new Date(job.updatedAt).getTime();
   const staleByUpdate = !Number.isNaN(updatedAt) && Date.now() - updatedAt > LOCK_TTL_MS;
   let staleByNextRun = false;
@@ -231,10 +241,28 @@ export function isBatchJobStale(job: OcrBatchJob): boolean {
       nextRunAt: job.nextRunAt ?? null,
       staleByUpdate,
       staleByNextRun,
+      processingStartedAt: job.processingStartedAt ?? null,
       ...summarizeBatchJob(job),
     }, "warn");
   }
   return stale;
+}
+
+/** Relance depuis /status (avec anti-spam). */
+export function shouldKickWorkerFromStatus(job: OcrBatchJob): boolean {
+  if (job.status === "completed" || job.status === "failed" || job.status === "needs_token") {
+    return false;
+  }
+  if (!isBatchJobStale(job)) return false;
+  const last = job.lastWorkerKickAt ? new Date(job.lastWorkerKickAt).getTime() : 0;
+  if (!Number.isNaN(last) && Date.now() - last < KICK_DEBOUNCE_MS) return false;
+  return true;
+}
+
+export async function recordWorkerKick(jobId: string): Promise<void> {
+  const job = await readBatchJob(jobId);
+  if (!job) return;
+  await writeBatchJob({ ...job, lastWorkerKickAt: new Date().toISOString() });
 }
 
 async function deleteOcrCacheForJob(job: OcrBatchJob) {

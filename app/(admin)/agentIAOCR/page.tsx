@@ -788,8 +788,8 @@ function OneDriveUpDocsOCRAIContent() {
           }
         }
 
-        // Relance worker côté client si pas d'auto-relance serveur (onglet = chef d'orchestre).
-        if (!serverManaged && (polls === 1 || polls % 3 === 0)) {
+        // Relance worker : toujours au 1er poll + secours périodique (même en mode serveur).
+        if (polls === 1 || polls % 5 === 0 || !serverManaged) {
           await triggerBatchWorker(activeBatchJobId);
         }
 

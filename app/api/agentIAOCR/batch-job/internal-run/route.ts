@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { runOcrBatchJob } from "@/app/lib/ocr-batch-process";
 import { ocrTrace } from "@/app/lib/ocr-trace";
+import { flushOcrJobTraces } from "@/app/lib/ocr-job-trace-store";
 
 /**
  * Relance interne du worker OCR (auto-chaînage serveur, onglet fermé).
@@ -35,11 +36,29 @@ export async function POST(req: Request) {
 
   ocrTrace(jobId, "api", "internal-run", "requête internal-run acceptée", { delayMs });
 
+  const execute = async () => {
+    if (delayMs > 0) await sleep(delayMs);
+    ocrTrace(jobId, "api", "internal-run-exec", "exécution worker internal-run");
+    await runOcrBatchJob(jobId);
+    await flushOcrJobTraces(jobId);
+  };
+
+  // delay=0 : exécution synchrone — after() seul ne démarre souvent pas le worker sur Amplify.
+  if (delayMs === 0) {
+    try {
+      await execute();
+      return NextResponse.json({ ok: true, completed: true }, { status: 200 });
+    } catch (err) {
+      ocrTrace(jobId, "api", "internal-run-error", "internal-run synchrone en erreur", {
+        error: err instanceof Error ? err.message : String(err),
+      }, "error");
+      return NextResponse.json({ error: "Worker en erreur." }, { status: 500 });
+    }
+  }
+
   after(async () => {
     try {
-      if (delayMs > 0) await sleep(delayMs);
-      ocrTrace(jobId, "api", "internal-run-exec", "exécution worker après internal-run");
-      await runOcrBatchJob(jobId);
+      await execute();
     } catch (err) {
       ocrTrace(jobId, "api", "internal-run-error", "internal-run after() en erreur", {
         error: err instanceof Error ? err.message : String(err),
@@ -47,5 +66,5 @@ export async function POST(req: Request) {
     }
   });
 
-  return NextResponse.json({ ok: true, accepted: true }, { status: 202 });
+  return NextResponse.json({ ok: true, accepted: true, delayMs }, { status: 202 });
 }

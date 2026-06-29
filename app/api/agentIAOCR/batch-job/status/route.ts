@@ -4,7 +4,9 @@ import { buildBatchProgressView } from "@/app/lib/ocr-batch-progress";
 import {
   isBatchJobStale,
   kickOcrBatchWorker,
+  recordWorkerKick,
   resolveWorkerOrigin,
+  shouldKickWorkerFromStatus,
 } from "@/app/lib/ocr-batch-process";
 import { ocrTrace } from "@/app/lib/ocr-trace";
 import { flushOcrJobTraces, getOcrJobTraceTail } from "@/app/lib/ocr-job-trace-store";
@@ -35,10 +37,12 @@ export async function GET(req: Request) {
   const serverManaged = serverSelfRelays;
 
   const stale = isBatchJobStale(job);
+  const shouldKick = shouldKickWorkerFromStatus(job);
   const cur = job.items[job.currentItemIndex];
   ocrTrace(job.jobId, "api", "status", "poll status client", {
     userId,
     stale,
+    shouldKick,
     serverSelfRelays,
     status: job.status,
     percent: job.percent,
@@ -60,12 +64,18 @@ export async function GET(req: Request) {
       : null,
   });
 
-  if (stale) {
-    void kickOcrBatchWorker(job.jobId, origin).catch((err) =>
-      ocrTrace(job.jobId, "api", "status-kick-fail", "relance stale depuis status échouée", {
-        error: err instanceof Error ? err.message : String(err),
-      }, "error"),
-    );
+  if (shouldKick) {
+    ocrTrace(job.jobId, "api", "status-kick", "relance worker depuis status (lot bloqué ou pending)", {
+      status: job.status,
+      processingStartedAt: job.processingStartedAt ?? null,
+    }, "warn");
+    void kickOcrBatchWorker(job.jobId, origin)
+      .then(() => recordWorkerKick(job.jobId))
+      .catch((err) =>
+        ocrTrace(job.jobId, "api", "status-kick-fail", "relance stale depuis status échouée", {
+          error: err instanceof Error ? err.message : String(err),
+        }, "error"),
+      );
   }
 
   await flushOcrJobTraces(job.jobId);

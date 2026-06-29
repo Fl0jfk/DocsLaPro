@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { resolveSession } from "@/app/lib/intranet-session";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import {
@@ -101,6 +101,20 @@ export async function POST(req: Request) {
     serverSelfRelays,
     items: items.map((i) => ({ fileName: i.fileName, mode: i.mode, s3Key: i.s3Key, tempPath: i.tempPath })),
   });
+
+  // Double démarrage : after() local + chaîne HTTP (after() seul est peu fiable sur Amplify).
+  after(async () => {
+    try {
+      ocrTrace(jobId, "api", "create-after", "worker via after() à la création");
+      await runOcrBatchJob(jobId);
+      await flushOcrJobTraces(jobId);
+    } catch (err) {
+      ocrTrace(jobId, "api", "create-after-error", "after() création en erreur", {
+        error: err instanceof Error ? err.message : String(err),
+      }, "error");
+    }
+  });
+
   await kickOcrBatchWorker(jobId, origin).catch((err) =>
     ocrTrace(jobId, "api", "kick-fail", "échec kick initial", {
       error: err instanceof Error ? err.message : String(err),

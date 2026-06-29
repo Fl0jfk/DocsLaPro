@@ -97,6 +97,8 @@ export type OcrBatchJob = {
   error?: string;
   /** Derniers événements serveur (journal de bord, visible sans CloudWatch). */
   traceTail?: OcrJobTraceEntry[];
+  /** Dernière relance worker demandée (anti-spam sur /status). */
+  lastWorkerKickAt?: string;
 };
 
 export type OcrCachePayload = {
