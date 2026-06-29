@@ -18,6 +18,7 @@ import {
   type LyceeTrack,
   type Stage,
 } from "@/app/lib/fournitures-engine";
+import { printPdfBlob } from "@/app/lib/fournitures-print-client";
 
 const STAGE_PARTNER_BADGE_CLASS: Record<FournituresStage, string> = {
   ecole: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100",
@@ -50,6 +51,7 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
   const [showEmail, setShowEmail] = useState(false);
   const [email, setEmail] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("college");
@@ -144,6 +146,34 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
     setShowAdd(false);
   };
   const removeChild = (id: string) => { setChildren((prev) => prev.filter((c) => c.id !== id))};
+  const printList = async () => {
+    if (children.length === 0) {
+      alert("Ajoutez au moins un enfant.");
+      return;
+    }
+    try {
+      setPrinting(true);
+      const res = await fetch("/api/supplies/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          children,
+          suppliesByChild: computed.suppliesByChild,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error || "Impossible de générer le PDF.");
+        return;
+      }
+      const blob = await res.blob();
+      printPdfBlob(blob);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Impossible de générer le PDF.");
+    } finally {
+      setPrinting(false);
+    }
+  };
   const sendByEmail = async () => {
     setEmailError(null);
     setEmailSuccess(null);
@@ -191,13 +221,11 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => {
-                  if (children.length === 0) return alert("Ajoutez au moins un enfant.");
-                  window.print();
-                }}
-                className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition print:hidden"
+                onClick={() => void printList()}
+                disabled={printing}
+                className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition print:hidden disabled:opacity-60"
               >
-                🖨️ Imprimer
+                {printing ? "Préparation…" : "🖨️ Imprimer"}
               </button>
               <button
                 onClick={() => {

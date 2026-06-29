@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { jsPDF } from "jspdf";
-import fs from "fs/promises";
-import path from "path";
 import {
   createTenantTransporter,
   getTenantSmtpConfig,
 } from "@/app/lib/tenant-mail";
 import { getToolboxConfig } from "@/app/lib/toolbox-config";
 import type { FournituresChild } from "@/app/lib/fournitures-types";
-import { formatChildLabel, formatSuppliesPdfFilename } from "@/app/lib/fournitures-engine";
+import { buildSuppliesListPdf } from "@/app/lib/fournitures-supplies-pdf";
 
 function isValidEmail(value: string) {
   const v = String(value || "").trim();
@@ -42,103 +39,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "SMTP non configuré." }, { status: 503 });
     }
 
-    let logoDataUri: string | null = null;
-    try {
-      const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
-      const logoBuffer = await fs.readFile(logoPath);
-      logoDataUri = `data:image/png;base64,${logoBuffer.toString("base64")}`;
-    } catch {}
-    const doc = new jsPDF({ compress: true });
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const ML = 14;
-    const MR = W - 14;
-    const drawHeader = () => {
-      doc.setFillColor(30, 41, 59);
-      doc.rect(0, 0, W, 20, "F");
-      if (logoDataUri) { doc.addImage(logoDataUri, "PNG", ML, 3.5, 13, 13)}
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(255, 255, 255);
-      doc.text("Liste de fournitures scolaires", ML + 18, 12);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(226, 232, 240);
-      doc.text(new Date().toLocaleDateString("fr-FR"), MR, 12, { align: "right" });
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.3);
-      doc.line(ML, 24, MR, 24);
-    };
-    const checkbox = (x: number, y: number) => {
-      doc.setDrawColor(100, 116, 139);
-      doc.setLineWidth(0.35);
-      doc.rect(x, y - 2.6, 3.3, 3.3);
-    };
-    const styleListItem = () => {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      doc.setTextColor(51, 65, 85);
-    };
-    const newContentPage = () => {
-      doc.addPage();
-      drawHeader();
-      y = 32;
-    };
-    drawHeader();
-    let y = 32;
+    const suppliesByChild = (body?.suppliesByChild || {}) as Record<
+      string,
+      Array<{ title: string; items: string[] }>
+    >;
 
-    for (let ci = 0; ci < children.length; ci++) {
-      const child = children[ci]!;
-
-      if (y > H - 30) {
-        newContentPage();
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(30, 41, 59);
-      doc.text(formatChildLabel(child), ML, y);
-      y += 6;
-
-      const supplies = (body?.suppliesByChild?.[child.id] as Array<{ title: string; items: string[] }>) || null;
-      const sections = Array.isArray(supplies) ? supplies : [{ title: "Fournitures", items: ["(liste non transmise)"] }];
-      for (const sec of sections) {
-        if (y > H - 24) {
-          newContentPage();
-        }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9.5);
-        doc.setTextColor(37, 99, 235);
-        doc.text(sec.title, ML, y);
-        y += 5;
-
-        styleListItem();
-        for (const item of sec.items || []) {
-          const text = String(item || "").trim();
-          if (!text) continue;
-          if (y > H - 14) {
-            newContentPage();
-            styleListItem();
-          }
-          checkbox(ML, y);
-          const lines = doc.splitTextToSize(text, MR - (ML + 6));
-          doc.text(lines, ML + 6, y);
-          y += lines.length * 4.5 + 1.5;
-        }
-        y += 3;
-      }
-
-      if (ci < children.length - 1) {
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.4);
-        doc.line(ML, y, MR, y);
-        y += 8;
-      }
-    }
-
-    const pdfArrayBuffer = doc.output("arraybuffer");
-    const pdfBuffer = Buffer.from(pdfArrayBuffer);
-    const pdfFilename = formatSuppliesPdfFilename(children);
+    const { buffer: pdfBuffer, filename: pdfFilename } = await buildSuppliesListPdf({
+      children,
+      suppliesByChild,
+    });
 
     await transporter.sendMail({
       from: `"Simulateur Fournitures" <${smtp.user}>`,
