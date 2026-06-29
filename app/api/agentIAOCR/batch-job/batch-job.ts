@@ -11,6 +11,15 @@ export type OcrBatchJobStatus =
 
 export type OcrBatchItemMode = "standard" | "class";
 
+export type OcrJobTraceEntry = {
+  t: string;
+  scope: string;
+  phase: string;
+  level: string;
+  message: string;
+  data?: Record<string, unknown>;
+};
+
 export type OcrBatchResult = {
   success: boolean;
   fileName: string;
@@ -86,6 +95,8 @@ export type OcrBatchJob = {
   completed: number;
   failed: number;
   error?: string;
+  /** Derniers événements serveur (journal de bord, visible sans CloudWatch). */
+  traceTail?: OcrJobTraceEntry[];
 };
 
 export type OcrCachePayload = {

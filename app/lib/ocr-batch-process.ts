@@ -37,6 +37,7 @@ import {
   summarizeBatchJob,
   type OcrTraceCtx,
 } from "@/app/lib/ocr-trace";
+import { flushOcrJobTraces } from "@/app/lib/ocr-job-trace-store";
 
 const RUN_LOCK_PREFIX = "agentIAOCR/batch-locks/";
 /** Au-delà de cet âge, un lock est considéré orphelin (worker tué) et peut être volé. */
@@ -1109,6 +1110,7 @@ export async function runOcrBatchJob(jobId: string) {
       stillRunning,
       chainDelayMs,
     });
+    await flushOcrJobTraces(jobId);
   }
 }
 

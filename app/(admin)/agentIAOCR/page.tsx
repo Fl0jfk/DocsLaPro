@@ -89,6 +89,15 @@ type OcrProgressDetail = {
   idleSeconds: number;
 };
 
+type OcrServerTraceEntry = {
+  t: string;
+  scope: string;
+  phase: string;
+  level: string;
+  message: string;
+  data?: Record<string, unknown>;
+};
+
 type BatchJobStatusPayload = {
   jobId?: string;
   status?: string;
@@ -102,6 +111,7 @@ type BatchJobStatusPayload = {
   error?: string | null;
   serverManaged?: boolean;
   serverSelfRelays?: boolean;
+  traceLog?: OcrServerTraceEntry[];
   progress?: OcrProgressDetail;
 };
 
@@ -164,6 +174,9 @@ function OneDriveUpDocsOCRAIContent() {
   const [batchJobNeedsToken, setBatchJobNeedsToken] = useState(false);
   const [batchPollIssue, setBatchPollIssue] = useState<"offline" | "auth" | null>(null);
   const [batchServerSelfRelays, setBatchServerSelfRelays] = useState(false);
+  const [serverTraceLog, setServerTraceLog] = useState<OcrServerTraceEntry[]>([]);
+  const [showServerTrace, setShowServerTrace] = useState(true);
+  const serverTraceEndRef = useRef<HTMLDivElement | null>(null);
   const [progressDetail, setProgressDetail] = useState<OcrProgressDetail | null>(null);
 
   const applyOneDriveSession = useCallback((activeAccount: msal.AccountInfo | null, token: string | null) => {
@@ -316,9 +329,16 @@ function OneDriveUpDocsOCRAIContent() {
     if (clearResults) setOcrResults([]);
     setError("");
     setProgressDetail(null);
+    setServerTraceLog([]);
     setProcessingStatus(INITIAL_OCR_PROCESSING_STATUS);
     if (classInputRef.current) classInputRef.current.value = "";
   }, []);
+
+  useEffect(() => {
+    if (showServerTrace && serverTraceLog.length > 0) {
+      serverTraceEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [serverTraceLog, showServerTrace]);
 
   const prepareOcrSessionForNewBatch = useCallback(() => {
     abortOcrInFlight();
@@ -345,6 +365,9 @@ function OneDriveUpDocsOCRAIContent() {
       failed: st.progress?.documentsFailed ?? (typeof st.failed === "number" ? st.failed : 0),
     });
     setProgressDetail(st.progress ?? null);
+    if (Array.isArray(st.traceLog)) {
+      setServerTraceLog(st.traceLog);
+    }
     if (Array.isArray(st.results)) {
       setOcrResults(st.results);
       setOcrResultsSessionId((id) => id + 1);
@@ -1649,6 +1672,56 @@ function OneDriveUpDocsOCRAIContent() {
                             Reprendre le suivi et relancer le worker
                           </button>
                         ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {(ocrProcessing && activeBatchJobId) || serverTraceLog.length > 0 ? (
+                  <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950 text-left overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowServerTrace((v) => !v)}
+                      className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left bg-slate-900 hover:bg-slate-800 border-b border-slate-800"
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-wide text-slate-200">
+                        Journal serveur
+                        <span className="ml-2 font-mono text-slate-400 normal-case">
+                          ({serverTraceLog.length} ligne{serverTraceLog.length > 1 ? "s" : ""})
+                        </span>
+                      </span>
+                      <span className="text-slate-400 text-xs">{showServerTrace ? "Masquer" : "Afficher"}</span>
+                    </button>
+                    {showServerTrace ? (
+                      <div className="max-h-52 overflow-y-auto p-3 font-mono text-[10px] leading-relaxed text-slate-300 space-y-1">
+                        {serverTraceLog.length === 0 ? (
+                          <p className="text-amber-400">
+                            Aucun événement serveur enregistré. Soit le worker n&apos;a pas démarré, soit la
+                            dernière version (journal S3) n&apos;est pas encore déployée.
+                          </p>
+                        ) : (
+                          serverTraceLog.map((line, i) => (
+                            <div
+                              key={`${line.t}-${i}`}
+                              className={
+                                line.level === "error"
+                                  ? "text-red-400"
+                                  : line.level === "warn"
+                                    ? "text-amber-300"
+                                    : "text-slate-300"
+                              }
+                            >
+                              <span className="text-slate-500">
+                                {new Date(line.t).toLocaleTimeString("fr-FR", { hour12: false })}
+                              </span>{" "}
+                              <span className="text-indigo-400">[{line.scope}]</span>{" "}
+                              <span className="text-sky-400">[{line.phase}]</span> {line.message}
+                              {line.data ? (
+                                <span className="text-slate-500"> {JSON.stringify(line.data)}</span>
+                              ) : null}
+                            </div>
+                          ))
+                        )}
+                        <div ref={serverTraceEndRef} />
                       </div>
                     ) : null}
                   </div>

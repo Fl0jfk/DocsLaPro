@@ -10,6 +10,7 @@ import {
 } from "./batch-job";
 import { runOcrBatchJob, resolveWorkerOrigin, kickOcrBatchWorker } from "@/app/lib/ocr-batch-process";
 import { ocrTrace } from "@/app/lib/ocr-trace";
+import { flushOcrJobTraces } from "@/app/lib/ocr-job-trace-store";
 
 export const maxDuration = 60;
 
@@ -105,6 +106,7 @@ export async function POST(req: Request) {
       error: err instanceof Error ? err.message : String(err),
     }, "error"),
   );
+  await flushOcrJobTraces(jobId);
 
   return NextResponse.json(
     { ok: true, jobId, total: items.length, serverSelfRelays },

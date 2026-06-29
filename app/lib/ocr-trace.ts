@@ -1,6 +1,9 @@
 import "server-only";
 
-import type { OcrBatchJob, OcrBatchJobItem } from "@/app/api/agentIAOCR/batch-job/batch-job";
+import type { OcrBatchJob, OcrBatchJobItem, OcrJobTraceEntry } from "@/app/api/agentIAOCR/batch-job/batch-job";
+import { flushOcrJobTraces, queueOcrJobTrace } from "@/app/lib/ocr-job-trace-store";
+
+export type { OcrJobTraceEntry };
 
 /** Contexte de traçage propagé dans le pipeline (greppable CloudWatch : `[ocr-batch <jobId>]`). */
 export type OcrTraceCtx = {
@@ -31,7 +34,7 @@ function serializeData(data?: Record<string, unknown>): string {
   }
 }
 
-/** Log structuré OCR — filtre CloudWatch : `[ocr-batch <jobId>]`. */
+/** Log structuré OCR — console (CloudWatch si dispo) + journal persistant S3 sur le job. */
 export function ocrTrace(
   batchJobId: string,
   scope: OcrTraceScope,
@@ -41,9 +44,14 @@ export function ocrTrace(
   level: OcrTraceLevel = "info",
 ): void {
   const line = `[ocr-batch ${batchJobId}] [${scope}] [${phase}] ${message}${serializeData(data)}`;
+  // stderr est souvent mieux capturé par Amplify / Lambda que stdout.
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
-  else console.log(line);
+  else console.error(line);
+
+  if (batchJobId && batchJobId.length >= 8) {
+    queueOcrJobTrace(batchJobId, scope, phase, message, data, level);
+  }
 }
 
 export function ocrTraceCtx(

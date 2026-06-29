@@ -7,6 +7,7 @@ import {
   resolveWorkerOrigin,
 } from "@/app/lib/ocr-batch-process";
 import { ocrTrace } from "@/app/lib/ocr-trace";
+import { flushOcrJobTraces, getOcrJobTraceTail } from "@/app/lib/ocr-job-trace-store";
 import { readBatchJob } from "../batch-job";
 
 export const maxDuration = 10;
@@ -67,23 +68,28 @@ export async function GET(req: Request) {
     );
   }
 
-  const progress = buildBatchProgressView(job);
+  await flushOcrJobTraces(job.jobId);
+  const freshJob = (await readBatchJob(job.jobId)) ?? job;
+  const traceLog = getOcrJobTraceTail(freshJob);
+
+  const progress = buildBatchProgressView(freshJob);
 
   return NextResponse.json({
-    jobId: job.jobId,
-    status: job.status,
+    jobId: freshJob.jobId,
+    status: freshJob.status,
     label: progress.label,
     percent: progress.percent,
     completed: progress.documentsSucceeded,
     failed: progress.documentsFailed,
-    totalItems: job.items.length,
-    currentItemIndex: job.currentItemIndex,
-    results: job.results,
-    error: job.error ?? null,
-    startedAt: job.startedAt,
-    updatedAt: job.updatedAt,
+    totalItems: freshJob.items.length,
+    currentItemIndex: freshJob.currentItemIndex,
+    results: freshJob.results,
+    error: freshJob.error ?? null,
+    startedAt: freshJob.startedAt,
+    updatedAt: freshJob.updatedAt,
     serverManaged,
     serverSelfRelays,
+    traceLog,
     progress,
   });
 }
