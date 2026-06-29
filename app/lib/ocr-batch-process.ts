@@ -150,14 +150,7 @@ function segmentTempFileName(originalName: string, pageStart: number, pageEnd: n
   return `Temp/${base}_p${pageStart}-${pageEnd}_${index + 1}.pdf`;
 }
 
-function computeProgress(job: OcrBatchJob) {
-  const totalItems = job.items.length;
-  const doneItems = job.currentItemIndex;
-  const completed = job.results.filter((r) => r.success).length;
-  const failed = job.results.filter((r) => !r.success).length;
-  const percent = totalItems > 0 ? Math.min(99, Math.round((doneItems / totalItems) * 100)) : 0;
-  return { percent, completed, failed };
-}
+import { buildBatchProgressView, computeProgress } from "@/app/lib/ocr-batch-progress";
 
 async function patchJob(jobId: string, patch: Partial<OcrBatchJob>) {
   const job = await readBatchJob(jobId);
@@ -419,8 +412,12 @@ async function stepItem(
     await patchItem(job.jobId, itemIndex, {
       ocrCacheKey: cacheKey,
       phase: nextPhase,
+      pageCount: poll.result.pageCount,
     });
-    return { kind: "continue", label: `Classement — ${item.fileName}` };
+    const ocrLabel = needsSegmentation
+      ? `OCR terminé — ${poll.result.pageCount} page(s), découpage à venir…`
+      : `Classement — ${item.fileName}`;
+    return { kind: "continue", label: ocrLabel };
   }
 
   const ocr = item.ocrCacheKey ? await readOcrCache(item.ocrCacheKey) : null;
@@ -435,6 +432,9 @@ async function stepItem(
   }
 
   if (phase === "segmenting") {
+    await patchJob(job.jobId, {
+      label: `Découpage IA — ${item.fileName} (${ocr.pageCount} page${ocr.pageCount > 1 ? "s" : ""})…`,
+    });
     const segData = await runDocumentSegmentation({
       pageTexts: ocr.pageTexts,
       pageCount: ocr.pageCount,
@@ -455,7 +455,10 @@ async function stepItem(
     // L'original (classe entière) n'est PAS supprimé ici : il ne le sera qu'une fois
     // tous les morceaux déposés dans Temp, pour ne jamais perdre la source.
     await patchItem(job.jobId, itemIndex, { phase: "segments", segments, segmentIndex: 0 });
-    return { kind: "continue", label: `Découpage — ${item.fileName}` };
+    return {
+      kind: "continue",
+      label: `Découpage terminé — ${segments.length} bulletin${segments.length > 1 ? "s" : ""} détecté${segments.length > 1 ? "s" : ""}, classement…`,
+    };
   }
 
   // phase === "segments"

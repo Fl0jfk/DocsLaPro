@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveSession } from "@/app/lib/intranet-session";
+import { buildBatchProgressView } from "@/app/lib/ocr-batch-progress";
 import { readBatchJob } from "../batch-job";
 
 export const maxDuration = 10;
@@ -22,16 +23,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
   }
 
-  /** Lot géré par auto-relance serveur → le client n'a pas besoin d'appeler /process. */
   const serverManaged = Boolean(job.originUrl?.trim() && process.env.OCR_WORKER_SECRET?.trim());
+  const progress = buildBatchProgressView(job);
 
   return NextResponse.json({
     jobId: job.jobId,
     status: job.status,
-    label: job.label,
-    percent: job.percent,
-    completed: job.completed,
-    failed: job.failed,
+    label: progress.label,
+    percent: progress.percent,
+    completed: progress.documentsSucceeded,
+    failed: progress.documentsFailed,
     totalItems: job.items.length,
     currentItemIndex: job.currentItemIndex,
     results: job.results,
@@ -39,5 +40,6 @@ export async function GET(req: Request) {
     startedAt: job.startedAt,
     updatedAt: job.updatedAt,
     serverManaged,
+    progress,
   });
 }

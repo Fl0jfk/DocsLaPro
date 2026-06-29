@@ -52,6 +52,8 @@ export type OcrBatchJobItem = {
   segments?: OcrBatchSegment[];
   /** Index du prochain segment à traiter (mode classe). */
   segmentIndex?: number;
+  /** Nombre de pages du PDF (renseigné après OCR Textract). */
+  pageCount?: number;
   /** Horodatage ISO : verrou optimiste anti-traitement concurrent du même item. */
   itemClaimedAt?: string;
 };

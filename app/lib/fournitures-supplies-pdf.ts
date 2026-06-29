@@ -1,10 +1,9 @@
 import "server-only";
 
 import { jsPDF } from "jspdf";
-import fs from "fs/promises";
-import path from "path";
 import type { FournituresChild } from "@/app/lib/fournitures-types";
 import { formatChildLabel, formatSuppliesPdfFilename } from "@/app/lib/fournitures-engine";
+import { fitImageInBox, loadSchoolLogoForPdf } from "@/app/lib/pdf-branding";
 
 export type SuppliesPdfSection = { title: string; items: string[] };
 
@@ -13,20 +12,12 @@ export type SuppliesPdfInput = {
   suppliesByChild: Record<string, SuppliesPdfSection[]>;
 };
 
-async function loadLogoDataUri(): Promise<string | null> {
-  try {
-    const logoPath = path.join(process.cwd(), "public", "logo-nicolas-barre-ecole-college-lycee-laprovidence-1.png");
-    const logoBuffer = await fs.readFile(logoPath);
-    return `data:image/png;base64,${logoBuffer.toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
+const HEADER_LOGO_BOX = 13;
 
 /** Génère le PDF liste de fournitures (même rendu que l'envoi par email). */
 export async function buildSuppliesListPdf(input: SuppliesPdfInput): Promise<{ buffer: Buffer; filename: string }> {
   const { children, suppliesByChild } = input;
-  const logoDataUri = await loadLogoDataUri();
+  const logo = await loadSchoolLogoForPdf();
 
   const doc = new jsPDF({ compress: true });
   const W = doc.internal.pageSize.getWidth();
@@ -37,11 +28,22 @@ export async function buildSuppliesListPdf(input: SuppliesPdfInput): Promise<{ b
   const drawHeader = () => {
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, W, 20, "F");
-    if (logoDataUri) doc.addImage(logoDataUri, "PNG", ML, 3.5, 13, 13);
+    let titleX = ML;
+    if (logo) {
+      const fitted = fitImageInBox(
+        logo.width || HEADER_LOGO_BOX,
+        logo.height || HEADER_LOGO_BOX,
+        HEADER_LOGO_BOX,
+        HEADER_LOGO_BOX,
+      );
+      const logoY = 3.5 + (HEADER_LOGO_BOX - fitted.height) / 2;
+      doc.addImage(logo.dataUri, logo.format, ML, logoY, fitted.width, fitted.height);
+      titleX = ML + HEADER_LOGO_BOX + 4;
+    }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
-    doc.text("Liste de fournitures scolaires", ML + 18, 12);
+    doc.text("Liste de fournitures scolaires", titleX, 12);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(226, 232, 240);

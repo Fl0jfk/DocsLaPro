@@ -68,6 +68,24 @@ const BATCH_JOB_STORAGE_KEY = "agentIAOCR-active-batch-job";
 /** Dernier lot terminé — conservé jusqu'au prochain dépôt de fichiers. */
 const BATCH_JOB_LAST_RESULTS_KEY = "agentIAOCR-last-batch-job";
 
+type OcrProgressDetail = {
+  percent: number;
+  label: string;
+  phase: string;
+  phaseLabel: string;
+  fileName: string | null;
+  fileIndex: number;
+  fileTotal: number;
+  pageCount: number | null;
+  segmentIndex: number | null;
+  segmentTotal: number | null;
+  documentsProcessed: number;
+  documentsSucceeded: number;
+  documentsFailed: number;
+  updatedAt: string;
+  idleSeconds: number;
+};
+
 type BatchJobStatusPayload = {
   status?: string;
   label?: string;
@@ -78,8 +96,8 @@ type BatchJobStatusPayload = {
   failed?: number;
   results?: ProcessResult[];
   error?: string | null;
-  /** true = auto-relance serveur active, pas besoin d'appeler /process depuis le navigateur. */
   serverManaged?: boolean;
+  progress?: OcrProgressDetail;
 };
 
 function OneDriveUpDocsOCRAIContent() {
@@ -138,6 +156,7 @@ function OneDriveUpDocsOCRAIContent() {
   const [oneDriveVerified, setOneDriveVerified] = useState(false);
   const [activeBatchJobId, setActiveBatchJobId] = useState<string | null>(null);
   const [batchJobNeedsToken, setBatchJobNeedsToken] = useState(false);
+  const [progressDetail, setProgressDetail] = useState<OcrProgressDetail | null>(null);
 
   const applyOneDriveSession = useCallback((activeAccount: msal.AccountInfo | null, token: string | null) => {
     setAccount(activeAccount);
@@ -284,6 +303,7 @@ function OneDriveUpDocsOCRAIContent() {
   const resetOcrSessionUi = useCallback((clearResults: boolean) => {
     if (clearResults) setOcrResults([]);
     setError("");
+    setProgressDetail(null);
     setProcessingStatus(INITIAL_OCR_PROCESSING_STATUS);
     if (classInputRef.current) classInputRef.current.value = "";
   }, []);
@@ -296,15 +316,17 @@ function OneDriveUpDocsOCRAIContent() {
   }, [abortOcrInFlight, resetOcrSessionUi]);
 
   const applyBatchJobStatusToUi = useCallback((st: BatchJobStatusPayload) => {
+    const pct = st.progress?.percent ?? st.percent;
     setProcessingStatus({
-      percent: typeof st.percent === "number" ? st.percent : 0,
-      label: st.label || "",
+      percent: typeof pct === "number" ? pct : 0,
+      label: st.progress?.label || st.label || "",
       done: typeof st.currentItemIndex === "number" ? st.currentItemIndex : 0,
       total: typeof st.totalItems === "number" ? st.totalItems : 0,
       totalKnown: true,
-      completed: typeof st.completed === "number" ? st.completed : 0,
-      failed: typeof st.failed === "number" ? st.failed : 0,
+      completed: st.progress?.documentsSucceeded ?? (typeof st.completed === "number" ? st.completed : 0),
+      failed: st.progress?.documentsFailed ?? (typeof st.failed === "number" ? st.failed : 0),
     });
+    setProgressDetail(st.progress ?? null);
     if (Array.isArray(st.results)) {
       setOcrResults(st.results);
       setOcrResultsSessionId((id) => id + 1);
@@ -936,10 +958,44 @@ function OneDriveUpDocsOCRAIContent() {
     !ocrProcessing &&
     !processingLockRef.current &&
     (ocrResults.length > 0 || processingStatus.done > 0 || processingStatus.percent >= 100);
-  const progressPercent = processingStatus.percent;
-  const progressCaption = processingStatus.totalKnown
-    ? `${processingStatus.done} / ${processingStatus.total} document${processingStatus.total > 1 ? "s" : ""}`
-    : "";
+  const progressPercent = progressDetail?.percent ?? processingStatus.percent;
+  const progressCaption = progressDetail
+    ? progressDetail.segmentTotal
+      ? `Segment ${progressDetail.segmentIndex ?? 0} / ${progressDetail.segmentTotal}`
+      : progressDetail.fileTotal > 1
+        ? `Fichier ${progressDetail.fileIndex} / ${progressDetail.fileTotal}`
+        : progressDetail.pageCount
+          ? `${progressDetail.pageCount} page${progressDetail.pageCount > 1 ? "s" : ""}`
+          : ""
+    : processingStatus.totalKnown
+      ? `${processingStatus.done} / ${processingStatus.total} document${processingStatus.total > 1 ? "s" : ""}`
+      : "";
+
+  const formatIdleHint = (seconds: number): string | null => {
+    if (seconds < 90) return null;
+    if (seconds < 3600) {
+      const min = Math.floor(seconds / 60);
+      return `Dernière activité il y a ${min} min — sur un gros PDF, l'étape OCR Textract peut prendre 10–20 min sans mise à jour visible.`;
+    }
+    const h = Math.floor(seconds / 3600);
+    return `Dernière activité il y a ${h} h — si rien ne bouge, vérifiez les résultats ou relancez.`;
+  };
+
+  const phaseSteps: { id: string; label: string }[] = [
+    { id: "ocr", label: "1. Lecture OCR" },
+    { id: "segmenting", label: "2. Découpage" },
+    { id: "segments", label: "3. Classement" },
+  ];
+
+  const activePhaseIndex = progressDetail
+    ? progressDetail.phase === "ocr"
+      ? 0
+      : progressDetail.phase === "segmenting"
+        ? 1
+        : progressDetail.phase === "segments" || progressDetail.phase === "analyze"
+          ? 2
+          : -1
+    : -1;
 
   const dropZoneClass = (active: boolean, variant: "blue" | "violet") => {
     if (!dropsAvailable) {
@@ -1248,8 +1304,77 @@ function OneDriveUpDocsOCRAIContent() {
                     style={{ width: `${Math.min(100, progressPercent)}%` }}
                   />
                 </div>
+                {progressDetail && progressDetail.phase !== "done" && progressDetail.phase !== "idle" ? (
+                  <div className="mt-4 rounded-2xl border border-blue-200 bg-white/90 p-4 text-left space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {phaseSteps.map((step, idx) => {
+                        const isActive = idx === activePhaseIndex;
+                        const isDone = activePhaseIndex > idx;
+                        return (
+                          <span
+                            key={step.id}
+                            className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border ${
+                              isActive
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : isDone
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  : "bg-slate-50 text-slate-400 border-slate-200"
+                            }`}
+                          >
+                            {isDone ? "✓ " : ""}
+                            {step.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <p className="text-sm font-bold text-slate-900">{progressDetail.phaseLabel}</p>
+                    {progressDetail.fileName ? (
+                      <p className="text-xs text-slate-600 font-mono truncate">{progressDetail.fileName}</p>
+                    ) : null}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      {progressDetail.pageCount ? (
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Pages PDF</p>
+                          <p className="font-black text-slate-800">{progressDetail.pageCount}</p>
+                        </div>
+                      ) : null}
+                      {progressDetail.segmentTotal ? (
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Bulletins</p>
+                          <p className="font-black text-slate-800">
+                            {progressDetail.segmentIndex ?? 0} / {progressDetail.segmentTotal}
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Traités</p>
+                        <p className="font-black text-slate-800">
+                          <span className="text-emerald-700">{progressDetail.documentsSucceeded}</span>
+                          {progressDetail.documentsFailed > 0 ? (
+                            <span className="text-red-600"> · {progressDetail.documentsFailed} échec(s)</span>
+                          ) : null}
+                        </p>
+                      </div>
+                    </div>
+                    {progressDetail.segmentTotal && progressDetail.segmentIndex ? (
+                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-indigo-500 h-full transition-all duration-500"
+                          style={{
+                            width: `${Math.min(100, Math.round((progressDetail.segmentIndex / progressDetail.segmentTotal) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                    {formatIdleHint(progressDetail.idleSeconds) ? (
+                      <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
+                        {formatIdleHint(progressDetail.idleSeconds)}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {processingStatus.label ? (
-                  <p className="mt-3 text-center text-sm font-semibold text-blue-900/90 animate-pulse">
+                  <p className="mt-3 text-center text-sm font-semibold text-blue-900/90">
                     {processingStatus.label}
                   </p>
                 ) : null}
