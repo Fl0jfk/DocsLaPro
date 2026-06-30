@@ -29,19 +29,21 @@ const nextConfig: NextConfig = {
     ]
   },
   async headers() {
+    const securityHeaders = [
+      {
+        key: "Content-Security-Policy",
+        value: contentSecurityPolicyHeaderValue(),
+      },
+      {
+        key: "Cross-Origin-Opener-Policy",
+        value: crossOriginOpenerPolicyHeaderValue(),
+      },
+    ];
     return [
       {
-        source: "/(.*)",
-        headers: [
-          {
-            key: "Content-Security-Policy",
-            value: contentSecurityPolicyHeaderValue(),
-          },
-          {
-            key: "Cross-Origin-Opener-Policy",
-            value: crossOriginOpenerPolicyHeaderValue(),
-          },
-        ],
+        // Pas de CSP sur les flux binaires : le lecteur PDF intégré de Chrome plante sinon.
+        source: "/((?!api/rentree/file)(?!api/fournitures/file)(?!documents/rentree/).*)",
+        headers: securityHeaders,
       },
     ];
   },

@@ -24,7 +24,8 @@ function LinkCard({
   const isPdf = kind === "pdf" || href.toLowerCase().endsWith(".pdf");
   const badge = isPdf ? "PDF" : "Lien";
   const icon = isPdf ? "📄" : "🔗";
-  const isRentreeFile = href.startsWith("/api/rentree/file");
+  const isRentreeFile =
+    href.startsWith("/api/rentree/file") || href.startsWith("/documents/rentree/");
   const external = href.startsWith("http://") || href.startsWith("https://") || isRentreeFile;
   const isInternal = href.startsWith("/") && !isRentreeFile;
   const targetProps = external ? { target: "_blank", rel: "noopener noreferrer" } : {};

@@ -5,7 +5,7 @@ import {
   loadRentreeFileBytes,
   rentreeFileNotFoundHtml,
 } from "@/app/lib/rentree-file-serve";
-import { isAllowedRentreeS3Key } from "@/app/lib/rentree-public-urls";
+import { isAllowedRentreeS3Key, rentreePublicDocumentPathUrl } from "@/app/lib/rentree-public-urls";
 
 export async function GET(req: NextRequest) {
   const config = await getToolboxConfig();
@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const download = req.nextUrl.searchParams.get("download") === "1";
   const loaded = await loadRentreeFileBytes(key);
   if (!loaded) {
     return new Response(rentreeFileNotFoundHtml(key), {
@@ -32,6 +33,10 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const download = req.nextUrl.searchParams.get("download") === "1";
-  return buildRentreeFileResponse(loaded.bytes, loaded.resolvedKey, { download });
+  if (!download) {
+    const dest = new URL(rentreePublicDocumentPathUrl(loaded.resolvedKey), req.nextUrl.origin);
+    return Response.redirect(dest, 308);
+  }
+
+  return buildRentreeFileResponse(loaded.bytes, loaded.resolvedKey, { download: true });
 }

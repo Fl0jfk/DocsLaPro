@@ -143,7 +143,9 @@ function withTenantHeaders(
   response.headers.set(TENANT_SLUG_HEADER, tenant.slug);
   response.headers.set("x-tenant-bucket", tenant.dataBucket);
   const omitCsp =
-    pathname?.startsWith("/api/rentree/file") || pathname?.startsWith("/api/fournitures/file");
+    pathname?.startsWith("/api/rentree/file") ||
+    pathname?.startsWith("/api/fournitures/file") ||
+    pathname?.startsWith("/documents/rentree/");
   if (!omitCsp) {
     response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue());
     response.headers.set("Cross-Origin-Opener-Policy", crossOriginOpenerPolicyHeaderValue());

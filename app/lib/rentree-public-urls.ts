@@ -19,12 +19,43 @@ export function rentreePublicFileApiUrl(key: string): string {
   return `/api/rentree/file?key=${encodeURIComponent(key.replace(/^\/+/, ""))}`;
 }
 
+/** URL publique directe (se termine en .pdf) — évite le lecteur Chrome cassé par la CSP. */
+export function rentreePublicDocumentPathUrl(key: string): string {
+  const k = key.replace(/^\/+/, "");
+  const relative = k.replace(/^(?:toolbox|documents)\/rentree\//, "");
+  if (!relative || relative === k) return rentreePublicFileApiUrl(key);
+  return `/documents/rentree/${relative.split("/").map((segment) => encodeURIComponent(segment)).join("/")}`;
+}
+
+export function rentreeS3KeysFromDocumentPath(relativePath: string): string[] {
+  const rel = relativePath.replace(/^\/+/, "").replace(/\.\./g, "");
+  if (!rel) return [];
+  return [`toolbox/rentree/${rel}`, `documents/rentree/${rel}`];
+}
+
 function rentreeKeyFromPathHref(href: string): string | null {
   const t = href.trim();
-  if (t.startsWith("/documents/rentree/") || t.startsWith("/toolbox/rentree/")) {
+  if (t.startsWith("/documents/rentree/")) {
+    const rel = t
+      .slice("/documents/rentree/".length)
+      .split("?")[0]
+      .split("#")[0]
+      .split("/")
+      .map((segment) => {
+        try {
+          return decodeURIComponent(segment);
+        } catch {
+          return segment;
+        }
+      })
+      .join("/");
+    const keys = rentreeS3KeysFromDocumentPath(rel);
+    return keys[0] ?? null;
+  }
+  if (t.startsWith("/toolbox/rentree/")) {
     return t.replace(/^\//, "");
   }
-  if (t.startsWith("documents/rentree/") || t.startsWith("toolbox/rentree/")) {
+  if (t.startsWith("toolbox/rentree/") || t.startsWith("documents/rentree/")) {
     return t;
   }
   return null;
@@ -86,10 +117,12 @@ export async function resolveRentreePublicHref(
   const fromApi = rentreeKeyFromApiHref(trimmed);
   if (fromApi) return rentreePublicHrefForKey(fromApi, kind);
 
+  if (trimmed.startsWith("/documents/rentree/")) return trimmed;
+
   if (trimmed.startsWith("/rentree/document")) {
     try {
       const legacyKey = new URL(trimmed, "https://local.invalid").searchParams.get("key")?.trim() || "";
-      if (legacyKey && isAllowedRentreeS3Key(legacyKey)) return rentreePublicFileApiUrl(legacyKey);
+      if (legacyKey && isAllowedRentreeS3Key(legacyKey)) return rentreePublicDocumentPathUrl(legacyKey);
     } catch {
       /* ignore */
     }
@@ -122,7 +155,7 @@ export async function resolveRentreePublicHref(
 }
 
 function rentreePublicHrefForKey(key: string, _kind?: "pdf" | "link"): string {
-  return rentreePublicFileApiUrl(key);
+  return rentreePublicDocumentPathUrl(key);
 }
 
 export async function resolveRentreePagesPublicHrefs(
