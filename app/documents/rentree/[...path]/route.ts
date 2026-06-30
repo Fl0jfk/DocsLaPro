@@ -1,15 +1,9 @@
 import { NextRequest } from "next/server";
-import {
-  buildRentreeFileResponse,
-  loadRentreeFileBytes,
-  rentreeFileNotFoundHtml,
-} from "@/app/lib/rentree-file-serve";
-import {
-  isAllowedRentreeS3Key,
-  rentreePublicDocumentPathUrl,
-  rentreeS3KeysFromDocumentPath,
-} from "@/app/lib/rentree-public-urls";
+import { createRentreeFileServeResponse, rentreeFileNotFoundHtml } from "@/app/lib/rentree-file-serve";
+import { isAllowedRentreeS3Key, rentreeS3KeysFromDocumentPath } from "@/app/lib/rentree-public-urls";
 import { getToolboxConfig } from "@/app/lib/toolbox-config";
+
+export const runtime = "nodejs";
 
 export async function GET(
   req: NextRequest,
@@ -29,10 +23,8 @@ export async function GET(
 
   for (const key of rentreeS3KeysFromDocumentPath(relative)) {
     if (!isAllowedRentreeS3Key(key)) continue;
-    const loaded = await loadRentreeFileBytes(key);
-    if (loaded) {
-      return buildRentreeFileResponse(loaded.bytes, loaded.resolvedKey, { download });
-    }
+    const response = await createRentreeFileServeResponse(key, { download });
+    if (response.status !== 404) return response;
   }
 
   return new Response(rentreeFileNotFoundHtml(`toolbox/rentree/${relative}`), {

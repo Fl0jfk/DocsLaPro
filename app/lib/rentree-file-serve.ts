@@ -1,7 +1,11 @@
 import "server-only";
 
+import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { NextResponse } from "next/server";
 import { isAllowedRentreeS3Key } from "@/app/lib/rentree-public-urls";
-import { getObjectBytes } from "@/app/lib/s3-storage";
+import { getBucketName, getObjectBytes, getS3Client } from "@/app/lib/s3-storage";
+import { s3Key } from "@/app/lib/s3-path";
 import { candidateTravelsS3Keys, resolveTravelsS3ObjectKey } from "@/app/lib/travels-s3";
 
 export function rentreeKeyFromApiHref(href: string): string | null {
@@ -71,11 +75,6 @@ export async function loadRentreeFileBytes(
   return null;
 }
 
-export async function rentreeFileExists(key: string): Promise<boolean> {
-  const loaded = await loadRentreeFileBytes(key);
-  return Boolean(loaded?.bytes.length);
-}
-
 export function rentreeFileNotFoundHtml(key: string): string {
   const name = fileNameFromRentreeKey(key);
   return `<!DOCTYPE html>
@@ -105,21 +104,75 @@ export function rentreeFileNotFoundHtml(key: string): string {
 </html>`;
 }
 
+async function getSignedRentreeReadUrl(
+  resolvedKey: string,
+  opts?: { download?: boolean },
+): Promise<string | null> {
+  const key = s3Key(resolvedKey);
+  const client = await getS3Client();
+  const bucket = await getBucketName();
+  const fileName = fileNameFromRentreeKey(key).replace(/"/g, "");
+  const disposition = opts?.download ? "attachment" : "inline";
+
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ResponseContentType: contentTypeForKey(key),
+      ResponseContentDisposition: `${disposition}; filename="${fileName}"`,
+    });
+    return await getSignedUrl(client, command, { expiresIn: 3600 });
+  } catch {
+    return null;
+  }
+}
+
+/** Redirige vers S3 (fiable en prod) ou renvoie le fichier en secours. */
+export async function createRentreeFileServeResponse(
+  key: string,
+  opts?: { download?: boolean },
+): Promise<Response> {
+  if (!key || !isAllowedRentreeS3Key(key)) {
+    return new Response(rentreeFileNotFoundHtml(key || "inconnu"), {
+      status: 400,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
+  const resolvedKey = (await resolveTravelsS3ObjectKey(key, key)) || key;
+  const signed = await getSignedRentreeReadUrl(resolvedKey, opts);
+  if (signed) {
+    return Response.redirect(signed, 307);
+  }
+
+  const loaded = await loadRentreeFileBytes(key);
+  if (!loaded) {
+    return new Response(rentreeFileNotFoundHtml(key), {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
+  return buildRentreeFileResponse(loaded.bytes, loaded.resolvedKey, opts);
+}
+
 export function buildRentreeFileResponse(
   bytes: Buffer,
   resolvedKey: string,
   opts?: { download?: boolean },
-): Response {
+): NextResponse {
   const fileName = fileNameFromRentreeKey(resolvedKey);
   const safeName = fileName.replace(/"/g, "");
   const disposition = opts?.download ? "attachment" : "inline";
   const isPdf = resolvedKey.toLowerCase().endsWith(".pdf");
+  const body = new Uint8Array(bytes);
 
-  return new Response(Buffer.from(bytes), {
+  return new NextResponse(body, {
     headers: {
       "Content-Type": contentTypeForKey(resolvedKey),
       "Content-Disposition": `${disposition}; filename="${safeName}"`,
-      "Content-Length": String(bytes.length),
+      "Content-Length": String(body.byteLength),
       "Cache-Control": "private, max-age=300",
       ...(isPdf ? { "X-Content-Type-Options": "nosniff" } : {}),
     },

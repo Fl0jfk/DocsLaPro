@@ -1,11 +1,9 @@
 import { NextRequest } from "next/server";
 import { getToolboxConfig } from "@/app/lib/toolbox-config";
-import {
-  buildRentreeFileResponse,
-  loadRentreeFileBytes,
-  rentreeFileNotFoundHtml,
-} from "@/app/lib/rentree-file-serve";
+import { createRentreeFileServeResponse, rentreeFileNotFoundHtml } from "@/app/lib/rentree-file-serve";
 import { isAllowedRentreeS3Key, rentreePublicDocumentPathUrl } from "@/app/lib/rentree-public-urls";
+
+export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const config = await getToolboxConfig();
@@ -25,18 +23,10 @@ export async function GET(req: NextRequest) {
   }
 
   const download = req.nextUrl.searchParams.get("download") === "1";
-  const loaded = await loadRentreeFileBytes(key);
-  if (!loaded) {
-    return new Response(rentreeFileNotFoundHtml(key), {
-      status: 404,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
-  }
-
   if (!download) {
-    const dest = new URL(rentreePublicDocumentPathUrl(loaded.resolvedKey), req.nextUrl.origin);
+    const dest = new URL(rentreePublicDocumentPathUrl(key), req.nextUrl.origin);
     return Response.redirect(dest, 308);
   }
 
-  return buildRentreeFileResponse(loaded.bytes, loaded.resolvedKey, { download: true });
+  return createRentreeFileServeResponse(key, { download: true });
 }
