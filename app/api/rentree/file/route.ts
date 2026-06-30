@@ -1,56 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
-import { isAllowedRentreeS3Key } from "@/app/lib/rentree-public-urls";
-import { getObjectBytes } from "@/app/lib/s3-storage";
+import { NextRequest } from "next/server";
 import { getToolboxConfig } from "@/app/lib/toolbox-config";
-import { resolveTravelsS3ObjectKey } from "@/app/lib/travels-s3";
-
-function contentTypeForKey(key: string): string {
-  const lower = key.toLowerCase();
-  if (lower.endsWith(".pdf")) return "application/pdf";
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".docx")) {
-    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  }
-  if (lower.endsWith(".xlsx")) {
-    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  }
-  return "application/octet-stream";
-}
-
-function fileNameFromKey(key: string): string {
-  const base = key.split("/").pop() || "document";
-  try {
-    return decodeURIComponent(base);
-  } catch {
-    return base;
-  }
-}
+import {
+  buildRentreeFileResponse,
+  loadRentreeFileBytes,
+  rentreeFileNotFoundHtml,
+} from "@/app/lib/rentree-file-serve";
+import { isAllowedRentreeS3Key } from "@/app/lib/rentree-public-urls";
 
 export async function GET(req: NextRequest) {
   const config = await getToolboxConfig();
   if (!config.tools.rentree.enabled) {
-    return NextResponse.json({ error: "Non disponible." }, { status: 404 });
+    return new Response(rentreeFileNotFoundHtml(""), {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   const key = req.nextUrl.searchParams.get("key")?.trim() || "";
   if (!key || !isAllowedRentreeS3Key(key)) {
-    return NextResponse.json({ error: "Clé invalide." }, { status: 400 });
+    return new Response(rentreeFileNotFoundHtml(key || "inconnu"), {
+      status: 400,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
-  const resolvedKey = (await resolveTravelsS3ObjectKey(key, key)) || key;
-  const bytes = await getObjectBytes(resolvedKey);
-  if (!bytes?.length) {
-    return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
+  const loaded = await loadRentreeFileBytes(key);
+  if (!loaded) {
+    return new Response(rentreeFileNotFoundHtml(key), {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
-  const fileName = fileNameFromKey(resolvedKey);
-  return new NextResponse(Buffer.from(bytes), {
-    headers: {
-      "Content-Type": contentTypeForKey(resolvedKey),
-      "Content-Disposition": `inline; filename="${fileName.replace(/"/g, "")}"`,
-      "Cache-Control": "private, max-age=300",
-    },
-  });
+  const download = req.nextUrl.searchParams.get("download") === "1";
+  return buildRentreeFileResponse(loaded.bytes, loaded.resolvedKey, { download });
 }

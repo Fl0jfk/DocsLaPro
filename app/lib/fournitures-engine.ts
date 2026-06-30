@@ -737,8 +737,9 @@ export function getLyceeSuppliesLegacy(child: Extract<FournituresChild, { stage:
 }
 
 /** Manuels dédiés à la section européenne (anglais section Europe). */
-function lyceeSectionEuropeenneManuals(_niveau: import("./fournitures-types").LyceeNiveau): string[] {
-  return [LYCEE_MANUELS.sectionEuroAnglais];
+function lyceeSectionEuropeenneManuals(niveau: import("./fournitures-types").LyceeNiveau): string[] {
+  if (niveau === "2nde") return [LYCEE_MANUELS.sectionEuroAnglais];
+  return ["Pas de livre requis pour la section européenne"];
 }
 
 function lyceeGeneralSpecialiteSections(

@@ -155,7 +155,7 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
       return;
     }
     const safeOptions = lyceeNiveau === "Terminale" && lyceeTrack === "General" ? lyceeOptions.slice(0, 1) : [];
-    const safeSectionEuro = lyceeNiveau === "2nde" ? lyceeSectionEuro : false;
+    const safeSectionEuro = lyceeTrack === "General" ? lyceeSectionEuro : false;
     const safeLatin =
       lyceeNiveau === "2nde" ||
       (lyceeTrack === "General" && (lyceeNiveau === "1re" || lyceeNiveau === "Terminale"))
@@ -608,32 +608,35 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                           ))}
                         </div>
                       </div>
-                      {lyceeNiveau === "2nde" && (
-                        <>
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Section européenne (option)</p>
-                            <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                              <input
-                                type="checkbox"
-                                className="w-5 h-5 accent-indigo-600"
-                                checked={lyceeSectionEuro}
-                                onChange={(e) => setLyceeSectionEuro(e.target.checked)}
-                              />
-                              <span className="font-bold text-sm text-slate-800">
-                                {lyceeSectionEuro ? "Section européenne : OUI" : "Section européenne : NON"}
-                              </span>
-                            </label>
-                          </div>
+                      {lyceeTrack === "General" && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Section européenne (option)</p>
                           <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
                             <input
                               type="checkbox"
                               className="w-5 h-5 accent-indigo-600"
-                              checked={lyceeLatin}
-                              onChange={(e) => setLyceeLatin(e.target.checked)}
+                              checked={lyceeSectionEuro}
+                              onChange={(e) => setLyceeSectionEuro(e.target.checked)}
                             />
-                            <span className="font-bold text-sm text-slate-800">Option Latin (si concerné)</span>
+                            <span className="font-bold text-sm text-slate-800">
+                              {lyceeSectionEuro ? "Section européenne : OUI" : "Section européenne : NON"}
+                            </span>
                           </label>
-                        </>
+                          {lyceeNiveau !== "2nde" && (
+                            <p className="text-xs text-slate-500">Aucun manuel à acheter en 1re ni en Terminale.</p>
+                          )}
+                        </div>
+                      )}
+                      {lyceeNiveau === "2nde" && (
+                        <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                          <input
+                            type="checkbox"
+                            className="w-5 h-5 accent-indigo-600"
+                            checked={lyceeLatin}
+                            onChange={(e) => setLyceeLatin(e.target.checked)}
+                          />
+                          <span className="font-bold text-sm text-slate-800">Option Latin (si concerné)</span>
+                        </label>
                       )}
                       {lyceeTrack === "General" && (lyceeNiveau === "1re" || lyceeNiveau === "Terminale") && (
                         <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">

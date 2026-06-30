@@ -135,11 +135,19 @@ async function resolveTenantForProxy(request: NextRequest): Promise<TenantConfig
   }
 }
 
-function withTenantHeaders(response: NextResponse, tenant: TenantConfig): NextResponse {
+function withTenantHeaders(
+  response: NextResponse,
+  tenant: TenantConfig,
+  pathname?: string,
+): NextResponse {
   response.headers.set(TENANT_SLUG_HEADER, tenant.slug);
   response.headers.set("x-tenant-bucket", tenant.dataBucket);
-  response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue());
-  response.headers.set("Cross-Origin-Opener-Policy", crossOriginOpenerPolicyHeaderValue());
+  const omitCsp =
+    pathname?.startsWith("/api/rentree/file") || pathname?.startsWith("/api/fournitures/file");
+  if (!omitCsp) {
+    response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue());
+    response.headers.set("Cross-Origin-Opener-Policy", crossOriginOpenerPolicyHeaderValue());
+  }
   return response;
 }
 
@@ -152,6 +160,7 @@ function nextWithTenant(request: NextRequest, tenant: TenantConfig): NextRespons
       request: { headers: requestHeaders },
     }),
     tenant,
+    request.nextUrl.pathname,
   );
 }
 

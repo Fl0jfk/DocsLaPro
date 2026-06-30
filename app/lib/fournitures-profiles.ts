@@ -62,14 +62,14 @@ export const FOURNITURES_PROFILES: FournituresProfileMeta[] = [
     label: "1re — Général",
     stage: "lycee",
     group: "Lycée",
-    hint: "Liste de base (manuels). 3 spécialités obligatoires, Latin en option sur le simulateur.",
+    hint: "Liste de base (manuels). 3 spécialités obligatoires, section européenne et Latin en option sur le simulateur.",
   },
   {
     id: "lycee:terminale-general",
     label: "Terminale — Général",
     stage: "lycee",
     group: "Lycée",
-    hint: "Liste de base (manuels). 2 spécialités obligatoires, Latin et options maths en option sur le simulateur.",
+    hint: "Liste de base (manuels). 2 spécialités obligatoires, section européenne, Latin et options maths en option sur le simulateur.",
   },
   {
     id: "lycee:1re-st2s",

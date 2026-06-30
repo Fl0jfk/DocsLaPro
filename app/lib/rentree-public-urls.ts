@@ -1,6 +1,7 @@
 import "server-only";
 
 import { scolaImageUrl } from "@/app/lib/scola-image";
+import { rentreeKeyFromApiHref } from "@/app/lib/rentree-file-serve";
 import { parseTravelsS3KeyFromUrl } from "@/app/lib/travels-s3";
 import type { RentreeEstablishmentPage } from "@/app/lib/rentree-types";
 
@@ -75,9 +76,24 @@ function extractRentreeKeyFromS3Url(href: string): string | null {
 }
 
 /** Transforme chemins S3 / URLs bucket privé en route publique signée. */
-export async function resolveRentreePublicHref(href: string): Promise<string> {
+export async function resolveRentreePublicHref(
+  href: string,
+  kind?: "pdf" | "link",
+): Promise<string> {
   const trimmed = href.trim();
   if (!trimmed) return trimmed;
+
+  const fromApi = rentreeKeyFromApiHref(trimmed);
+  if (fromApi) return rentreePublicHrefForKey(fromApi, kind);
+
+  if (trimmed.startsWith("/rentree/document")) {
+    try {
+      const legacyKey = new URL(trimmed, "https://local.invalid").searchParams.get("key")?.trim() || "";
+      if (legacyKey && isAllowedRentreeS3Key(legacyKey)) return rentreePublicFileApiUrl(legacyKey);
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (isInternalAppRoute(trimmed)) return trimmed;
 
@@ -86,23 +102,27 @@ export async function resolveRentreePublicHref(href: string): Promise<string> {
 
   const pathKey = rentreeKeyFromPathHref(trimmed);
   if (pathKey && isAllowedRentreeS3Key(pathKey)) {
-    return rentreePublicFileApiUrl(pathKey);
+    return rentreePublicHrefForKey(pathKey, kind);
   }
 
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     if (isPublicExternalUrl(trimmed)) return trimmed;
 
     const extracted = extractRentreeKeyFromS3Url(trimmed);
-    if (extracted) return rentreePublicFileApiUrl(extracted);
+    if (extracted) return rentreePublicHrefForKey(extracted, kind);
 
     const parsedKey = await parseTravelsS3KeyFromUrl(trimmed);
     if (parsedKey && isAllowedRentreeS3Key(parsedKey)) {
-      return rentreePublicFileApiUrl(parsedKey);
+      return rentreePublicHrefForKey(parsedKey, kind);
     }
     return trimmed;
   }
 
   return trimmed;
+}
+
+function rentreePublicHrefForKey(key: string, _kind?: "pdf" | "link"): string {
+  return rentreePublicFileApiUrl(key);
 }
 
 export async function resolveRentreePagesPublicHrefs(
@@ -117,7 +137,7 @@ export async function resolveRentreePagesPublicHrefs(
           items: await Promise.all(
             section.items.map(async (item) => ({
               ...item,
-              href: await resolveRentreePublicHref(item.href),
+              href: await resolveRentreePublicHref(item.href, item.kind),
             })),
           ),
         })),
