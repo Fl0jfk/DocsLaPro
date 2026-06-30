@@ -452,8 +452,59 @@ export function getCollegeSuppliesLegacy(child: Extract<FournituresChild, { stag
   ];
 }
 
+/** Référence manuel lycée pour achat libre : ISBN — éditeur titre — édition — classe */
+function lyceeManuel(isbn: string, editeur: string, titre: string, edition: string, classe: string): string {
+  return `${isbn} — ${editeur} ${titre} — ${edition} — ${classe}`;
+}
+
+const LYCEE_MANUELS = {
+  latin: lyceeManuel(
+    "9782012814080",
+    "HACHETTE",
+    "DICTIONNAIRE LATIN - FRANÇAIS (GAFFIOT POCHE TOP)",
+    "2008",
+    "MULTIPLE",
+  ),
+  conjugaisonEspagnole: lyceeManuel(
+    "9782011252036",
+    "HACHETTE",
+    "LA CONJUGAISON ESPAGNOLE",
+    "1999",
+    "MULTIPLE",
+  ),
+  sectionEuroAnglais: lyceeManuel(
+    "9782091520117",
+    "NATHAN",
+    "ROBERT & NATHAN VOCABULAIRE DE L'ANGLAIS",
+    "2018",
+    "MULTIPLE",
+  ),
+} as const;
+
 export function getLyceeSuppliesLegacy(child: Extract<FournituresChild, { stage: "lycee" }>): SupplySection[] {
-  const { niveau, track, langue, anglaisEuro = false, specialites, latin, options = [] } = child;
+  const {
+    niveau,
+    track,
+    langue,
+    optionSectionEuropeenne = false,
+    specialites,
+    latin,
+    options = [],
+  } = child;
+
+  const withLyceePreamble = (sections: SupplySection[]): SupplySection[] => [
+    {
+      title: "Fournitures — au choix de l'élève",
+      items: [
+        "Aucune fourniture imposée (cahiers, classeurs, trousses, etc.) : chaque lycéen organise son matériel comme il le souhaite.",
+        "Seuls les manuels scolaires listés ci-dessous sont à prévoir.",
+      ],
+    },
+    ...sections,
+    ...(optionSectionEuropeenne
+      ? [{ title: "Section européenne", items: lyceeSectionEuropeenneManuals(niveau) }]
+      : []),
+  ];
 
   /* ── 2nde ── */
   if (niveau === "2nde") {
@@ -461,24 +512,30 @@ export function getLyceeSuppliesLegacy(child: Extract<FournituresChild, { stage:
       {
         title: "Matières obligatoires",
         items: [
-          "HACHETTE Physique-Chimie 2019 (2°)",
-          "HATIER Sciences Économiques et Sociales 2022 (2°)",
-          "HACHETTE Skywalks 2025 (2°)",
-          "MAGNARD Maths 2019 (2°)",
-          "HACHETTE Sciences de la Vie et de la Terre 2019 (2°)",
-          "HATIER Histoire-Géographie 2019 (2°)",
+          lyceeManuel("9782013954723", "HACHETTE", "PHYSIQUE - CHIMIE", "2019", "2°"),
+          lyceeManuel("9782401085886", "HATIER", "SCIENCES ECONOMIQUES ET SOCIALES", "2022", "2°"),
+          lyceeManuel("9782017149507", "HACHETTE", "SKYWALKS", "2025", "2°"),
+          lyceeManuel("9782210111653", "MAGNARD", "MATHS", "2019", "2°"),
+          lyceeManuel("9782013954730", "HACHETTE", "SCIENCE DE LA VIE ET DE LA TERRE", "2019", "2°"),
+          lyceeManuel("9782401046023", "HATIER", "HISTOIRE - GEOGRAPHIE", "2019", "2°"),
         ],
       },
     ];
     if (langue === "Allemand") {
-      sections.push({ title: "LVB — Allemand", items: ["LA MAISON DES LANGUES Fantastich 2025 (2°)"] });
+      sections.push({
+        title: "LV2 — Allemand",
+        items: [lyceeManuel("9782356858269", "LA MAISON DES LANGUE", "FANTASTICH", "2025", "2°")],
+      });
     } else {
-      sections.push({ title: "LVB — Espagnol", items: ["HACHETTE La Conjugaison Espagnole 1999", "LELIVRESCOLAIRE.FR Hispamundo 2019 (2°)"] });
+      sections.push({
+        title: "LV2 — Espagnol",
+        items: [LYCEE_MANUELS.conjugaisonEspagnole],
+      });
     }
-    if (anglaisEuro) {
-      sections.push({ title: "Option — Anglais Section Euro", items: ["NATHAN Robert & Nathan Vocabulaire de l'Anglais 2018"] });
+    if (latin) {
+      sections.push({ title: "Option — Latin", items: [LYCEE_MANUELS.latin] });
     }
-    return sections;
+    return withLyceePreamble(sections);
   }
 
   /* ── 1re Général ── */
@@ -487,39 +544,34 @@ export function getLyceeSuppliesLegacy(child: Extract<FournituresChild, { stage:
       {
         title: "Matières obligatoires",
         items: [
-          "LA MAISON DES LANGUES Blockbuster 2019 (1°)",
-          "HATIER Histoire-Géographie 2019 (1°)",
-          "HACHETTE Enseignement Scientifique 2024 (1°)",
+          lyceeManuel("9782356855497", "LA MAISON DES LANGUE", "BLOCKBUSTER", "2019", "1°"),
+          lyceeManuel("9782401053793", "HATIER", "HISTOIRE - GEOGRAPHIE", "2019", "1°"),
+          lyceeManuel("9782017227236", "HACHETTE", "ENSEIGNEMENT SCIENTIFIQUE", "2024", "1°"),
         ],
       },
     ];
     if (!specialites.includes("Maths")) {
-      sections.push({ title: "Mathématiques (enseignement commun)", items: ["HACHETTE Déclic 2023 (1°)"] });
+      sections.push({
+        title: "Mathématiques (hors spécialité)",
+        items: [lyceeManuel("9782017866367", "HACHETTE", "DECLIC", "2023", "1°")],
+      });
     }
     if (langue === "Allemand") {
-      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+      sections.push({
+        title: "LV2 — Allemand",
+        items: [lyceeManuel("9782047409558", "BORDAS", "WANDERLUST NEU", "2026", "1°")],
+      });
     } else {
-      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2019 (1°)", "HACHETTE La Conjugaison Espagnole 1999"] });
+      sections.push({
+        title: "LV2 — Espagnol",
+        items: [LYCEE_MANUELS.conjugaisonEspagnole],
+      });
     }
-    if (specialites.includes("Maths")) {
-      sections.push({ title: "Spécialité — Maths", items: ["HACHETTE Déclic 2019 (1° Spécialité)"] });
-    }
-    if (specialites.includes("Physique-Chimie")) {
-      sections.push({ title: "Spécialité — Physique-Chimie", items: ["HATIER Physique-Chimie 2019 (1° Spécialité)"] });
-    }
-    if (specialites.includes("SVT")) {
-      sections.push({ title: "Spécialité — SVT", items: ["BORDAS Sciences de la Vie et de la Terre 2019 (1° Spécialité)"] });
-    }
-    if (specialites.includes("SES")) {
-      sections.push({ title: "Spécialité — SES", items: ["HATIER Sciences Économiques et Sociales 2023 (1° Spécialité)"] });
-    }
-    if (specialites.includes("HG-GEO-GEOPOL")) {
-      sections.push({ title: "Spécialité — Hist/Géo Géopo Sc.Po", items: ["NATHAN Histoire-Géographie-Géopolitique-Sciences Politiques 2019 (1° Spécialité)"] });
-    }
+    sections.push(...lyceeGeneralSpecialiteSections(specialites, "1re"));
     if (latin) {
-      sections.push({ title: "Option — Latin", items: ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top) 2008"] });
+      sections.push({ title: "Option — Latin", items: [LYCEE_MANUELS.latin] });
     }
-    return sections;
+    return withLyceePreamble(sections);
   }
 
   /* ── Terminale Général ── */
@@ -528,47 +580,49 @@ export function getLyceeSuppliesLegacy(child: Extract<FournituresChild, { stage:
       {
         title: "Matières obligatoires",
         items: [
-          "MAGNARD Philosophie 2020 (Terminale)",
-          "HACHETTE Enseignement Scientifique 2020 (Terminale)",
-          "HATIER Histoire 2020 (Terminale)",
-          "HATIER Géographie 2020 (Terminale)",
-          "LA MAISON DES LANGUES Blockbuster 2020 (Terminale)",
+          lyceeManuel("9782210114173", "MAGNARD", "PHILOSOPHIE", "2020", "TERMINALE"),
+          lyceeManuel("9782017866138", "HACHETTE", "ENSEIGNEMENT SCIENTIFIQUE", "2020", "TERMINALE"),
+          lyceeManuel("9782401062962", "HATIER", "HISTOIRE", "2020", "TERMINALE"),
+          lyceeManuel("9782401062900", "HATIER", "GEOGRAPHIE", "2020", "TERMINALE"),
+          lyceeManuel("9782356856418", "LA MAISON DES LANGUE", "BLOCKBUSTER", "2020", "TERMINALE"),
         ],
       },
     ];
     if (langue === "Allemand") {
-      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+      sections.push({
+        title: "LV2 — Allemand",
+        items: [lyceeManuel("9782047409572", "BORDAS", "WANDERLUST NEU", "2026", "TERMINALE")],
+      });
     } else {
-      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2020 (Terminale)", "HACHETTE La Conjugaison Espagnole 1999"] });
+      sections.push({
+        title: "LV2 — Espagnol",
+        items: [
+          lyceeManuel("9782401062993", "HATIER", "VIA LIBRE", "2020", "TERMINALE"),
+          LYCEE_MANUELS.conjugaisonEspagnole,
+        ],
+      });
     }
-    if (specialites.includes("Maths")) {
-      sections.push({ title: "Spécialité — Maths", items: ["NATHAN Hyperbole — Maths Spécialité 2020 (Ter Spécialité)"] });
-    }
-    if (specialites.includes("Physique-Chimie")) {
-      sections.push({ title: "Spécialité — Physique-Chimie", items: ["HACHETTE Physique-Chimie 2020 (Ter Spécialité)"] });
-    }
-    if (specialites.includes("SVT")) {
-      sections.push({ title: "Spécialité — SVT", items: ["BORDAS Sciences de la Vie et de la Terre 2020 (Ter Spécialité)"] });
-    }
-    if (specialites.includes("SES")) {
-      sections.push({ title: "Spécialité — SES", items: ["MAGNARD Sciences Économiques et Sociales 2020 (Ter Spécialité)"] });
-    }
-    if (specialites.includes("HG-GEO-GEOPOL")) {
-      sections.push({ title: "Spécialité — Hist/Géo Géopo Sc.Po", items: ["HATIER Histoire-Géographie-Géopolitique-Sciences Politiques 2020 (Ter Spécialité)"] });
-    }
-    if (specialites.includes("Sc.Phy-Sc.Info")) {
-      sections.push({ title: "Spécialité — Sciences Physiques / Sciences de l'Info", items: ["HACHETTE Sciences Physiques 2020 (Ter Spécialité SI)"] });
-    }
+    sections.push(...lyceeGeneralSpecialiteSections(specialites, "Terminale"));
     if (options.includes("Maths Complémentaires")) {
-      sections.push({ title: "Option — Maths Complémentaires", items: ["NATHAN Hyperbole — Maths Complémentaires 2020 (Ter Option)"] });
+      sections.push({
+        title: "Option — Maths complémentaires",
+        items: [
+          lyceeManuel("9782091728957", "NATHAN", "HYPERBOLE - MATHS COMPLEMENTAIRES", "2020", "TER OPTION"),
+        ],
+      });
     }
     if (options.includes("Maths Expertes")) {
-      sections.push({ title: "Option — Maths Expertes", items: ["HACHETTE Mathématiques — Barbazo Expertes 2020 (Ter Option)"] });
+      sections.push({
+        title: "Option — Maths expertes",
+        items: [
+          lyceeManuel("9782017866213", "HACHETTE", "MATHEMATIQUES - BARBAZO EXPERTES", "2020", "TER OPTION"),
+        ],
+      });
     }
     if (latin) {
-      sections.push({ title: "Option — Latin", items: ["HACHETTE Dictionnaire Latin-Français (Gaffiot Poche Top) 2008"] });
+      sections.push({ title: "Option — Latin", items: [LYCEE_MANUELS.latin] });
     }
-    return sections;
+    return withLyceePreamble(sections);
   }
 
   /* ── 1re ST2S ── */
@@ -577,20 +631,47 @@ export function getLyceeSuppliesLegacy(child: Extract<FournituresChild, { stage:
       {
         title: "Matières obligatoires",
         items: [
-          "NATHAN I-Manuel Physique-Chimie pour la Santé (livre + licence iManuel) 2019 (1° ST2S)",
-          "LA MAISON DES LANGUES Blockbuster 2019 (1°)",
-          "DELAGRAVE Biologie et Physiopathologie Humaines 2019 (1° ST2S)",
-          "HACHETTE Histoire-Géographie-EMC 2019 (1° Tech)",
-          "HACHETTE Les Fondamentaux du Lycée — Maths (enseignement commun) 2025 (1° STMG-STHR-ST)",
+          lyceeManuel(
+            "9782091653747",
+            "NATHAN",
+            "I-MANUEL PHYSIQUE CHIMIE POUR LA SANTE (LIVRE + LICENCE IMANUEL)",
+            "2019",
+            "1°ST2S",
+          ),
+          lyceeManuel("9782356855497", "LA MAISON DES LANGUE", "BLOCKBUSTER", "2019", "1°"),
+          lyceeManuel(
+            "9782206103457",
+            "DELAGRAVE",
+            "BIOLOGIE ET PHYSIOPATHOLOGIE HUMAINES",
+            "2019",
+            "1°ST2S",
+          ),
+          lyceeManuel("9782017041887", "HACHETTE", "HISTOIRE - GEOGRAPHIE - EMC", "2019", "1° TECH"),
+          lyceeManuel(
+            "9782017317005",
+            "HACHETTE",
+            "LES FONDAMENTAUX DU LYCEE - MATHS (Enseignement commun)",
+            "2025",
+            "1°STMG-STHR-ST",
+          ),
         ],
       },
     ];
     if (langue === "Allemand") {
-      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+      sections.push({
+        title: "LV2 — Allemand",
+        items: [lyceeManuel("9782047409558", "BORDAS", "WANDERLUST NEU", "2026", "1°")],
+      });
     } else {
-      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2019 (1°)", "HACHETTE La Conjugaison Espagnole 1999"] });
+      sections.push({
+        title: "LV2 — Espagnol",
+        items: [
+          lyceeManuel("9782401054097", "HATIER", "VIA LIBRE", "2019", "1°"),
+          LYCEE_MANUELS.conjugaisonEspagnole,
+        ],
+      });
     }
-    return sections;
+    return withLyceePreamble(sections);
   }
 
   /* ── Terminale ST2S ── */
@@ -599,23 +680,183 @@ export function getLyceeSuppliesLegacy(child: Extract<FournituresChild, { stage:
       {
         title: "Matières obligatoires",
         items: [
-          "LA MAISON DES LANGUES Blockbuster 2020 (Terminale)",
-          "MAGNARD Philosophie 2020 (Ter Tech)",
-          "NATHAN I-Manuel Histoire-Géographie-EMC (livre + licence iManuel) 2020 (Ter Tech)",
+          lyceeManuel("9782356856418", "LA MAISON DES LANGUE", "BLOCKBUSTER", "2020", "TERMINALE"),
+          lyceeManuel("9782210110922", "MAGNARD", "PHILOSOPHIE", "2020", "TER TECH"),
+          lyceeManuel(
+            "9782091670829",
+            "NATHAN",
+            "I-MANUEL HISTOIRE - GEOGRAPHIE - EMC (LIVRE + LICENCE IMANUEL)",
+            "2020",
+            "TER TECH",
+          ),
         ],
       },
     ];
     if (langue === "Allemand") {
-      sections.push({ title: "LVB — Allemand", items: ["HACHETTE Mitreden 2020 (Terminale)"] });
+      sections.push({
+        title: "LV2 — Allemand",
+        items: [lyceeManuel("9782047409572", "BORDAS", "WANDERLUST NEU", "2026", "TERMINALE")],
+      });
     } else {
-      sections.push({ title: "LVB — Espagnol", items: ["HATIER Via Libre 2020 (Terminale)", "HACHETTE La Conjugaison Espagnole 1999"] });
+      sections.push({
+        title: "LV2 — Espagnol",
+        items: [
+          lyceeManuel("9782401062993", "HATIER", "VIA LIBRE", "2020", "TERMINALE"),
+          LYCEE_MANUELS.conjugaisonEspagnole,
+        ],
+      });
     }
-    sections.push({ title: "Spécialité — Biologie & Physiopathologie", items: ["DELAGRAVE Biologie et Physiopathologie Humaines 2020 (Ter ST2S)"] });
-    sections.push({ title: "Spécialité — Chimie", items: ["NATHAN I-Manuel Chimie (livre + licence iManuel) 2020 (Ter ST2S)"] });
-    return sections;
+    sections.push({
+      title: "Spécialité — Biologie & Physiopathologie",
+      items: [
+        lyceeManuel(
+          "9782206104485",
+          "DELAGRAVE",
+          "BIOLOGIE ET PHYSIOPATHOLOGIE HUMAINES",
+          "2020",
+          "TER ST2S",
+        ),
+      ],
+    });
+    sections.push({
+      title: "Spécialité — Chimie",
+      items: [
+        lyceeManuel(
+          "9782091670881",
+          "NATHAN",
+          "I-MANUEL CHIMIE (LIVRE + LICENCE IMANUEL)",
+          "2020",
+          "TER ST2S",
+        ),
+      ],
+    });
+    return withLyceePreamble(sections);
   }
 
-  return [{ title: "À compléter", items: ["Liste non disponible pour ce cas."] }];
+  return withLyceePreamble([{ title: "À compléter", items: ["Liste non disponible pour ce cas."] }]);
+}
+
+/** Manuels dédiés à la section européenne (anglais section Europe). */
+function lyceeSectionEuropeenneManuals(_niveau: import("./fournitures-types").LyceeNiveau): string[] {
+  return [LYCEE_MANUELS.sectionEuroAnglais];
+}
+
+function lyceeGeneralSpecialiteSections(
+  specialites: import("./fournitures-types").LyceeSpecialite[],
+  niveau: "1re" | "Terminale",
+): SupplySection[] {
+  const sections: SupplySection[] = [];
+  const is1re = niveau === "1re";
+
+  if (specialites.includes("Maths")) {
+    sections.push({
+      title: "Spécialité — Maths",
+      items: [
+        is1re
+          ? lyceeManuel("9782013954891", "HACHETTE", "DECLIC", "2019", "1° SPECIALITE")
+          : lyceeManuel("9782091728919", "NATHAN", "HYPERBOLE - MATHS SPECIALITE", "2020", "TER SPECIALITE"),
+      ],
+    });
+  }
+  if (specialites.includes("Physique-Chimie")) {
+    sections.push({
+      title: "Spécialité — Physique-Chimie",
+      items: [
+        is1re
+          ? lyceeManuel("9782401053977", "HATIER", "PHYSIQUE CHIMIE", "2019", "1° SPECIALITE")
+          : lyceeManuel("9782017866091", "HACHETTE", "PHYSIQUE CHIMIE", "2020", "TER SPECIALITE"),
+      ],
+    });
+  }
+  if (specialites.includes("SVT")) {
+    sections.push({
+      title: "Spécialité — SVT",
+      items: [
+        is1re
+          ? lyceeManuel(
+              "9782047336335",
+              "BORDAS",
+              "SCIENCES DE LA VIE ET DE LA TERRE",
+              "2019",
+              "1° SPECIALITE",
+            )
+          : lyceeManuel(
+              "9782047337622",
+              "BORDAS",
+              "SCIENCES DE LA VIE ET DE LA TERRE",
+              "2020",
+              "TER SPECIALITE",
+            ),
+      ],
+    });
+  }
+  if (specialites.includes("SES")) {
+    sections.push({
+      title: "Spécialité — SES",
+      items: [
+        is1re
+          ? lyceeManuel(
+              "9782401097117",
+              "HATIER",
+              "SCIENCES ECONOMIQUES ET SOCIALES",
+              "2023",
+              "1° SPECIALITE",
+            )
+          : lyceeManuel(
+              "9782017257066",
+              "HACHETTE",
+              "SCIENCES ECONOMIQUES ET SOCIALES",
+              "2024",
+              "TER SPECIALITE",
+            ),
+      ],
+    });
+  }
+  if (specialites.includes("HG-GEO-GEOPOL")) {
+    sections.push({
+      title: "Spécialité — Histoire-Géographie-Géopolitique",
+      items: [
+        is1re
+          ? lyceeManuel(
+              "9782091728766",
+              "NATHAN",
+              "HISTOIRE - GEOGRAPHIE - GEOPOLITIQUE - SCIENCES POLITIQUES",
+              "2019",
+              "1° SPECIALITE",
+            )
+          : lyceeManuel(
+              "9782401062917",
+              "HATIER",
+              "HISTOIRE - GEOGRAPHIE - GEOPOLITIQUE - SCIENCES POLITIQUES",
+              "2020",
+              "TER SPECIALITE",
+            ),
+      ],
+    });
+  }
+  if (is1re && specialites.includes("HLP")) {
+    sections.push({
+      title: "Spécialité — Humanités, littérature et philosophie",
+      items: ["Pas de livre requis pour cette spécialité"],
+    });
+  }
+  if (is1re && specialites.includes("LLCE")) {
+    sections.push({
+      title: "Spécialité — Langue, littérature et culture étrangère",
+      items: ["Pas de livre requis pour cette spécialité"],
+    });
+  }
+  if (specialites.includes("Sciences-de-l-Ingenieur")) {
+    sections.push({
+      title: "Spécialité — Sciences physiques / Sciences de l'ingénieur",
+      items: [
+        is1re
+          ? "Pas de livre requis pour cette spécialité"
+          : lyceeManuel("9782017866244", "HACHETTE", "SCIENCES PHYSIQUES", "2020", "TER SPE SI"),
+      ],
+    });
+  }
+  return sections;
 }
 
 function applyProfileOverride(
@@ -713,7 +954,7 @@ export function formatChildLabel(child: FournituresChild): string {
     if (child.niveau === "6e") return `Collège — 6e (bilingue allemand: ${child.optionBilingueAllemand ? "oui" : "non"})`;
     return `Collège — ${child.niveau} (${child.langue}${child.optionLatin ? " • Latin" : ""}${child.optionOse ? " • OSE" : ""}${child.optionLceAnglais ? " • LCE Anglais" : ""})`;
   }
-  return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • ${child.langue})`;
+  return `Lycée — ${child.niveau} (${child.track === "ST2S" ? "ST2S" : "Général"} • LV2 ${child.langue}${child.optionSectionEuropeenne ? " • Section européenne" : ""}${child.latin ? " • Latin" : ""})`;
 }
 
 function slugifyFilenamePart(value: string): string {
@@ -757,7 +998,7 @@ export function formatChildFilenameBase(child: FournituresChild): string {
 
   const parts = ["lycee", slugifyFilenamePart(child.niveau), child.track === "ST2S" ? "st2s" : "general"];
   parts.push(slugifyFilenamePart(child.langue));
-  if (child.anglaisEuro) parts.push("anglais_euro");
+  if (child.optionSectionEuropeenne) parts.push("section_europeenne");
   if (child.latin) parts.push("latin");
   for (const spec of child.specialites) parts.push(slugifyFilenamePart(spec));
   for (const opt of child.options) parts.push(slugifyFilenamePart(opt));

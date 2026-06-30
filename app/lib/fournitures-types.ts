@@ -23,7 +23,42 @@ export type LyceeSpecialite =
   | "SVT"
   | "SES"
   | "HG-GEO-GEOPOL"
-  | "Sc.Phy-Sc.Info";
+  | "HLP"
+  | "LLCE"
+  | "Sciences-de-l-Ingenieur";
+
+export const LYCEE_SPEC_LABELS: Record<LyceeSpecialite, string> = {
+  Maths: "Maths",
+  "Physique-Chimie": "Physique-Chimie",
+  SVT: "SVT",
+  SES: "SES",
+  "HG-GEO-GEOPOL": "Histoire-Géographie-Géopolitique",
+  HLP: "Humanités, littérature et philosophie",
+  LLCE: "Langue, littérature et culture étrangère",
+  "Sciences-de-l-Ingenieur": "Sciences de l'ingénieur",
+};
+
+/** Spécialités proposées en 1re générale (3 obligatoires). */
+export const LYCEE_SPECS_1RE_GENERAL: LyceeSpecialite[] = [
+  "Maths",
+  "Physique-Chimie",
+  "SVT",
+  "SES",
+  "HG-GEO-GEOPOL",
+  "HLP",
+  "LLCE",
+  "Sciences-de-l-Ingenieur",
+];
+
+/** Spécialités proposées en Terminale générale (2 obligatoires). */
+export const LYCEE_SPECS_TERMINALE_GENERAL: LyceeSpecialite[] = [
+  "SES",
+  "SVT",
+  "HG-GEO-GEOPOL",
+  "Maths",
+  "Physique-Chimie",
+  "Sciences-de-l-Ingenieur",
+];
 export type LyceeOption = "Maths Complémentaires" | "Maths Expertes";
 
 export type FournituresChild =
@@ -48,7 +83,8 @@ export type FournituresChild =
       niveau: LyceeNiveau;
       track: LyceeTrack;
       langue: LangueSeconde;
-      anglaisEuro?: boolean;
+      /** Section européenne (= anglais section Europe) — option, manuels dédiés. */
+      optionSectionEuropeenne: boolean;
       specialites: LyceeSpecialite[];
       latin: boolean;
       options: LyceeOption[];

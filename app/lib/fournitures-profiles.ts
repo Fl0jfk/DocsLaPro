@@ -4,6 +4,7 @@ import type {
   FournituresProfileMeta,
   FournituresProfileOverrides,
   FournituresSection,
+  LyceeOption,
 } from "@/app/lib/fournitures-types";
 import {
   collegeProfileId,
@@ -51,36 +52,38 @@ export const FOURNITURES_PROFILES: FournituresProfileMeta[] = [
   })),
   {
     id: "lycee:2nde",
-    label: "2nde — Général",
+    label: "2nde",
     stage: "lycee",
     group: "Lycée",
-    hint: "Matières obligatoires et LVB (Allemand par défaut).",
+    hint: "Manuels obligatoires et LV2. Section européenne et Latin en option sur le simulateur.",
   },
   {
     id: "lycee:1re-general",
     label: "1re — Général",
     stage: "lycee",
     group: "Lycée",
-    hint: "Profil type avec spécialité Maths.",
+    hint: "Liste de base (manuels). 3 spécialités obligatoires, Latin en option sur le simulateur.",
   },
   {
     id: "lycee:terminale-general",
     label: "Terminale — Général",
     stage: "lycee",
     group: "Lycée",
-    hint: "Profil type avec spécialités Maths, Physique-Chimie, SVT.",
+    hint: "Liste de base (manuels). 2 spécialités obligatoires, Latin et options maths en option sur le simulateur.",
   },
   {
     id: "lycee:1re-st2s",
     label: "1re — ST2S",
     stage: "lycee",
     group: "Lycée",
+    hint: "Manuels ST2S et LV2 sur le simulateur.",
   },
   {
     id: "lycee:terminale-st2s",
     label: "Terminale — ST2S",
     stage: "lycee",
     group: "Lycée",
+    hint: "Manuels ST2S et LV2 sur le simulateur.",
   },
 ];
 
@@ -102,9 +105,9 @@ function sampleLycee(profileId: string): Extract<FournituresChild, { stage: "lyc
     id: "sample",
     stage: "lycee" as const,
     langue: "Allemand" as const,
-    anglaisEuro: false,
+    optionSectionEuropeenne: false,
     latin: false,
-    options: [] as const,
+    options: [] as LyceeOption[],
   };
   if (profileId === "lycee:2nde") {
     return { ...base, niveau: "2nde", track: "General", specialites: [] };
@@ -117,7 +120,7 @@ function sampleLycee(profileId: string): Extract<FournituresChild, { stage: "lyc
       ...base,
       niveau: "Terminale",
       track: "General",
-      specialites: ["Maths", "Physique-Chimie", "SVT"],
+      specialites: ["Maths", "Physique-Chimie"],
     };
   }
   if (profileId === "lycee:1re-st2s") {

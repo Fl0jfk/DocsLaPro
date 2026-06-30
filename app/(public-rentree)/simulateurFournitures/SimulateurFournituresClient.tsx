@@ -5,6 +5,11 @@ import RentreePublicHeader from "@/app/components/RentreePublicHeader";
 import { SCHOOL } from "@/app/lib/school";
 import type { FournituresStage, FournituresToolConfig } from "@/app/lib/fournitures-types";
 import {
+  LYCEE_SPEC_LABELS,
+  LYCEE_SPECS_1RE_GENERAL,
+  LYCEE_SPECS_TERMINALE_GENERAL,
+} from "@/app/lib/fournitures-types";
+import {
   dedupeStrings,
   formatChildLabel,
   getChildSupplies,
@@ -38,6 +43,16 @@ function getStagePartnerLink(config: FournituresToolConfig, stage: FournituresSt
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+type LyceeProfileKey = "2nde" | "1re-general" | "1re-st2s" | "terminale-general" | "terminale-st2s";
+
+const LYCEE_PROFILES: { key: LyceeProfileKey; label: string; niveau: LyceeNiveau; track: LyceeTrack }[] = [
+  { key: "2nde", label: "2nde", niveau: "2nde", track: "General" },
+  { key: "1re-general", label: "1re — Général", niveau: "1re", track: "General" },
+  { key: "1re-st2s", label: "1re — ST2S", niveau: "1re", track: "ST2S" },
+  { key: "terminale-general", label: "Terminale — Général", niveau: "Terminale", track: "General" },
+  { key: "terminale-st2s", label: "Terminale — ST2S", niveau: "Terminale", track: "ST2S" },
+];
+
 type Child = FournituresChild;
 type Props = { config: FournituresToolConfig };
 
@@ -61,14 +76,19 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
   const [collegeLatin, setCollegeLatin] = useState(false);
   const [collegeOse, setCollegeOse] = useState(false);
   const [collegeLceAnglais, setCollegeLceAnglais] = useState(false);
-  const [lyceeNiveau, setLyceeNiveau] = useState<LyceeNiveau>("2nde");
-  const [lyceeTrack, setLyceeTrack] = useState<LyceeTrack>("General");
+  const [lyceeProfile, setLyceeProfile] = useState<LyceeProfileKey>("2nde");
+  const lyceeNiveau = LYCEE_PROFILES.find((p) => p.key === lyceeProfile)?.niveau ?? "2nde";
+  const lyceeTrack = LYCEE_PROFILES.find((p) => p.key === lyceeProfile)?.track ?? "General";
   const [lyceeLangue, setLyceeLangue] = useState<LangueSeconde>("Allemand");
-  const [lyceeAnglaisEuro, setLyceeAnglaisEuro] = useState(false);
+  const [lyceeSectionEuro, setLyceeSectionEuro] = useState(false);
   const [lyceeLatin, setLyceeLatin] = useState(false);
-  const [lyceeSpecs, setLyceeSpecs] = useState<LyceeSpecialite[]>(["Maths"]);
+  const [lyceeSpecs, setLyceeSpecs] = useState<LyceeSpecialite[]>([]);
   const [lyceeOptions, setLyceeOptions] = useState<LyceeOption[]>([]);
-  const lyceeSpecOptions: LyceeSpecialite[] = ["Maths", "Physique-Chimie", "SVT", "SES", "HG-GEO-GEOPOL", "Sc.Phy-Sc.Info"];
+  const lyceeSpecOptions = useMemo((): LyceeSpecialite[] => {
+    if (lyceeTrack !== "General" || lyceeNiveau === "2nde") return [];
+    if (lyceeNiveau === "1re") return LYCEE_SPECS_1RE_GENERAL;
+    return LYCEE_SPECS_TERMINALE_GENERAL;
+  }, [lyceeTrack, lyceeNiveau]);
   const lyceeOptionOptions: LyceeOption[] = ["Maths Complémentaires", "Maths Expertes"];
   const computed = useMemo(() => {
     const withSupplies = children.map((c) => {
@@ -89,12 +109,11 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
     setCollegeLatin(false);
     setCollegeOse(false);
     setCollegeLceAnglais(false);
-    setLyceeNiveau("2nde");
-    setLyceeTrack("General");
+    setLyceeProfile("2nde");
     setLyceeLangue("Allemand");
-    setLyceeAnglaisEuro(false);
+    setLyceeSectionEuro(false);
     setLyceeLatin(false);
-    setLyceeSpecs(["Maths"]);
+    setLyceeSpecs([]);
     setLyceeOptions([]);
   };
   const addChild = () => {
@@ -124,10 +143,24 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
       setShowAdd(false);
       return;
     }
-    const maxSpecs = lyceeNiveau === "Terminale" ? 2 : lyceeNiveau === "1re" ? 3 : 0;
+    const requiredSpecs = lyceeTrack === "General" && lyceeNiveau === "1re" ? 3 : lyceeTrack === "General" && lyceeNiveau === "Terminale" ? 2 : 0;
+    const maxSpecs = requiredSpecs;
     const specs = maxSpecs === 0 ? [] : lyceeSpecs.slice(0, maxSpecs);
-    const safeOptions = (lyceeNiveau === "Terminale" && lyceeTrack === "General") ? lyceeOptions : [];
-    const safeLatin = lyceeTrack === "General" && (lyceeNiveau === "1re" || lyceeNiveau === "Terminale") ? lyceeLatin : false;
+    if (requiredSpecs > 0 && specs.length !== requiredSpecs) {
+      alert(
+        lyceeNiveau === "1re"
+          ? "En 1re générale, sélectionnez exactement 3 spécialités."
+          : "En Terminale générale, sélectionnez exactement 2 spécialités.",
+      );
+      return;
+    }
+    const safeOptions = lyceeNiveau === "Terminale" && lyceeTrack === "General" ? lyceeOptions.slice(0, 1) : [];
+    const safeSectionEuro = lyceeNiveau === "2nde" ? lyceeSectionEuro : false;
+    const safeLatin =
+      lyceeNiveau === "2nde" ||
+      (lyceeTrack === "General" && (lyceeNiveau === "1re" || lyceeNiveau === "Terminale"))
+        ? lyceeLatin
+        : false;
     setChildren((prev) => [
       ...prev,
       {
@@ -136,7 +169,7 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
         niveau: lyceeNiveau,
         track: lyceeTrack,
         langue: lyceeLangue,
-        anglaisEuro: lyceeAnglaisEuro,
+        optionSectionEuropeenne: safeSectionEuro,
         latin: safeLatin,
         specialites: specs,
         options: safeOptions,
@@ -531,44 +564,35 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                   )}
                   {stage === "lycee" && (
                     <div className="space-y-4">
+                      <p className="rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900 leading-relaxed">
+                        Au lycée, <strong>aucune fourniture n&apos;est imposée</strong> (cahiers, classeurs, etc.) : chaque élève organise son matériel librement.
+                        Seuls les <strong>manuels scolaires</strong> figurent sur la liste.
+                      </p>
                       <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Niveau</p>
                         <div className="flex flex-wrap gap-2">
-                          {(["2nde", "1re", "Terminale"] as LyceeNiveau[]).map((n) => (
+                          {LYCEE_PROFILES.map(({ key, label }) => (
                             <button
-                              key={n}
+                              key={key}
                               type="button"
-                              onClick={() => { setLyceeNiveau(n); if (n === "2nde") setLyceeTrack("General"); }}
+                              onClick={() => {
+                                setLyceeProfile(key);
+                                setLyceeSpecs([]);
+                                setLyceeSectionEuro(false);
+                                setLyceeLatin(false);
+                                setLyceeOptions([]);
+                              }}
                               className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
-                                lyceeNiveau === n ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
+                                lyceeProfile === key ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
                               }`}
                             >
-                              {n}
+                              {label}
                             </button>
                           ))}
                         </div>
                       </div>
-                      {lyceeNiveau !== "2nde" && (
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filière</p>
-                          <div className="flex flex-wrap gap-2">
-                            {(["General", "ST2S"] as LyceeTrack[]).map((t) => (
-                              <button
-                                key={t}
-                                type="button"
-                                onClick={() => setLyceeTrack(t)}
-                                className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
-                                  lyceeTrack === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
-                                }`}
-                              >
-                                {t === "General" ? "Général" : "ST2S"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                       <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">LVB</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">LV2 (obligatoire — Allemand ou Espagnol)</p>
                         <div className="flex flex-wrap gap-2">
                           {(["Allemand", "Espagnol"] as LangueSeconde[]).map((l) => (
                             <button
@@ -585,15 +609,31 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                         </div>
                       </div>
                       {lyceeNiveau === "2nde" && (
-                        <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                          <input
-                            type="checkbox"
-                            className="w-5 h-5 accent-indigo-600"
-                            checked={lyceeAnglaisEuro}
-                            onChange={(e) => setLyceeAnglaisEuro(e.target.checked)}
-                          />
-                          <span className="font-bold text-sm text-slate-800">Anglais Section Euro (option)</span>
-                        </label>
+                        <>
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Section européenne (option)</p>
+                            <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                              <input
+                                type="checkbox"
+                                className="w-5 h-5 accent-indigo-600"
+                                checked={lyceeSectionEuro}
+                                onChange={(e) => setLyceeSectionEuro(e.target.checked)}
+                              />
+                              <span className="font-bold text-sm text-slate-800">
+                                {lyceeSectionEuro ? "Section européenne : OUI" : "Section européenne : NON"}
+                              </span>
+                            </label>
+                          </div>
+                          <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                            <input
+                              type="checkbox"
+                              className="w-5 h-5 accent-indigo-600"
+                              checked={lyceeLatin}
+                              onChange={(e) => setLyceeLatin(e.target.checked)}
+                            />
+                            <span className="font-bold text-sm text-slate-800">Option Latin (si concerné)</span>
+                          </label>
+                        </>
                       )}
                       {lyceeTrack === "General" && (lyceeNiveau === "1re" || lyceeNiveau === "Terminale") && (
                         <label className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
@@ -609,41 +649,45 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                       {lyceeTrack === "General" && lyceeNiveau !== "2nde" && (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            {lyceeNiveau === "1re" ? "Spécialités (jusqu'à 3)" : "Spécialités (jusqu'à 2)"}
+                            {lyceeNiveau === "1re"
+                              ? "Spécialités — 3 obligatoires"
+                              : "Spécialités — 2 obligatoires"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Sélectionnées : {lyceeSpecs.length}/{lyceeNiveau === "1re" ? 3 : 2}
                           </p>
                           <div className="flex flex-wrap gap-2">
-                            {lyceeSpecOptions
-                              .filter((s) => s !== "Sc.Phy-Sc.Info" || lyceeNiveau === "Terminale")
-                              .map((s) => {
-                                const max = lyceeNiveau === "Terminale" ? 2 : 3;
-                                const selected = lyceeSpecs.includes(s);
-                                const disabled = !selected && lyceeSpecs.length >= max;
-                                return (
-                                  <button
-                                    key={s}
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() => {
-                                      setLyceeSpecs((prev) => {
-                                        const has = prev.includes(s);
-                                        if (has) return prev.filter((x) => x !== s);
-                                        return [...prev, s];
-                                      });
-                                    }}
-                                    className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
-                                      selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
-                                    } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                                  >
-                                    {s}
-                                  </button>
-                                );
-                              })}
+                            {lyceeSpecOptions.map((s) => {
+                              const max = lyceeNiveau === "Terminale" ? 2 : 3;
+                              const selected = lyceeSpecs.includes(s);
+                              const disabled = !selected && lyceeSpecs.length >= max;
+                              return (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => {
+                                    setLyceeSpecs((prev) => {
+                                      const has = prev.includes(s);
+                                      if (has) return prev.filter((x) => x !== s);
+                                      return [...prev, s];
+                                    });
+                                  }}
+                                  className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
+                                    selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200"
+                                  } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                                >
+                                  {LYCEE_SPEC_LABELS[s]}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
                       {lyceeTrack === "General" && lyceeNiveau === "Terminale" && (
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Options maths (si concerné)</p>
+                          <p className="text-xs text-slate-500">Une seule option maths au maximum.</p>
                           <div className="flex flex-wrap gap-2">
                             {lyceeOptionOptions.map((o) => {
                               const selected = lyceeOptions.includes(o);
@@ -651,7 +695,7 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                                 <button
                                   key={o}
                                   type="button"
-                                  onClick={() => setLyceeOptions((prev) => prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o])}
+                                  onClick={() => setLyceeOptions((prev) => (prev.includes(o) ? [] : [o]))}
                                   className={`px-4 py-2 rounded-xl font-black text-sm border transition ${
                                     selected ? "bg-purple-600 text-white border-purple-600" : "bg-white border-slate-200 text-slate-700 hover:border-purple-200"
                                   }`}
