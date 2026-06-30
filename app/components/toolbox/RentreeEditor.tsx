@@ -19,6 +19,45 @@ function emptySection(): RentreeSection {
   return { title: "Nouvelle rubrique", items: [] };
 }
 
+function MoveArrows({
+  canUp,
+  canDown,
+  onUp,
+  onDown,
+  label,
+}: {
+  canUp: boolean;
+  canDown: boolean;
+  onUp: () => void;
+  onDown: () => void;
+  label: string;
+}) {
+  if (!canUp && !canDown) return null;
+  const btnClass =
+    "flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300";
+  return (
+    <div className="flex shrink-0 flex-col gap-0.5" role="group" aria-label={label}>
+      {canUp ? (
+        <button type="button" onClick={onUp} className={btnClass} title="Monter" aria-label={`${label} — monter`}>
+          ↑
+        </button>
+      ) : null}
+      {canDown ? (
+        <button type="button" onClick={onDown} className={btnClass} title="Descendre" aria-label={`${label} — descendre`}>
+          ↓
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function swapInArray<T>(arr: T[], from: number, to: number): T[] {
+  if (to < 0 || to >= arr.length || from === to) return arr;
+  const next = [...arr];
+  [next[from], next[to]] = [next[to], next[from]];
+  return next;
+}
+
 type Props = {
   rentree: RentreeToolConfig;
   establishments: Establishment[];
@@ -83,6 +122,27 @@ export default function RentreeEditor({ rentree, establishments, onChange, onPag
     if (!page) return;
     const sections = page.sections.map((s, si) =>
       si === sectionIdx ? { ...s, items: s.items.filter((_, ii) => ii !== itemIdx) } : s,
+    );
+    updatePage(pageId, { sections });
+  }
+
+  function moveSection(pageId: string, sectionIdx: number, direction: -1 | 1) {
+    const page = pages.find((p) => p.establishmentId === pageId);
+    if (!page) return;
+    const target = sectionIdx + direction;
+    if (target < 0 || target >= page.sections.length) return;
+    updatePage(pageId, { sections: swapInArray(page.sections, sectionIdx, target) });
+  }
+
+  function moveItem(pageId: string, sectionIdx: number, itemIdx: number, direction: -1 | 1) {
+    const page = pages.find((p) => p.establishmentId === pageId);
+    if (!page) return;
+    const section = page.sections[sectionIdx];
+    if (!section) return;
+    const target = itemIdx + direction;
+    if (target < 0 || target >= section.items.length) return;
+    const sections = page.sections.map((s, si) =>
+      si === sectionIdx ? { ...s, items: swapInArray(s.items, itemIdx, target) } : s,
     );
     updatePage(pageId, { sections });
   }
@@ -238,6 +298,13 @@ export default function RentreeEditor({ rentree, establishments, onChange, onPag
                 }`}
               >
                 <div className="flex items-center gap-2">
+                  <MoveArrows
+                    label={`Rubrique « ${section.title || "sans titre"} »`}
+                    canUp={sIdx > 0}
+                    canDown={sIdx < activePage.sections.length - 1}
+                    onUp={() => moveSection(activePage.establishmentId, sIdx, -1)}
+                    onDown={() => moveSection(activePage.establishmentId, sIdx, 1)}
+                  />
                   <input
                     className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold"
                     value={section.title}
@@ -255,7 +322,15 @@ export default function RentreeEditor({ rentree, establishments, onChange, onPag
                 {section.items.map((item, iIdx) => {
                   const uploadKey = `${activePage.establishmentId}-${sIdx}-${iIdx}`;
                   return (
-                    <div key={uploadKey} className="rounded-lg border border-white bg-white p-3 space-y-2">
+                    <div key={uploadKey} className="flex gap-2">
+                      <MoveArrows
+                        label={`Lien « ${item.title || "sans titre"} »`}
+                        canUp={iIdx > 0}
+                        canDown={iIdx < section.items.length - 1}
+                        onUp={() => moveItem(activePage.establishmentId, sIdx, iIdx, -1)}
+                        onDown={() => moveItem(activePage.establishmentId, sIdx, iIdx, 1)}
+                      />
+                      <div className="min-w-0 flex-1 rounded-lg border border-white bg-white p-3 space-y-2">
                       <div className="grid gap-2 sm:grid-cols-2">
                         <input
                           className="rounded-lg border px-2 py-1.5 text-sm"
@@ -316,6 +391,7 @@ export default function RentreeEditor({ rentree, establishments, onChange, onPag
                         >
                           ✕
                         </button>
+                      </div>
                       </div>
                     </div>
                   );

@@ -14,7 +14,7 @@ export function isInternatRentreeSection(section: RentreeSection): boolean {
   return section.title.trim().toLowerCase() === "internat";
 }
 
-/** Aligne titres legacy et garantit la rubrique Internat en dernier. */
+/** Aligne titres legacy et garantit la rubrique Internat si absente (sans réordonner). */
 export function normalizeRentreeSections(sections: RentreeSection[]): RentreeSection[] {
   const normalized = sections.map((s) => ({
     title: s.title.trim().toLowerCase() === "documents" ? RENTREE_SECTION_INFOS : s.title.trim(),
@@ -25,15 +25,7 @@ export function normalizeRentreeSections(sections: RentreeSection[]): RentreeSec
     normalized.push({ title: RENTREE_SECTION_INTERNAT, items: [] });
   }
 
-  const order = (title: string) => {
-    const t = title.trim().toLowerCase();
-    if (t === "calendrier") return 0;
-    if (t === "infos pratiques") return 1;
-    if (t === "internat") return 99;
-    return 50;
-  };
-
-  return [...normalized].sort((a, b) => order(a.title) - order(b.title));
+  return normalized;
 }
 
 /**
