@@ -137,20 +137,49 @@ export type AnalyzeDocMatchOptions = {
   knownStudent?: { ine?: string; nom: string; prenom: string; folderName: string };
 };
 
-function buildFileNameFromExtracted(extracted: Record<string, unknown>): string {
-  const pick = (key: string): string | null => {
-    const v = extracted[key];
-    if (typeof v !== "string" || !v.trim() || v === "non_trouvé") return null;
-    return v.trim();
-  };
-  const parts = [
-    pick("type"),
-    pick("période") ?? pick("periode"),
-    pick("classe"),
-    pick("nom"),
-    pick("prénom") ?? pick("prenom"),
-  ].filter((p): p is string => Boolean(p));
-  const raw = parts.join(" ").trim();
+/** Valeur exploitable (non vide, non "non_trouvé"). */
+function cleanFieldValue(v: unknown): string {
+  if (typeof v !== "string") return "";
+  const s = v.trim();
+  return !s || s === "non_trouvé" ? "" : s;
+}
+
+/** Nom du document détecté : première lettre en majuscule, reste inchangé. */
+function formatDocumentType(str: string): string {
+  const s = str.trim();
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Nom de famille : entièrement en majuscules. */
+function formatLastName(str: string): string {
+  return str.trim().toUpperCase();
+}
+
+/** Prénom(s) : première lettre de chaque mot en majuscule, reste en minuscule (gère composés). */
+function formatFirstName(str: string): string {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/(^|[\s\-'])(\p{L})/gu, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
+}
+
+/**
+ * Nom de fichier final : "Nom du document NOM_DE_FAMILLE Prénom".
+ * - type : 1re lettre majuscule
+ * - nom de famille : tout en majuscules
+ * - prénom : 1re lettre de chaque mot en majuscule
+ * Le nom/prénom de l'élève vérifié (matching) prime sur les champs extraits du document.
+ */
+function buildFinalFileName(opts: {
+  type?: unknown;
+  nom?: unknown;
+  prenom?: unknown;
+}): string {
+  const typePart = formatDocumentType(cleanFieldValue(opts.type));
+  const nomPart = formatLastName(cleanFieldValue(opts.nom));
+  const prenomPart = formatFirstName(cleanFieldValue(opts.prenom));
+  const raw = [typePart, nomPart, prenomPart].filter(Boolean).join(" ").trim();
   if (!raw) return "Document";
   return raw.replace(/[<>:"/\\|?*]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 }
@@ -438,54 +467,19 @@ export async function analyzeDocMatchEleve(
 
   ocrTraceCtx(trace, "classify", "match-summary", "résumé matching", matchDebug);
 
-  let fileName: string;
-  if (segmentMode) {
-    fileName = buildFileNameFromExtracted(extracted);
-    ocrTraceCtx(trace, "classify", "local-naming", "nom de fichier dérivé des champs extraits", { fileName });
-  } else {
-  const namingPrompt = `
-      Tu es un système de nommage de fichiers pour une école.
-      Voici les informations extraites d'un document :
-      - Type : ${extracted.type || "non_trouvé"}
-      - Nom : ${extracted.nom || "non_trouvé"}
-      - Prénom : ${extracted.prénom || "non_trouvé"}
-      - INE : ${extracted.ine || "non_trouvé"}
-      - Date de naissance : ${extracted.date_naissance || "non_trouvé"}
-      - Classe : ${extracted.classe || "non_trouvé"}
-      - Période : ${extracted.période || "non_trouvé"}
-      Génère un nom de fichier selon ces règles :
-      1. Format général : Type Période Classe NOM Prénom
-      2. Si une information vaut "non_trouvé", ne l'inclus PAS dans le nom
-      3. Garde les accents et caractères spéciaux
-      Réponds UNIQUEMENT avec le nom de fichier (sans extension), rien d'autre.
-    `;
-
-  ocrTraceCtx(trace, "classify", "mistral-naming", "appel Mistral nommage fichier");
-
-  const namingResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${mistralKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "mistral-medium",
-      messages: [{ role: "user", content: namingPrompt }],
-      temperature: 0,
-    }),
+  // Nommage déterministe : "Nom du document NOM_DE_FAMILLE Prénom".
+  // Le nom/prénom de l'élève vérifié (matching INE/identité) prime sur les champs extraits.
+  const fileName = buildFinalFileName({
+    type: extracted.type,
+    nom: matchedEleve?.nom ?? extracted.nom,
+    prenom: matchedEleve?.prenom ?? extracted.prénom,
   });
-  if (!namingResponse.ok) {
-    const errText = await namingResponse.text();
-    ocrTraceCtx(trace, "classify", "naming-fail", "Mistral naming HTTP erreur", {
-      status: namingResponse.status,
-      body: errText.slice(0, 200),
-    }, "error");
-    throw new Error(`Erreur Mistral naming: ${errText}`);
-  }
-  const namingData = await namingResponse.json();
-  fileName = namingData.choices?.[0]?.message?.content?.trim() || "";
-  fileName = fileName.replace(/[<>:"/\\|?*]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-  }
+  ocrTraceCtx(trace, "classify", "naming", "nom de fichier (type + NOM + Prénom)", {
+    fileName,
+    type: cleanFieldValue(extracted.type) || null,
+    nomSource: matchedEleve?.nom ? "eleve" : "extrait",
+    prenomSource: matchedEleve?.prenom ? "eleve" : "extrait",
+  });
 
   ocrTraceCtx(trace, "classify", "done", "analyse terminée", {
     fileName: fileName || null,
