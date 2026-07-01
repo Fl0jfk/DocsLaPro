@@ -111,7 +111,10 @@ function parseSignup(raw: unknown): DomainPlanningSignup | null {
   const createdAt = typeof o.createdAt === "string" ? o.createdAt : "";
   if (!id || !sessionId || !className || !userId || !subject || !createdAt) return null;
   const validationStatus =
-    o.validationStatus === "pending" || o.validationStatus === "validated"
+    o.validationStatus === "pending" ||
+    o.validationStatus === "validated" ||
+    o.validationStatus === "changes_requested" ||
+    o.validationStatus === "rejected"
       ? o.validationStatus
       : undefined;
   return {
@@ -128,6 +131,7 @@ function parseSignup(raw: unknown): DomainPlanningSignup | null {
     validationStatus,
     validatedAt: typeof o.validatedAt === "string" ? o.validatedAt : undefined,
     validatedByUserId: typeof o.validatedByUserId === "string" ? o.validatedByUserId.trim() : undefined,
+    validationComment: typeof o.validationComment === "string" ? o.validationComment.trim() : undefined,
   };
 }
 

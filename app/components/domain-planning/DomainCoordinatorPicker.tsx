@@ -23,7 +23,11 @@ export default function DomainCoordinatorPicker({
       selectedIds={selectedIds}
       onChange={onChange}
       loading={loading}
-      footerHint={`${selectedIds.length} responsable(s) pour ${domainName || "ce domaine"}. Ils peuvent affecter des créneaux au nom d'un professeur uniquement sur ce domaine.`}
+      footerHint={
+        domainName.toLowerCase().includes("evars")
+          ? `${selectedIds.length} responsable(s) EVARS. Elles valident les positionnements des intervenants.`
+          : `${selectedIds.length} responsable(s) pour ${domainName || "ce domaine"}.`
+      }
     />
   );
 }

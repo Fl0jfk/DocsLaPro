@@ -48,6 +48,12 @@ export type DomainPlanningSession = {
   mixte: boolean;
 };
 
+export type DomainPlanningSignupValidationStatus =
+  | "pending"
+  | "validated"
+  | "changes_requested"
+  | "rejected";
+
 export type DomainPlanningSignup = {
   id: string;
   sessionId: string;
@@ -59,8 +65,9 @@ export type DomainPlanningSignup = {
   subject: string;
   sessionIdea?: string;
   createdAt: string;
-  /** Séances à idée libre : validation par la responsable EVARS. */
-  validationStatus?: "pending" | "validated";
+  validationStatus?: DomainPlanningSignupValidationStatus;
   validatedAt?: string;
   validatedByUserId?: string;
+  /** Commentaire de la responsable EVARS (modifications demandées ou refus). */
+  validationComment?: string;
 };

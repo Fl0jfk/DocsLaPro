@@ -311,8 +311,16 @@ export default function DomainPlanningSettingsTab() {
             />
             <div className="pt-1 border-t border-slate-100">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                Responsables du domaine (Clerk)
+                {domain.id === "evars" ? "Responsable(s) EVARS" : "Responsables du domaine"} (Clerk)
               </p>
+              {domain.coordinatorClerkUserIds.length > 0 && (
+                <p className="text-sm font-bold text-violet-800 mb-2">
+                  {members
+                    .filter((m) => domain.coordinatorClerkUserIds.includes(m.clerkUserId))
+                    .map((m) => m.displayName || `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim() || m.email)
+                    .join(" · ") || `${domain.coordinatorClerkUserIds.length} responsable(s) sélectionné(s)`}
+                </p>
+              )}
               <DomainCoordinatorPicker
                 domainName={domain.name.trim() || "Domaine"}
                 members={members}

@@ -1,26 +1,40 @@
 import { NextResponse } from "next/server";
-import { getDomainPlanningUserDisplay, isDomainCoordinator } from "@/app/lib/domain-planning-auth";
+import { getDomainPlanningUserDisplay, isEvarsCoordinator } from "@/app/lib/domain-planning-auth";
 import { findSessionById, loadSignups, saveSignups } from "@/app/lib/domain-planning-storage";
-import { requireAuth, isIntranetAdmin } from "@/app/lib/intranet-auth";
+import { signupRequiresSessionIdea } from "@/app/lib/domain-planning-defaults";
+import type { DomainPlanningSignupValidationStatus } from "@/app/lib/domain-planning-types";
+import { requireAuth } from "@/app/lib/intranet-auth";
+
+const ACTIONS = new Set(["validate", "changes_requested", "reject"]);
 
 export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
   const authUser = await getDomainPlanningUserDisplay();
-  const isCoordinator =
-    (await isIntranetAdmin()) || (await isDomainCoordinator(authUser.userId, "evars"));
-  if (!isCoordinator) {
+  if (!(await isEvarsCoordinator(authUser.userId))) {
     return NextResponse.json(
-      { error: "Seule la responsable EVARS peut valider les idées de séance." },
+      { error: "Seule la responsable EVARS désignée peut valider les positionnements." },
       { status: 403 },
     );
   }
 
   const body = await req.json();
   const id = String(body.id || "").trim();
+  const action = String(body.action || "validate").trim();
+  const comment = String(body.comment || "").trim();
+
   if (!id) {
     return NextResponse.json({ error: "Positionnement introuvable." }, { status: 400 });
+  }
+  if (!ACTIONS.has(action)) {
+    return NextResponse.json({ error: "Action de validation invalide." }, { status: 400 });
+  }
+  if ((action === "changes_requested" || action === "reject") && !comment) {
+    return NextResponse.json(
+      { error: "Merci d'indiquer un commentaire pour cette décision." },
+      { status: 400 },
+    );
   }
 
   const signups = await loadSignups();
@@ -31,22 +45,30 @@ export async function POST(req: Request) {
 
   const signup = signups[idx];
   const session = await findSessionById(signup.sessionId);
-  if (!session) {
-    return NextResponse.json({ error: "Séance introuvable." }, { status: 404 });
-  }
 
-  if (session.intervenantConstraint !== "free") {
+  if (
+    action === "validate" &&
+    session &&
+    signupRequiresSessionIdea(session) &&
+    !signup.sessionIdea?.trim()
+  ) {
     return NextResponse.json(
-      { error: "Seules les séances à choix libre nécessitent une validation d'idée." },
+      { error: "L'intervenant doit d'abord proposer une idée de séance." },
       { status: 400 },
     );
   }
 
+  let validationStatus: DomainPlanningSignupValidationStatus;
+  if (action === "validate") validationStatus = "validated";
+  else if (action === "changes_requested") validationStatus = "changes_requested";
+  else validationStatus = "rejected";
+
   signups[idx] = {
     ...signup,
-    validationStatus: "validated",
+    validationStatus,
     validatedAt: new Date().toISOString(),
     validatedByUserId: authUser.userId,
+    validationComment: action === "validate" ? undefined : comment,
   };
 
   await saveSignups(signups);

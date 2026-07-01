@@ -4,6 +4,7 @@ import {
   isSvtSubject,
   lockedSessionIdeaForSession,
   lockedSubjectForSession,
+  signupRequiresSessionIdea,
 } from "@/app/lib/domain-planning-defaults";
 import { getDomainPlanningUserDisplay, isDomainCoordinator } from "@/app/lib/domain-planning-auth";
 import {
@@ -77,9 +78,9 @@ export async function POST(req: Request) {
     );
   }
 
-  if (session.intervenantConstraint === "free" && !sessionIdea && !isCoordinator) {
+  if (signupRequiresSessionIdea(session) && !sessionIdea) {
     return NextResponse.json(
-      { error: "Merci de décrire brièvement votre idée de séance." },
+      { error: "Merci de décrire votre idée de séance." },
       { status: 400 },
     );
   }
@@ -101,9 +102,9 @@ export async function POST(req: Request) {
     subject,
     sessionIdea: sessionIdea || undefined,
     createdAt: new Date().toISOString(),
-    validationStatus: session.intervenantConstraint === "free" ? "pending" : "validated",
-    validatedAt: session.intervenantConstraint === "free" ? undefined : new Date().toISOString(),
-    validatedByUserId: session.intervenantConstraint === "free" ? undefined : authUser.userId,
+    validationStatus: "pending",
+    validatedAt: undefined,
+    validatedByUserId: undefined,
   };
 
   await saveSignups([...existing, signup]);

@@ -16,9 +16,9 @@ function DomainPlanningPageContent() {
   const [domains, setDomains] = useState<{ id: string; coordinatorClerkUserIds?: string[] }[]>([]);
   const [activeTab, setActiveTab] = useState<"positionnements" | "settings">("positionnements");
 
-  const isEvarsCoordinator =
-    isOrgAdmin ||
-    Boolean(user?.id && domains.find((d) => d.id === "evars")?.coordinatorClerkUserIds?.includes(user.id));
+  const isEvarsCoordinator = Boolean(
+    user?.id && domains.find((d) => d.id === "evars")?.coordinatorClerkUserIds?.includes(user.id),
+  );
 
   const canAccessSettings =
     isOrgAdmin ||

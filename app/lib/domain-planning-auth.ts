@@ -8,6 +8,10 @@ import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { canAccessDomainPlanningSettingsFromRoles } from "@/app/lib/intranet-role-utils";
 import { requireAuth, isIntranetAdmin, type AuthContext } from "@/app/lib/intranet-auth";
 
+export async function isEvarsCoordinator(userId: string): Promise<boolean> {
+  return isDomainCoordinator(userId, "evars");
+}
+
 export async function isDomainCoordinator(userId: string, domainId: string): Promise<boolean> {
   if (!userId || !domainId) return false;
   const domains = await loadDomains();

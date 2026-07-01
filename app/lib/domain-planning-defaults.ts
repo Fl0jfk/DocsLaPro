@@ -1,4 +1,4 @@
-import type { DomainPlanningDomain, DomainPlanningSession } from "@/app/lib/domain-planning-types";
+import type { DomainPlanningDomain, DomainPlanningSession, DomainPlanningSignup } from "@/app/lib/domain-planning-types";
 import { hasRole } from "@/app/lib/intranet-role-utils";
 
 export const DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS: Record<string, string> = {
@@ -207,6 +207,27 @@ export function canUserSignupOnSession(
   if (session.intervenantConstraint === "fixed_association") return false;
   if (session.intervenantConstraint === "psy_inf") return hasPsyInfRole(roles);
   return true;
+}
+
+export function signupValidationStatus(
+  signup: DomainPlanningSignup,
+  session?: DomainPlanningSession | null,
+): DomainPlanningSignup["validationStatus"] {
+  if (signup.validationStatus) return signup.validationStatus;
+  if (session?.intervenantConstraint === "free") return "pending";
+  return "validated";
+}
+
+export function signupRequiresSessionIdea(session: DomainPlanningSession): boolean {
+  return session.intervenantConstraint !== "fixed_association";
+}
+
+export function signupNeedsCoordinatorReview(
+  signup: DomainPlanningSignup,
+  session?: DomainPlanningSession | null,
+): boolean {
+  const status = signupValidationStatus(signup, session);
+  return status === "pending" || status === "changes_requested";
 }
 
 export function normalizeSessionConstraint(
