@@ -47,16 +47,10 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!canUserSignupOnSession(session, roles)) {
+  if (!canUserSignupOnSession(session, roles, isCoordinator)) {
     if (session.intervenantConstraint === "psy_inf") {
       return NextResponse.json(
         { error: "Cette séance est réservée aux psychologues et infirmières (rôle Clerk requis)." },
-        { status: 403 },
-      );
-    }
-    if (session.intervenantConstraint === "svt_only") {
-      return NextResponse.json(
-        { error: "Cette séance est réservée aux professeurs (rôle Clerk requis)." },
         { status: 403 },
       );
     }
@@ -76,14 +70,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Matière obligatoire." }, { status: 400 });
   }
 
-  if (session.intervenantConstraint === "svt_only" && !isSvtSubject(subject)) {
+  if (session.intervenantConstraint === "svt_only" && !isSvtSubject(subject) && !isCoordinator) {
     return NextResponse.json(
       { error: "Cette séance est réservée aux professeurs de SVT." },
       { status: 403 },
     );
   }
 
-  if (session.intervenantConstraint === "free" && !sessionIdea) {
+  if (session.intervenantConstraint === "free" && !sessionIdea && !isCoordinator) {
     return NextResponse.json(
       { error: "Merci de décrire brièvement votre idée de séance." },
       { status: 400 },

@@ -231,7 +231,7 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
               const colorPresentation = getSubjectColorPresentation(
                 activityColors[colorKey] || "bg-violet-600 text-white",
               );
-              const canSignup = canUserSignupOnSession(session, roles);
+              const canSignup = canUserSignupOnSession(session, roles, isCoordinator);
               const sessionSignups = signupsForSession(session.id);
               const positionedSummary =
                 sessionSignups.length > 0
