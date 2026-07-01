@@ -5,7 +5,9 @@ import {
   DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS,
   DEFAULT_DOMAIN_PLANNING_DOMAINS,
   normalizeDomainPlanningModule,
+  TRANSVERSAL_NIVEAU_LABELS,
 } from "@/app/lib/domain-planning-defaults";
+import type { DomainPlanningSession } from "@/app/lib/domain-planning-types";
 import { PROF_ROOM_COLOR_PRESETS } from "@/app/lib/prof-room-subject-colors";
 import SubjectColorEditor from "@/app/components/prof-room/SubjectColorEditor";
 import DomainCoordinatorPicker, { type ClerkMemberOption } from "./DomainCoordinatorPicker";
@@ -63,13 +65,15 @@ export default function DomainPlanningSettingsTab() {
   const [newActivityColor, setNewActivityColor] = useState(PROF_ROOM_COLOR_PRESETS[0].value);
   const [newPoleName, setNewPoleName] = useState("");
   const [newClassByPole, setNewClassByPole] = useState<Record<string, string>>({});
+  const [sessions, setSessions] = useState<DomainPlanningSession[]>([]);
   useEffect(() => {
     (async () => {
       try {
-        const [domainsRes, configRes, usersRes] = await Promise.all([
+        const [domainsRes, configRes, usersRes, sessionsRes] = await Promise.all([
           fetch("/api/domain-planning/domains"),
           fetch("/api/domain-planning/module-config"),
           fetch("/api/domain-planning/clerk-users"),
+          fetch("/api/domain-planning/sessions"),
         ]);
         const domainsJson = await domainsRes.json();
         const configJson = await configRes.json();
@@ -94,6 +98,10 @@ export default function DomainPlanningSettingsTab() {
           throw new Error(usersJson.error || "Impossible de charger les utilisateurs Clerk.");
         }
         setMembers((usersJson.users || []) as ClerkMemberOption[]);
+        if (sessionsRes.ok) {
+          const sessionsJson = await sessionsRes.json();
+          setSessions(sessionsJson.sessions || []);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur de chargement");
       } finally {
@@ -127,6 +135,26 @@ export default function DomainPlanningSettingsTab() {
       if (!res.ok) throw new Error(j.error || "Échec enregistrement domaines");
       setDomains(normalized);
       alert("Domaines enregistrés.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveSessions = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/domain-planning/sessions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessions }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Échec enregistrement séances");
+      if (j.sessions) setSessions(j.sessions);
+      alert("Séances enregistrées.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -232,9 +260,9 @@ export default function DomainPlanningSettingsTab() {
       <section className="bg-violet-50 rounded-3xl border border-violet-200 p-6 space-y-4">
         <h2 className="text-lg font-black text-slate-900">Domaines & responsables</h2>
         <p className="text-sm text-slate-600 leading-relaxed">
-          Créez un domaine (EVARS, UNSS…), choisissez sa couleur, puis sélectionnez ses <strong>responsables</strong>{" "}
-          dans la liste Clerk. Un responsable EVARS ne peut affecter des créneaux que sur EVARS, pas sur les autres
-          domaines.
+          Créez un domaine (ex. EVARS), choisissez sa couleur, puis sélectionnez ses <strong>responsables</strong>{" "}
+          dans la liste Clerk. La responsable EVARS peut modifier les séances et gérer les positionnements des
+          professeurs.
         </p>
         {domains.map((domain, idx) => {
           const defaultPreset =
@@ -326,6 +354,81 @@ export default function DomainPlanningSettingsTab() {
             Enregistrer les domaines
           </button>
         </div>
+      </section>
+
+      <section className="bg-white rounded-3xl border p-6 space-y-4">
+        <h2 className="text-lg font-black text-slate-900">Séances EVARS (collège)</h2>
+        <p className="text-sm text-slate-600">
+          Thèmes et règles d&apos;inscription pour chaque séance. <strong>SVT obligatoire</strong> en séance 1,{" "}
+          <strong>intervenant imposé</strong> en séance 2, <strong>choix libre</strong> en séance 3.
+        </p>
+        <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
+          {sessions.map((session, idx) => (
+            <div key={session.id} className="border rounded-xl p-3 space-y-2 text-sm">
+              <p className="font-black text-slate-800">
+                {TRANSVERSAL_NIVEAU_LABELS[session.niveau]} — Séance {session.seanceNumber}
+              </p>
+              <textarea
+                className="w-full border rounded-lg p-2 text-sm"
+                rows={2}
+                value={session.theme}
+                onChange={(e) => {
+                  const next = [...sessions];
+                  next[idx] = { ...session, theme: e.target.value };
+                  setSessions(next);
+                }}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  className="border rounded-lg p-2 text-sm font-bold"
+                  value={session.intervenantLabel}
+                  onChange={(e) => {
+                    const next = [...sessions];
+                    next[idx] = { ...session, intervenantLabel: e.target.value };
+                    setSessions(next);
+                  }}
+                  placeholder="Intervenant affiché"
+                />
+                <select
+                  className="border rounded-lg p-2 text-sm font-bold"
+                  value={session.intervenantConstraint}
+                  onChange={(e) => {
+                    const next = [...sessions];
+                    next[idx] = {
+                      ...session,
+                      intervenantConstraint: e.target.value as DomainPlanningSession["intervenantConstraint"],
+                    };
+                    setSessions(next);
+                  }}
+                >
+                  <option value="svt_only">SVT uniquement</option>
+                  <option value="fixed">Intervenant imposé</option>
+                  <option value="free">Choix libre</option>
+                </select>
+                <label className="flex items-center gap-2 font-bold text-slate-700 px-2">
+                  <input
+                    type="checkbox"
+                    checked={session.mixte}
+                    onChange={(e) => {
+                      const next = [...sessions];
+                      next[idx] = { ...session, mixte: e.target.checked };
+                      setSessions(next);
+                    }}
+                  />
+                  Mixte
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void saveSessions()}
+          className="bg-rose-600 text-white px-6 py-2.5 rounded-xl font-bold disabled:opacity-50"
+        >
+          Enregistrer les séances
+        </button>
       </section>
 
       <section className="bg-white rounded-3xl border p-6 space-y-4">

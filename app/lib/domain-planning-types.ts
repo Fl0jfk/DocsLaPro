@@ -6,6 +6,7 @@ export type DomainPlanningDomain = {
   coordinatorClerkUserIds: string[];
 };
 
+/** @deprecated Ancien modèle « réservation de créneau » — conservé pour compatibilité données. */
 export type DomainPlanningBooking = {
   id: string;
   groupId?: string | null;
@@ -26,4 +27,32 @@ export type DomainPlanningBooking = {
   cancelledAt?: string;
   cancelledBy?: string;
   cancelReason?: string;
+};
+
+export type TransversalNiveau = "6e" | "5e" | "4e" | "3e";
+
+export type TransversalIntervenantConstraint = "fixed" | "svt_only" | "free";
+
+export type DomainPlanningSession = {
+  id: string;
+  niveau: TransversalNiveau;
+  seanceNumber: 1 | 2 | 3;
+  theme: string;
+  /** Libellé affiché (ex. « Profs d'SVT », « Association »). */
+  intervenantLabel: string;
+  intervenantConstraint: TransversalIntervenantConstraint;
+  mixte: boolean;
+};
+
+export type DomainPlanningSignup = {
+  id: string;
+  sessionId: string;
+  className: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  subject: string;
+  sessionIdea?: string;
+  createdAt: string;
 };

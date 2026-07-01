@@ -1,10 +1,9 @@
-import type { DomainPlanningDomain } from "@/app/lib/domain-planning-types";
+import type { DomainPlanningDomain, DomainPlanningSession } from "@/app/lib/domain-planning-types";
 
 export const DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS: Record<string, string> = {
   "Séance 1": "bg-violet-600 text-white",
   "Séance 2": "bg-indigo-600 text-white",
   "Séance 3": "bg-fuchsia-600 text-white",
-  Atelier: "bg-teal-600 text-white",
 };
 
 export const DEFAULT_DOMAIN_PLANNING_DOMAINS: DomainPlanningDomain[] = [
@@ -15,14 +14,128 @@ export const DEFAULT_DOMAIN_PLANNING_DOMAINS: DomainPlanningDomain[] = [
     color: "bg-rose-600 text-white",
     coordinatorClerkUserIds: [],
   },
+];
+
+/** Séances EVARS collège — structure issue du tableau de positionnement. */
+export const DEFAULT_EVARS_SESSIONS: DomainPlanningSession[] = [
   {
-    id: "unss",
-    name: "UNSS",
-    description: "Union nationale du sport scolaire",
-    color: "bg-orange-600 text-white",
-    coordinatorClerkUserIds: [],
+    id: "6e-s1",
+    niveau: "6e",
+    seanceNumber: 1,
+    theme: "La puberté et les transformations du corps",
+    intervenantLabel: "Profs d'SVT",
+    intervenantConstraint: "svt_only",
+    mixte: true,
+  },
+  {
+    id: "6e-s2",
+    niveau: "6e",
+    seanceNumber: 2,
+    theme: "Construire des relations (famille, amis, amour)",
+    intervenantLabel: "Association",
+    intervenantConstraint: "fixed",
+    mixte: false,
+  },
+  {
+    id: "6e-s3",
+    niveau: "6e",
+    seanceNumber: 3,
+    theme: "Trouver sa place dans la société ; être libre et responsable",
+    intervenantLabel: "Au choix des professeurs",
+    intervenantConstraint: "free",
+    mixte: true,
+  },
+  {
+    id: "5e-s1",
+    niveau: "5e",
+    seanceNumber: 1,
+    theme: "Le sexe biologique et l'orientation sexuelle",
+    intervenantLabel: "Profs d'SVT",
+    intervenantConstraint: "svt_only",
+    mixte: true,
+  },
+  {
+    id: "5e-s2",
+    niveau: "5e",
+    seanceNumber: 2,
+    theme: "Choisir ses relations et comprendre ses préférences",
+    intervenantLabel: "Psychologue / Infirmière",
+    intervenantConstraint: "fixed",
+    mixte: false,
+  },
+  {
+    id: "5e-s3",
+    niveau: "5e",
+    seanceNumber: 3,
+    theme: "Vie privée / vie publique, liberté individuelle sur les réseaux sociaux",
+    intervenantLabel: "Au choix des professeurs",
+    intervenantConstraint: "free",
+    mixte: true,
+  },
+  {
+    id: "4e-s1",
+    niveau: "4e",
+    seanceNumber: 1,
+    theme: "La sexualité, une réalité complexe (plaisir, amour, reproduction)",
+    intervenantLabel: "Profs d'SVT",
+    intervenantConstraint: "svt_only",
+    mixte: true,
+  },
+  {
+    id: "4e-s2",
+    niveau: "4e",
+    seanceNumber: 2,
+    theme: "Compréhension critique des relations et santé sexuelle",
+    intervenantLabel: "Association",
+    intervenantConstraint: "fixed",
+    mixte: false,
+  },
+  {
+    id: "4e-s3",
+    niveau: "4e",
+    seanceNumber: 3,
+    theme: "Représentations de la sexualité dans l'espace public et égalité",
+    intervenantLabel: "Au choix des professeurs",
+    intervenantConstraint: "free",
+    mixte: true,
+  },
+  {
+    id: "3e-s1",
+    niveau: "3e",
+    seanceNumber: 1,
+    theme: "Liens entre bonheur, émotions et sexualité",
+    intervenantLabel: "Profs d'SVT",
+    intervenantConstraint: "svt_only",
+    mixte: true,
+  },
+  {
+    id: "3e-s2",
+    niveau: "3e",
+    seanceNumber: 2,
+    theme: "Relations réciproques et égalitaires ; repérer danger et vulnérabilité",
+    intervenantLabel: "Psychologue / Infirmière",
+    intervenantConstraint: "fixed",
+    mixte: false,
+  },
+  {
+    id: "3e-s3",
+    niveau: "3e",
+    seanceNumber: 3,
+    theme: "La sexualité dans la définition des droits humains",
+    intervenantLabel: "Au choix des professeurs",
+    intervenantConstraint: "free",
+    mixte: true,
   },
 ];
+
+export const TRANSVERSAL_NIVEAUX = ["6e", "5e", "4e", "3e"] as const;
+
+export const TRANSVERSAL_NIVEAU_LABELS: Record<string, string> = {
+  "6e": "6ème",
+  "5e": "5ème",
+  "4e": "4ème",
+  "3e": "3ème",
+};
 
 /** Pôles réservés à d'autres modules (ex. réservation de salles). */
 const EXCLUDED_CLASSES_POLES = new Set(["MAINTENANCE"]);
@@ -36,6 +149,22 @@ export function sanitizeDomainPlanningClassesByPole(
     out[pole] = classes;
   }
   return out;
+}
+
+export function classesForTransversalNiveau(
+  niveau: string,
+  classesByPole: Record<string, string[]>,
+): string[] {
+  const prefix = niveau.replace(/e$/, "");
+  const all = Object.values(classesByPole).flat();
+  return all
+    .filter((c) => c.toUpperCase().startsWith(prefix.toUpperCase()))
+    .sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+export function isSvtSubject(subject: string): boolean {
+  const s = subject.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /\bsvt\b/.test(s) || /sciences?\s*(de\s*la\s*)?vie/.test(s);
 }
 
 export function withDefaultDomainPlanningActivities<T extends { activityColors: Record<string, string> }>(
