@@ -31,7 +31,11 @@ export type DomainPlanningBooking = {
 
 export type TransversalNiveau = "6e" | "5e" | "4e" | "3e";
 
-export type TransversalIntervenantConstraint = "fixed" | "svt_only" | "free";
+export type TransversalIntervenantConstraint =
+  | "svt_only"
+  | "fixed_association"
+  | "psy_inf"
+  | "free";
 
 export type DomainPlanningSession = {
   id: string;
@@ -55,4 +59,8 @@ export type DomainPlanningSignup = {
   subject: string;
   sessionIdea?: string;
   createdAt: string;
+  /** Séances à idée libre : validation par la responsable EVARS. */
+  validationStatus?: "pending" | "validated";
+  validatedAt?: string;
+  validatedByUserId?: string;
 };

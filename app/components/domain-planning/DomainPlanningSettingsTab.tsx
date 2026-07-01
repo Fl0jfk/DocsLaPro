@@ -402,8 +402,9 @@ export default function DomainPlanningSettingsTab() {
                   }}
                 >
                   <option value="svt_only">SVT uniquement</option>
-                  <option value="fixed">Intervenant imposé</option>
-                  <option value="free">Choix libre</option>
+                  <option value="fixed_association">Association (verrouillé)</option>
+                  <option value="psy_inf">Psychologue / Infirmière</option>
+                  <option value="free">Choix libre (validation EVARS)</option>
                 </select>
                 <label className="flex items-center gap-2 font-bold text-slate-700 px-2">
                   <input

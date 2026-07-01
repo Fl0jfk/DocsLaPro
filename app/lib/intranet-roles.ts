@@ -9,6 +9,7 @@ export const INTRANET_ROLE_OPTIONS: { slug: string; label: string }[] = [
   { slug: "comptabilite", label: "Comptabilité" },
   { slug: "maintenance", label: "Maintenance" },
   { slug: "infirmerie", label: "Infirmerie" },
+  { slug: "psychologue", label: "Psychologue" },
   { slug: "education", label: "Éducation / vie scolaire" },
   { slug: "parent", label: "Parent" },
   { slug: "eleve", label: "Élève (bot bien-être)" },

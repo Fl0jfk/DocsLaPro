@@ -1,5 +1,5 @@
 import { getJson, putJson } from "@/app/lib/s3-storage";
-import { DEFAULT_DOMAIN_PLANNING_DOMAINS, DEFAULT_EVARS_SESSIONS } from "@/app/lib/domain-planning-defaults";
+import { DEFAULT_DOMAIN_PLANNING_DOMAINS, DEFAULT_EVARS_SESSIONS, normalizeSessionConstraint } from "@/app/lib/domain-planning-defaults";
 import type {
   DomainPlanningBooking,
   DomainPlanningDomain,
@@ -68,11 +68,11 @@ function parseSession(raw: unknown): DomainPlanningSession | null {
   const seanceNumber = o.seanceNumber;
   const theme = typeof o.theme === "string" ? o.theme.trim() : "";
   const intervenantLabel = typeof o.intervenantLabel === "string" ? o.intervenantLabel.trim() : "";
-  const constraint = o.intervenantConstraint;
+  const constraint = normalizeSessionConstraint(o.intervenantConstraint, intervenantLabel);
   if (!id || !theme || !intervenantLabel) return null;
   if (niveau !== "6e" && niveau !== "5e" && niveau !== "4e" && niveau !== "3e") return null;
   if (seanceNumber !== 1 && seanceNumber !== 2 && seanceNumber !== 3) return null;
-  if (constraint !== "fixed" && constraint !== "svt_only" && constraint !== "free") return null;
+  if (!constraint) return null;
   return {
     id,
     niveau,
@@ -110,6 +110,10 @@ function parseSignup(raw: unknown): DomainPlanningSignup | null {
   const subject = typeof o.subject === "string" ? o.subject.trim() : "";
   const createdAt = typeof o.createdAt === "string" ? o.createdAt : "";
   if (!id || !sessionId || !className || !userId || !subject || !createdAt) return null;
+  const validationStatus =
+    o.validationStatus === "pending" || o.validationStatus === "validated"
+      ? o.validationStatus
+      : undefined;
   return {
     id,
     sessionId,
@@ -121,6 +125,9 @@ function parseSignup(raw: unknown): DomainPlanningSignup | null {
     subject,
     sessionIdea: typeof o.sessionIdea === "string" ? o.sessionIdea.trim() : undefined,
     createdAt,
+    validationStatus,
+    validatedAt: typeof o.validatedAt === "string" ? o.validatedAt : undefined,
+    validatedByUserId: typeof o.validatedByUserId === "string" ? o.validatedByUserId.trim() : undefined,
   };
 }
 

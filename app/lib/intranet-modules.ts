@@ -195,6 +195,8 @@ export const INTRANET_MODULES: IntranetModule[] = [
       "administratif",
       "education",
       "professeur",
+      "infirmerie",
+      "psychologue",
       "maintenance",
     ],
     dashboard: {

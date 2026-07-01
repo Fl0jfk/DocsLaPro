@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeSessionConstraint } from "@/app/lib/domain-planning-defaults";
 import { getDomainPlanningUserDisplay, isDomainCoordinator } from "@/app/lib/domain-planning-auth";
 import { loadSessions, saveSessions } from "@/app/lib/domain-planning-storage";
 import type { DomainPlanningSession } from "@/app/lib/domain-planning-types";
@@ -37,14 +38,15 @@ export async function PUT(req: Request) {
     if (!id || !theme || !intervenantLabel) continue;
     if (!["6e", "5e", "4e", "3e"].includes(String(o.niveau))) continue;
     if (![1, 2, 3].includes(Number(o.seanceNumber))) continue;
-    if (!["fixed", "svt_only", "free"].includes(String(o.intervenantConstraint))) continue;
+    const constraint = normalizeSessionConstraint(o.intervenantConstraint, intervenantLabel);
+    if (!constraint) continue;
     sessions.push({
       id,
       niveau: o.niveau as DomainPlanningSession["niveau"],
       seanceNumber: Number(o.seanceNumber) as 1 | 2 | 3,
       theme,
       intervenantLabel,
-      intervenantConstraint: o.intervenantConstraint as DomainPlanningSession["intervenantConstraint"],
+      intervenantConstraint: constraint,
       mixte: Boolean(o.mixte),
     });
   }

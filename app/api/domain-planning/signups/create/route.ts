@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { isSvtSubject } from "@/app/lib/domain-planning-defaults";
+import {
+  canUserSignupOnSession,
+  isSvtSubject,
+  lockedSessionIdeaForSession,
+  lockedSubjectForSession,
+} from "@/app/lib/domain-planning-defaults";
 import { getDomainPlanningUserDisplay, isDomainCoordinator } from "@/app/lib/domain-planning-auth";
 import {
   findSessionById,
@@ -8,20 +13,25 @@ import {
 } from "@/app/lib/domain-planning-storage";
 import type { DomainPlanningSignup } from "@/app/lib/domain-planning-types";
 import { requireAuth, isIntranetAdmin } from "@/app/lib/intranet-auth";
+import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
+import { safeCurrentUser } from "@/app/lib/intranet-session";
 
 export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
   const authUser = await getDomainPlanningUserDisplay();
+  const clerkUser = await safeCurrentUser();
+  const roles = intranetRolesFromMetadata(clerkUser?.publicMetadata);
+
   const body = await req.json();
   const sessionId = String(body.sessionId || "").trim();
   const className = String(body.className || "").trim();
-  const subject = String(body.subject || "").trim();
-  const sessionIdea = String(body.sessionIdea || "").trim();
+  let subject = String(body.subject || "").trim();
+  let sessionIdea = String(body.sessionIdea || "").trim();
 
-  if (!sessionId || !className || !subject) {
-    return NextResponse.json({ error: "Séance, classe et matière obligatoires." }, { status: 400 });
+  if (!sessionId || !className) {
+    return NextResponse.json({ error: "Séance et classe obligatoires." }, { status: 400 });
   }
 
   const session = await findSessionById(sessionId);
@@ -30,21 +40,50 @@ export async function POST(req: Request) {
   const isCoordinator =
     (await isIntranetAdmin()) || (await isDomainCoordinator(authUser.userId, "evars"));
 
-  if (session.intervenantConstraint === "fixed" && !isCoordinator) {
+  if (session.intervenantConstraint === "fixed_association" && !isCoordinator) {
     return NextResponse.json(
-      { error: "Cette séance a un intervenant imposé : inscription professeur non disponible." },
+      { error: "Cette séance est gérée par l'association : inscription non disponible." },
       { status: 403 },
     );
   }
 
-  if (session.intervenantConstraint === "svt_only" && !isSvtSubject(subject) && !isCoordinator) {
+  if (!canUserSignupOnSession(session, roles)) {
+    if (session.intervenantConstraint === "psy_inf") {
+      return NextResponse.json(
+        { error: "Cette séance est réservée aux psychologues et infirmières (rôle Clerk requis)." },
+        { status: 403 },
+      );
+    }
+    if (session.intervenantConstraint === "svt_only") {
+      return NextResponse.json(
+        { error: "Cette séance est réservée aux professeurs (rôle Clerk requis)." },
+        { status: 403 },
+      );
+    }
+    return NextResponse.json(
+      { error: "Vous n'avez pas le rôle requis pour vous positionner sur cette séance." },
+      { status: 403 },
+    );
+  }
+
+  const lockedSubject = lockedSubjectForSession(session);
+  if (lockedSubject) subject = lockedSubject;
+
+  const lockedIdea = lockedSessionIdeaForSession(session);
+  if (lockedIdea) sessionIdea = lockedIdea;
+
+  if (!subject) {
+    return NextResponse.json({ error: "Matière obligatoire." }, { status: 400 });
+  }
+
+  if (session.intervenantConstraint === "svt_only" && !isSvtSubject(subject)) {
     return NextResponse.json(
       { error: "Cette séance est réservée aux professeurs de SVT." },
       { status: 403 },
     );
   }
 
-  if (session.intervenantConstraint === "free" && !sessionIdea && !isCoordinator) {
+  if (session.intervenantConstraint === "free" && !sessionIdea) {
     return NextResponse.json(
       { error: "Merci de décrire brièvement votre idée de séance." },
       { status: 400 },
@@ -54,7 +93,7 @@ export async function POST(req: Request) {
   const existing = await loadSignups();
   const slotTaken = existing.some((s) => s.sessionId === sessionId && s.className === className);
   if (slotTaken) {
-    return NextResponse.json({ error: "Un professeur est déjà positionné sur cette classe." }, { status: 409 });
+    return NextResponse.json({ error: "Un intervenant est déjà positionné sur cette classe." }, { status: 409 });
   }
 
   const signup: DomainPlanningSignup = {
@@ -68,6 +107,9 @@ export async function POST(req: Request) {
     subject,
     sessionIdea: sessionIdea || undefined,
     createdAt: new Date().toISOString(),
+    validationStatus: session.intervenantConstraint === "free" ? "pending" : "validated",
+    validatedAt: session.intervenantConstraint === "free" ? undefined : new Date().toISOString(),
+    validatedByUserId: session.intervenantConstraint === "free" ? undefined : authUser.userId,
   };
 
   await saveSignups([...existing, signup]);

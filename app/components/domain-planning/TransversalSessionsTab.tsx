@@ -3,15 +3,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useAppContext } from "@/app/hooks/useAppContext";
-import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import {
+  ASSOCIATION_LOCKED_IDEA,
+  ASSOCIATION_LOCKED_SUBJECT,
+  canUserSignupOnSession,
   classesForTransversalNiveau,
   DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS,
+  lockedSessionIdeaForSession,
+  lockedSubjectForSession,
   sanitizeDomainPlanningClassesByPole,
   TRANSVERSAL_NIVEAU_LABELS,
   TRANSVERSAL_NIVEAUX,
 } from "@/app/lib/domain-planning-defaults";
 import type { DomainPlanningSession, DomainPlanningSignup } from "@/app/lib/domain-planning-types";
+import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
 import { getSubjectColorPresentation } from "@/app/lib/prof-room-subject-colors";
 
 const FALLBACK_CLASSES: Record<string, string[]> = {
@@ -23,13 +28,21 @@ type Props = {
 };
 
 function constraintHint(session: DomainPlanningSession): string {
-  if (session.intervenantConstraint === "fixed") {
-    return "Intervenant imposé — pas d'inscription professeur";
+  switch (session.intervenantConstraint) {
+    case "fixed_association":
+      return "Géré par l'association — pas d'inscription sur l'intranet";
+    case "svt_only":
+      return "Inscription réservée aux professeurs de SVT — matière verrouillée";
+    case "psy_inf":
+      return "Inscription réservée aux psychologues et infirmières — matière verrouillée";
+    default:
+      return "Inscription libre : matière et idée de séance à valider par la responsable EVARS";
   }
-  if (session.intervenantConstraint === "svt_only") {
-    return "Inscription réservée aux professeurs de SVT";
-  }
-  return "Inscription libre : nom, matière et idée de séance";
+}
+
+function displayName(signup: DomainPlanningSignup): string {
+  const name = [signup.firstName, signup.lastName].filter(Boolean).join(" ").trim();
+  return name || signup.email || "—";
 }
 
 export default function TransversalSessionsTab({ isCoordinator }: Props) {
@@ -42,6 +55,18 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
   const [subject, setSubject] = useState("");
   const [sessionIdea, setSessionIdea] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const roles = useMemo(() => {
+    const fromContext = appCtx?.session?.intranetRoles;
+    if (Array.isArray(fromContext) && fromContext.length > 0) return fromContext;
+    return intranetRolesFromMetadata(user?.publicMetadata);
+  }, [appCtx?.session?.intranetRoles, user?.publicMetadata]);
+
+  const clerkDisplayName = useMemo(() => {
+    const first = user?.firstName?.trim() || "";
+    const last = user?.lastName?.trim() || "";
+    return [first, last].filter(Boolean).join(" ") || user?.primaryEmailAddress?.emailAddress || "";
+  }, [user?.firstName, user?.lastName, user?.primaryEmailAddress?.emailAddress]);
 
   const classesByPole = useMemo(() => {
     const raw = appCtx?.domainPlanning?.classesByPole || FALLBACK_CLASSES;
@@ -58,6 +83,14 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
       fetch("/api/domain-planning/sessions", { cache: "no-store" }),
       fetch("/api/domain-planning/signups", { cache: "no-store" }),
     ]);
+    if (!sessionsRes.ok) {
+      const errText = await sessionsRes.text().catch(() => "");
+      throw new Error(errText || `Erreur chargement séances (${sessionsRes.status})`);
+    }
+    if (!signupsRes.ok) {
+      const errText = await signupsRes.text().catch(() => "");
+      throw new Error(errText || `Erreur chargement positionnements (${signupsRes.status})`);
+    }
     const sessionsJson = await sessionsRes.json();
     const signupsJson = await signupsRes.json();
     setSessions(sessionsJson.sessions || []);
@@ -65,7 +98,12 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
   }, []);
 
   useEffect(() => {
-    reload().finally(() => setLoading(false));
+    reload()
+      .catch((e: unknown) => {
+        console.error(e);
+        alert(e instanceof Error ? e.message : "Erreur de chargement EVARS");
+      })
+      .finally(() => setLoading(false));
   }, [reload]);
 
   const mySignups = useMemo(
@@ -77,9 +115,13 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
     return signups.find((s) => s.sessionId === sessionId && s.className === className);
   }
 
+  function signupsForSession(sessionId: string) {
+    return signups.filter((s) => s.sessionId === sessionId);
+  }
+
   function openSignup(session: DomainPlanningSession, className: string) {
-    setSubject("");
-    setSessionIdea("");
+    setSubject(lockedSubjectForSession(session) || "");
+    setSessionIdea(lockedSessionIdeaForSession(session) || "");
     setModal({ session, className });
   }
 
@@ -123,6 +165,20 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
     await reload();
   }
 
+  async function validateSignup(id: string) {
+    const res = await fetch("/api/domain-planning/signups/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Erreur");
+      return;
+    }
+    await reload();
+  }
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500 font-bold">Chargement des séances EVARS…</div>;
   }
@@ -130,9 +186,9 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
   return (
     <div className="space-y-8 px-4 pb-8">
       <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 leading-relaxed">
-        <strong>EVARS — positionnement des professeurs.</strong> La responsable a défini les séances ci-dessous.
-        Positionnez-vous sur les classes concernées selon les règles indiquées (SVT obligatoire en séance 1,
-        intervenant imposé en séance 2, choix libre en séance 3).
+        <strong>EVARS — positionnement des intervenants.</strong> La responsable a défini les séances ci-dessous.
+        Positionnez-vous sur les classes concernées : SVT en séance 1, association ou psychologue/infirmière en séance 2
+        (selon le niveau), choix libre en séance 3 avec validation par la responsable EVARS.
       </div>
 
       {mySignups.length > 0 && (
@@ -152,6 +208,7 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
                   <span className="font-black text-slate-800">
                     {TRANSVERSAL_NIVEAU_LABELS[session?.niveau || ""] || ""} — Séance {session?.seanceNumber} — {s.className}
                   </span>
+                  <span className="block text-slate-700 font-bold">{displayName(s)}</span>
                   <span className="block text-slate-500">{s.subject}</span>
                 </button>
               );
@@ -174,7 +231,14 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
               const colorPresentation = getSubjectColorPresentation(
                 activityColors[colorKey] || "bg-violet-600 text-white",
               );
-              const canSignup = session.intervenantConstraint !== "fixed" || isCoordinator;
+              const canSignup = canUserSignupOnSession(session, roles);
+              const sessionSignups = signupsForSession(session.id);
+              const positionedSummary =
+                sessionSignups.length > 0
+                  ? sessionSignups
+                      .map((s) => `${s.className} : ${displayName(s)}`)
+                      .join(" · ")
+                  : null;
 
               return (
                 <div key={session.id} className="rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -195,6 +259,11 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
                       </div>
                     </div>
                     <p className="text-xs mt-2 opacity-90">{constraintHint(session)}</p>
+                    {positionedSummary && (
+                      <p className="text-xs mt-2 font-bold opacity-95">
+                        Positionnés : {positionedSummary}
+                      </p>
+                    )}
                   </div>
 
                   <div className="p-4 overflow-x-auto">
@@ -202,7 +271,7 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
                       <thead>
                         <tr className="text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
                           <th className="pb-2 pr-3">Classe</th>
-                          <th className="pb-2 pr-3">Professeur</th>
+                          <th className="pb-2 pr-3">Intervenant</th>
                           <th className="pb-2 pr-3">Matière</th>
                           <th className="pb-2">Idée de séance</th>
                         </tr>
@@ -211,17 +280,21 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
                         {classes.map((className) => {
                           const signup = signupFor(session.id, className);
                           const isMine = signup?.userId === user?.id;
+                          const isAssociation = session.intervenantConstraint === "fixed_association";
+
                           return (
                             <tr key={className} className="border-t border-slate-100">
                               <td className="py-2 pr-3 font-black text-slate-800">{className}</td>
-                              {session.intervenantConstraint === "fixed" && !signup ? (
-                                <td colSpan={3} className="py-2 text-slate-600 italic">
-                                  {session.intervenantLabel}
-                                </td>
+                              {isAssociation && !signup ? (
+                                <>
+                                  <td className="py-2 pr-3 text-slate-600 italic">{session.intervenantLabel}</td>
+                                  <td className="py-2 pr-3 text-slate-600">{ASSOCIATION_LOCKED_SUBJECT}</td>
+                                  <td className="py-2 text-slate-600">{ASSOCIATION_LOCKED_IDEA}</td>
+                                </>
                               ) : signup ? (
                                 <>
                                   <td className="py-2 pr-3 font-bold">
-                                    {signup.lastName} {signup.firstName}
+                                    {displayName(signup)}
                                     {(isMine || isCoordinator) && (
                                       <button
                                         type="button"
@@ -233,7 +306,33 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
                                     )}
                                   </td>
                                   <td className="py-2 pr-3">{signup.subject}</td>
-                                  <td className="py-2 text-slate-600">{signup.sessionIdea || "—"}</td>
+                                  <td className="py-2 text-slate-600">
+                                    <span>{signup.sessionIdea || "—"}</span>
+                                    {session.intervenantConstraint === "free" && (
+                                      <span className="block mt-1">
+                                        {signup.validationStatus === "validated" ? (
+                                          <span className="text-[10px] font-black uppercase text-emerald-700">
+                                            Validé
+                                          </span>
+                                        ) : (
+                                          <>
+                                            <span className="text-[10px] font-black uppercase text-amber-700">
+                                              En attente de validation
+                                            </span>
+                                            {isCoordinator && (
+                                              <button
+                                                type="button"
+                                                onClick={() => void validateSignup(signup.id)}
+                                                className="ml-2 text-[10px] font-black uppercase text-violet-700 hover:underline"
+                                              >
+                                                Valider
+                                              </button>
+                                            )}
+                                          </>
+                                        )}
+                                      </span>
+                                    )}
+                                  </td>
                                 </>
                               ) : canSignup ? (
                                 <td colSpan={3} className="py-2">
@@ -270,15 +369,29 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
               {TRANSVERSAL_NIVEAU_LABELS[modal.session.niveau]} — Séance {modal.session.seanceNumber} — {modal.className}
             </h3>
             <p className="text-sm text-slate-600">{modal.session.theme}</p>
-            <label className="block">
-              <span className="text-xs font-bold text-slate-500 uppercase">Matière *</span>
-              <input
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="ex. SVT, EPS, Français…"
-              />
-            </label>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="text-[10px] font-black uppercase text-slate-400">Vous</span>
+              <p className="text-sm font-black text-slate-900">{clerkDisplayName}</p>
+            </div>
+
+            {lockedSubjectForSession(modal.session) ? (
+              <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2">
+                <span className="text-[10px] font-black uppercase text-violet-600">Matière (verrouillée)</span>
+                <p className="text-sm font-bold text-violet-900">{lockedSubjectForSession(modal.session)}</p>
+              </div>
+            ) : (
+              <label className="block">
+                <span className="text-xs font-bold text-slate-500 uppercase">Matière *</span>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="ex. EPS, Français…"
+                />
+              </label>
+            )}
+
             {modal.session.intervenantConstraint === "free" && (
               <label className="block">
                 <span className="text-xs font-bold text-slate-500 uppercase">Idée de séance *</span>
@@ -288,8 +401,12 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
                   onChange={(e) => setSessionIdea(e.target.value)}
                   placeholder="Décrivez brièvement ce que vous proposez"
                 />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Votre idée devra être validée par la responsable EVARS.
+                </p>
               </label>
             )}
+
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
@@ -304,7 +421,7 @@ export default function TransversalSessionsTab({ isCoordinator }: Props) {
                 onClick={() => void confirmSignup()}
                 className="flex-1 rounded-xl bg-violet-600 py-2 text-sm font-black text-white disabled:opacity-50"
               >
-                {submitting ? "Envoi…" : "Confirmer"}
+                {submitting ? "Envoi…" : "Confirmer le positionnement"}
               </button>
             </div>
           </div>
