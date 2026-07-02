@@ -413,6 +413,25 @@ export const INTRANET_MODULES: IntranetModule[] = [
     },
   },
   {
+    id: "certificates",
+    pathPrefixes: ["/certificates", "/api/certificates"],
+    excludePrefixes: ["/certificates/verify", "/api/certificates/verify"],
+    allowedRoles: [
+      ...DIRECTIONS,
+      "administratif",
+      "education",
+      "professeur",
+    ],
+    dashboard: {
+      id: 29,
+      name: "Parcours & certificats",
+      img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
+      link: "/certificates",
+      external: false,
+      description: "Certificats de parcours, lignes personnalisées, signatures et PDF",
+    },
+  },
+  {
     id: "covoiturage",
     pathPrefixes: ["/covoiturage", "/api/covoiturage"],
     allowedRoles: ["parent"],
