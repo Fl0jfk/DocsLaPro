@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { listClerkMembers } from "@/app/lib/clerk-users";
 import { requireAuth } from "@/app/lib/intranet-auth";
 import { safeCurrentUser } from "@/app/lib/intranet-session";
-import { userHasAdministratifRole } from "@/app/lib/travels-roles";
+import { canReassignTravelsOwner } from "@/app/lib/travels-roles";
 
 /** Liste Clerk pour affecter un voyage à un enseignant (administratif uniquement). */
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
   if (!gate.ok) return gate.response;
 
   const user = await safeCurrentUser();
-  if (!userHasAdministratifRole(user)) {
+  if (!canReassignTravelsOwner(user)) {
     return NextResponse.json({ error: "Réservé à l'administratif." }, { status: 403 });
   }
 

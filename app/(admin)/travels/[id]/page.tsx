@@ -29,6 +29,7 @@ import { TripActionsPanel } from "@/app/components/travels/hub/TripActionsPanel"
 import { TripAmendmentJournal } from "@/app/components/travels/hub/TripAmendmentJournal";
 import { TripHubNav } from "@/app/components/travels/hub/TripHubNav";
 import { TripRemindersBanner } from "@/app/components/travels/hub/TripRemindersBanner";
+import TravelsOwnerRepairSection from "@/app/components/travels/TravelsOwnerRepairSection";
 import {
   TripAlert,
   TripBusQuoteCard,
@@ -107,6 +108,8 @@ export default function TripDetails() {
     canAddDocuments,
     canUseInternalThread,
     canEditEffectif,
+    isAdministratif,
+    canReassignTripOwner,
   } = perms;
   const CUISINE_DAYS = CUISINE_DAYS_UI;
   const CUISINE_ROWS = CUISINE_ROWS_UI;
@@ -1282,6 +1285,16 @@ export default function TripDetails() {
         status={trip.status}
         statusPulse={trip.status === "BESOIN_MODIFICATION"}
       />
+
+      {canReassignTripOwner && (
+        <TravelsOwnerRepairSection
+          trip={trip}
+          onRepaired={(updated) => {
+            setTrip(updated);
+            setEditedData(updated.data);
+          }}
+        />
+      )}
 
       <TripQuickStats
         items={[

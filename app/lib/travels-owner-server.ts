@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getClerkClientForTenant } from "@/app/lib/tenant-clerk";
-import { userHasAdministratifRole } from "@/app/lib/travels-roles";
+import { canReassignTravelsOwner } from "@/app/lib/travels-roles";
 
 export type TravelsOwnerProfile = {
   ownerId: string;
@@ -50,7 +50,7 @@ export async function applyTravelsOwnerAssignment(
     const adminTransfers =
       requestedOwnerId &&
       requestedOwnerId !== existingOwnerId &&
-      userHasAdministratifRole(actor);
+      canReassignTravelsOwner(actor);
 
     if (adminTransfers) {
       const profile = await resolveTravelsOwnerFromClerk(requestedOwnerId);
@@ -94,7 +94,7 @@ export async function applyTravelsOwnerAssignment(
     return { ok: true };
   }
 
-  if (!userHasAdministratifRole(actor)) {
+  if (!canReassignTravelsOwner(actor)) {
     return {
       ok: false,
       status: 403,

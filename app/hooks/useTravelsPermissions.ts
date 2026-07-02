@@ -2,27 +2,33 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useMemo } from "react";
+import { useAppContext } from "@/app/hooks/useAppContext";
 import {
   canSignTravelsDirectionForEtab,
   isTripOwnerOrCreator,
 } from "@/app/lib/travels-direction-permissions";
+import { intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
+import { hasGlobalAdminRole, hasRole } from "@/app/lib/intranet-role-utils";
 import type { TravelsTrip } from "@/app/lib/travels-types";
-
-const norm = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_\s-]+/g, "");
 
 export function useTravelsPermissions(trip: TravelsTrip | null) {
   const { user } = useUser();
-  const rawRoles = user?.publicMetadata?.role;
-  const userRoles = Array.isArray(rawRoles) ? rawRoles : rawRoles ? [rawRoles] : [];
-  const normalizedRoles = userRoles.map((r: string) => norm(String(r)));
+  const { data: appCtx } = useAppContext();
+
+  const roles = useMemo(() => {
+    const fromContext = appCtx?.session?.intranetRoles;
+    if (Array.isArray(fromContext) && fromContext.length > 0) return fromContext;
+    return intranetRolesFromMetadata(user?.publicMetadata);
+  }, [appCtx?.session?.intranetRoles, user?.publicMetadata]);
 
   return useMemo(() => {
     const etabForSign = trip?.data?.etablissement || "";
     const isDirection = canSignTravelsDirectionForEtab(user, etabForSign);
     const isCompta =
-      userRoles.includes("comptabilité") || normalizedRoles.some((r: string) => r.includes("comptabilite"));
-    const isAdministratif = normalizedRoles.some((r: string) => r.includes("administratif"));
+      roles.includes("comptabilité") || hasRole(roles, "comptabilite");
+    const isAdministratif = hasRole(roles, "administratif");
+    const isGlobalAdmin = appCtx?.session?.isGlobalAdmin === true || hasGlobalAdminRole(roles);
+    const canReassignTripOwner = isAdministratif || isGlobalAdmin;
     const isOwner = trip ? isTripOwnerOrCreator(trip, user) : false;
     const canManageFiles = isOwner || isDirection || isCompta;
     const canAddDocuments = canManageFiles || isAdministratif;
@@ -40,11 +46,13 @@ export function useTravelsPermissions(trip: TravelsTrip | null) {
       canSign: isDirection,
       isCompta,
       isAdministratif,
+      isGlobalAdmin,
+      canReassignTripOwner,
       canManageFiles,
       canAddDocuments,
       canUseInternalThread,
       canSeeTravelDocHoverActions,
       canEditEffectif,
     };
-  }, [trip, user, userRoles, normalizedRoles]);
+  }, [trip, user, roles, appCtx?.session?.isGlobalAdmin]);
 }
