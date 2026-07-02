@@ -25,7 +25,6 @@ export function canAccessCertificatesModule(user: ClerkActor | null | undefined)
   return (
     hasRole(roles, "professeur") ||
     hasRole(roles, "administratif") ||
-    hasRole(roles, "education") ||
     hasRole(roles, "direction_ecole") ||
     hasRole(roles, "direction_college") ||
     hasRole(roles, "direction_lycee")
@@ -45,6 +44,10 @@ export function canViewProgram(program: CertificateProgram, userId: string): boo
 }
 
 export function canEditProgramTitle(program: CertificateProgram, userId: string): boolean {
+  return isProgramOwner(program, userId);
+}
+
+export function canDeleteProgram(program: CertificateProgram, userId: string): boolean {
   return isProgramOwner(program, userId);
 }
 

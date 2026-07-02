@@ -5,11 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AwardStatusBadge } from "@/app/components/certificates/CertificatePendingSignaturesPanel";
+import { useAppContext } from "@/app/hooks/useAppContext";
 import {
   certificatePersonSearchText,
   formatCertificatePersonLabel,
 } from "@/app/lib/certificates-person-label";
 import type { CertificateProgram, StudentAward } from "@/app/lib/certificates-types";
+import { hasRole } from "@/app/lib/intranet-role-utils";
 
 type Peer = {
   clerkUserId: string;
@@ -22,7 +24,9 @@ type StudentOption = { key: string; label: string; classe: string };
 export default function CertificateProgramPage() {
   const { programId } = useParams<{ programId: string }>();
   const { user } = useUser();
+  const { data: appContext } = useAppContext();
   const userId = user?.id || "";
+  const myRoles = appContext?.session?.intranetRoles ?? [];
   const router = useRouter();
   const [program, setProgram] = useState<CertificateProgram | null>(null);
   const [awards, setAwards] = useState<StudentAward[]>([]);
@@ -40,6 +44,12 @@ export default function CertificateProgramPage() {
   const [savingTitle, setSavingTitle] = useState(false);
   const [collaboratorQ, setCollaboratorQ] = useState("");
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const DELETE_CONFIRM_WORD = "supprimer";
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/certificates/programs/${programId}`, { cache: "no-store" });
@@ -61,6 +71,7 @@ export default function CertificateProgramPage() {
   }, [load]);
 
   const isOwner = program?.ownerId === userId;
+  const canUseOcrBulk = hasRole(myRoles, "administratif") || appContext?.session?.isGlobalAdmin === true;
 
   const collaborators = useMemo(() => {
     if (!program) return [];
@@ -205,6 +216,62 @@ export default function CertificateProgramPage() {
     }
   }
 
+  async function runBulkAction(action: "sign-prof-all" | "generate-pdf-all" | "send-ocr-all") {
+    setBulkBusy(action);
+    try {
+      const res = await fetch(`/api/certificates/programs/${programId}/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur");
+      await load();
+      const suffix = data.errors?.length
+        ? `\n\nErreurs (${data.errors.length}) :\n- ${data.errors.slice(0, 5).join("\n- ")}`
+        : "";
+      const doneLabel = action === "send-ocr-all" ? "envoyés en OCR" : "traités";
+      alert(
+        `${data.done}/${data.eligible} ${doneLabel}.${suffix}${
+          data.jobId ? `\n\nJob OCR : ${data.jobId}` : ""
+        }`,
+      );
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBulkBusy(null);
+    }
+  }
+
+  function downloadAllCertificatesZip() {
+    window.open(`/api/certificates/programs/${programId}/bulk`, "_blank");
+  }
+
+  async function deleteProgram() {
+    if (deleteConfirmInput.trim().toLowerCase() !== DELETE_CONFIRM_WORD) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(`/api/certificates/programs/${programId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur");
+      router.push("/certificates");
+      router.refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  function openDeleteModal() {
+    setDeleteConfirmInput("");
+    setShowDeleteModal(true);
+  }
+
   if (loading) return <div className="p-20 text-center font-bold">Chargement…</div>;
   if (!program) return <div className="p-20 text-center text-red-600">Parcours introuvable.</div>;
 
@@ -236,6 +303,17 @@ export default function CertificateProgramPage() {
         <p className="text-sm text-slate-500">
           Année {program.schoolYear} · Créateur : {program.ownerName}
         </p>
+        {isOwner && (
+          <div className="pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={openDeleteModal}
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-100"
+            >
+              Supprimer le parcours
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
@@ -297,13 +375,48 @@ export default function CertificateProgramPage() {
 
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <h2 className="text-xl font-black text-slate-900">Élèves ({awards.length})</h2>
-        <button
-          type="button"
-          onClick={() => void openAddStudent()}
-          className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"
-        >
-          Ajouter un élève
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={bulkBusy === "sign-prof-all"}
+            onClick={() => void runBulkAction("sign-prof-all")}
+            className="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+          >
+            Signer mes élèves (en masse)
+          </button>
+          <button
+            type="button"
+            disabled={bulkBusy === "generate-pdf-all"}
+            onClick={() => void runBulkAction("generate-pdf-all")}
+            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+          >
+            Générer tous les PDF
+          </button>
+          <button
+            type="button"
+            onClick={downloadAllCertificatesZip}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white"
+          >
+            Télécharger tous les certificats (ZIP)
+          </button>
+          {canUseOcrBulk && (
+            <button
+              type="button"
+              disabled={bulkBusy === "send-ocr-all"}
+              onClick={() => void runBulkAction("send-ocr-all")}
+              className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+            >
+              Envoyer tous les PDF en IA OCR
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void openAddStudent()}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"
+          >
+            Ajouter un élève
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -373,6 +486,56 @@ export default function CertificateProgramPage() {
           </tbody>
         </table>
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 space-y-4">
+            <p className="text-lg font-black text-red-700">Supprimer ce parcours ?</p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 space-y-2">
+              <p className="font-black">Attention — action irréversible</p>
+              <p>
+                Si vous supprimez ce parcours, <strong>toutes les données</strong> associées seront définitivement
+                effacées : fiches élèves, signatures, liens de vérification, etc.
+              </p>
+              <p>
+                Les <strong>PDF non téléchargés</strong> (ou non enregistrés ailleurs) seront également supprimés et
+                ne pourront pas être récupérés.
+              </p>
+            </div>
+            <label className="block space-y-1">
+              <span className="text-sm font-bold text-slate-700">
+                Pour confirmer, tapez <span className="font-mono text-red-700">{DELETE_CONFIRM_WORD}</span> ci-dessous
+              </span>
+              <input
+                value={deleteConfirmInput}
+                onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                placeholder={DELETE_CONFIRM_WORD}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-mono"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteBusy}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={deleteBusy || deleteConfirmInput.trim().toLowerCase() !== DELETE_CONFIRM_WORD}
+                onClick={() => void deleteProgram()}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+              >
+                {deleteBusy ? "Suppression…" : "Supprimer définitivement"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

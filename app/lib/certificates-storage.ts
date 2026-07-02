@@ -1,4 +1,4 @@
-import { getJson, putJson } from "@/app/lib/s3-storage";
+import { deleteObject, getJson, listPrefix, putJson } from "@/app/lib/s3-storage";
 import {
   CERTIFICATE_S3,
   type CertificateProgram,
@@ -174,4 +174,38 @@ export async function loadVerifySnapshot(token: string): Promise<CertificateVeri
 
 export async function saveVerifySnapshot(snapshot: CertificateVerifySnapshot): Promise<void> {
   await putJson(CERTIFICATE_S3.verify(snapshot.token), snapshot);
+}
+
+/** Supprime le parcours, toutes les fiches élèves, PDFs et snapshots de vérification associés. */
+export async function deleteProgramAndAwards(programId: string): Promise<{ awardsDeleted: number }> {
+  const awards = await listAwardsForProgram(programId);
+  const keysToDelete = new Set<string>();
+
+  keysToDelete.add(CERTIFICATE_S3.program(programId));
+
+  for (const award of awards) {
+    keysToDelete.add(CERTIFICATE_S3.award(award.id));
+    keysToDelete.add(CERTIFICATE_S3.pdf(award.id));
+    if (award.pdfS3Key) keysToDelete.add(award.pdfS3Key);
+    if (award.verificationToken) keysToDelete.add(CERTIFICATE_S3.verify(award.verificationToken));
+
+    const pdfVersions = await listPrefix(`certificates/pdfs/${award.id}`);
+    for (const key of pdfVersions) keysToDelete.add(key);
+  }
+
+  for (const key of keysToDelete) {
+    try {
+      await deleteObject(key);
+    } catch {
+      // Fichier déjà absent : on continue.
+    }
+  }
+
+  const awardsIndex = await loadAwardsIndex();
+  await saveAwardsIndex(awardsIndex.filter((e) => e.programId !== programId));
+
+  const programsIndex = await loadProgramsIndex();
+  await saveProgramsIndex(programsIndex.filter((e) => e.id !== programId));
+
+  return { awardsDeleted: awards.length };
 }

@@ -419,7 +419,6 @@ export const INTRANET_MODULES: IntranetModule[] = [
     allowedRoles: [
       ...DIRECTIONS,
       "administratif",
-      "education",
       "professeur",
     ],
     dashboard: {
