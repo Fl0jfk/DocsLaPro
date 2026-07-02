@@ -81,6 +81,7 @@ export async function POST(req: Request) {
             publicMetadata: me.publicMetadata as Record<string, unknown>,
           }
         : null,
+      existingOnS3,
     );
     if (!ownerGate.ok) {
       return NextResponse.json({ error: ownerGate.error }, { status: ownerGate.status });

@@ -40,9 +40,38 @@ type ClerkActor = {
 export async function applyTravelsOwnerAssignment(
   objectToSave: Record<string, unknown>,
   actor: ClerkActor | null | undefined,
+  existingTrip?: Record<string, unknown> | null,
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const actorId = actor?.id?.trim() || "";
+  const existingOwnerId = String(existingTrip?.ownerId || "").trim();
   const requestedOwnerId = String(objectToSave.ownerId || "").trim();
+
+  if (existingOwnerId) {
+    const adminTransfers =
+      requestedOwnerId &&
+      requestedOwnerId !== existingOwnerId &&
+      userHasAdministratifRole(actor);
+
+    if (adminTransfers) {
+      const profile = await resolveTravelsOwnerFromClerk(requestedOwnerId);
+      if (!profile) {
+        return {
+          ok: false,
+          status: 400,
+          error: "Utilisateur Clerk introuvable ou sans adresse e-mail.",
+        };
+      }
+      objectToSave.ownerId = profile.ownerId;
+      objectToSave.ownerName = profile.ownerName;
+      objectToSave.ownerEmail = profile.ownerEmail;
+      return { ok: true };
+    }
+
+    objectToSave.ownerId = existingOwnerId;
+    objectToSave.ownerName = existingTrip?.ownerName || objectToSave.ownerName || "Enseignant";
+    objectToSave.ownerEmail = existingTrip?.ownerEmail || objectToSave.ownerEmail || "";
+    return { ok: true };
+  }
 
   if (!requestedOwnerId) {
     if (actorId) {

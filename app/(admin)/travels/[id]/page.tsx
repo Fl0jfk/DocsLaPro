@@ -466,9 +466,18 @@ export default function TripDetails() {
     );
   };
   const selectBusQuote = async (quote: any) => {
-    if (!confirm(`Confirmer le choix de ${quote.providerName} ? Cela informera la direction pour signature.`)) return;
+    if (!isOwner || canSign) return;
+    if (trip.status !== "PROF_LOGISTICS") return;
+    if (!confirm(`Confirmer le choix de ${quote.providerName} ? La direction devra ensuite signer la commande.`)) return;
     const updatedTrip = { ...trip, status: "EN_ATTENTE_BUS_SIGNATURE", data: { ...trip.data, selectedBusQuote: quote } };
     await saveUpdates(updatedTrip);
+  };
+
+  const selectAndSignBusQuote = async (quote: any) => {
+    if (!canSign) return alert("Seule la direction de l'établissement concerné peut signer un devis.");
+    if (trip.status !== "PROF_LOGISTICS" && trip.status !== "EN_ATTENTE_BUS_SIGNATURE") return;
+    if (!confirm(`Choisir le devis de ${quote.providerName} et signer la commande au transporteur ?`)) return;
+    await signBusQuote(quote);
   };
 
   const deleteBusQuote = async (quote: { id?: string; providerName?: string }) => {
@@ -987,10 +996,12 @@ export default function TripDetails() {
     }
   };
 
-  const signBusQuote = async () => {
-    if (!canSign) return alert("Vous n'êtes pas autorisé(e) à signer ce dossier.");
+  const signBusQuote = async (quoteOverride?: any) => {
+    if (!canSign) return alert("Seule la direction de l'établissement concerné peut signer un devis.");
+    const quote = quoteOverride ?? trip.data.selectedBusQuote;
+    if (!quote) return alert("Aucun devis sélectionné.");
     if (!confirm("Voulez-vous signer le devis et envoyer la commande au transporteur ?")) return;
-    const transporteurEmail = orderEmailForQuote(trip.data.selectedBusQuote);
+    const transporteurEmail = orderEmailForQuote(quote);
     if (!transporteurEmail) {
       return alert(
         "Erreur : aucun e-mail pour envoyer la commande (ni adresse lue sur le devis, ni expéditeur du mail, ni e-mail transporteur enregistré)."
@@ -1004,10 +1015,10 @@ export default function TripDetails() {
       const signRes = await fetch('/api/travels/sign-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteUrl: trip.data.selectedBusQuote.fileUrl, signatureType: sigType })
+        body: JSON.stringify({ quoteUrl: quote.fileUrl, signatureType: sigType })
       });
       const { signedPdfData } = await signRes.json();
-      const fileName = `Devis_Signe_${trip.data.selectedBusQuote.providerName.replace(/\s+/g, '_')}.pdf`;
+      const fileName = `Devis_Signe_${quote.providerName.replace(/\s+/g, '_')}.pdf`;
       const uploadRes = await fetch('/api/travels/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1025,11 +1036,15 @@ export default function TripDetails() {
           tripData: trip.data,
           providerEmail: transporteurEmail,
           signedQuoteUrl: fileUrl,
-          providerName: trip.data.selectedBusQuote.providerName,
+          providerName: quote.providerName,
         })
       });
       const newAttachment = { name: `✅ ${fileName}`, url: fileUrl };
-      handleAction("EN_ATTENTE_COMPTA", `Devis signé et commande envoyée`, { attachments: [...(trip.data.attachments || []), newAttachment], signedQuoteUrl: fileUrl });
+      handleAction("EN_ATTENTE_COMPTA", `Devis signé et commande envoyée`, {
+        selectedBusQuote: quote,
+        attachments: [...(trip.data.attachments || []), newAttachment],
+        signedQuoteUrl: fileUrl,
+      });
     } catch (err) {
       alert("Erreur lors de la signature.");
     } finally {
@@ -1400,9 +1415,19 @@ export default function TripDetails() {
                           >
                             Voir PDF
                           </TripButton>
-                          {isOwner && trip.status === "PROF_LOGISTICS" && (
+                          {isOwner && !canSign && trip.status === "PROF_LOGISTICS" && (
                             <TripButton variant="primary" size="sm" onClick={() => selectBusQuote(quote)}>
                               Choisir
+                            </TripButton>
+                          )}
+                          {canSign && trip.status === "PROF_LOGISTICS" && (
+                            <TripButton
+                              variant="success"
+                              size="sm"
+                              onClick={() => selectAndSignBusQuote(quote)}
+                              disabled={!!loadingAction}
+                            >
+                              Choisir et signer
                             </TripButton>
                           )}
                         </div>
@@ -1524,20 +1549,17 @@ export default function TripDetails() {
                       <p className="text-xs text-slate-500 mt-1 font-mono">{orderEmailForQuote(trip.data.selectedBusQuote)}</p>
                     )}
                   </div>
-                  {isDirection && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && (
+                  {canSign && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && (
                     <div className="flex flex-col gap-3 w-full">
-                      {canSign ? (
-                        <TripButton variant="success" size="lg" onClick={signBusQuote} disabled={!!loadingAction} className="w-full">
-                          ✍️ Signer et commander
-                        </TripButton>
-                      ) : (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-900 text-left">
-                          <p className="font-bold mb-1">Signature réservée</p>
-                          <p>
-                            Dossier <strong>{etabForSign || "groupe scolaire"}</strong> — direction concernée uniquement.
-                          </p>
-                        </div>
-                      )}
+                      <TripButton
+                        variant="success"
+                        size="lg"
+                        onClick={() => signBusQuote()}
+                        disabled={!!loadingAction}
+                        className="w-full"
+                      >
+                        ✍️ Signer et commander
+                      </TripButton>
                       <button
                         type="button"
                         onClick={() => { const n = prompt("Pourquoi refusez-vous ce devis ?"); if (n) handleAction("PROF_LOGISTICS", n); }}
@@ -1546,6 +1568,11 @@ export default function TripDetails() {
                         Refuser ce choix
                       </button>
                     </div>
+                  )}
+                  {isOwner && !canSign && trip.status === "EN_ATTENTE_BUS_SIGNATURE" && (
+                    <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                      Devis choisi — en attente de signature par la direction.
+                    </p>
                   )}
                   {(trip.status === "EN_ATTENTE_COMPTA" || trip.status === "EN_ATTENTE_DIR_FINAL" || trip.status === "VALIDE") && (
                     <p className="inline-flex items-center gap-2 text-emerald-700 font-bold text-sm bg-emerald-50 px-4 py-2 rounded-full">
