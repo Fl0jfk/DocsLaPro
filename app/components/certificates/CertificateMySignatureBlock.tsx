@@ -45,7 +45,7 @@ export default function CertificateMySignatureBlock() {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     const { x, y } = getPos(e);
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 1.6;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#1a1a1a";
     ctx.lineTo(x, y);

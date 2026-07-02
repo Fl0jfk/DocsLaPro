@@ -25,7 +25,6 @@ const SLATE_LIGHT: [number, number, number] = [148, 163, 184];
 const BORDER: [number, number, number] = [226, 232, 240];
 const ACCENT: [number, number, number] = [79, 70, 229];
 const FOOTER_H = 14;
-
 function formatDateLong(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", {
     day: "2-digit",
@@ -53,33 +52,44 @@ export async function generateCertificatePdf(
   const contentW = MR - ML;
 
   drawPdfLetterhead(doc, letterhead, logo, ACCENT);
+
   let y = 48;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...SLATE_LIGHT);
-  doc.text("CERTIFICAT / PARCOURS", ML, y);
+  doc.text("CERTIFICAT OFFICIEL", W / 2, y, { align: "center" });
+  y += 6;
+
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.line(ML + 20, y, W / 2 - 22, y);
+  doc.line(W / 2 + 22, y, MR - 20, y);
   y += 8;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setTextColor(...ACCENT);
   const titleLines = doc.splitTextToSize(award.programTitle, contentW);
-  doc.text(titleLines, ML, y);
+  doc.text(titleLines, W / 2, y, { align: "center" });
   y += titleLines.length * 8 + 4;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(...SLATE);
-  doc.text(
-    `Décerné à ${award.student.prenom} ${award.student.nom.toUpperCase()} — ${award.student.classe || "—"}`,
-    ML,
-    y,
-  );
+  doc.text("Ce certificat atteste officiellement la participation et les réalisations de", W / 2, y, {
+    align: "center",
+  });
   y += 7;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...SLATE);
+  doc.text(`${award.student.prenom} ${award.student.nom.toUpperCase()}`, W / 2, y, { align: "center" });
+  y += 6;
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...SLATE_BODY);
-  doc.text(`Année scolaire ${award.schoolYear}`, ML, y);
+  doc.text(`${award.student.classe || "—"} · Année scolaire ${award.schoolYear}`, W / 2, y, { align: "center" });
   y += 12;
 
   doc.setDrawColor(...BORDER);
@@ -132,64 +142,105 @@ export async function generateCertificatePdf(
   }
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setTextColor(...SLATE);
-  doc.text("Signatures des enseignants", ML, y);
-  y += 8;
+  doc.text("Signatures", ML, y);
+  y += 7;
+
+  const signatureCards: Array<{
+    kind: "prof" | "direction";
+    role: string;
+    name: string;
+    date?: string;
+    imageDataUri?: string;
+    imageFormat?: "PNG" | "JPEG";
+    imageWidth?: number;
+    imageHeight?: number;
+  }> = [];
 
   const signedProfs = award.designatedSignatories.filter((s) => s.status === "signed");
   for (const prof of signedProfs) {
-    if (y > H - 50) {
-      doc.addPage();
-      y = 24;
-    }
     const sigData = await loadProfSigDataUri(prof.clerkUserId);
-    const sigW = 40;
-    const sigH = 14;
-    if (sigData) {
-      doc.addImage(sigData, "PNG", ML, y, sigW, sigH);
-    } else {
-      doc.setDrawColor(...BORDER);
-      doc.rect(ML, y, sigW, sigH);
-    }
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...SLATE_BODY);
-    doc.text(prof.name, ML + sigW + 4, y + 5);
-    if (prof.signedAt) {
-      doc.setFontSize(8);
-      doc.setTextColor(...SLATE_LIGHT);
-      doc.text(formatDateLong(prof.signedAt), ML + sigW + 4, y + 10);
-    }
-    y += sigH + 6;
+    signatureCards.push({
+      kind: "prof",
+      role: "Enseignant",
+      name: prof.name,
+      date: prof.signedAt ? formatDateLong(prof.signedAt) : undefined,
+      imageDataUri: sigData || undefined,
+      imageFormat: "PNG",
+      imageWidth: 40,
+      imageHeight: 12,
+    });
   }
 
   if (award.directionSignature) {
-    if (y > H - 45) {
+    const dirUrl = await resolveDirectionSignatureImageUrl(award.directionSignature.level);
+    const dirImg = dirUrl ? await loadImageForPdfFromRef(dirUrl) : null;
+    signatureCards.push({
+      kind: "direction",
+      role: `Direction (${CERTIFICATE_SECTEUR_LABELS[award.directionSignature.level]})`,
+      name: award.directionSignature.signedByName,
+      date: formatDateLong(award.directionSignature.signedAt),
+      imageDataUri: dirImg?.dataUri,
+      imageFormat: dirImg?.format,
+      imageWidth: dirImg?.width,
+      imageHeight: dirImg?.height,
+    });
+  }
+
+  const cardW = 54;
+  const cardH = 36;
+  const gapX = 5;
+  const gapY = 5;
+  const cols = Math.max(1, Math.floor((contentW + gapX) / (cardW + gapX)));
+
+  for (let i = 0; i < signatureCards.length; i++) {
+    const col = i % cols;
+    if (i > 0 && col === 0) y += cardH + gapY;
+    if (y + cardH > H - 55) {
       doc.addPage();
       y = 24;
     }
-    const levelLabel = CERTIFICATE_SECTEUR_LABELS[award.directionSignature.level];
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...SLATE);
-    doc.text(`Direction — ${levelLabel}`, ML, y);
-    y += 6;
+    const x = ML + col * (cardW + gapX);
+    const card = signatureCards[i];
 
-    const dirUrl = await resolveDirectionSignatureImageUrl(award.directionSignature.level);
-    const dirImg = dirUrl ? await loadImageForPdfFromRef(dirUrl) : null;
-    const sigW = 48;
-    const sigH = 18;
-    if (dirImg) {
-      const fitted = fitImageInBox(dirImg.width || sigW, dirImg.height || sigH, sigW, sigH);
-      doc.addImage(dirImg.dataUri, dirImg.format, ML, y, fitted.width, fitted.height);
-      y += fitted.height + 4;
-    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...SLATE_LIGHT);
+    doc.text(card.role, x + 2, y + 4.5);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...SLATE);
+    const nameLines = doc.splitTextToSize(card.name, cardW - 4).slice(0, 2);
+    doc.text(nameLines, x + 2, y + 9.5);
+
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...SLATE_BODY);
-    doc.text(award.directionSignature.signedByName, ML, y);
-    y += 10;
+    doc.setFontSize(7);
+    doc.setTextColor(...SLATE_LIGHT);
+    if (card.date) doc.text(card.date, x + 2, y + 17);
+
+    const sigBoxX = x + 2;
+    const sigBoxY = y + 19;
+    const sigBoxW = cardW - 4;
+    const sigBoxH = 14;
+    if (card.imageDataUri && card.imageFormat) {
+      const fittedBase = fitImageInBox(
+        card.imageWidth || sigBoxW,
+        card.imageHeight || sigBoxH,
+        sigBoxW,
+        sigBoxH,
+      );
+      const boost = card.kind === "direction" ? 1.15 : 1;
+      const boostedW = Math.min(sigBoxW, fittedBase.width * boost);
+      const boostedH = Math.min(sigBoxH, fittedBase.height * boost);
+      const imgX = sigBoxX + (sigBoxW - boostedW) / 2;
+      const imgY = sigBoxY + (sigBoxH - boostedH) / 2;
+      doc.addImage(card.imageDataUri, card.imageFormat, imgX, imgY, boostedW, boostedH);
+    } else {
+      doc.setDrawColor(...BORDER);
+      doc.rect(sigBoxX, sigBoxY, sigBoxW, sigBoxH);
+    }
   }
 
   const qrSize = 28;
