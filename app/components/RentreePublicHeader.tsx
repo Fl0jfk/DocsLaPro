@@ -92,13 +92,6 @@ export default function RentreePublicHeader() {
             );
           })}
         </nav>
-
-        <Link
-          href="/sign-in"
-          className="hidden md:inline-flex items-center px-4 py-1.5 rounded-full border border-slate-200 text-xs font-bold text-slate-600 hover:border-blue-300 hover:text-blue-600 transition"
-        >
-          Espace personnel
-        </Link>
       </div>
     </header>
   );
