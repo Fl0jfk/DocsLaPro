@@ -81,13 +81,6 @@ const isPublicRoute = createRouteMatcher([
   '/api/certificates/verify(.*)',
 ]);
 
-function isExplicitPublicPath(pathname: string): boolean {
-  return (
-    pathname.startsWith("/certificates/verify/") ||
-    pathname.startsWith("/api/certificates/verify/")
-  );
-}
-
 function localDevTenantSlugFromRequest(request: NextRequest): string | null {
   const fromQuery = request.nextUrl.searchParams.get(LOCAL_DEV_TENANT_QUERY)?.trim();
   if (fromQuery) return fromQuery;
@@ -294,7 +287,7 @@ async function handleProxyRequest(
     if (canonicalRedirect) return withTenantHeaders(canonicalRedirect, tenant);
   }
 
-  if (isExplicitPublicPath(pathname) || isPublicRoute(request)) {
+  if (isPublicRoute(request)) {
     const res = nextWithTenant(request, tenant);
     return withOptionalDevTenantCookie(res, request, host);
   }
