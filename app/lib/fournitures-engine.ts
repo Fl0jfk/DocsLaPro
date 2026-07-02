@@ -216,7 +216,7 @@ export function getEcoleSuppliesLegacy(niveau: EcoleNiveau): SupplySection[] {
   if (niveau === "JE1MMEBAYEL") { return [{ title: "À acheter (J.E.1 — Mme BAYEL Christine)", items: je1 }];}
   if (niveau === "JE2MMECARTIER") { return [{ title: "À acheter (J.E.2 — Mme CARTIER Céline)", items: je2 }];}
   if (niveau === "JE3MMEDOUGHTY") { return [{ title: "À acheter (J.E.3 — Mme DOUGHTY Sylvie)", items: je3 }];}
-  if (niveau === "JE4") { return [{ title: "À acheter (J.E.4)", items: je4 }];}
+  if (niveau === "JE4MMELOURDEL") { return [{ title: "À acheter (J.E.4 — Mme LOURDEL)", items: je4 }];}
   if (niveau === "CP") { return cpSupplySections;}
   if (niveau === "CE1") { return [{ title: "À acheter (CE1)", items: ce1 }];}
   if (niveau === "CE2") { return [{ title: "À acheter (CE2)", items: ce2 }, sportEncartEcole];}
@@ -865,7 +865,8 @@ function applyProfileOverride(
   legacy: FournituresSection[],
   overrides?: FournituresProfileOverrides,
 ): FournituresSection[] {
-  const custom = overrides?.[profileId];
+  const legacyProfileId = profileId === "ecole:JE4MMELOURDEL" ? "ecole:JE4" : null;
+  const custom = overrides?.[profileId] ?? (legacyProfileId ? overrides?.[legacyProfileId] : undefined);
   if (custom && custom.length > 0) return custom.map((s) => ({ ...s, items: [...s.items] }));
   return legacy.map((s) => ({ ...s, items: [...s.items] }));
 }
@@ -942,7 +943,7 @@ export function formatChildLabel(child: FournituresChild): string {
       JE1MMEBAYEL: "J.E.1 (Mme BAYEL Christine)",
       JE2MMECARTIER: "J.E.2 (Mme CARTIER Céline)",
       JE3MMEDOUGHTY: "J.E.3 (Mme DOUGHTY Sylvie)",
-      JE4: "J.E.4",
+      JE4MMELOURDEL: "J.E.4 (Mme LOURDEL)",
       CP: "CP",
       CE1: "CE1",
       CE2: "CE2",
@@ -974,7 +975,7 @@ export function formatChildFilenameBase(child: FournituresChild): string {
       JE1MMEBAYEL: "je1",
       JE2MMECARTIER: "je2",
       JE3MMEDOUGHTY: "je3",
-      JE4: "je4",
+      JE4MMELOURDEL: "je4_mme_lourdel",
       CP: "cp",
       CE1: "ce1",
       CE2: "ce2",

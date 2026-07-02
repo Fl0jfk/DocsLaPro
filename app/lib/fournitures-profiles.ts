@@ -20,7 +20,7 @@ const ECOLE_NIVEAUX: { niveau: EcoleNiveau; label: string }[] = [
   { niveau: "JE1MMEBAYEL", label: "J.E.1 — Mme BAYEL" },
   { niveau: "JE2MMECARTIER", label: "J.E.2 — Mme CARTIER" },
   { niveau: "JE3MMEDOUGHTY", label: "J.E.3 — Mme DOUGHTY" },
-  { niveau: "JE4", label: "J.E.4" },
+  { niveau: "JE4MMELOURDEL", label: "J.E.4 — Mme LOURDEL" },
   { niveau: "CP", label: "CP" },
   { niveau: "CE1", label: "CE1" },
   { niveau: "CE2", label: "CE2" },
@@ -151,7 +151,8 @@ export function getMergedProfileSections(
   profileId: string,
   profiles: FournituresProfileOverrides,
 ): FournituresSection[] {
-  const custom = profiles[profileId];
+  const legacyProfileId = profileId === "ecole:JE4MMELOURDEL" ? "ecole:JE4" : null;
+  const custom = profiles[profileId] ?? (legacyProfileId ? profiles[legacyProfileId] : undefined);
   if (custom && custom.length > 0) {
     return custom.map((s) => ({ title: s.title, items: [...s.items] }));
   }
@@ -159,5 +160,7 @@ export function getMergedProfileSections(
 }
 
 export function profileHasOverride(profileId: string, profiles: FournituresProfileOverrides): boolean {
-  return Boolean(profiles[profileId]?.length);
+  if (profiles[profileId]?.length) return true;
+  if (profileId === "ecole:JE4MMELOURDEL" && profiles["ecole:JE4"]?.length) return true;
+  return false;
 }

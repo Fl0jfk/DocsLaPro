@@ -441,7 +441,7 @@ function SimulateurFournituresContent({ config }: { config: FournituresToolConfi
                             { value: "JE1MMEBAYEL", label: "JE1 Mme BAYEL" },
                             { value: "JE2MMECARTIER", label: "JE2 Mme CARTIER" },
                             { value: "JE3MMEDOUGHTY", label: "JE3 Mme DOUGHTY" },
-                            { value: "JE4", label: "JE4" },
+                            { value: "JE4MMELOURDEL", label: "JE4 Mme LOURDEL" },
                             { value: "CP", label: "CP" },
                             { value: "CE1", label: "CE1" },
                             { value: "CE2", label: "CE2" },

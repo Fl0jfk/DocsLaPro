@@ -6,7 +6,7 @@ export type EcoleNiveau =
   | "JE1MMEBAYEL"
   | "JE2MMECARTIER"
   | "JE3MMEDOUGHTY"
-  | "JE4"
+  | "JE4MMELOURDEL"
   | "CP"
   | "CE1"
   | "CE2"
