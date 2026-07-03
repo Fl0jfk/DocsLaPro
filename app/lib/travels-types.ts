@@ -140,6 +140,8 @@ export type TravelsTripData = {
   cancelledAt?: string;
   cancelReason?: string;
   remindersSent?: Record<string, string>;
+  /** Fiche budget compta (OCR devis + saisie manuelle). */
+  comptaSheet?: import("@/app/lib/travels-compta-sheet").TravelsComptaSheet;
   [key: string]: unknown;
 };
 
@@ -166,7 +168,8 @@ export type TravelsHubTab =
   | "documents"
   | "journal"
   | "messages"
-  | "actions";
+  | "actions"
+  | "compta";
 
 export const TRAVELS_HUB_TABS: { id: TravelsHubTab; label: string; icon: string }[] = [
   { id: "overview", label: "Vue d'ensemble", icon: "🏠" },
@@ -176,4 +179,5 @@ export const TRAVELS_HUB_TABS: { id: TravelsHubTab; label: string; icon: string 
   { id: "journal", label: "Journal", icon: "📜" },
   { id: "messages", label: "Messagerie", icon: "💬" },
   { id: "actions", label: "Actions", icon: "⚡" },
+  { id: "compta", label: "Compta", icon: "📊" },
 ];

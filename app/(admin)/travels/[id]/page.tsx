@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTravelsPermissions } from "@/app/hooks/useTravelsPermissions";
 import {
@@ -30,6 +30,9 @@ import { TripAmendmentJournal } from "@/app/components/travels/hub/TripAmendment
 import { TripHubNav } from "@/app/components/travels/hub/TripHubNav";
 import { TripRemindersBanner } from "@/app/components/travels/hub/TripRemindersBanner";
 import TravelsOwnerRepairSection from "@/app/components/travels/TravelsOwnerRepairSection";
+import TravelsComptaSheetForm from "@/app/components/travels/TravelsComptaSheetForm";
+import type { TravelsComptaSheet } from "@/app/lib/travels-compta-sheet";
+import { comptaDocumentsFingerprint, comptaDefinitiveCostPerStudent, computeComptaSheetDerived } from "@/app/lib/travels-compta-sheet";
 import {
   TripAlert,
   TripBusQuoteCard,
@@ -73,6 +76,9 @@ export default function TripDetails() {
   const [draftNbAccompagnateurs, setDraftNbAccompagnateurs] = useState("");
   const [draftNomsAccompagnateurs, setDraftNomsAccompagnateurs] = useState("");
   const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const comptaTabAutoOpened = useRef<string | null>(null);
+  const tripStatusRef = useRef(trip?.status);
+  tripStatusRef.current = trip?.status;
   const [draftCoutTotal, setDraftCoutTotal] = useState("");
   const [cuisineModalStandalone, setCuisineModalStandalone] = useState(false);
   const [draftCuisineDetails, setDraftCuisineDetails] = useState<ReturnType<typeof emptyCuisineDetails> | null>(null);
@@ -120,10 +126,19 @@ export default function TripDetails() {
     const allowed = TRAVELS_HUB_TABS.filter((t) => {
       if (t.id === "transport" && !withBus) return false;
       if (t.id === "cuisine" && !hasCuisine) return false;
+      if (t.id === "compta" && !isCompta) return false;
       return true;
     }).map((t) => t.id);
     if (!allowed.includes(hubTab)) setHubTab("overview");
-  }, [trip, hubTab]);
+  }, [trip, hubTab, isCompta]);
+
+  useEffect(() => {
+    if (!trip || !isCompta) return;
+    if (trip.status === "EN_ATTENTE_COMPTA" && comptaTabAutoOpened.current !== trip.id) {
+      comptaTabAutoOpened.current = trip.id;
+      setHubTab("compta");
+    }
+  }, [trip, isCompta]);
 
   useEffect(() => {
     if (!trip || !remindersFocus) return;
@@ -439,6 +454,54 @@ export default function TripDetails() {
     setLoadingAction(null);
     if (!saved) alert("Impossible d'enregistrer la modification. Réessayez.");
   };
+
+  const onComptaSheetSaved = useCallback((sheet: TravelsComptaSheet) => {
+    setTrip((prev) =>
+      prev
+        ? {
+            ...prev,
+            data: {
+              ...prev.data,
+              comptaSheet: sheet,
+            },
+          }
+        : prev,
+    );
+  }, []);
+
+  const onComptaValidateBudget = useCallback(
+    async (sheet: TravelsComptaSheet) => {
+      if (tripStatusRef.current !== "EN_ATTENTE_COMPTA") return;
+      const finalSheet = computeComptaSheetDerived(sheet);
+      const total = finalSheet.depensesTotal;
+      const perStudent = comptaDefinitiveCostPerStudent(finalSheet);
+      if (total == null || !finalSheet.nbEleves) {
+        alert("Complétez le total des dépenses et le nombre d'élèves avant de valider.");
+        return;
+      }
+      if (
+        !confirm(
+          `Valider le budget définitif et transmettre à la direction ?\n\n` +
+            `Total dépenses : ${total} €\n` +
+            `Prix par élève : ${perStudent != null ? `${perStudent} €` : "—"}`,
+        )
+      ) {
+        return;
+      }
+      await handleAction("EN_ATTENTE_DIR_FINAL", "Budget validé par la comptabilité", {
+        comptaSheet: {
+          ...finalSheet,
+          budgetValidatedAt: new Date().toISOString(),
+        },
+        finalTotalCost: total,
+        costPerStudent: perStudent ?? "",
+      });
+    },
+    // handleAction volontairement hors deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const handleCancelModificationRequest = async () => {
     if (trip.status !== "BESOIN_MODIFICATION" || loadingAction) return;
     if (!canSign && !isCompta) return;
@@ -1154,6 +1217,7 @@ export default function TripDetails() {
   const visibleHubTabs = TRAVELS_HUB_TABS.filter((t) => {
     if (t.id === "transport" && !withBusLogistics) return false;
     if (t.id === "cuisine" && !hasCuisineOrder) return false;
+    if (t.id === "compta" && !isCompta) return false;
     return true;
   });
   const documentCount =
@@ -1815,6 +1879,15 @@ export default function TripDetails() {
                     Validé compta : {trip.data.finalTotalCost} € ({trip.data.costPerStudent} €/élève)
                   </p>
                 )}
+                {isCompta && (
+                  <button
+                    type="button"
+                    onClick={() => setHubTab("compta")}
+                    className="text-xs font-bold text-indigo-600 hover:underline mt-1 block"
+                  >
+                    Ouvrir l&apos;onglet Compta
+                  </button>
+                )}
                 {canEditEffectif && (
                   <TripFieldActions>
                     <button
@@ -2165,6 +2238,17 @@ export default function TripDetails() {
         </TripSection>
       )}
 
+      {hubTab === "compta" && isCompta && !isEditing && (
+        <TravelsComptaSheetForm
+          tripId={trip.id}
+          documentsRevision={comptaDocumentsFingerprint(trip)}
+          canValidateBudget={trip.status === "EN_ATTENTE_COMPTA"}
+          budgetValidated={Boolean(trip.data.comptaSheet?.budgetValidatedAt || trip.data.finalTotalCost)}
+          onSaved={onComptaSheetSaved}
+          onValidateBudget={onComptaValidateBudget}
+        />
+      )}
+
       {hubTab === "overview" && (isDirection || isCompta) && !isEditing && trip.status !== "BESOIN_MODIFICATION" && trip.status !== "SEANCE_ANNULEE" && trip.status !== "ANNULE" && (
         <TripDecisionPanel title="Espace décisionnaire">
           <div className="flex flex-wrap gap-2 items-center lg:flex-1">
@@ -2225,21 +2309,6 @@ export default function TripDetails() {
             {canSign && trip.status === "EN_ATTENTE_DIR_INITIAL" && trip.type !== "COMPLEX" && seriesId && (
               <TripButton variant="primary" size="sm" onClick={validateSeriesPedagogy}>
                 {loadingAction ? "Validation série…" : "Valider toute la série"}
-              </TripButton>
-            )}
-            {isCompta && trip.status === "EN_ATTENTE_COMPTA" && (
-              <TripButton
-                variant="success"
-                size="sm"
-                onClick={() => {
-                  const total = prompt("Montant GLOBAL final (€) :");
-                  if (total) {
-                    const student = prompt("Coût par ÉLÈVE final (€) :");
-                    if (student) handleAction("EN_ATTENTE_DIR_FINAL", "Budget validé", { finalTotalCost: total, costPerStudent: student });
-                  }
-                }}
-              >
-                Valider budget
               </TripButton>
             )}
             {canSign && trip.status === "EN_ATTENTE_DIR_FINAL" && (

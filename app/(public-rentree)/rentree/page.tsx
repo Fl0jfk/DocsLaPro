@@ -19,7 +19,6 @@ export default async function RentreePage({
     level: sp.level,
   });
   const pages = await resolveRentreePagesPublicHrefs(rentree.pages);
-
   return (
     <RentreePageClient
       title={rentree.title}
