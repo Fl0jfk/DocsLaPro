@@ -9,6 +9,7 @@ import {
 } from "@/app/lib/pdf-branding";
 import {
   computeComptaSheetDerived,
+  comptaRiskFactorLabel,
   resolveFacturationsFromSheet,
   type TravelsComptaSheet,
 } from "@/app/lib/travels-compta-sheet";
@@ -127,6 +128,16 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
       ["Recettes élèves", euroPlain(sheet.recettesEleves)],
       ...(sheet.totalSubventions != null && sheet.totalSubventions > 0
         ? [["Subventions (APEL + autres)", euroPlain(sheet.totalSubventions)]]
+        : []),
+      [
+        "Facteur de risque",
+        `${comptaRiskFactorLabel(sheet.facteurRisque)} (+${sheet.facteurRisquePercent ?? 0} %)`,
+      ],
+      ...(sheet.margeRisqueMontant != null && (sheet.facteurRisquePercent ?? 0) > 0
+        ? [["Marge risque (budget)", euroPlain(sheet.margeRisqueMontant)]]
+        : []),
+      ...(sheet.prixParEleveAvantMargeRisque != null
+        ? [["Prix / élève avant marge risque", euroPlain(sheet.prixParEleveAvantMargeRisque)]]
         : []),
       [
         "Prix par élève définitif",

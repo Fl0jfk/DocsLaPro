@@ -22,6 +22,94 @@ export function emptyComptaFacturation(): TravelsComptaFacturation {
   return { label: "", prixFacture: null, dateFacturation: "", montant: null };
 }
 
+/** Hypothèses imprévus / annulations pour viser le prix par élève définitif. */
+export const COMPTA_RISK_FACTOR_OPTIONS = [
+  { id: "sans_risque", label: "Sorties sans risques", percent: 0 },
+  { id: "pedagogique", label: "Sorties pédagogiques", percent: 5 },
+  { id: "france", label: "Séjours et voyages en France", percent: 7 },
+  { id: "etranger", label: "Voyages à l'étranger", percent: 10 },
+] as const;
+
+export type ComptaRiskFactorId = (typeof COMPTA_RISK_FACTOR_OPTIONS)[number]["id"];
+
+export function comptaRiskFactorPercent(id: ComptaRiskFactorId | null | undefined): number {
+  return COMPTA_RISK_FACTOR_OPTIONS.find((o) => o.id === id)?.percent ?? 0;
+}
+
+export function comptaRiskFactorLabel(id: ComptaRiskFactorId | null | undefined): string {
+  return COMPTA_RISK_FACTOR_OPTIONS.find((o) => o.id === id)?.label ?? "—";
+}
+
+function normalizeDestinationText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+}
+
+const FOREIGN_DESTINATION_KEYWORDS = [
+  "italie",
+  "espagne",
+  "allemagne",
+  "belgique",
+  "suisse",
+  "luxembourg",
+  "royaume-uni",
+  "angleterre",
+  "ecosse",
+  "irlande",
+  "pays-bas",
+  "hollande",
+  "portugal",
+  "grece",
+  "pologne",
+  "autriche",
+  "republique tcheque",
+  "hongrie",
+  "maroc",
+  "tunisie",
+  "algerie",
+  "usa",
+  "etats-unis",
+  "canada",
+  "japon",
+  "chine",
+  "etranger",
+  "international",
+];
+
+function tripIsMultiDay(data: TravelsTrip["data"]): boolean {
+  const start = String(data.startDate || data.date || "").trim();
+  const end = String(data.endDate || "").trim();
+  if (start && end && start !== end) return true;
+  if (data.endDate && !data.startDate && data.date && data.endDate !== data.date) return true;
+  return false;
+}
+
+function destinationSuggestsAbroad(destination: string): boolean {
+  const t = normalizeDestinationText(destination);
+  if (!t) return false;
+  if (/\bfrance\b/.test(t) && !FOREIGN_DESTINATION_KEYWORDS.some((k) => t.includes(k))) return false;
+  return FOREIGN_DESTINATION_KEYWORDS.some((k) => t.includes(k));
+}
+
+/** Proposition automatique selon le type de sortie / destination du dossier. */
+export function inferComptaRiskFactor(trip: Pick<TravelsTrip, "type" | "data">): ComptaRiskFactorId {
+  const destination = String(trip.data?.destination || trip.data?.title || "").trim();
+  if (destinationSuggestsAbroad(destination)) return "etranger";
+  if (trip.type === "COMPLEX" || tripIsMultiDay(trip.data)) return "france";
+  return "pedagogique";
+}
+
+export function resolveComptaRiskFactor(
+  sheet: Pick<TravelsComptaSheet, "facteurRisque">,
+  trip?: Pick<TravelsTrip, "type" | "data"> | null,
+): ComptaRiskFactorId {
+  if (sheet.facteurRisque) return sheet.facteurRisque;
+  if (trip) return inferComptaRiskFactor(trip);
+  return "pedagogique";
+}
+
 /** Rétrocompat. : ancienne fiche avec `facturation` unique → tableau. */
 export function resolveFacturationsFromSheet(
   sheet: Partial<Pick<TravelsComptaSheet, "facturations" | "facturation">>,
@@ -106,12 +194,18 @@ export type TravelsComptaSheet = {
   facturations: TravelsComptaFacturation[];
   /** @deprecated Premier élément de `facturations` — conservé pour rétrocompat. */
   facturation?: TravelsComptaFacturation;
+  /** Facteur de risque (imprévus / annulations) pour le prix par élève définitif. */
+  facteurRisque?: ComptaRiskFactorId | null;
   /** Champs calculés (recalculés côté client et serveur). */
   depensesTotal: number | null;
   recettesEleves: number | null;
   totalSubventions: number | null;
   totalAidesIndividuelles: number | null;
   totalRecettes: number | null;
+  facteurRisquePercent: number | null;
+  depensesAvecMargeRisque: number | null;
+  margeRisqueMontant: number | null;
+  prixParEleveAvantMargeRisque: number | null;
   prixParEleveAvecSubventions: number | null;
   excedentOuDeficit: number | null;
   analyzedAt?: string | null;
@@ -218,11 +312,16 @@ export function emptyComptaSheet(): TravelsComptaSheet {
       { name: "", amount: null },
     ],
     facturations: [emptyComptaFacturation()],
+    facteurRisque: null,
     depensesTotal: null,
     recettesEleves: null,
     totalSubventions: null,
     totalAidesIndividuelles: null,
     totalRecettes: null,
+    facteurRisquePercent: null,
+    depensesAvecMargeRisque: null,
+    margeRisqueMontant: null,
+    prixParEleveAvantMargeRisque: null,
     prixParEleveAvecSubventions: null,
     excedentOuDeficit: null,
   };
@@ -264,7 +363,10 @@ export function resolveBusDepenseAmount(sheet: Pick<TravelsComptaSheet, "depense
   return sheet.depenses.find((d) => d.source === "devis_signe")?.amount ?? null;
 }
 
-export function computeComptaSheetDerived(sheet: TravelsComptaSheet): TravelsComptaSheet {
+export function computeComptaSheetDerived(
+  sheet: TravelsComptaSheet,
+  trip?: Pick<TravelsTrip, "type" | "data"> | null,
+): TravelsComptaSheet {
   const depenses = sheet.depenses ?? [];
   const depensesTotal = depenses.reduce((sum, line) => sum + (line?.amount ?? 0), 0);
   const nb = sheet.nbEleves ?? 0;
@@ -295,13 +397,29 @@ export function computeComptaSheetDerived(sheet: TravelsComptaSheet): TravelsCom
       ? Math.round(recettesSum * 100) / 100
       : null;
 
-  // Montant à la charge des familles : coût total moins subventions collectives, réparti par élève.
-  const prixParEleveAvecSubventions =
+  const facteurRisque = resolveComptaRiskFactor(sheet, trip);
+  const facteurRisquePercent = comptaRiskFactorPercent(facteurRisque);
+  const depensesAvecMargeRisque =
+    depensesTotalRounded != null
+      ? Math.round(depensesTotalRounded * (1 + facteurRisquePercent / 100) * 100) / 100
+      : null;
+  const margeRisqueMontant =
+    depensesTotalRounded != null && depensesAvecMargeRisque != null
+      ? Math.round((depensesAvecMargeRisque - depensesTotalRounded) * 100) / 100
+      : null;
+
+  const prixParEleveAvantMargeRisque =
     nb > 0 && depensesTotalRounded != null
       ? Math.round((Math.max(0, depensesTotalRounded - totalSubventions) / nb) * 100) / 100
       : recettesEleves != null && nb > 0
         ? Math.round((recettesEleves / nb) * 100) / 100
         : null;
+
+  // Prix visé par élève : budget majoré du facteur de risque, moins les subventions collectives.
+  const prixParEleveAvecSubventions =
+    nb > 0 && depensesAvecMargeRisque != null
+      ? Math.round((Math.max(0, depensesAvecMargeRisque - totalSubventions) / nb) * 100) / 100
+      : prixParEleveAvantMargeRisque;
 
   const excedentOuDeficit =
     depensesTotalRounded != null
@@ -311,6 +429,7 @@ export function computeComptaSheetDerived(sheet: TravelsComptaSheet): TravelsCom
   return {
     ...sheet,
     depenses,
+    facteurRisque,
     prixParEleve,
     facturations,
     facturation: facturations[0],
@@ -324,6 +443,10 @@ export function computeComptaSheetDerived(sheet: TravelsComptaSheet): TravelsCom
           ? 0
           : null,
     totalRecettes,
+    facteurRisquePercent,
+    depensesAvecMargeRisque,
+    margeRisqueMontant,
+    prixParEleveAvantMargeRisque,
     prixParEleveAvecSubventions,
     excedentOuDeficit,
   };
@@ -971,20 +1094,29 @@ export function comptaSheetFromTrip(trip: TravelsTrip, existing?: TravelsComptaS
     profs: base.profs || String(trip.data?.ownerName || ""),
     nbEleves: base.nbEleves ?? nbEleves,
     depenses,
+    facteurRisque: base.facteurRisque ?? inferComptaRiskFactor(trip),
   };
 
-  return computeComptaSheetDerived(sheet);
+  return computeComptaSheetDerived(sheet, trip);
 }
 
 export function readComptaSheetFromTrip(trip: TravelsTrip): TravelsComptaSheet | null {
   const raw = trip.data?.comptaSheet;
   if (!raw || typeof raw !== "object") return null;
-  const sheet = computeComptaSheetDerived({ ...emptyComptaSheet(), ...(raw as TravelsComptaSheet) });
+  const sheet = computeComptaSheetDerived(
+    {
+      ...emptyComptaSheet(),
+      ...(raw as TravelsComptaSheet),
+      facteurRisque:
+        (raw as TravelsComptaSheet).facteurRisque ?? inferComptaRiskFactor(trip),
+    },
+    trip,
+  );
   const depenses =
     sheet.documentScans && sheet.documentScans.length > 0
       ? depensesFromDocumentSync(trip, sheet.documentScans, sheet.depenses)
       : resolveComptaDepenses(trip, sheet.depenses);
-  return computeComptaSheetDerived({ ...sheet, depenses });
+  return computeComptaSheetDerived({ ...sheet, depenses }, trip);
 }
 
 /** Met à jour le cache documentaire quand la compta modifie un montant à la main. */

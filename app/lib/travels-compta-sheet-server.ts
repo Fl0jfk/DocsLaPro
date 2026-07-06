@@ -20,6 +20,7 @@ import {
   resolveBusQuoteAmountFromTrip,
   resolveSignedBusQuoteAmount,
   resolveFacturationsFromSheet,
+  inferComptaRiskFactor,
   type TravelsComptaDocumentScan,
   type TravelsComptaExpenseLine,
   type TravelsComptaIndividualAid,
@@ -551,7 +552,8 @@ export async function syncComptaSheetWithDocuments(
       syncedDocumentsFingerprint: fingerprint,
       syncedAt: new Date().toISOString(),
       ocrDebugLog: logger.entries.slice(-80),
-    });
+      facteurRisque: sheet.facteurRisque ?? base.facteurRisque ?? inferComptaRiskFactor(trip),
+    }, trip);
   } else {
     sheet = computeComptaSheetDerived({
       ...base,
@@ -564,7 +566,8 @@ export async function syncComptaSheetWithDocuments(
       syncedDocumentsFingerprint: fingerprint,
       syncedAt: new Date().toISOString(),
       ocrDebugLog: logger.entries.slice(-80),
-    });
+      facteurRisque: base.facteurRisque ?? inferComptaRiskFactor(trip),
+    }, trip);
   }
 
   const finalBus = sheet.depenses.find((d) => d.source === "devis_signe");
@@ -601,7 +604,7 @@ export async function extractComptaSheetWithAi(
   const mistralKey = await getMistralApiKey();
   if (!mistralKey) {
     return {
-      ...computeComptaSheetDerived(baseSheet),
+      ...computeComptaSheetDerived(baseSheet, trip),
       analysisNotes: "Clé Mistral absente — préremplissage depuis le dossier uniquement.",
     };
   }
@@ -666,7 +669,7 @@ export async function extractComptaSheetWithAi(
     const data = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {
       return {
-        ...computeComptaSheetDerived(baseSheet),
+        ...computeComptaSheetDerived(baseSheet, trip),
         analysisNotes: "Analyse IA indisponible — vérifiez les champs manuellement.",
       };
     }
@@ -728,10 +731,10 @@ export async function extractComptaSheetWithAi(
       analysisNotes: parsed.notes ? String(parsed.notes).slice(0, 500) : null,
     };
 
-    return computeComptaSheetDerived(sheet);
+    return computeComptaSheetDerived(sheet, trip);
   } catch {
     return {
-      ...computeComptaSheetDerived(baseSheet),
+      ...computeComptaSheetDerived(baseSheet, trip),
       analysisNotes: "Erreur lors de l'analyse IA — champs préremplis depuis le dossier.",
     };
   }

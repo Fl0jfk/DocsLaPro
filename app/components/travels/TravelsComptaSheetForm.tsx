@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   computeComptaSheetDerived,
+  COMPTA_RISK_FACTOR_OPTIONS,
   emptyComptaFacturation,
   emptyComptaSheet,
   formatEuroDisplay,
   isUsableComptaAmount,
   parseEuroAmount,
   type ComptaOcrLogEntry,
+  type ComptaRiskFactorId,
   type TravelsComptaFacturation,
   type TravelsComptaIndividualAid,
   type TravelsComptaSheet,
@@ -546,15 +548,47 @@ export default function TravelsComptaSheetForm({
                     </span>
                   </div>
                 ) : null}
+                <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-3 space-y-2">
+                  <label className="block space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-800">
+                      Facteur de risque (imprévus / annulations)
+                    </span>
+                    <select
+                      value={sheet.facteurRisque ?? derived.facteurRisque ?? "pedagogique"}
+                      onChange={(e) => patch({ facteurRisque: e.target.value as ComptaRiskFactorId })}
+                      className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
+                    >
+                      {COMPTA_RISK_FACTOR_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label} (+{opt.percent} %)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {derived.prixParEleveAvantMargeRisque != null ? (
+                    <div className="flex justify-between text-xs text-amber-900/80">
+                      <span>Base après subventions</span>
+                      <span className="font-mono">{formatEuroDisplay(derived.prixParEleveAvantMargeRisque)} € / élève</span>
+                    </div>
+                  ) : null}
+                  {(derived.facteurRisquePercent ?? 0) > 0 && derived.margeRisqueMontant != null ? (
+                    <div className="flex justify-between text-xs text-amber-900/80">
+                      <span>Marge risque (+{derived.facteurRisquePercent} %)</span>
+                      <span className="font-mono">+ {formatEuroDisplay(derived.margeRisqueMontant)} € budget</span>
+                    </div>
+                  ) : null}
+                </div>
                 <div className="flex justify-between text-sm font-bold text-indigo-800">
                   <span>
                     Prix par élève définitif
                     <span className="block text-[10px] font-normal text-slate-500 normal-case">
-                      {(derived.totalSubventions ?? 0) > 0
-                        ? "(Total dépenses − subventions) ÷ nb élèves"
-                        : budgetValidated
-                          ? "Validé et transmis"
-                          : "Validé uniquement après le bouton en bas de page"}
+                      {(derived.facteurRisquePercent ?? 0) > 0
+                        ? "Base + marge risque, après subventions"
+                        : (derived.totalSubventions ?? 0) > 0
+                          ? "(Total dépenses − subventions) ÷ nb élèves"
+                          : budgetValidated
+                            ? "Validé et transmis"
+                            : "Validé uniquement après le bouton en bas de page"}
                     </span>
                   </span>
                   <span className="font-mono">
