@@ -3,15 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   computeComptaSheetDerived,
-  COMPTA_RISK_FACTOR_OPTIONS,
-  emptyComptaFacturation,
+  COMPTA_MARGE_PRESETS,
   emptyComptaSheet,
   formatEuroDisplay,
   isUsableComptaAmount,
   parseEuroAmount,
+  suggestComptaMargeFromPreset,
+  type ComptaMargePresetId,
   type ComptaOcrLogEntry,
-  type ComptaRiskFactorId,
-  type TravelsComptaFacturation,
   type TravelsComptaIndividualAid,
   type TravelsComptaSheet,
 } from "@/app/lib/travels-compta-sheet";
@@ -285,32 +284,17 @@ export default function TravelsComptaSheetForm({
     patch({ aidesIndividuelles: [...sheet.aidesIndividuelles, { name: "", amount: null }] });
   }
 
-  function updateFacturation(
-    index: number,
-    field: keyof TravelsComptaFacturation,
-    value: string | number | null,
-  ) {
-    const facturations = sheet.facturations.map((row, i) =>
-      i === index
-        ? {
-            ...row,
-            [field]:
-              field === "montant" || field === "prixFacture"
-                ? (value as number | null)
-                : String(value),
-          }
-        : row,
-    );
-    patch({ facturations });
+  function applyMargePreset(presetId: ComptaMargePresetId) {
+    const percent = COMPTA_MARGE_PRESETS.find((p) => p.id === presetId)?.percent ?? 0;
+    const suggested = suggestComptaMargeFromPreset(derived.depensesTotal, percent);
+    patch({ margeSecuriteEuro: suggested ?? 0 });
   }
 
-  function addFacturation() {
-    patch({ facturations: [...sheet.facturations, emptyComptaFacturation()] });
-  }
-
-  function removeFacturation(index: number) {
-    if (sheet.facturations.length <= 1) return;
-    patch({ facturations: sheet.facturations.filter((_, i) => i !== index) });
+  function updateFacturationDate(value: string) {
+    const row = sheet.facturations[0] ?? { label: "", prixFacture: null, dateFacturation: "", montant: null };
+    patch({
+      facturations: [{ ...row, dateFacturation: value }],
+    });
   }
 
   const shellClass =
@@ -528,7 +512,7 @@ export default function TravelsComptaSheetForm({
                   <span>
                     Recettes élèves
                     <span className="block text-[10px] font-normal text-slate-500 normal-case">
-                      Somme des montants de facturation
+                      Total dépenses + marge de sécurité
                     </span>
                   </span>
                   <span className="font-mono font-bold">
@@ -548,47 +532,15 @@ export default function TravelsComptaSheetForm({
                     </span>
                   </div>
                 ) : null}
-                <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-3 space-y-2">
-                  <label className="block space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-800">
-                      Facteur de risque (imprévus / annulations)
-                    </span>
-                    <select
-                      value={sheet.facteurRisque ?? derived.facteurRisque ?? "pedagogique"}
-                      onChange={(e) => patch({ facteurRisque: e.target.value as ComptaRiskFactorId })}
-                      className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
-                    >
-                      {COMPTA_RISK_FACTOR_OPTIONS.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.label} (+{opt.percent} %)
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {derived.prixParEleveAvantMargeRisque != null ? (
-                    <div className="flex justify-between text-xs text-amber-900/80">
-                      <span>Base après subventions</span>
-                      <span className="font-mono">{formatEuroDisplay(derived.prixParEleveAvantMargeRisque)} € / élève</span>
-                    </div>
-                  ) : null}
-                  {(derived.facteurRisquePercent ?? 0) > 0 && derived.margeRisqueMontant != null ? (
-                    <div className="flex justify-between text-xs text-amber-900/80">
-                      <span>Marge risque (+{derived.facteurRisquePercent} %)</span>
-                      <span className="font-mono">+ {formatEuroDisplay(derived.margeRisqueMontant)} € budget</span>
-                    </div>
-                  ) : null}
-                </div>
                 <div className="flex justify-between text-sm font-bold text-indigo-800">
                   <span>
                     Prix par élève définitif
                     <span className="block text-[10px] font-normal text-slate-500 normal-case">
-                      {(derived.facteurRisquePercent ?? 0) > 0
-                        ? "Base + marge risque, après subventions"
-                        : (derived.totalSubventions ?? 0) > 0
-                          ? "(Total dépenses − subventions) ÷ nb élèves"
-                          : budgetValidated
-                            ? "Validé et transmis"
-                            : "Validé uniquement après le bouton en bas de page"}
+                      {(derived.margeRisqueMontant ?? 0) > 0 || (derived.totalSubventions ?? 0) > 0
+                        ? "(Total dépenses + marge − subventions) ÷ nb élèves"
+                        : budgetValidated
+                          ? "Validé et transmis"
+                          : "Validé uniquement après le bouton en bas de page"}
                     </span>
                   </span>
                   <span className="font-mono">
@@ -600,77 +552,93 @@ export default function TravelsComptaSheetForm({
               </div>
 
               <div className="bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-500 border-b border-slate-100">
-                Facturations
+                Facturation / recettes élèves
               </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                    <th className="p-3 font-bold">Libellé</th>
-                    <th className="p-3 font-bold w-36">Date</th>
-                    <th className="p-3 font-bold w-32">Montant</th>
-                    <th className="p-3 w-10" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sheet.facturations.map((row, i) => (
-                    <tr key={i} className="border-b border-slate-50 align-top">
-                      <td className="p-2">
-                        {i === 0 ? (
-                          <div className="space-y-2">
-                            <input
-                              value={row.label ?? ""}
-                              onChange={(e) => updateFacturation(i, "label", e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                              placeholder="Transport"
-                            />
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs">
-                              <span className="text-slate-500">Prix facture (devis bus) : </span>
-                              <span className="font-mono font-bold">
-                                {derived.facturations[i]?.prixFacture != null
-                                  ? `${formatEuroDisplay(derived.facturations[i].prixFacture!)} €`
-                                  : "—"}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <input
-                            value={row.label ?? ""}
-                            onChange={(e) => updateFacturation(i, "label", e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                            placeholder="Ex. Activité, hébergement…"
-                          />
-                        )}
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="date"
-                          value={row.dateFacturation}
-                          onChange={(e) => updateFacturation(i, "dateFacturation", e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                        />
-                      </td>
-                      <td className="p-2">
-                        {euroInput(row.montant, (v) => updateFacturation(i, "montant", v))}
-                      </td>
-                      <td className="p-2">
-                        {sheet.facturations.length > 1 ? (
-                          <button
-                            type="button"
-                            onClick={() => removeFacturation(i)}
-                            className="text-xs font-bold text-red-500 hover:text-red-700"
-                            title="Supprimer"
-                          >
-                            ×
-                          </button>
-                        ) : null}
+              <div className="p-4 space-y-4 border-b border-slate-100">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {derived.prixFactureBus != null ? (
+                      <tr className="border-b border-slate-50">
+                        <td className="py-2 pr-3 text-slate-600">Prix facture (devis bus)</td>
+                        <td className="py-2 font-mono text-right text-slate-800">
+                          {formatEuroDisplay(derived.prixFactureBus)} €
+                        </td>
+                      </tr>
+                    ) : null}
+                    {derived.prixFactureBus != null &&
+                    derived.autresDepensesHorsBus != null &&
+                    derived.autresDepensesHorsBus > 0 ? (
+                      <tr className="border-b border-slate-50">
+                        <td className="py-2 pr-3 text-slate-600">Autres dépenses</td>
+                        <td className="py-2 font-mono text-right text-slate-800">
+                          {formatEuroDisplay(derived.autresDepensesHorsBus)} €
+                        </td>
+                      </tr>
+                    ) : null}
+                    <tr className="border-b border-slate-200 bg-slate-50 font-bold">
+                      <td className="py-2.5 pr-3 text-slate-800">Total dépenses</td>
+                      <td className="py-2.5 font-mono text-right text-slate-900">
+                        {derived.depensesTotal != null ? `${formatEuroDisplay(derived.depensesTotal)} €` : "—"}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button type="button" onClick={addFacturation} className="m-3 text-xs font-bold text-indigo-600">
-                + Ligne de facturation
-              </button>
+                    <tr>
+                      <td className="py-2 pr-3 align-top">
+                        <span className="text-amber-800 font-bold">Marge de sécurité</span>
+                        <span className="block text-[10px] font-normal text-slate-400 normal-case">
+                          Imprévus et annulations — montant libre en €
+                        </span>
+                      </td>
+                      <td className="py-2 w-36">{euroInput(sheet.margeSecuriteEuro, (v) => patch({ margeSecuriteEuro: v }))}</td>
+                    </tr>
+                    <tr className="border-t-2 border-indigo-200 bg-indigo-50/50 font-bold">
+                      <td className="py-3 pr-3 text-indigo-900">Montant à facturer aux élèves</td>
+                      <td className="py-3 font-mono text-right text-indigo-900">
+                        {derived.depensesAvecMargeRisque != null
+                          ? `${formatEuroDisplay(derived.depensesAvecMargeRisque)} €`
+                          : "—"}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <label className="block space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Suggestion rapide (convertie en € sur le total dépenses)
+                  </span>
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      const id = e.target.value as ComptaMargePresetId;
+                      if (id) applyMargePreset(id);
+                      e.currentTarget.value = "";
+                    }}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Choisir un repère indicatif…</option>
+                    {COMPTA_MARGE_PRESETS.map((opt) => {
+                      const suggested = suggestComptaMargeFromPreset(derived.depensesTotal, opt.percent);
+                      return (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                          {suggested != null && derived.depensesTotal
+                            ? ` → ${formatEuroDisplay(suggested)} €`
+                            : opt.percent > 0
+                              ? ` (${opt.percent} %)`
+                              : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+                <label className="space-y-1 block max-w-xs">
+                  <span className="text-xs font-bold text-slate-500">Date de facturation</span>
+                  <input
+                    type="date"
+                    value={sheet.facturations[0]?.dateFacturation ?? ""}
+                    onChange={(e) => updateFacturationDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
                 <label className="space-y-1">

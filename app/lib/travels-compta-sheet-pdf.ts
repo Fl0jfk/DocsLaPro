@@ -9,7 +9,6 @@ import {
 } from "@/app/lib/pdf-branding";
 import {
   computeComptaSheetDerived,
-  comptaRiskFactorLabel,
   resolveFacturationsFromSheet,
   type TravelsComptaSheet,
 } from "@/app/lib/travels-compta-sheet";
@@ -129,15 +128,17 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
       ...(sheet.totalSubventions != null && sheet.totalSubventions > 0
         ? [["Subventions (APEL + autres)", euroPlain(sheet.totalSubventions)]]
         : []),
-      [
-        "Facteur de risque",
-        `${comptaRiskFactorLabel(sheet.facteurRisque)} (+${sheet.facteurRisquePercent ?? 0} %)`,
-      ],
-      ...(sheet.margeRisqueMontant != null && (sheet.facteurRisquePercent ?? 0) > 0
-        ? [["Marge risque (budget)", euroPlain(sheet.margeRisqueMontant)]]
+      ["Total dépenses", euroPlain(sheet.depensesTotal)],
+      ...(sheet.prixFactureBus != null
+        ? [["Prix facture (devis bus)", euroPlain(sheet.prixFactureBus)]]
         : []),
+      ...(sheet.autresDepensesHorsBus != null && sheet.autresDepensesHorsBus > 0
+        ? [["Autres dépenses", euroPlain(sheet.autresDepensesHorsBus)]]
+        : []),
+      ["Marge de sécurité", euroPlain(sheet.margeRisqueMontant)],
+      ["Montant à facturer aux élèves", euroPlain(sheet.depensesAvecMargeRisque)],
       ...(sheet.prixParEleveAvantMargeRisque != null
-        ? [["Prix / élève avant marge risque", euroPlain(sheet.prixParEleveAvantMargeRisque)]]
+        ? [["Prix / élève avant marge", euroPlain(sheet.prixParEleveAvantMargeRisque)]]
         : []),
       [
         "Prix par élève définitif",
@@ -153,25 +154,21 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
 
   y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
 
-  const facturationRows = resolveFacturationsFromSheet(sheet).flatMap((f, i) => {
-    const label = f.label?.trim() || (i === 0 ? "Transport" : `Facturation ${i + 1}`);
-    const rows: [string, string][] = [[`${label} — montant`, euroPlain(f.montant)]];
-    if (i === 0) {
-      rows.unshift(["Prix facture (devis bus)", euroPlain(f.prixFacture)]);
-    }
-    if (f.dateFacturation) {
-      rows.push([
-        `${label} — date`,
-        new Date(f.dateFacturation).toLocaleDateString("fr-FR"),
-      ]);
-    }
-    return rows;
-  });
+  const facturationRows: [string, string][] = [];
+  const f = resolveFacturationsFromSheet(sheet)[0];
+  if (f?.dateFacturation) {
+    facturationRows.push([
+      "Date de facturation",
+      new Date(f.dateFacturation).toLocaleDateString("fr-FR"),
+    ]);
+  }
+
+  if (facturationRows.length === 0) facturationRows.push(["—", "—"]);
 
   autoTable(doc, {
     startY: y,
-    head: [["Facturations", ""]],
-    body: facturationRows.length > 0 ? facturationRows : [["—", "—"]],
+    head: [["Facturation", ""]],
+    body: facturationRows,
     theme: "plain",
     headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 9 },
     columnStyles: { 0: { cellWidth: 100 }, 1: { halign: "right" } },

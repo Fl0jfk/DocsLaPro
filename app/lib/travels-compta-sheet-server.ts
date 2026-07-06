@@ -20,7 +20,6 @@ import {
   resolveBusQuoteAmountFromTrip,
   resolveSignedBusQuoteAmount,
   resolveFacturationsFromSheet,
-  inferComptaRiskFactor,
   type TravelsComptaDocumentScan,
   type TravelsComptaExpenseLine,
   type TravelsComptaIndividualAid,
@@ -552,7 +551,8 @@ export async function syncComptaSheetWithDocuments(
       syncedDocumentsFingerprint: fingerprint,
       syncedAt: new Date().toISOString(),
       ocrDebugLog: logger.entries.slice(-80),
-      facteurRisque: sheet.facteurRisque ?? base.facteurRisque ?? inferComptaRiskFactor(trip),
+      facteurRisque: sheet.facteurRisque ?? base.facteurRisque,
+      margeSecuriteEuro: sheet.margeSecuriteEuro ?? base.margeSecuriteEuro,
     }, trip);
   } else {
     sheet = computeComptaSheetDerived({
@@ -566,7 +566,7 @@ export async function syncComptaSheetWithDocuments(
       syncedDocumentsFingerprint: fingerprint,
       syncedAt: new Date().toISOString(),
       ocrDebugLog: logger.entries.slice(-80),
-      facteurRisque: base.facteurRisque ?? inferComptaRiskFactor(trip),
+      margeSecuriteEuro: base.margeSecuriteEuro,
     }, trip);
   }
 
