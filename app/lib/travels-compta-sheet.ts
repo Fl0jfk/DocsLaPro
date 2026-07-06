@@ -12,10 +12,84 @@ export type TravelsComptaIndividualAid = {
 };
 
 export type TravelsComptaFacturation = {
+  label?: string;
   prixFacture: number | null;
   dateFacturation: string;
   montant: number | null;
 };
+
+export function emptyComptaFacturation(): TravelsComptaFacturation {
+  return { label: "", prixFacture: null, dateFacturation: "", montant: null };
+}
+
+/** Rétrocompat. : ancienne fiche avec `facturation` unique → tableau. */
+export function resolveFacturationsFromSheet(
+  sheet: Partial<Pick<TravelsComptaSheet, "facturations" | "facturation">>,
+): TravelsComptaFacturation[] {
+  if (Array.isArray(sheet.facturations) && sheet.facturations.length > 0) {
+    return sheet.facturations.map((f) => ({ ...emptyComptaFacturation(), ...f }));
+  }
+  if (sheet.facturation) {
+    return [{ ...emptyComptaFacturation(), ...sheet.facturation }];
+  }
+  return [emptyComptaFacturation()];
+}
+
+export function sumFacturationMontants(facturations: TravelsComptaFacturation[]): number | null {
+  let has = false;
+  let sum = 0;
+  for (const f of facturations) {
+    if (f.montant != null) {
+      has = true;
+      sum += f.montant;
+    }
+  }
+  return has ? Math.round(sum * 100) / 100 : null;
+}
+
+/** Dépenses issues du dossier (hors lignes vides de remplissage). */
+export function retrievedDepenseLines(depenses: TravelsComptaExpenseLine[]): TravelsComptaExpenseLine[] {
+  return depenses.filter((line): line is TravelsComptaExpenseLine => {
+    if (!line) return false;
+    if (!line.label.trim() && line.amount == null) return false;
+    if (isNonFinancialDepenseLabel(line.label)) return false;
+    return true;
+  });
+}
+
+function facturationLabelFromDepense(line: TravelsComptaExpenseLine | undefined, index: number): string {
+  if (!line) return `Facturation ${index + 1}`;
+  if (String(line.source || "") === "devis_signe") return "Transport";
+  return line.label.trim() || `Facturation ${index + 1}`;
+}
+
+/** Aligne le nombre de lignes facturation sur les dépenses retrouvées (sans réduire les lignes saisies). */
+export function syncFacturationsWithDepenses(
+  depenses: TravelsComptaExpenseLine[],
+  existing: TravelsComptaFacturation[],
+  busAmount: number | null,
+): TravelsComptaFacturation[] {
+  const retrieved = retrievedDepenseLines(depenses);
+  const targetCount = Math.max(retrieved.length, 1);
+  const result: TravelsComptaFacturation[] = [];
+
+  for (let i = 0; i < targetCount; i++) {
+    const dep = retrieved[i];
+    const prev = existing[i] ?? emptyComptaFacturation();
+    result.push({
+      label: prev.label?.trim() ? prev.label : facturationLabelFromDepense(dep, i),
+      prixFacture: i === 0 ? (busAmount ?? prev.prixFacture) : null,
+      dateFacturation: prev.dateFacturation ?? "",
+      montant: prev.montant,
+    });
+  }
+
+  for (let i = targetCount; i < existing.length; i++) {
+    result.push(existing[i]);
+  }
+
+  return result;
+}
 
 export type TravelsComptaSheet = {
   compte: string;
@@ -29,11 +103,14 @@ export type TravelsComptaSheet = {
   apelAidesCollectives: number | null;
   autresSubventions: number | null;
   aidesIndividuelles: TravelsComptaIndividualAid[];
-  facturation: TravelsComptaFacturation;
+  facturations: TravelsComptaFacturation[];
+  /** @deprecated Premier élément de `facturations` — conservé pour rétrocompat. */
+  facturation?: TravelsComptaFacturation;
   /** Champs calculés (recalculés côté client et serveur). */
   depensesTotal: number | null;
   recettesEleves: number | null;
   totalSubventions: number | null;
+  totalAidesIndividuelles: number | null;
   totalRecettes: number | null;
   prixParEleveAvecSubventions: number | null;
   excedentOuDeficit: number | null;
@@ -46,6 +123,8 @@ export type TravelsComptaSheet = {
   documentScans?: TravelsComptaDocumentScan[];
   /** Date de validation du budget par la comptabilité. */
   budgetValidatedAt?: string | null;
+  /** Dernier journal OCR (affiché sur la fiche compta). */
+  ocrDebugLog?: ComptaOcrLogEntry[] | null;
 };
 
 export type TravelsComptaDocumentRef = {
@@ -64,6 +143,15 @@ export type TravelsComptaDocumentScan = {
   role: TravelsComptaDocumentRef["role"];
   amount: number | null;
   scannedAt: string;
+};
+
+export type ComptaOcrLogLevel = "info" | "warn" | "error";
+
+export type ComptaOcrLogEntry = {
+  at: string;
+  level: ComptaOcrLogLevel;
+  message: string;
+  detail?: string;
 };
 
 export function parseEuroAmount(v: unknown): number | null {
@@ -98,6 +186,11 @@ export function parseEuroAmount(v: unknown): number | null {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
+/** Montant exploitable (0 = non renseigné pour l'auto-remplissage OCR). */
+export function isUsableComptaAmount(amount: number | null | undefined): amount is number {
+  return amount != null && amount > 0;
+}
+
 export function formatEuroDisplay(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "";
   return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -124,35 +217,112 @@ export function emptyComptaSheet(): TravelsComptaSheet {
       { name: "", amount: null },
       { name: "", amount: null },
     ],
-    facturation: { prixFacture: null, dateFacturation: "", montant: null },
+    facturations: [emptyComptaFacturation()],
     depensesTotal: null,
     recettesEleves: null,
     totalSubventions: null,
+    totalAidesIndividuelles: null,
     totalRecettes: null,
     prixParEleveAvecSubventions: null,
     excedentOuDeficit: null,
   };
 }
 
+/** Extrait le plus grand montant TTC plausible depuis un texte OCR (repli si l'IA échoue). */
+export function extractLargestEuroAmountFromText(text: string): number | null {
+  const raw = String(text || "");
+  if (!raw.trim()) return null;
+
+  const candidates: number[] = [];
+  const labeled = [
+    /total\s*ttc[^\d]{0,20}([\d\s.,]+)/gi,
+    /montant\s*ttc[^\d]{0,20}([\d\s.,]+)/gi,
+    /net\s*à\s*payer[^\d]{0,20}([\d\s.,]+)/gi,
+    /total\s*général[^\d]{0,20}([\d\s.,]+)/gi,
+    /total[^\d]{0,12}([\d\s.,]{4,})\s*€/gi,
+  ];
+  for (const re of labeled) {
+    for (const m of raw.matchAll(re)) {
+      const n = parseEuroAmount(m[1]);
+      if (n != null && n >= 50) candidates.push(n);
+    }
+  }
+  for (const m of raw.matchAll(/([\d]{1,3}(?:[.\s]\d{3})*,\d{2}|\d+[.,]\d{2})\s*€/g)) {
+    const n = parseEuroAmount(m[1]);
+    if (n != null && n >= 50) candidates.push(n);
+  }
+  for (const m of raw.matchAll(/€\s*([\d]{1,3}(?:[.\s]\d{3})*,\d{2}|\d+[.,]\d{2})/g)) {
+    const n = parseEuroAmount(m[1]);
+    if (n != null && n >= 50) candidates.push(n);
+  }
+
+  if (!candidates.length) return null;
+  return Math.max(...candidates);
+}
+
+export function resolveBusDepenseAmount(sheet: Pick<TravelsComptaSheet, "depenses">): number | null {
+  return sheet.depenses.find((d) => d.source === "devis_signe")?.amount ?? null;
+}
+
 export function computeComptaSheetDerived(sheet: TravelsComptaSheet): TravelsComptaSheet {
-  const depensesTotal = sheet.depenses.reduce((sum, line) => sum + (line.amount ?? 0), 0);
+  const depenses = sheet.depenses ?? [];
+  const depensesTotal = depenses.reduce((sum, line) => sum + (line?.amount ?? 0), 0);
   const nb = sheet.nbEleves ?? 0;
-  const recettesEleves = nb > 0 && sheet.prixParEleve != null ? nb * sheet.prixParEleve : null;
-  const individuelles = sheet.aidesIndividuelles.reduce((sum, a) => sum + (a.amount ?? 0), 0);
+  const depensesTotalRounded =
+    depensesTotal > 0 ? depensesTotal : depensesTotal === 0 ? 0 : null;
+
+  const prixParEleve =
+    nb > 0 && depensesTotalRounded != null
+      ? Math.round((depensesTotalRounded / nb) * 100) / 100
+      : null;
+
+  const busAmount = resolveBusDepenseAmount({ depenses });
+  const facturations = syncFacturationsWithDepenses(
+    depenses,
+    resolveFacturationsFromSheet(sheet),
+    busAmount,
+  );
+
+  const recettesEleves = sumFacturationMontants(facturations);
+
+  const totalAidesIndividuelles = sheet.aidesIndividuelles.reduce((sum, a) => sum + (a.amount ?? 0), 0);
   const totalSubventions =
-    (sheet.apelAidesCollectives ?? 0) + (sheet.autresSubventions ?? 0) + individuelles;
+    (sheet.apelAidesCollectives ?? 0) + (sheet.autresSubventions ?? 0);
+
+  const recettesSum = (recettesEleves ?? 0) + totalSubventions;
   const totalRecettes =
-    recettesEleves != null ? recettesEleves + totalSubventions : totalSubventions > 0 ? totalSubventions : null;
+    recettesEleves != null || totalSubventions > 0 || depensesTotalRounded != null
+      ? Math.round(recettesSum * 100) / 100
+      : null;
+
+  // Montant à la charge des familles : coût total moins subventions collectives, réparti par élève.
   const prixParEleveAvecSubventions =
-    nb > 0 && totalRecettes != null ? Math.round((totalRecettes / nb) * 100) / 100 : null;
+    nb > 0 && depensesTotalRounded != null
+      ? Math.round((Math.max(0, depensesTotalRounded - totalSubventions) / nb) * 100) / 100
+      : recettesEleves != null && nb > 0
+        ? Math.round((recettesEleves / nb) * 100) / 100
+        : null;
+
   const excedentOuDeficit =
-    totalRecettes != null ? Math.round((totalRecettes - depensesTotal) * 100) / 100 : null;
+    depensesTotalRounded != null
+      ? Math.round((recettesSum - depensesTotalRounded) * 100) / 100
+      : null;
 
   return {
     ...sheet,
-    depensesTotal: depensesTotal > 0 ? depensesTotal : depensesTotal === 0 ? 0 : null,
+    depenses,
+    prixParEleve,
+    facturations,
+    facturation: facturations[0],
+    depensesTotal: depensesTotalRounded,
     recettesEleves,
     totalSubventions: totalSubventions > 0 ? totalSubventions : totalSubventions === 0 ? 0 : null,
+    totalAidesIndividuelles:
+      totalAidesIndividuelles > 0
+        ? totalAidesIndividuelles
+        : totalAidesIndividuelles === 0
+          ? 0
+          : null,
     totalRecettes,
     prixParEleveAvecSubventions,
     excedentOuDeficit,
@@ -264,9 +434,13 @@ function quoteRecordAmount(quote: Record<string, unknown> | undefined): number |
   return (
     parseEuroAmount(quote.extractedPrice) ??
     parseEuroAmount(quote.price) ??
+    parseEuroAmount(quote.montant_ttc) ??
+    parseEuroAmount(quote.montantTtc) ??
     parseEuroAmount(quote.amount) ??
     parseEuroAmount(quote.montant) ??
     parseEuroAmount(quote.total) ??
+    parseEuroAmount(quote.cout) ??
+    parseEuroAmount(quote.agreedPrice) ??
     null
   );
 }
@@ -337,13 +511,12 @@ function providerBusQuoteFromReceivedDevis(trip: TravelsTrip): number | null {
 /** Montant connu du devis bus (sélectionné, reçu par mail ou facturation compta). */
 export function resolveSignedBusQuoteAmount(
   trip: TravelsTrip,
-  sheet?: Pick<TravelsComptaSheet, "facturation" | "depenses"> | null,
+  sheet?: Pick<TravelsComptaSheet, "facturations" | "facturation" | "depenses"> | null,
 ): number | null {
   const savedBus = sheet?.depenses?.find((d) => d.source === "devis_signe")?.amount;
-  if (savedBus != null) return savedBus;
+  if (isUsableComptaAmount(savedBus)) return savedBus;
 
-  const fromFacturation =
-    parseEuroAmount(sheet?.facturation?.montant) ?? parseEuroAmount(sheet?.facturation?.prixFacture);
+  const fromFacturation = parseEuroAmount(resolveFacturationsFromSheet(sheet ?? {})[0]?.prixFacture);
   if (fromFacturation != null) return fromFacturation;
 
   return resolveBusQuoteAmountFromTrip(trip);
@@ -352,18 +525,19 @@ export function resolveSignedBusQuoteAmount(
 export function applyBusQuoteAmountFallback(
   trip: TravelsTrip,
   depenses: TravelsComptaExpenseLine[],
-  sheet?: Pick<TravelsComptaSheet, "facturation" | "depenses"> | null,
+  sheet?: Pick<TravelsComptaSheet, "facturations" | "facturation" | "depenses"> | null,
 ): TravelsComptaExpenseLine[] {
   const manualBus = sheet?.depenses?.find((d) => d.source === "devis_signe")?.amount;
   const busAmount =
-    manualBus != null
+    isUsableComptaAmount(manualBus)
       ? manualBus
       : resolveBusQuoteAmountFromTrip(trip) ??
-        parseEuroAmount(sheet?.facturation?.montant) ??
-        parseEuroAmount(sheet?.facturation?.prixFacture);
-  if (busAmount == null) return depenses;
+        parseEuroAmount(resolveFacturationsFromSheet(sheet ?? {})[0]?.prixFacture);
+  if (!isUsableComptaAmount(busAmount)) return depenses;
   return depenses.map((line) =>
-    line.source === "devis_signe" ? { ...line, amount: line.amount ?? busAmount } : line,
+    line.source === "devis_signe"
+      ? { ...line, amount: isUsableComptaAmount(line.amount) ? line.amount : busAmount }
+      : line,
   );
 }
 
@@ -373,13 +547,17 @@ function resolveDepenseLineAmount(
   scan: TravelsComptaDocumentScan | undefined,
   trip: TravelsTrip,
 ): number | null {
-  if (saved?.amount != null) return saved.amount;
+  if (isUsableComptaAmount(saved?.amount)) return saved!.amount!;
+
   if (ref.role === "devis_signe") {
+    if (isUsableComptaAmount(scan?.amount)) return scan!.amount!;
     const fromTrip = resolveBusQuoteAmountFromTrip(trip);
-    if (fromTrip != null) return fromTrip;
+    if (isUsableComptaAmount(fromTrip)) return fromTrip;
+  } else if (isUsableComptaAmount(scan?.amount)) {
+    return scan!.amount!;
   }
-  if (scan?.amount != null) return scan.amount;
-  return ref.fallbackAmount ?? null;
+
+  return isUsableComptaAmount(ref.fallbackAmount) ? ref.fallbackAmount! : null;
 }
 
 /** Prix par élève définitif transmis à la direction après validation compta. */
@@ -444,6 +622,7 @@ function unsignedBusProviderNames(trip: TravelsTrip): string[] {
 function isUnsignedBusDevisLabel(label: string, trip: TravelsTrip): boolean {
   const l = label.trim().toLowerCase();
   if (!l) return false;
+  if (l.includes("signé") || l.includes("signe")) return false;
   if (isTransportExpenseLabel(l)) return true;
   if (/^devis\s*[-—]/.test(l)) {
     for (const provider of unsignedBusProviderNames(trip)) {
@@ -664,10 +843,6 @@ export function documentsNeedComptaSync(trip: TravelsTrip, sheet: TravelsComptaS
     const src = String(line.source || "").trim();
     if (src.startsWith("http") && !validSources.has(src)) return true;
   }
-  const busScan = (sheet.documentScans || []).find((s) => s.key === "devis_signe");
-  const tripBus = resolveBusQuoteAmountFromTrip(trip);
-  if (tripBus != null && busScan?.amount == null) return true;
-  if (busScan && busScan.amount == null && tripBus == null) return true;
   return false;
 }
 
@@ -699,6 +874,12 @@ export function filterComptaDepenses(
 
     if (isNonFinancialDepenseLabel(label)) continue;
 
+    // Ligne canonique du devis bus signé — ne jamais la filtrer comme « devis non signé »
+    if (src === "devis_signe") {
+      transportLine = { ...line, source: "devis_signe" };
+      continue;
+    }
+
     const isUnsignedBus =
       src === "devis_recu" ||
       src === "devis_choisi" ||
@@ -708,12 +889,8 @@ export function filterComptaDepenses(
 
     if (isUnsignedBus) continue;
 
-    const transportLike =
-      (isTransportExpenseLabel(label) || src === "devis_signe") && src !== "budget_previsionnel";
+    const transportLike = isTransportExpenseLabel(label) && src !== "budget_previsionnel";
     if (transportLike) {
-      if (src === "devis_signe") {
-        transportLine = { ...line, source: "devis_signe" };
-      }
       continue;
     }
 
@@ -783,9 +960,6 @@ export function comptaSheetFromTrip(trip: TravelsTrip, existing?: TravelsComptaS
     base,
   );
 
-  const busAmount = resolveSignedBusQuoteAmount(trip, { ...base, depenses });
-  const facturationMontant = busAmount ?? depenses.find((d) => d.source === "devis_signe")?.amount ?? null;
-
   const sheet: TravelsComptaSheet = {
     ...base,
     classe: base.classe || String(trip.data?.classes || ""),
@@ -796,13 +970,7 @@ export function comptaSheetFromTrip(trip: TravelsTrip, existing?: TravelsComptaS
         .join(" — "),
     profs: base.profs || String(trip.data?.ownerName || ""),
     nbEleves: base.nbEleves ?? nbEleves,
-    prixParEleve: base.prixParEleve ?? parseEuroAmount(trip.data?.costPerStudent),
     depenses,
-    facturation: {
-      prixFacture: base.facturation.prixFacture ?? facturationMontant,
-      dateFacturation: base.facturation.dateFacturation || "",
-      montant: base.facturation.montant ?? facturationMontant,
-    },
   };
 
   return computeComptaSheetDerived(sheet);

@@ -7,8 +7,10 @@ import {
   comptaSheetFromTrip,
   computeComptaSheetDerived,
   documentsNeedComptaSync,
+  isUsableComptaAmount,
   patchDocumentScansFromDepenses,
   readComptaSheetFromTrip,
+  type ComptaOcrLogEntry,
   type TravelsComptaSheet,
 } from "@/app/lib/travels-compta-sheet";
 import type { TravelsTrip } from "@/app/lib/travels-types";
@@ -19,9 +21,19 @@ async function loadTrip(tripId: string): Promise<TravelsTrip | null> {
 }
 
 async function persistComptaSheet(tripId: string, trip: TravelsTrip, sheet: TravelsComptaSheet) {
+  const busAmount = sheet.depenses.find((d) => d.source === "devis_signe")?.amount;
+  const selected = trip.data?.selectedBusQuote as Record<string, unknown> | undefined;
+  const data: Record<string, unknown> = { ...trip.data, comptaSheet: sheet };
+  if (isUsableComptaAmount(busAmount) && selected) {
+    data.selectedBusQuote = {
+      ...selected,
+      extractedPrice: String(busAmount),
+      price: String(busAmount),
+    };
+  }
   const updated: TravelsTrip = {
     ...trip,
-    data: { ...trip.data, comptaSheet: sheet },
+    data: data as TravelsTrip["data"],
     updatedAt: new Date().toISOString(),
   };
   await putJson(`travels/${tripId}.json`, updated);
@@ -47,14 +59,23 @@ export async function GET(req: Request) {
   let ocrNewCount = 0;
   let removedCount = 0;
   let synced = false;
+  let debugLog: ComptaOcrLogEntry[] = sheet.ocrDebugLog || [];
 
-  if (userHasComptaRole(access.user) && documentsNeedComptaSync(trip, existing)) {
-    const result = await syncComptaSheetWithDocuments(trip, existing);
+  const skipSync = searchParams.get("skipSync") === "1";
+  const forceOcr = searchParams.get("forceOcr") === "1";
+  const needSync =
+    userHasComptaRole(access.user) && documentsNeedComptaSync(trip, existing);
+
+  if (needSync && !skipSync) {
+    const result = await syncComptaSheetWithDocuments(trip, existing, {
+      forceBusOcr: forceOcr,
+    });
     sheet = result.sheet;
     syncNotes = result.notes;
     ocrNewCount = result.ocrNewCount;
     removedCount = result.removedCount;
     synced = true;
+    debugLog = result.debugLog;
     await persistComptaSheet(tripId, trip, sheet);
   } else if (userHasComptaRole(access.user) && existing) {
     const raw = trip.data?.comptaSheet as TravelsComptaSheet | undefined;
@@ -78,6 +99,8 @@ export async function GET(req: Request) {
     ocrNewCount,
     removedCount,
     hasSignedQuote: Boolean(trip.data?.signedQuoteUrl),
+    debugLog,
+    needSync: needSync && skipSync,
   });
 }
 
@@ -85,7 +108,7 @@ export async function POST(req: Request) {
   const gate = await requireAuth();
   if (!gate.ok) return gate.response;
 
-  let body: { tripId?: string; action?: string; sheet?: TravelsComptaSheet };
+  let body: { tripId?: string; action?: string; sheet?: TravelsComptaSheet; forceBusOcr?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -115,7 +138,9 @@ export async function POST(req: Request) {
 
   if (action === "analyze") {
     const existing = readComptaSheetFromTrip(trip);
-    const result = await syncComptaSheetWithDocuments(trip, existing);
+    const result = await syncComptaSheetWithDocuments(trip, existing, {
+      forceBusOcr: Boolean(body.forceBusOcr),
+    });
     await persistComptaSheet(tripId, trip, result.sheet);
 
     return NextResponse.json({
@@ -124,6 +149,7 @@ export async function POST(req: Request) {
       ocrDocuments: result.ocrNewCount,
       hasSignedQuote: Boolean(trip.data?.signedQuoteUrl),
       syncNotes: result.notes,
+      debugLog: result.debugLog,
     });
   }
 

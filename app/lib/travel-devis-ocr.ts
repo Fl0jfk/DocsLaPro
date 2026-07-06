@@ -3,6 +3,7 @@ import {
   StartDocumentTextDetectionCommand,
   GetDocumentTextDetectionCommand,
   DetectDocumentTextCommand,
+  type Block,
 } from "@aws-sdk/client-textract";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
 
@@ -16,27 +17,88 @@ function textractClient() {
   });
 }
 
+function textractLineText(blocks: Block[]): string {
+  const fromLines = blocks
+    .filter((b) => b.BlockType === "LINE" && b.Text?.trim())
+    .map((b) => b.Text!)
+    .join(" ");
+  if (fromLines.trim()) return fromLines;
+  return blocks
+    .map((b) => b.Text)
+    .filter((t): t is string => Boolean(t?.trim()))
+    .join(" ");
+}
+
+async function collectTextractJobBlocks(
+  client: TextractClient,
+  jobId: string,
+  initialBlocks: Block[] = [],
+  initialToken?: string,
+): Promise<Block[]> {
+  const blocks = [...initialBlocks];
+  let nextToken = initialToken;
+  while (nextToken) {
+    const res = await client.send(
+      new GetDocumentTextDetectionCommand({ JobId: jobId, NextToken: nextToken }),
+    );
+    if (res.Blocks?.length) blocks.push(...res.Blocks);
+    nextToken = res.NextToken;
+  }
+  return blocks;
+}
+
+/** OCR synchrone (1ère page) — repli si le job async est lent ou vide. */
+export async function ocrPdfBytes(pdfBytes: Buffer | Uint8Array): Promise<string> {
+  const client = textractClient();
+  const bytes = Buffer.isBuffer(pdfBytes) ? new Uint8Array(pdfBytes) : pdfBytes;
+  const res = await client.send(new DetectDocumentTextCommand({ Document: { Bytes: bytes } }));
+  const text = textractLineText(res.Blocks || []);
+  if (!text.trim()) throw new Error("Textract sync: texte vide");
+  return text;
+}
+
 export async function ocrS3Key(bucket: string, key: string): Promise<string> {
   const client = textractClient();
   const start = await client.send(
-    new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object: { Bucket: bucket, Name: key } } })
+    new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object: { Bucket: bucket, Name: key } } }),
   );
   const jobId = start.JobId;
   if (!jobId) return "";
+
+  const started = Date.now();
+  const maxWaitMs = 120_000;
+  let waitMs = 1500;
   let textractFailed = false;
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
+
+  while (Date.now() - started < maxWaitMs) {
     const res = await client.send(new GetDocumentTextDetectionCommand({ JobId: jobId }));
     if (res.JobStatus === "SUCCEEDED") {
-      return res.Blocks?.filter((b) => b.BlockType === "LINE").map((b) => b.Text).join(" ") || "";
+      const blocks = await collectTextractJobBlocks(client, jobId, res.Blocks ?? [], res.NextToken);
+      const text = textractLineText(blocks);
+      if (!text.trim()) {
+        console.warn("[travel-devis-ocr] Textract SUCCEEDED mais texte vide", {
+          key,
+          jobId,
+          blocks: blocks.length,
+        });
+      }
+      return text;
     }
     if (res.JobStatus === "FAILED") {
       textractFailed = true;
+      console.error("[travel-devis-ocr] Textract FAILED", { key, jobId });
       break;
     }
+    await new Promise((r) => setTimeout(r, waitMs));
+    waitMs = Math.min(waitMs + 400, 4000);
   }
-  if (textractFailed) {
-    console.error("[travel-devis-ocr] Textract FAILED", { key, jobId });
+
+  if (!textractFailed) {
+    console.error("[travel-devis-ocr] Textract timeout", {
+      key,
+      jobId,
+      waitedMs: Date.now() - started,
+    });
   }
   return "";
 }

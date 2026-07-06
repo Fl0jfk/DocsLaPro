@@ -9,6 +9,7 @@ import {
 } from "@/app/lib/pdf-branding";
 import {
   computeComptaSheetDerived,
+  resolveFacturationsFromSheet,
   type TravelsComptaSheet,
 } from "@/app/lib/travels-compta-sheet";
 
@@ -104,12 +105,10 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
 
   autoTable(doc, {
     startY: y,
-    head: [["Recettes", ""]],
+    head: [["Synthèse dépenses", ""]],
     body: [
       ["Nb élèves (joindre une liste)", sheet.nbEleves != null ? String(sheet.nbEleves) : "—"],
-      ["Prix par élève", euroPlain(sheet.prixParEleve)],
-      ["Recettes élèves", euroPlain(sheet.recettesEleves)],
-      ["Prix par élève avec subventions", euroPlain(sheet.prixParEleveAvecSubventions)],
+      ["Prix par élève (total dépenses ÷ nb élèves)", euroPlain(sheet.prixParEleve)],
     ],
     theme: "plain",
     headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 9 },
@@ -122,17 +121,46 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
 
   autoTable(doc, {
     startY: y,
-    head: [["Facturation transport", ""]],
+    head: [["Recettes", ""]],
     body: [
-      ["Prix facture", euroPlain(sheet.facturation.prixFacture)],
+      ["Total recettes + subventions (hors aides individuelles)", euroPlain(sheet.totalRecettes)],
+      ["Recettes élèves", euroPlain(sheet.recettesEleves)],
+      ...(sheet.totalSubventions != null && sheet.totalSubventions > 0
+        ? [["Subventions (APEL + autres)", euroPlain(sheet.totalSubventions)]]
+        : []),
       [
-        "Date de facturation",
-        sheet.facturation.dateFacturation
-          ? new Date(sheet.facturation.dateFacturation).toLocaleDateString("fr-FR")
-          : "—",
+        "Prix par élève définitif",
+        euroPlain(sheet.prixParEleveAvecSubventions),
       ],
-      ["Montant facturation", euroPlain(sheet.facturation.montant)],
     ],
+    theme: "plain",
+    headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 9 },
+    columnStyles: { 0: { cellWidth: 100 }, 1: { halign: "right" } },
+    bodyStyles: { fontSize: 8.5 },
+    styles: { cellPadding: 2.5 },
+  });
+
+  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+
+  const facturationRows = resolveFacturationsFromSheet(sheet).flatMap((f, i) => {
+    const label = f.label?.trim() || (i === 0 ? "Transport" : `Facturation ${i + 1}`);
+    const rows: [string, string][] = [[`${label} — montant`, euroPlain(f.montant)]];
+    if (i === 0) {
+      rows.unshift(["Prix facture (devis bus)", euroPlain(f.prixFacture)]);
+    }
+    if (f.dateFacturation) {
+      rows.push([
+        `${label} — date`,
+        new Date(f.dateFacturation).toLocaleDateString("fr-FR"),
+      ]);
+    }
+    return rows;
+  });
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Facturations", ""]],
+    body: facturationRows.length > 0 ? facturationRows : [["—", "—"]],
     theme: "plain",
     headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 9 },
     columnStyles: { 0: { cellWidth: 100 }, 1: { halign: "right" } },
@@ -157,7 +185,7 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
         i === 0 ? "APEL — aide individuelle" : "APEL — aide individuelle (suite)",
         name ? `${name} : ${amt}` : amt,
       ]),
-      ["Total recettes + subventions", euroPlain(sheet.totalRecettes)],
+      ["Total aides individuelles (informatif)", euroPlain(sheet.totalAidesIndividuelles)],
     ],
     theme: "grid",
     headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: "bold", fontSize: 9 },
@@ -167,20 +195,29 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
     didParseCell: (data) => {
       if (data.section === "body" && data.row.index === 2 + aideRows.length) {
         data.cell.styles.fontStyle = "bold";
-        data.cell.styles.fillColor = [238, 242, 255];
+        data.cell.styles.fillColor = [248, 250, 252];
       }
     },
   });
 
   y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
   const deficit = sheet.excedentOuDeficit;
-  const positive = (deficit ?? 0) >= 0;
-  doc.setFillColor(positive ? 236 : 254, positive ? 253 : 243, positive ? 245 : 199);
+  const positive = deficit != null && deficit >= 0;
+  const negative = deficit != null && deficit < 0;
+  doc.setFillColor(
+    negative ? 254 : positive ? 236 : 248,
+    negative ? 226 : positive ? 253 : 250,
+    negative ? 226 : positive ? 245 : 252,
+  );
   doc.roundedRect(ML, y, W - 28, 12, 2, 2, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(positive ? 6 : 146, positive ? 95 : 64, positive ? 70 : 14);
-  doc.text("Excédent ou déficit", ML + 4, y + 8);
+  doc.setTextColor(
+    negative ? 185 : positive ? 6 : 71,
+    negative ? 28 : positive ? 95 : 85,
+    negative ? 28 : positive ? 70 : 105,
+  );
+  doc.text("Excédent ou déficit (recettes − dépenses)", ML + 4, y + 8);
   doc.text(euro(deficit), MR - 4, y + 8, { align: "right" });
 
   doc.setFont("helvetica", "normal");
