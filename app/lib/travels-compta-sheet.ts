@@ -214,10 +214,18 @@ export type TravelsComptaSheet = {
   facturation?: TravelsComptaFacturation;
   /** Marge de sécurité (imprévus / annulations) en euros, appliquée au total dépenses. */
   margeSecuriteEuro: number | null;
+  /** Prix par élève déjà communiqué aux familles (ne peut plus être augmenté). */
+  prixParEleveAnnonce: number | null;
+  /** Nombre d'élèves facturés / ayant réglé (peut différer de l'effectif réel). */
+  nbElevesFactures: number | null;
+  /** Si vrai, les recettes élèves sont figées sur le prix annoncé (déficit possible). */
+  recettesElevesFigees: boolean;
   /** @deprecated Ancien facteur % — migré vers margeSecuriteEuro */
   facteurRisque?: ComptaMargePresetId | null;
   /** Champs calculés (recalculés côté client et serveur). */
   depensesTotal: number | null;
+  /** Objectif de facturation = total dépenses + marge. */
+  montantCibleFacturation: number | null;
   recettesEleves: number | null;
   totalSubventions: number | null;
   totalAidesIndividuelles: number | null;
@@ -326,15 +334,14 @@ export function emptyComptaSheet(): TravelsComptaSheet {
     prixParEleve: null,
     apelAidesCollectives: null,
     autresSubventions: null,
-    aidesIndividuelles: [
-      { name: "", amount: null },
-      { name: "", amount: null },
-      { name: "", amount: null },
-      { name: "", amount: null },
-    ],
+    aidesIndividuelles: [{ name: "", amount: null }],
     facturations: [emptyComptaFacturation()],
     margeSecuriteEuro: null,
+    prixParEleveAnnonce: null,
+    nbElevesFactures: null,
+    recettesElevesFigees: false,
     depensesTotal: null,
+    montantCibleFacturation: null,
     recettesEleves: null,
     totalSubventions: null,
     totalAidesIndividuelles: null,
@@ -409,8 +416,18 @@ export function computeComptaSheetDerived(
       ? Math.round((depensesTotalRounded + margeRisqueMontant) * 100) / 100
       : null;
 
-  const recettesEleves = depensesAvecMargeRisque;
-  const facturations = buildComptaFacturation(sheet, busAmount, recettesEleves);
+  const montantCibleFacturation = depensesAvecMargeRisque;
+  const recettesFigees = Boolean(sheet.recettesElevesFigees || sheet.prixParEleveAnnonce != null);
+  const nbFactures = sheet.nbElevesFactures ?? (nb > 0 ? nb : null);
+
+  let recettesEleves: number | null;
+  if (recettesFigees && sheet.prixParEleveAnnonce != null && nbFactures != null && nbFactures > 0) {
+    recettesEleves = Math.round(sheet.prixParEleveAnnonce * nbFactures * 100) / 100;
+  } else {
+    recettesEleves = montantCibleFacturation;
+  }
+
+  const facturations = buildComptaFacturation(sheet, busAmount, montantCibleFacturation);
 
   const totalAidesIndividuelles = sheet.aidesIndividuelles.reduce((sum, a) => sum + (a.amount ?? 0), 0);
   const totalSubventions =
@@ -440,10 +457,12 @@ export function computeComptaSheetDerived(
   return {
     ...sheet,
     depenses,
+    recettesElevesFigees: recettesFigees,
     prixParEleve,
     facturations,
     facturation: facturations[0],
     depensesTotal: depensesTotalRounded,
+    montantCibleFacturation,
     recettesEleves,
     totalSubventions: totalSubventions > 0 ? totalSubventions : totalSubventions === 0 ? 0 : null,
     totalAidesIndividuelles:
@@ -697,6 +716,9 @@ function resolveDepenseLineAmount(
 /** Prix par élève définitif transmis à la direction après validation compta. */
 export function comptaDefinitiveCostPerStudent(sheet: TravelsComptaSheet): number | null {
   const derived = computeComptaSheetDerived(sheet);
+  if (derived.recettesElevesFigees && sheet.prixParEleveAnnonce != null) {
+    return sheet.prixParEleveAnnonce;
+  }
   return derived.prixParEleveAvecSubventions ?? derived.prixParEleve ?? null;
 }
 

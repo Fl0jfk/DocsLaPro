@@ -109,6 +109,7 @@ export default function TripDetails() {
     isDirection,
     canSign,
     isCompta,
+    canAccessComptaTab,
     canSeeTravelDocHoverActions,
     canManageFiles,
     canAddDocuments,
@@ -126,11 +127,11 @@ export default function TripDetails() {
     const allowed = TRAVELS_HUB_TABS.filter((t) => {
       if (t.id === "transport" && !withBus) return false;
       if (t.id === "cuisine" && !hasCuisine) return false;
-      if (t.id === "compta" && !isCompta) return false;
+      if (t.id === "compta" && !canAccessComptaTab) return false;
       return true;
     }).map((t) => t.id);
     if (!allowed.includes(hubTab)) setHubTab("overview");
-  }, [trip, hubTab, isCompta]);
+  }, [trip, hubTab, canAccessComptaTab]);
 
   useEffect(() => {
     if (!trip || !isCompta) return;
@@ -1217,7 +1218,7 @@ export default function TripDetails() {
   const visibleHubTabs = TRAVELS_HUB_TABS.filter((t) => {
     if (t.id === "transport" && !withBusLogistics) return false;
     if (t.id === "cuisine" && !hasCuisineOrder) return false;
-    if (t.id === "compta" && !isCompta) return false;
+    if (t.id === "compta" && !canAccessComptaTab) return false;
     return true;
   });
   const documentCount =
@@ -1879,7 +1880,7 @@ export default function TripDetails() {
                     Validé compta : {trip.data.finalTotalCost} € ({trip.data.costPerStudent} €/élève)
                   </p>
                 )}
-                {isCompta && (
+                {canAccessComptaTab && (
                   <button
                     type="button"
                     onClick={() => setHubTab("compta")}
@@ -2238,11 +2239,12 @@ export default function TripDetails() {
         </TripSection>
       )}
 
-      {hubTab === "compta" && isCompta && !isEditing && (
+      {hubTab === "compta" && canAccessComptaTab && !isEditing && (
         <TravelsComptaSheetForm
           tripId={trip.id}
           documentsRevision={comptaDocumentsFingerprint(trip)}
-          canValidateBudget={trip.status === "EN_ATTENTE_COMPTA"}
+          readOnly={!isCompta}
+          canValidateBudget={isCompta && trip.status === "EN_ATTENTE_COMPTA"}
           budgetValidated={Boolean(trip.data.comptaSheet?.budgetValidatedAt || trip.data.finalTotalCost)}
           onSaved={onComptaSheetSaved}
           onValidateBudget={onComptaValidateBudget}

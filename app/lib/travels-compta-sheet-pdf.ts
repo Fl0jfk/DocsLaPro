@@ -125,6 +125,13 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
     body: [
       ["Total recettes + subventions (hors aides individuelles)", euroPlain(sheet.totalRecettes)],
       ["Recettes élèves", euroPlain(sheet.recettesEleves)],
+      ...(sheet.recettesElevesFigees
+        ? [
+            ["Prix annoncé / élève", euroPlain(sheet.prixParEleveAnnonce)],
+            ["Nb élèves facturés", sheet.nbElevesFactures != null ? String(sheet.nbElevesFactures) : "—"],
+            ["Objectif de facturation", euroPlain(sheet.montantCibleFacturation)],
+          ]
+        : []),
       ...(sheet.totalSubventions != null && sheet.totalSubventions > 0
         ? [["Subventions (APEL + autres)", euroPlain(sheet.totalSubventions)]]
         : []),
@@ -136,7 +143,7 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
         ? [["Autres dépenses", euroPlain(sheet.autresDepensesHorsBus)]]
         : []),
       ["Marge de sécurité", euroPlain(sheet.margeRisqueMontant)],
-      ["Montant à facturer aux élèves", euroPlain(sheet.depensesAvecMargeRisque)],
+      ["Objectif de facturation (dépenses + marge)", euroPlain(sheet.montantCibleFacturation)],
       ...(sheet.prixParEleveAvantMargeRisque != null
         ? [["Prix / élève avant marge", euroPlain(sheet.prixParEleveAvantMargeRisque)]]
         : []),

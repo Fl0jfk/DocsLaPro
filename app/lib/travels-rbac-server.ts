@@ -11,6 +11,34 @@ export function userHasComptaRole(user: { publicMetadata?: Record<string, unknow
 
 export { userHasAdministratifRole };
 
+/** Consultation fiche compta : comptabilité, direction (établissement) ou administratif — pas les professeurs créateurs seuls. */
+export async function userCanViewComptaSheet(
+  user: { publicMetadata?: Record<string, unknown> } | null,
+  trip: TravelsTrip,
+): Promise<boolean> {
+  if (userHasComptaRole(user)) return true;
+  if (userHasAdministratifRole(user)) return true;
+  return canSignTravelsDirectionForEtab(user, trip.data?.etablissement);
+}
+
+export async function assertComptaSheetViewAccess(
+  trip: TravelsTrip,
+): Promise<
+  | { ok: true; user: NonNullable<NonNullable<Awaited<ReturnType<typeof safeCurrentUser>>>> }
+  | { ok: false; status: number; error: string }
+> {
+  const access = await assertTravelsTripAccess(trip);
+  if (!access.ok) return access;
+  if (!(await userCanViewComptaSheet(access.user, trip))) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Réservé à la comptabilité, la direction ou l'administratif.",
+    };
+  }
+  return access;
+}
+
 export async function assertTravelsTripAccess(
   trip: TravelsTrip,
   opts?: { requireOwnerOrDirection?: boolean; requireDirection?: boolean },

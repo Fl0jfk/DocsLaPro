@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJson } from "@/app/lib/s3-storage";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { assertTravelsTripAccess, userHasComptaRole } from "@/app/lib/travels-rbac-server";
+import { assertComptaSheetViewAccess } from "@/app/lib/travels-rbac-server";
 import {
   computeComptaSheetDerived,
   readComptaSheetFromTrip,
@@ -35,12 +35,8 @@ export async function POST(req: Request) {
   const trip = await loadTrip(tripId);
   if (!trip) return NextResponse.json({ error: "Dossier introuvable." }, { status: 404 });
 
-  const access = await assertTravelsTripAccess(trip);
+  const access = await assertComptaSheetViewAccess(trip);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
-
-  if (!userHasComptaRole(access.user)) {
-    return NextResponse.json({ error: "Réservé à la comptabilité." }, { status: 403 });
-  }
 
   const sheet = body.sheet
     ? computeComptaSheetDerived(body.sheet)

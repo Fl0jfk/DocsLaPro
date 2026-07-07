@@ -38,6 +38,7 @@ export function useTravelsPermissions(trip: TravelsTrip | null) {
       (isOwner || isDirection) &&
       trip != null &&
       !["SEANCE_ANNULEE", "REJETE", "ANNULE"].includes(trip.status);
+    const canAccessComptaTab = isCompta || isAdministratif || isDirection;
 
     return {
       user,
@@ -45,6 +46,7 @@ export function useTravelsPermissions(trip: TravelsTrip | null) {
       isDirection,
       canSign: isDirection,
       isCompta,
+      canAccessComptaTab,
       isAdministratif,
       isGlobalAdmin,
       canReassignTripOwner,

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getJson, putJson } from "@/app/lib/s3-storage";
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { assertTravelsTripAccess, userHasComptaRole } from "@/app/lib/travels-rbac-server";
+import {
+  assertComptaSheetViewAccess,
+  assertTravelsTripAccess,
+  userHasComptaRole,
+} from "@/app/lib/travels-rbac-server";
 import { syncComptaSheetWithDocuments } from "@/app/lib/travels-compta-sheet-server";
 import {
   comptaSheetFromTrip,
@@ -50,7 +54,7 @@ export async function GET(req: Request) {
   const trip = await loadTrip(tripId);
   if (!trip) return NextResponse.json({ error: "Dossier introuvable." }, { status: 404 });
 
-  const access = await assertTravelsTripAccess(trip);
+  const access = await assertComptaSheetViewAccess(trip);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const existing = readComptaSheetFromTrip(trip);

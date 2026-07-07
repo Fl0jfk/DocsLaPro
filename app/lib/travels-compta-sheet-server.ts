@@ -697,7 +697,7 @@ export async function extractComptaSheetWithAi(
         amount: parseEuroAmount(row.montant ?? row.amount),
       };
     });
-    while (aidesIndividuelles.length < 4) aidesIndividuelles.push({ name: "", amount: null });
+    if (aidesIndividuelles.length === 0) aidesIndividuelles.push({ name: "", amount: null });
 
     const fact = (parsed.facturation || {}) as Record<string, unknown>;
     const baseFacts = resolveFacturationsFromSheet(baseSheet);
