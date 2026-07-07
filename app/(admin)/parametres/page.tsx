@@ -862,6 +862,10 @@ export default function ParametresPage() {
 
       {tab === "integrations" && (
         <div className="bg-white rounded-2xl border p-6 space-y-4">
+          <p className="text-sm text-slate-600">
+            Paramètres <strong>métier</strong> (pas les raccourcis du tableau de bord — voir l&apos;onglet{" "}
+            <strong>Raccourcis tableau de bord</strong>).
+          </p>
           <label className="block text-sm font-bold">Zeendoc activé</label>
           <select
             className="w-full border rounded-xl p-3"

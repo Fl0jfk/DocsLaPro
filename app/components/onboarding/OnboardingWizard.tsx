@@ -642,7 +642,6 @@ export default function OnboardingWizard() {
                         enabled: e.target.value === "yes",
                         buttonLabel: e.target.value === "yes" ? "Envoyer sur Zeendoc" : "Envoyer par mail",
                         destinationEmail: integrations.zeendoc?.destinationEmail,
-                        loginUrl: integrations.zeendoc?.loginUrl,
                       },
                     })
                   }

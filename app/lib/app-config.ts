@@ -116,7 +116,7 @@ async function maybeBackfillLegacyTravelsModule(
   return merged;
 }
 
-/** Réactive OneDrive / Zeendoc / ÉcoleDirecte si integrations.json absent ou désactivé par l'onboarding. */
+/** Réactive OneDrive / Zeendoc si integrations.json absent ou désactivé par l'onboarding. */
 async function maybeBackfillLegacyIntegrations(
   identity: SiteIdentity,
   integrations: IntegrationsConfig,
@@ -132,14 +132,10 @@ async function maybeBackfillLegacyIntegrations(
   if (merged.zeendoc?.enabled !== true) {
     merged.zeendoc = { ...seed.zeendoc, ...merged.zeendoc, enabled: true };
   }
-  if (merged.ecoleDirecte?.enabled !== true) {
-    merged.ecoleDirecte = { ...seed.ecoleDirecte, ...merged.ecoleDirecte, enabled: true };
-  }
 
   const unchanged =
     integrations.microsoftOneDrive?.enabled === merged.microsoftOneDrive?.enabled &&
     integrations.zeendoc?.enabled === merged.zeendoc?.enabled &&
-    integrations.ecoleDirecte?.enabled === merged.ecoleDirecte?.enabled &&
     integrations.zeendoc?.destinationEmail === merged.zeendoc?.destinationEmail;
   if (unchanged) return integrations;
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ExternalQuickLinkConfig } from "@/app/lib/app-config-schemas";
 import { QuickLinkIcon } from "@/app/components/Dashboard/ExternalQuickLinks";
 import { clearDashboardLinksCache } from "@/app/lib/dashboard-links-cache";
+import { dashboardQuickLinksFromExternalLinks } from "@/app/lib/dashboard-external-links";
 import { DEFAULT_QUICK_LINK_ROLES, newQuickLinkSlot } from "@/app/lib/dashboard-quick-links";
 import { INTRANET_ROLE_OPTIONS } from "@/app/lib/intranet-roles";
 
@@ -97,10 +98,26 @@ export default function DashboardQuickLinksPanel() {
           rôles cochés). La personnalisation individuelle du dashboard ne gère plus ces raccourcis.
         </p>
         <p className="mt-2 text-xs text-slate-500">
-          École Directe et ZeenDoc peuvent aussi apparaître automatiquement si activés dans l&apos;onglet{" "}
-          <strong>Intégrations</strong>.
+          Source unique : <code className="text-[11px]">settings/external-links.json</code> sur le tenant.
+          Les intégrations (Zeendoc, OneDrive) ne créent plus de raccourcis ici — configurez-les dans l&apos;onglet{" "}
+          <strong>Intégrations</strong> pour le métier (sorties scolaires, OCR…).
         </p>
       </div>
+
+      {links.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Aperçu affiché sur le dashboard</p>
+          <ul className="mt-2 space-y-1 text-sm text-slate-700">
+            {dashboardQuickLinksFromExternalLinks(links).map((l) => (
+              <li key={l.id}>
+                <span className="font-semibold">{l.name}</span>
+                <span className="text-slate-400"> — </span>
+                <span className="text-xs text-slate-500 break-all">{l.link}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>}
       {msg && (

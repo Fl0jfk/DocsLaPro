@@ -68,7 +68,6 @@ export function defaultTravelsModule(): TravelsModuleConfig {
 export function defaultIntegrations(): IntegrationsConfig {
   return {
     zeendoc: { enabled: false, buttonLabel: "Envoyer par mail" },
-    ecoleDirecte: { enabled: false },
     microsoftOneDrive: { enabled: false },
   };
 }

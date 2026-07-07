@@ -151,13 +151,6 @@ export function laprovidenceIntegrations(): IntegrationsConfig {
       enabled: true,
       buttonLabel: "Envoyer sur Zeendoc",
       destinationEmail: "comptabilite@laprovidence-nicolasbarre.fr",
-      loginUrl: "https://armoires.zeendoc.com/_Login/Login.php",
-    },
-    ecoleDirecte: {
-      enabled: true,
-      label: "École Directe",
-      loginUrl: "https://www.ecoledirecte.com/login?cameFrom=%2FAccueil",
-      preinscriptionUrl: SCHOOL.preinscriptionUrl,
     },
     microsoftOneDrive: { enabled: true },
   };

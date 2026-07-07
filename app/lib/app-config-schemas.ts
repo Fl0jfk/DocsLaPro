@@ -52,13 +52,11 @@ export type ZeendocIntegration = {
   enabled: boolean;
   buttonLabel?: string;
   destinationEmail?: string;
-  loginUrl?: string;
 };
 
 export type EcoleDirecteIntegration = {
-  enabled: boolean;
-  label?: string;
-  loginUrl?: string;
+  /** Conservé pour compatibilité JSON legacy — non utilisé par les modules. */
+  enabled?: boolean;
   preinscriptionUrl?: string;
 };
 
@@ -437,7 +435,6 @@ function parseZeendocIntegration(raw: unknown): ZeendocIntegration | undefined {
     enabled,
     buttonLabel: str(o.buttonLabel) || undefined,
     destinationEmail: destinationEmail && isEmail(destinationEmail) ? destinationEmail : undefined,
-    loginUrl: str(o.loginUrl) || undefined,
   };
 }
 
@@ -446,8 +443,6 @@ function parseEcoleDirecteIntegration(raw: unknown): EcoleDirecteIntegration | u
   const o = raw as Record<string, unknown>;
   return {
     enabled: o.enabled === true,
-    label: str(o.label) || undefined,
-    loginUrl: str(o.loginUrl) || undefined,
     preinscriptionUrl: str(o.preinscriptionUrl) || undefined,
   };
 }
