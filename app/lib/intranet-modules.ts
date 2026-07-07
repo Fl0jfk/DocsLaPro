@@ -19,7 +19,6 @@ export type DashboardTileVariant =
   | "default"
   | "travels"
   | "prof-room"
-  | "domain-planning"
   | "agent-ia"
   | "absences"
   | "personnel-ogec"
@@ -73,6 +72,8 @@ export const INTRANET_ALWAYS_ALLOWED_PREFIXES = [
   "/api/onboarding/status",
   "/onboarding",
   "/configuration-en-cours",
+  "/abonnement-suspendu",
+  "/api/billing/tenant/status",
 ];
 
 /** Profil élève : accès minimal (dashboard + bulle bien-être). */
@@ -205,7 +206,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
       img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/reservationsalle.jpg",
       link: "/domain-planning",
       external: false,
-      variant: "domain-planning",
+      description: "Positionnements EVARS, séances et validation des intervenants",
     },
   },
   {

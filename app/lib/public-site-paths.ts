@@ -17,11 +17,15 @@ export function isPublicVisitorPath(pathname: string | null | undefined): boolea
   if (exact.has(path)) return true;
 
   const prefixes = [
+    "/souscrire",
+    "/plateforme/demandes",
+    "/plateforme/tenants",
     "/rentree",
     "/documents/rentree",
     "/simulateurtarifs",
     "/simulateurfournitures",
     "/portes-ouvertes",
+    "/repartition-classes",
     "/faire-une-demande",
     "/internat/autorisation",
     "/stages/eleve",
@@ -29,6 +33,7 @@ export function isPublicVisitorPath(pathname: string | null | undefined): boolea
     "/stages/signer",
     "/stages/candidater",
     "/certificates/verify",
+    "/api/toolbox/class-allocation/public",
   ];
 
   return prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));

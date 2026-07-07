@@ -1,7 +1,7 @@
 import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import type { EleveConfig } from "@/app/lib/eleves-config";
+import { loadElevesRegistry } from "@/app/lib/eleves-registry";
 import { extractPdfTextFromS3 } from "@/app/lib/dashboard-week-sheet-ocr";
-import { getJson } from "@/app/lib/s3-storage";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
 import { defaultStageSchedule } from "@/app/lib/stage-schedule";
@@ -16,8 +16,6 @@ import {
   type StageConvention,
   type StageInternshipKind,
 } from "@/app/lib/stage-types";
-
-const ELEVES_KEY = "eleves.json";
 
 export type ConventionExtracted = {
   studentFirstName: string;
@@ -130,8 +128,7 @@ function inferLevelFromClass(className: string): string {
 }
 
 async function loadEleves(): Promise<EleveConfig[]> {
-  const hit = await getJson<EleveConfig[]>(ELEVES_KEY);
-  return Array.isArray(hit?.data) ? hit.data : [];
+  return loadElevesRegistry();
 }
 
 export async function extractConventionFieldsWithMistral(text: string): Promise<ConventionExtracted> {

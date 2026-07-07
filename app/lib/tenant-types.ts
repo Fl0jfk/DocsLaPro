@@ -1,5 +1,7 @@
 /** Un tenant = un client (groupe scolaire ou école seule) avec son sous-domaine. */
 
+import type { TenantBillingState } from "@/app/lib/tenant-billing-types";
+
 export const TENANT_SLUG_HEADER = "x-tenant-slug";
 /** URL complète de la requête — middleware → handlers (auth Clerk backend). */
 export const TENANT_REQUEST_URL_HEADER = "x-tenant-request-url";
@@ -25,6 +27,8 @@ export type TenantIndexEntry = {
   postalAddress?: TenantPostalAddress;
   /** Logo public (URL https) — défini par le Master plateforme. */
   logoUrl?: string;
+  /** Facturation et suspension d'accès (lisible par le proxy). */
+  billing?: TenantBillingState;
   /** Rétrocompat : si présent dans l'index, pas de fichier secrets requis. */
   clerkSecretKey?: string;
 };

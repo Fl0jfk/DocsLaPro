@@ -1,6 +1,6 @@
 import type { EleveConfig } from "@/app/lib/eleves-config";
 import { resolveEleveFolderName } from "@/app/lib/eleves-config";
-import { getJson } from "@/app/lib/s3-storage";
+import { loadElevesRegistry } from "@/app/lib/eleves-registry";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
   buildElevesPoolForOcrMatching,
@@ -14,8 +14,6 @@ import {
   type OneDriveUserProfile,
 } from "@/app/lib/onedrive-user-profiles";
 import type { StageConvention } from "@/app/lib/stage-types";
-
-const ELEVES_KEY = "eleves.json";
 
 export { getOneDriveProfileForSecteur };
 
@@ -40,16 +38,10 @@ function nameSimilarity(aNom: string, aPrenom: string, bNom: string, bPrenom: st
 }
 
 async function loadEleves(): Promise<EleveConfig[]> {
-  const hit = await getJson<EleveConfig[]>(ELEVES_KEY);
-  return Array.isArray(hit?.data) ? hit.data : [];
+  return loadElevesRegistry();
 }
 
-export async function findEleveByIne(ine: string): Promise<EleveConfig | null> {
-  const key = ine.trim().toUpperCase();
-  if (!key) return null;
-  const eleves = await loadEleves();
-  return eleves.find((e) => e.ine?.trim().toUpperCase() === key) ?? null;
-}
+export { findEleveByIne } from "@/app/lib/eleves-registry";
 
 function ineFromConvention(convention: StageConvention): string {
   const fromMeta = convention.ocrMeta?.matchedEleveIne?.trim();

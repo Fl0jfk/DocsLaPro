@@ -1,8 +1,6 @@
-import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";
+import { findEleveByIne as findEleveByIneRegistry, loadElevesRegistry } from "@/app/lib/eleves-registry";
 import type { StageConvention } from "@/app/lib/stage-types";
-
-const ELEVES_KEY = "eleves.json";
 
 export function uniqueContactEmails(...lists: Array<string | undefined | null>): string[] {
   const set = new Set<string>();
@@ -24,15 +22,12 @@ export function collectEleveContactEmails(eleve?: EleveConfig | null): string[] 
 }
 
 export async function loadElevesConfig(): Promise<EleveConfig[]> {
-  const hit = await getJson<EleveConfig[]>(ELEVES_KEY);
-  return Array.isArray(hit?.data) ? hit.data : [];
+  return loadElevesRegistry();
 }
 
 export async function findEleveByIne(ine?: string): Promise<EleveConfig | null> {
   if (!ine?.trim()) return null;
-  const key = ine.trim().toUpperCase();
-  const eleves = await loadElevesConfig();
-  return eleves.find((e) => e.ine?.trim().toUpperCase() === key) ?? null;
+  return findEleveByIneRegistry(ine);
 }
 
 /** Destinataires finaux : parents + organisation d'accueil (pas l'élève — souvent sans mail au collège). */

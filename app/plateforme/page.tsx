@@ -53,6 +53,14 @@ export default function PlateformePage() {
               Créez un nouvel établissement : sous-domaine, bucket S3 et clés Clerk. Réservé au
               profil Master.
             </p>
+            <p className="mt-3">
+              <Link
+                href="/plateforme/demandes"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-[#2F6B4A] hover:underline"
+              >
+                Dossiers d&apos;inscription →
+              </Link>
+            </p>
           </div>
           <PlatformQuickTenantWizard writable={data?.writable ?? false} onCreated={reload} />
           <section className="rounded-2xl border border-stone-200 bg-white/80 p-5">
@@ -97,6 +105,12 @@ export default function PlateformePage() {
                             Ouvrir →
                           </a>
                         )}
+                        <Link
+                          href={`/plateforme/tenants/${t.slug}/billing`}
+                          className="text-xs font-semibold text-amber-800 hover:underline"
+                        >
+                          Facturation
+                        </Link>
                       </div>
                     </li>
                   ))}

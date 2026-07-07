@@ -1,5 +1,5 @@
 import type { EleveConfig } from "@/app/lib/eleves-config";
-import { getJson } from "@/app/lib/s3-storage";
+import { loadElevesRegistry } from "@/app/lib/eleves-registry";
 import { classKey } from "@/app/lib/stage-referents-config";
 import { getConventionsIndex, getStageConvention } from "@/app/lib/stage-storage";
 import {
@@ -8,8 +8,6 @@ import {
   type StageConvention,
   type StageConventionStatus,
 } from "@/app/lib/stage-types";
-
-const ELEVES_KEY = "eleves.json";
 
 export type StageRosterStudentStatus = "sans_stage" | "en_cours" | "valide" | "plusieurs";
 
@@ -95,8 +93,7 @@ export function eleveMatchesClass(eleve: EleveConfig, className: string): boolea
 }
 
 async function loadEleves(): Promise<EleveConfig[]> {
-  const hit = await getJson<EleveConfig[]>(ELEVES_KEY);
-  return Array.isArray(hit?.data) ? hit.data : [];
+  return loadElevesRegistry();
 }
 
 function isTerminalStatus(status: StageConventionStatus): boolean {

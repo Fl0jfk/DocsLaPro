@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/app/lib/intranet-auth";
-import { getJson, putJson } from "@/app/lib/s3-storage";
+import { requireAdmin } from "@/app/lib/intranet-auth";
+import { saveElevesRegistry, loadElevesRegistry } from "@/app/lib/eleves-registry";
 import { validateElevesJson } from "@/app/lib/eleves-config";
 import {
   mergeElevesLists,
@@ -8,8 +8,6 @@ import {
   parseElevesJsonText,
   type ElevesImportSource,
 } from "@/app/lib/eleves-import";
-
-const KEY = "eleves.json";
 
 function parseSource(raw: string | null): ElevesImportSource {
   if (raw === "pronote" || raw === "ecoledirecte" || raw === "auto") return raw;
@@ -33,7 +31,7 @@ function isJsonFile(file: File) {
 
 export async function POST(req: Request) {
   try {
-    const gate = await requireAuth();
+    const gate = await requireAdmin();
     if (!gate.ok) return gate.response;
 
     const formData = await req.formData();
@@ -62,10 +60,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const hit = await getJson<unknown[]>(KEY);
-    const existingRaw = Array.isArray(hit?.data) ? hit.data : [];
-    const existingValidated = validateElevesJson(existingRaw);
-    const existing = existingValidated.ok ? existingValidated.eleves : [];
+    const existing = await loadElevesRegistry();
 
     let finalEleves = result.eleves;
     let mergeStats: ReturnType<typeof mergeElevesLists>["stats"] | undefined;
@@ -80,7 +75,7 @@ export async function POST(req: Request) {
       mergeStats = merged.stats;
     }
 
-    await putJson(KEY, finalEleves);
+    await saveElevesRegistry(finalEleves);
 
     const message = mergeStats
       ? `${mergeStats.added} ajouté(s), ${mergeStats.updated} mis à jour, ${mergeStats.kept} conservé(s) — ${mergeStats.total} élève(s) au total. Pensez à synchroniser les dossiers OneDrive.`

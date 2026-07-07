@@ -7,6 +7,7 @@ import {
   parseInternatModule,
   parseNotifications,
   parseProfRoomModule,
+  parseClassAllocationSettings,
   parseStaffDirectoryFile,
   parseSiteIdentity,
   parseTravelsModule,
@@ -30,6 +31,7 @@ import {
   defaultInternatModule,
   defaultNotifications,
   defaultProfRoomModule,
+  defaultClassAllocationSettings,
   defaultSiteIdentity,
   defaultStaffDirectory,
   defaultTravelsModule,
@@ -259,6 +261,7 @@ export async function loadAppConfig(): Promise<AppConfigBundle> {
     internat,
     integrations,
     externalLinks,
+    classAllocation: defaultClassAllocationSettings(),
   };
   cache = { at: Date.now(), bundle };
   return bundle;

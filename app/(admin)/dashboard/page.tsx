@@ -1,17 +1,12 @@
-'use client';
+"use client";
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
 import BentoDashboard from "@/app/components/Dashboard/bento/BentoDashboard";
-import BentoAdminFooter from "@/app/components/Dashboard/bento/BentoAdminFooter";
 import DashboardWeather from "@/app/components/Dashboard/DashboardWeather";
-import {
-  ExternalQuickLinksBar,
-  ExternalQuickLinksEditor,
-} from "@/app/components/Dashboard/ExternalQuickLinks";
+import { ExternalQuickLinksBar } from "@/app/components/Dashboard/ExternalQuickLinks";
 import { useData } from "@/app/contexts/data";
-import { useDashboardQuickLinks } from "@/app/hooks/useDashboardQuickLinks";
 import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import { hasRole } from "@/app/lib/absences-types";
 import { hasGlobalAdminRole, intranetRolesFromMetadata } from "@/app/lib/intranet-roles";
@@ -19,6 +14,7 @@ import { isEleveBienEtreProfile } from "@/app/lib/bien-etre-profile";
 import DashboardThemeRoot from "@/app/components/Dashboard/DashboardThemeRoot";
 import { dash } from "@/app/lib/dashboard-brand";
 import { isBentoFooterAdminModule } from "@/app/lib/dashboard-bento-constraints";
+import { toDashboardQuickLinks } from "@/app/lib/dashboard-quick-links";
 
 export default function Home() {
   const { isLoaded, user } = useUser();
@@ -46,14 +42,14 @@ export default function Home() {
     return uniqueCategories.filter((c) => !isBentoFooterAdminModule(c.moduleId));
   }, [uniqueCategories]);
 
-  const catalogQuickLinks = useMemo(() => {
+  const quickLinks = useMemo(() => {
     if (!isLoaded || !user || !data?.externalQuickLinks) return [];
     const rawRoles = user.publicMetadata?.role;
     const roles = Array.isArray(rawRoles) ? rawRoles : typeof rawRoles === "string" ? [rawRoles] : [];
-    return data.externalQuickLinks.filter((l) => (l.allowedRoles ?? []).some((r) => roles.includes(r)));
+    return toDashboardQuickLinks(
+      data.externalQuickLinks.filter((l) => (l.allowedRoles ?? []).some((r) => roles.includes(r))),
+    );
   }, [isLoaded, user, data]);
-
-  const quickLinks = useDashboardQuickLinks(user?.id, catalogQuickLinks);
 
   const eleveBienEtre = useMemo(() => {
     if (!user) return false;
@@ -89,27 +85,13 @@ export default function Home() {
           <DashboardWeather />
         </div>
         <div className="justify-self-start lg:justify-self-end">
-          <ExternalQuickLinksBar links={quickLinks.links} />
+          <ExternalQuickLinksBar links={quickLinks} />
         </div>
       </motion.div>
 
       <div className="z-10 mx-auto flex w-full flex-grow flex-col">
         {dashboardCategories.length > 0 ? (
-          <BentoDashboard
-            categories={dashboardCategories}
-            userId={user?.id}
-            onEnterEdit={quickLinks.initDraft}
-            onFinishEdit={quickLinks.saveDraft}
-            quickLinksEditor={
-              <ExternalQuickLinksEditor
-                draft={quickLinks.draft}
-                onUpdate={quickLinks.updateDraft}
-                onAdd={quickLinks.addDraftRow}
-                onRemove={quickLinks.removeDraftRow}
-                onClearAll={quickLinks.clearAll}
-              />
-            }
-          />
+          <BentoDashboard categories={dashboardCategories} userId={user?.id} />
         ) : (
           user && (
             <div className={`mx-auto mt-8 w-full max-w-3xl rounded-2xl border bg-white/80 px-6 py-12 text-center shadow-sm ${dash.border}`}>
@@ -128,8 +110,6 @@ export default function Home() {
             </div>
           )
         )}
-
-        <BentoAdminFooter />
 
         {!user && (
           <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-[2px]">

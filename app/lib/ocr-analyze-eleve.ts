@@ -1,8 +1,8 @@
 import "server-only";
 
-import { getJson } from "@/app/lib/s3-storage";
 import type { EleveConfig } from "@/app/lib/eleves-config";
 import { resolveEleveFolderName } from "@/app/lib/eleves-config";
+import { loadElevesRegistry } from "@/app/lib/eleves-registry";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
   buildElevesPoolForOcrMatching,
@@ -13,11 +13,8 @@ import { getMistralApiKey } from "@/app/lib/tenant-config";
 import { ocrTraceCtx, type OcrTraceCtx } from "@/app/lib/ocr-trace";
 import type { KnownStudent } from "@/app/lib/ocr-segmentation";
 
-const KEY = "eleves.json";
-
 async function getElevesFromS3(): Promise<EleveConfig[]> {
-  const hit = await getJson<EleveConfig[]>(KEY);
-  return Array.isArray(hit?.data) ? hit.data : [];
+  return loadElevesRegistry();
 }
 
 /**

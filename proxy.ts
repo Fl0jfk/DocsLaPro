@@ -39,6 +39,7 @@ import {
   publicMetadataFromSessionClaims,
 } from '@/app/lib/intranet-roles';
 import { contentSecurityPolicyHeaderValue, crossOriginOpenerPolicyHeaderValue } from '@/app/lib/content-security-policy';
+import { isTenantAccessBlocked } from '@/app/lib/tenant-billing-types';
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -47,7 +48,9 @@ const isPublicRoute = createRouteMatcher([
   '/simulateurTarifs(.*)',
   '/simulateurFournitures(.*)',
   '/portes-ouvertes(.*)',
+  '/repartition-classes(.*)',
   '/api/toolbox/public',
+  '/api/toolbox/class-allocation/public(.*)',
   '/api/rentree/file',
   '/api/fournitures/file',
   '/api/portes-ouvertes/register',
@@ -245,6 +248,16 @@ function platformAppOriginFromEnv(): string {
   }
 }
 
+function isBillingExemptPath(pathname: string): boolean {
+  const prefixes = [
+    "/abonnement-suspendu",
+    "/api/billing/tenant/status",
+    "/api/assistance",
+    "/sign-out",
+  ];
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 async function handleProxyRequest(
   request: NextRequest,
   auth?: ClerkMiddlewareAuth,
@@ -338,6 +351,32 @@ async function handleProxyRequest(
     request.nextUrl.hostname,
   );
   const isOrgAdmin = isOrgAdminFromSession(authState.orgRole, publicMetadata);
+
+  if (
+    !isPlatformTenantSlug(tenant.slug) &&
+    isTenantAccessBlocked(tenant.billing?.status) &&
+    !isBillingExemptPath(pathname)
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return withTenantHeaders(
+        NextResponse.json(
+          {
+            error: "Abonnement suspendu. Contactez Scola pour régulariser votre situation.",
+            code: "SUBSCRIPTION_SUSPENDED",
+          },
+          { status: 402 },
+        ),
+        tenant,
+      );
+    }
+    if (pathname !== "/abonnement-suspendu") {
+      return withOptionalDevTenantCookie(
+        withTenantHeaders(NextResponse.redirect(new URL("/abonnement-suspendu", request.url)), tenant),
+        request,
+        host,
+      );
+    }
+  }
 
   const canonicalRedirect = redirectToTenantCanonicalHost(request, tenant, host);
   if (canonicalRedirect) return withTenantHeaders(canonicalRedirect, tenant);

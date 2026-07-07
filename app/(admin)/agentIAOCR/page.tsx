@@ -162,9 +162,6 @@ function OneDriveUpDocsOCRAIContent() {
   const [isDraggingClass, setIsDraggingClass] = useState(false);
 
   const [elevesCount, setElevesCount] = useState<number | null>(null);
-  const [elevesSource, setElevesSource] = useState<"auto" | "pronote" | "ecoledirecte">("auto");
-  const [elevesUploading, setElevesUploading] = useState(false);
-  const [elevesMessage, setElevesMessage] = useState("");
   const [syncingFolders, setSyncingFolders] = useState(false);
   const [syncReport, setSyncReport] = useState<{
     message?: string;
@@ -187,7 +184,6 @@ function OneDriveUpDocsOCRAIContent() {
   );
   const [mefUploading, setMefUploading] = useState(false);
   const [mefMessage, setMefMessage] = useState("");
-  const elevesInputRef = useRef<HTMLInputElement | null>(null);
   const mefInputRef = useRef<HTMLInputElement | null>(null);
   const classInputRef = useRef<HTMLInputElement | null>(null);
   const oneDriveTokenRef = useRef<string | null>(null);
@@ -1114,38 +1110,6 @@ function OneDriveUpDocsOCRAIContent() {
     }
   };
 
-  const handleElevesUpload = async (file: File) => {
-    setElevesUploading(true);
-    setElevesMessage("");
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("source", elevesSource);
-      const res = await fetch("/api/eleves/import", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec de la mise à jour");
-      setElevesCount(data.count);
-      const src =
-        data.detectedSource === "pronote"
-          ? " (Pronote)"
-          : data.detectedSource === "ecoledirecte"
-            ? " (École Directe)"
-            : "";
-      setElevesMessage(
-        (data.message || `Liste mise à jour (${data.count} élèves).`) +
-          src +
-          " — Pensez à synchroniser les dossiers OneDrive.",
-      );
-    } catch (e: unknown) {
-      setElevesMessage(
-        "Erreur : " + (e instanceof Error ? e.message : String(e)),
-      );
-    } finally {
-      setElevesUploading(false);
-      if (elevesInputRef.current) elevesInputRef.current.value = "";
-    }
-  };
-
   if (!msalReady) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -2053,65 +2017,27 @@ function OneDriveUpDocsOCRAIContent() {
                 )}
               </p>
 
-              <section className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-                <h3 className="text-sm font-bold text-slate-800">1 — Importer la liste élèves (Excel)</h3>
+              <section className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                <h3 className="text-sm font-bold text-slate-800">1 — Liste élèves (référentiel global)</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Enregistre les élèves utilisés par l&apos;IA pour reconnaître et classer les documents. À refaire
-                  quand la liste change (rentrée, arrivées…). L&apos;import{" "}
-                  <strong>fusionne toujours</strong> avec la liste déjà enregistrée : élèves reconnus (INE ou nom +
-                  prénom) mis à jour (classe, MEF, e-mails), nouveaux ajoutés, les autres conservés sans suppression.
+                  L&apos;import Excel des élèves se fait désormais dans les{" "}
+                  <a href="/parametres?tab=referentiel" className="font-bold text-indigo-800 underline">
+                    Paramètres généraux → Référentiel scolaire
+                  </a>
+                  . Le fichier <code className="bg-white px-1 rounded">eleves.json</code> alimente tous les modules
+                  (stages, certificats, répartition des classes, reconnaissance IA…).
                 </p>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950 leading-relaxed space-y-2">
-                  <p className="font-bold">
-                    Ligne d&apos;en-tête obligatoire : la 1re ligne du fichier doit contenir les titres des
-                    colonnes. Sans elle, l&apos;import échoue.
-                  </p>
-                  <p className="font-semibold text-amber-900">Ordre des colonnes (de gauche à droite) :</p>
-                  <ol className="list-decimal list-inside space-y-0.5 pl-1">
-                    <li>Nom</li>
-                    <li>Prénom</li>
-                    <li>Classe (ou Division)</li>
-                    <li>INE / identifiant national</li>
-                    <li>Code MEF / Formation</li>
-                    <li>E-mail élève (optionnel)</li>
-                    <li>E-mail parent (optionnel)</li>
-                  </ol>
-                  <p className="text-amber-800">
-                    Pronote : Scolarité → Exports → liste élèves Excel. École Directe : export modulable — placez les
-                    colonnes dans cet ordre. Le JSON reste possible pour les cas avancés.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="text-xs font-semibold text-slate-600">
-                    Source export
-                    <select
-                      className="ml-2 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                      value={elevesSource}
-                      onChange={(e) =>
-                        setElevesSource(e.target.value as "auto" | "pronote" | "ecoledirecte")
-                      }
-                    >
-                      <option value="auto">Détection auto</option>
-                      <option value="pronote">Pronote</option>
-                      <option value="ecoledirecte">École Directe</option>
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    disabled={elevesUploading}
-                    onClick={() => elevesInputRef.current?.click()}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-                  >
-                    {elevesUploading ? "Envoi…" : "Importer liste élèves (Excel)"}
-                  </button>
-                </div>
-                {elevesMessage && (
-                  <p
-                    className={`text-sm ${elevesMessage.startsWith("Erreur") ? "text-red-600" : "text-green-700"}`}
-                  >
-                    {elevesMessage}
+                {elevesCount != null && (
+                  <p className="text-sm font-medium text-slate-800">
+                    {elevesCount} élève(s) actuellement enregistré(s).
                   </p>
                 )}
+                <a
+                  href="/parametres?tab=referentiel"
+                  className="inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"
+                >
+                  Mettre à jour la liste élèves →
+                </a>
               </section>
 
               <section
@@ -2282,16 +2208,6 @@ function OneDriveUpDocsOCRAIContent() {
                 )}
               </section>
 
-              <input
-                ref={elevesInputRef}
-                type="file"
-                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.json,application/json"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void handleElevesUpload(f);
-                }}
-              />
               <input
                 ref={mefInputRef}
                 type="file"

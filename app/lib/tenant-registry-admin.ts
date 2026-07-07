@@ -9,6 +9,7 @@ import {
   saveRegistryIndexEntries,
   saveTenantSecretsFile,
 } from "@/app/lib/tenant-registry";
+import type { TenantBillingState } from "@/app/lib/tenant-billing-types";
 import type { TenantConfig, TenantIndexEntry, TenantPostalAddress, TenantSecrets } from "@/app/lib/tenant-types";
 
 export type TenantSecretsPatch = {
@@ -39,6 +40,7 @@ export type TenantUpsertInput = {
   clerkPublishableKey: string;
   postalAddress?: TenantPostalAddress;
   logoUrl?: string;
+  billing?: TenantBillingState;
   secrets?: TenantSecretsPatch;
 };
 
@@ -92,6 +94,7 @@ function indexEntryFromInput(input: TenantUpsertInput): TenantIndexEntry {
   const appUrl = input.appUrl.trim().replace(/\/$/, "");
   const postalAddress = normalizePostalAddress(input.postalAddress);
   const logoUrl = input.logoUrl?.trim() || undefined;
+  const billing = input.billing;
   return {
     slug: normalizeSlug(input.slug),
     kind: input.kind === "standalone" ? "standalone" : "groupe",
@@ -102,6 +105,7 @@ function indexEntryFromInput(input: TenantUpsertInput): TenantIndexEntry {
     clerkPublishableKey: input.clerkPublishableKey.trim(),
     ...(postalAddress ? { postalAddress } : {}),
     ...(logoUrl ? { logoUrl } : {}),
+    ...(billing ? { billing } : {}),
   };
 }
 
@@ -387,4 +391,35 @@ export function upsertInputFromBody(raw: unknown): TenantUpsertInput {
     logoUrl: typeof o.logoUrl === "string" ? o.logoUrl : undefined,
     secrets: secretsPatchFromBody(o.secrets),
   };
+}
+
+export type TenantIndexPatch = {
+  billing?: TenantBillingState;
+};
+
+/** Met à jour des champs index sans réécrire les secrets. */
+export async function patchTenantIndexFields(
+  slug: string,
+  patch: TenantIndexPatch,
+  _by?: string,
+): Promise<TenantConfig> {
+  const normalized = normalizeSlug(slug);
+  const entries = await loadRegistryIndexEntries();
+  const idx = entries.findIndex((e) => e.slug.toLowerCase() === normalized);
+  if (idx < 0) throw new Error(`Tenant « ${normalized} » introuvable.`);
+
+  const nextEntries = [...entries];
+  nextEntries[idx] = {
+    ...nextEntries[idx],
+    ...(patch.billing !== undefined ? { billing: patch.billing } : {}),
+  };
+
+  await saveRegistryIndexEntries(nextEntries);
+  invalidateTenantRegistryCache();
+
+  const updated = await loadAllTenants().then((list) =>
+    list.find((t) => t.slug.toLowerCase() === normalized),
+  );
+  if (!updated) throw new Error("Tenant mis à jour mais rechargement impossible.");
+  return updated;
 }

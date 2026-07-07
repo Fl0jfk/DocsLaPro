@@ -2,9 +2,8 @@ import { safeCurrentUser } from "@/app/lib/intranet-session";
 import { NextResponse } from "next/server";
 
 import { requireAuth } from "@/app/lib/intranet-auth";
-import { getJson } from "@/app/lib/s3-storage";
-import type { EleveConfig } from "@/app/lib/eleves-config";
 import { resolveEleveFolderName } from "@/app/lib/eleves-config";
+import { loadElevesRegistry } from "@/app/lib/eleves-registry";
 import { listChildFolderNames, ensureChildFolder, ensureFolderPath } from "@/app/lib/graph-onedrive-folders";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import {
@@ -12,8 +11,6 @@ import {
   resolveEleveSecteur,
 } from "@/app/lib/onedrive-eleves";
 import { resolveOneDriveProfileForClerkUserServer } from "@/app/lib/onedrive-user-profiles.server";
-
-const KEY = "eleves.json";
 
 export async function POST(req: Request) {
   try {
@@ -49,8 +46,7 @@ export async function POST(req: Request) {
     const mefMap = await loadMefSecteurMap();
     const mefTableConfigured = mefMap.size > 0;
 
-    const hit = await getJson<EleveConfig[]>( KEY);
-    const allEleves = Array.isArray(hit?.data) ? hit.data : [];
+    const allEleves = await loadElevesRegistry();
     const scoped = filterElevesForSecteur(allEleves, profile.secteur, mefMap);
 
     await ensureFolderPath(accessToken, profile.basePath);

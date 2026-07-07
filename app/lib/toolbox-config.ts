@@ -94,6 +94,10 @@ export function parseToolboxConfig(raw: unknown): ToolboxConfig {
     tools["portes-ouvertes"] && typeof tools["portes-ouvertes"] === "object"
       ? (tools["portes-ouvertes"] as Record<string, unknown>)
       : {};
+  const repartition =
+    tools["repartition-classes"] && typeof tools["repartition-classes"] === "object"
+      ? (tools["repartition-classes"] as Record<string, unknown>)
+      : {};
 
   const ens = tarifs.enseignement && typeof tarifs.enseignement === "object" ? tarifs.enseignement : {};
   const demi = tarifs.demiPension && typeof tarifs.demiPension === "object" ? tarifs.demiPension : {};
@@ -167,6 +171,10 @@ export function parseToolboxConfig(raw: unknown): ToolboxConfig {
         slots: parseSlots(po.slots),
         consentLabel: String(po.consentLabel || defaults.tools["portes-ouvertes"].consentLabel).trim(),
       },
+      "repartition-classes": {
+        enabled: repartition.enabled !== false,
+        label: String(repartition.label || defaults.tools["repartition-classes"].label).trim(),
+      },
     },
   };
 }
@@ -226,5 +234,6 @@ export function toolboxEnabledTools(config: ToolboxConfig): ToolboxToolId[] {
   if (config.tools["simulateur-tarifs"].enabled) ids.push("simulateur-tarifs");
   if (config.tools["simulateur-fournitures"].enabled) ids.push("simulateur-fournitures");
   if (config.tools["portes-ouvertes"].enabled) ids.push("portes-ouvertes");
+  if (config.tools["repartition-classes"].enabled) ids.push("repartition-classes");
   return ids;
 }

@@ -21,6 +21,8 @@ export const PRICE_PER_STUDENT_MONTHLY_EUR = 0.3;
 /** Réduction paiement annuel (à la rentrée) */
 
 export const ANNUAL_UPFRONT_DISCOUNT = 0.1;
+export const INCLUDED_A3_LICENSES = 10;
+export const EXTRA_A3_PRICE_MONTHLY_EUR = 5;
 
 
 
@@ -43,6 +45,13 @@ export type PricingBreakdown = {
   annualTotal: number;
 
   discountPercent: number;
+  includedA3: number;
+  extraA3Count: number;
+  extraA3UnitMonthly: number;
+  extraA3MonthlyTotal: number;
+  extraA3AnnualTotal: number;
+  totalMonthlyWithExtras: number;
+  totalAnnualWithExtras: number;
 
 };
 
@@ -68,6 +77,10 @@ export function computePricing(studentCount: number, mode: BillingMode): Pricing
 
 
 
+  const extrasCount = 0;
+  const extraMonthly = extrasCount * EXTRA_A3_PRICE_MONTHLY_EUR;
+  const extraAnnual = extraMonthly * 12;
+
   if (mode === "monthly") {
 
     return {
@@ -85,6 +98,13 @@ export function computePricing(studentCount: number, mode: BillingMode): Pricing
       annualTotal: annualFull,
 
       discountPercent: 0,
+      includedA3: INCLUDED_A3_LICENSES,
+      extraA3Count: extrasCount,
+      extraA3UnitMonthly: EXTRA_A3_PRICE_MONTHLY_EUR,
+      extraA3MonthlyTotal: extraMonthly,
+      extraA3AnnualTotal: extraAnnual,
+      totalMonthlyWithExtras: baseMonthly * students + extraMonthly,
+      totalAnnualWithExtras: annualFull + extraAnnual,
 
     };
 
@@ -109,9 +129,40 @@ export function computePricing(studentCount: number, mode: BillingMode): Pricing
     annualTotal: annualDiscounted,
 
     discountPercent: Math.round(ANNUAL_UPFRONT_DISCOUNT * 100),
+    includedA3: INCLUDED_A3_LICENSES,
+    extraA3Count: extrasCount,
+    extraA3UnitMonthly: EXTRA_A3_PRICE_MONTHLY_EUR,
+    extraA3MonthlyTotal: extraMonthly,
+    extraA3AnnualTotal: extraAnnual,
+    totalMonthlyWithExtras: annualDiscounted / 12 + extraMonthly,
+    totalAnnualWithExtras: annualDiscounted + extraAnnual,
 
   };
 
+}
+
+export function normalizeExtraA3Count(value: number): number {
+  if (!Number.isFinite(value) || value < 0) return 0;
+  return Math.round(value);
+}
+
+export function computePricingWithA3Extras(
+  studentCount: number,
+  mode: BillingMode,
+  extraA3Count: number,
+): PricingBreakdown {
+  const base = computePricing(studentCount, mode);
+  const extras = normalizeExtraA3Count(extraA3Count);
+  const extraMonthly = extras * EXTRA_A3_PRICE_MONTHLY_EUR;
+  const extraAnnual = extraMonthly * 12;
+  return {
+    ...base,
+    extraA3Count: extras,
+    extraA3MonthlyTotal: extraMonthly,
+    extraA3AnnualTotal: extraAnnual,
+    totalMonthlyWithExtras: base.monthlyTotal + extraMonthly,
+    totalAnnualWithExtras: base.annualTotal + extraAnnual,
+  };
 }
 
 
@@ -234,11 +285,28 @@ export const STRIPE_BILLING = {
 
 } as const;
 
+/** Paiement abonnement via Easytransac (Open Banking + prélèvement). */
+export const EASYTRANSAC_BILLING = {
+  isConfigured: Boolean(process.env.EASYTRANSAC_API_KEY?.trim()),
+} as const;
 
-
-export function getSubscribeCta(mode: BillingMode): { label: string; href: string; stripeReady: boolean } {
-
+export function getSubscribeCta(mode: BillingMode): {
+  label: string;
+  href: string;
+  stripeReady: boolean;
+  easytransacReady: boolean;
+} {
   const stripeReady = STRIPE_BILLING.isConfigured;
+  const easytransacReady = EASYTRANSAC_BILLING.isConfigured;
+
+  if (easytransacReady) {
+    return {
+      label: "Déposer un dossier",
+      href: "/souscrire",
+      stripeReady: false,
+      easytransacReady: true,
+    };
+  }
 
   if (stripeReady) {
 
@@ -249,21 +317,16 @@ export function getSubscribeCta(mode: BillingMode): { label: string; href: strin
       href: `/api/billing/checkout?mode=${mode}`,
 
       stripeReady: true,
-
+      easytransacReady: false,
     };
-
   }
 
   return {
-
     label: "Nous contacter pour souscrire",
-
     href: `mailto:${MARKETING.contactEmail}?subject=${encodeURIComponent(`Abonnement Scola — ${BILLING_OPTIONS.find((o) => o.mode === mode)?.name ?? mode}`)}`,
-
     stripeReady: false,
-
+    easytransacReady: false,
   };
-
 }
 
 

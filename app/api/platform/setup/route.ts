@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePlatformMaster } from "@/app/lib/intranet-auth";
 import { getTenant } from "@/app/lib/tenant-context";
 import { tenantToEditPayload } from "@/app/lib/tenant-registry-admin";
+import { getTenantBilling } from "@/app/lib/tenant-billing";
 import {
   getRegistryStorageConfig,
   isMultiTenantEnabled,
@@ -19,6 +20,7 @@ function maskPk(value: string): string {
 
 function tenantListItem(t: TenantConfig) {
   const edit = tenantToEditPayload(t);
+  const billing = getTenantBilling(t);
   return {
     slug: t.slug,
     kind: t.kind,
@@ -28,6 +30,8 @@ function tenantListItem(t: TenantConfig) {
     dataBucket: t.dataBucket,
     clerkPublishableKey: maskPk(edit.entry.clerkPublishableKey),
     configured: edit.configured,
+    billingStatus: billing.status,
+    billingFailureCount: billing.failureCount || 0,
   };
 }
 

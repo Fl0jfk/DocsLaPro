@@ -79,8 +79,53 @@ export const TOOLBOX_TOOLS_META: ToolboxToolMeta[] = [
     bg: "bg-violet-50",
     season: "Sept.–janv.",
   },
+  {
+    id: "repartition-classes",
+    label: "Répartition des classes",
+    shortLabel: "Classes",
+    description: "Préparer la classe, vœux parents et moteur de répartition.",
+    adminPath: "/toolbox/repartition-classes",
+    publicPath: "/repartition-classes",
+    color: "text-indigo-800",
+    bg: "bg-indigo-50",
+    season: "Fin d'année",
+  },
 ];
 
 export function toolboxMetaById(id: ToolboxToolId): ToolboxToolMeta {
   return TOOLBOX_TOOLS_META.find((t) => t.id === id)!;
 }
+
+/** Liens admin permanents (pas de toggle on/off dans la config). */
+export type ToolboxAdminLinkId = "parametres" | "utilisateurs";
+
+export type ToolboxAdminLinkMeta = {
+  id: ToolboxAdminLinkId;
+  label: string;
+  shortLabel: string;
+  description: string;
+  adminPath: string;
+  color: string;
+  bg: string;
+};
+
+export const TOOLBOX_ADMIN_LINKS: ToolboxAdminLinkMeta[] = [
+  {
+    id: "parametres",
+    label: "Paramètres généraux",
+    shortLabel: "Param.",
+    description: "Établissements, identité, intégrations et référentiel scolaire.",
+    adminPath: "/parametres",
+    color: "text-slate-800",
+    bg: "bg-slate-100",
+  },
+  {
+    id: "utilisateurs",
+    label: "Utilisateurs",
+    shortLabel: "Users",
+    description: "Comptes Clerk, rôles et accès à l'intranet.",
+    adminPath: "/membres",
+    color: "text-sky-800",
+    bg: "bg-sky-50",
+  },
+];

@@ -6,10 +6,10 @@ import RequireOrgAdmin from "@/app/components/RequireOrgAdmin";
 import ToolboxModal from "@/app/components/toolbox/ToolboxModal";
 import RentreeEditor from "@/app/components/toolbox/RentreeEditor";
 import FournituresEditor from "@/app/components/toolbox/FournituresEditor";
-import { renderToolboxIcon } from "@/app/components/toolbox/ToolboxIcons";
+import { renderToolboxAdminIcon, renderToolboxIcon } from "@/app/components/toolbox/ToolboxIcons";
 import type { Establishment } from "@/app/lib/app-config-schemas";
 import type { ToolboxConfig, PortesOuvertesSlot, TarifsNiveau } from "@/app/lib/toolbox-types";
-import { TOOLBOX_TOOLS_META } from "@/app/lib/toolbox-tools";
+import { TOOLBOX_TOOLS_META, TOOLBOX_ADMIN_LINKS } from "@/app/lib/toolbox-tools";
 
 type Tab = "overview" | "rentree" | "fournitures" | "tarifs" | "portes-ouvertes" | "secret-santa";
 
@@ -145,7 +145,7 @@ export default function ToolboxAdminPage() {
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Administration</p>
             <h1 className="text-3xl font-black text-slate-900">Boîte à outils</h1>
             <p className="mt-2 text-sm text-slate-600 max-w-xl">
-              Activez les modules saisonniers par établissement. Ils apparaissent dans la tuile dashboard (style dossier iPhone).
+              Activez les modules saisonniers par établissement. Paramètres généraux et utilisateurs sont accessibles depuis la même boîte à outils.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -257,6 +257,11 @@ export default function ToolboxAdminPage() {
                           Lancer le tirage →
                         </Link>
                       )}
+                      {meta.id === "repartition-classes" && enabled && (
+                        <Link href="/toolbox/repartition-classes" className="mt-2 inline-block text-xs font-bold text-indigo-800 underline">
+                          Ouvrir le module →
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -264,6 +269,30 @@ export default function ToolboxAdminPage() {
             })}
             <div className="sm:col-span-2 rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
               Le QR code reste accessible via <Link href="/qrcreator" className="font-bold text-slate-800 underline">/qrcreator</Link> même s&apos;il n&apos;est pas activé dans la boîte.
+            </div>
+
+            <div className="sm:col-span-2">
+              <h2 className="mb-3 text-sm font-black uppercase tracking-widest text-slate-500">Administration</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {TOOLBOX_ADMIN_LINKS.map((link) => (
+                  <Link
+                    key={link.id}
+                    href={link.adminPath}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                  >
+                    <div className="flex items-start gap-4">
+                      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${link.bg} ${link.color}`}>
+                        {renderToolboxAdminIcon(link.id, "w-8 h-8")}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900">{link.label}</h3>
+                        <p className="mt-1 text-xs text-slate-500">{link.description}</p>
+                        <span className="mt-2 inline-block text-xs font-bold text-slate-700 underline">Ouvrir →</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
           </section>
         )}

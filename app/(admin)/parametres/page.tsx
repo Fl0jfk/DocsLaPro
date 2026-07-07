@@ -9,8 +9,11 @@ import { useIsOrgAdmin } from "@/app/hooks/useIsOrgAdmin";
 import { useIsPlatformMaster } from "@/app/hooks/useIsPlatformMaster";
 import { DASHBOARD_ACCENT_OPTIONS } from "@/app/lib/dashboard-brand-presets";
 import { PLATFORM_ASSISTANCE_EMAIL } from "@/app/lib/platform-assistance-email";
+import SchoolRosterPanel from "@/app/components/settings/SchoolRosterPanel";
+import DashboardQuickLinksPanel from "@/app/components/settings/DashboardQuickLinksPanel";
+import { useSearchParams } from "next/navigation";
 
-type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing" | "travels" | "integrations" | "toolbox";
+type Tab = "site" | "establishments" | "notifications" | "mef" | "prof-room" | "requests-routing" | "travels" | "integrations" | "toolbox" | "referentiel" | "dashboard-links";
 
 type MefSecteursConfig = { lycee: string[]; college: string[]; ecole: string[] };
 
@@ -26,6 +29,7 @@ function listToLines(arr: string[]): string {
 }
 
 export default function ParametresPage() {
+  const searchParams = useSearchParams();
   const isOrgAdmin = useIsOrgAdmin();
   const isPlatformMaster = useIsPlatformMaster();
   const [tab, setTab] = useState<Tab>("site");
@@ -56,6 +60,25 @@ export default function ParametresPage() {
   const [requestsRouting, setRequestsRouting] = useState<RequestsRoutingConfig | null>(null);
   const [travelsCfg, setTravelsCfg] = useState<{ transportProviders: { name: string; email: string }[]; pdfFooterText?: string }>({ transportProviders: [] });
   const [integrations, setIntegrations] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (
+      t === "referentiel" ||
+      t === "site" ||
+      t === "establishments" ||
+      t === "notifications" ||
+      t === "mef" ||
+      t === "prof-room" ||
+      t === "requests-routing" ||
+      t === "travels" ||
+      t === "integrations" ||
+      t === "toolbox" ||
+      t === "dashboard-links"
+    ) {
+      setTab(t);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isOrgAdmin) {
@@ -235,9 +258,11 @@ export default function ParametresPage() {
             ["travels", "Sorties scolaires"],
             ["integrations", "Intégrations"],
             ["toolbox", "Boîte à outils"],
+            ["referentiel", "Référentiel scolaire"],
             ["mef", "Formations MEF"],
             ["prof-room", "Réservation salles"],
             ["requests-routing", "Routage demandes"],
+            ["dashboard-links", "Raccourcis tableau de bord"],
           ] as const
         ).map(([k, label]) => (
           <button
@@ -1161,6 +1186,14 @@ export default function ParametresPage() {
       {tab === "requests-routing" && !requestsRouting && (
         <p className="text-slate-500 text-sm">Chargement du catalogue de routage…</p>
       )}
+
+      {tab === "referentiel" && (
+        <div className="bg-white rounded-2xl border p-6">
+          <SchoolRosterPanel />
+        </div>
+      )}
+
+      {tab === "dashboard-links" && <DashboardQuickLinksPanel />}
 
       {tab === "toolbox" && (
         <div className="bg-white rounded-2xl border p-6 space-y-4">

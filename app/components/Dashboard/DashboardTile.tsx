@@ -6,7 +6,6 @@ import AbsencesCalendarTile from "./AbsencesCalendarTile";
 import AgentIATile from "./AgentIATile";
 import InternatTile from "./InternatTile";
 import PersonnelOgecTile from "./PersonnelOgecTile";
-import DomainPlanningTile from "./DomainPlanningTile";
 import ProfRoomTile from "./ProfRoomTile";
 import TravelsTile from "./TravelsTile";
 
@@ -16,8 +15,6 @@ export default function DashboardTile({ category, priority }: { category: Catego
       return <TravelsTile category={category} priority={priority} />;
     case "prof-room":
       return <ProfRoomTile category={category} priority={priority} />;
-    case "domain-planning":
-      return <DomainPlanningTile category={category} priority={priority} />;
     case "agent-ia":
       return <AgentIATile category={category} priority={priority} />;
     case "absences":

@@ -11,7 +11,13 @@ export type ToolboxToolId =
   | "rentree"
   | "simulateur-tarifs"
   | "simulateur-fournitures"
-  | "portes-ouvertes";
+  | "portes-ouvertes"
+  | "repartition-classes";
+
+export type RepartitionClassesToolConfig = {
+  enabled: boolean;
+  label: string;
+};
 
 export type TarifsNiveau = "maternelle" | "elementaire" | "college" | "lycee";
 
@@ -69,6 +75,7 @@ export type ToolboxConfig = {
     "simulateur-tarifs": SimulateurTarifsConfig;
     "simulateur-fournitures": FournituresToolConfig;
     "portes-ouvertes": PortesOuvertesToolConfig;
+    "repartition-classes": RepartitionClassesToolConfig;
   };
 };
 
@@ -122,6 +129,10 @@ export function defaultToolboxConfig(): ToolboxConfig {
         slots: [],
         consentLabel:
           "J'accepte que mes coordonnées soient utilisées pour organiser ma visite et me recontacter si besoin.",
+      },
+      "repartition-classes": {
+        enabled: true,
+        label: "Répartition des classes",
       },
     },
   };

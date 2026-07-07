@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DASHBOARD_ACCENT_OPTIONS } from "@/app/lib/dashboard-brand-presets";
+import { SCOLA_GRADIENT_TEXT } from "@/app/lib/marketing-theme";
 import { PLATFORM_ASSISTANCE_EMAIL } from "@/app/lib/platform-assistance-email";
 import type {
   Establishment,
@@ -16,16 +17,7 @@ import type {
 
 const TOTAL_STEPS = 12;
 
-const DEFAULT_QUICK_LINK_ROLES = [
-  "admin",
-  "administratif",
-  "professeur",
-  "direction_ecole",
-  "direction_college",
-  "direction_lycee",
-  "comptabilite",
-  "education",
-];
+import { newQuickLinkSlot } from "@/app/lib/dashboard-quick-links";
 
 function normalizeOnboardingStep(saved: number): number {
   if (!Number.isFinite(saved) || saved < 1) return 1;
@@ -44,20 +36,24 @@ const ESTABLISHMENT_PRESETS: { kind: EstablishmentKind; id: string; label: strin
 ];
 
 function Help({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-slate-600 leading-relaxed mb-4 bg-slate-50 border border-slate-200 rounded-xl p-4">{children}</p>;
+  return (
+    <p className="text-sm text-stone-600 leading-relaxed mb-4 bg-[#F7F4EF] border border-stone-200 rounded-xl p-4">
+      {children}
+    </p>
+  );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block mb-4">
-      <span className="block text-sm font-medium text-slate-700 mb-1">{label}</span>
+      <span className="block text-sm font-medium text-stone-700 mb-1">{label}</span>
       {children}
     </label>
   );
 }
 
 const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
+  "w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#2F6B4A] focus:ring-2 focus:ring-emerald-100";
 
 export default function OnboardingWizard() {
   const router = useRouter();
@@ -367,7 +363,7 @@ export default function OnboardingWizard() {
         const res = await fetch("/api/settings/onboarding/complete", { method: "PUT" });
         const j = await res.json();
         if (!res.ok) throw new Error(j.error || "Finalisation impossible");
-        router.push(reviewMode ? "/parametres" : "/dashboard");
+        router.push(reviewMode ? "/parametres" : "/onboarding/microsoft");
         return;
       }
       setStep(next);
@@ -417,23 +413,28 @@ export default function OnboardingWizard() {
   }, [step]);
 
   if (loading) {
-    return <div className="p-12 text-center text-slate-500">Chargement de la configuration…</div>;
+    return <div className="p-12 text-center text-stone-500">Chargement de la configuration…</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-10 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-[#F7F4EF] via-white to-[#EEF5F0] py-10 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#2F6B4A] mb-1">
             Configuration {reviewMode ? "— relecture" : "initiale"} · Étape {step}/{TOTAL_STEPS}
           </p>
-          <h1 className="text-2xl font-bold text-slate-900">{stepTitle}</h1>
-          <div className="mt-4 h-2 rounded-full bg-slate-200 overflow-hidden">
-            <div className="h-full bg-indigo-500 transition-all" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
+          <h1 className="text-2xl font-black text-[#14231A]">
+            <span className={SCOLA_GRADIENT_TEXT}>{stepTitle}</span>
+          </h1>
+          <div className="mt-4 h-2 rounded-full bg-stone-200 overflow-hidden">
+            <div
+              className="h-full bg-[#2F6B4A] transition-all"
+              style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+            />
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8">
+        <div className="bg-white/90 rounded-2xl border border-stone-200 shadow-sm p-6 md:p-8">
           {error && <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</div>}
           {existingConfigDetected && !reviewMode && (
             <div className="mb-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-3">
@@ -503,7 +504,7 @@ export default function OnboardingWizard() {
                     key={p.id}
                     type="button"
                     disabled={identity.organizationKind === "standalone" && establishments.length >= 1}
-                    className="text-sm px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+                    className="text-sm px-3 py-1.5 rounded-lg border border-[#2F6B4A]/30 text-[#2F6B4A] hover:bg-emerald-50 disabled:opacity-40"
                     onClick={() => addPresetEstablishment(p)}
                   >
                     + {p.label}
@@ -511,12 +512,12 @@ export default function OnboardingWizard() {
                 ))}
               </div>
               {identity.organizationKind === "standalone" && (
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-xs text-stone-500 mb-4">
                   Établissement unique : un seul niveau (école, collège ou lycée).
                 </p>
               )}
               {establishments.map((e, idx) => (
-                <div key={e.id} className="mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                <div key={e.id} className="mb-6 p-4 rounded-xl border border-stone-200 bg-stone-50/50">
                   <div className="flex justify-between items-center mb-2">
                     <strong>{e.label}</strong>
                     <button type="button" className="text-xs text-red-600" onClick={() => setEstablishments((prev) => prev.filter((_, i) => i !== idx))}>
@@ -603,7 +604,7 @@ export default function OnboardingWizard() {
               <Field label="E-mail cuisine / prestataire restauration">
                 <input className={inputClass} type="email" value={notifications.travelsCuisine || ""} onChange={(e) => setNotifications({ ...notifications, travelsCuisine: e.target.value })} />
               </Field>
-              <p className="text-sm font-medium text-slate-700 mb-2">Transporteurs habituels</p>
+              <p className="text-sm font-medium text-stone-700 mb-2">Transporteurs habituels</p>
               {(travels.transportProviders || []).map((p, idx) => (
                 <div key={idx} className="grid grid-cols-2 gap-2 mb-2">
                   <input className={inputClass} placeholder="Nom" value={p.name} onChange={(e) => {
@@ -618,7 +619,7 @@ export default function OnboardingWizard() {
                   }} />
                 </div>
               ))}
-              <button type="button" className="text-sm text-indigo-600" onClick={() => setTravels({ ...travels, transportProviders: [...(travels.transportProviders || []), { name: "", email: "" }] })}>
+              <button type="button" className="text-sm text-[#2F6B4A]" onClick={() => setTravels({ ...travels, transportProviders: [...(travels.transportProviders || []), { name: "", email: "" }] })}>
                 + Ajouter un transporteur
               </button>
             </>
@@ -753,9 +754,9 @@ export default function OnboardingWizard() {
               {wantQuickLinks && (
                 <div className="space-y-4">
                   {externalLinks.map((link, idx) => (
-                    <div key={link.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                    <div key={link.id} className="p-4 rounded-xl border border-stone-200 bg-stone-50/50 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-500">Raccourci {idx + 1}</span>
+                        <span className="text-xs font-bold text-stone-500">Raccourci {idx + 1}</span>
                         <button
                           type="button"
                           className="text-xs text-red-600"
@@ -800,17 +801,11 @@ export default function OnboardingWizard() {
                   ))}
                   <button
                     type="button"
-                    className="text-sm text-indigo-600"
+                    className="text-sm text-[#2F6B4A]"
                     onClick={() =>
                       setExternalLinks((prev) => [
                         ...prev,
-                        {
-                          id: `link-${Date.now()}`,
-                          name: "",
-                          link: "",
-                          img: "",
-                          allowedRoles: DEFAULT_QUICK_LINK_ROLES,
-                        },
+                        newQuickLinkSlot(prev.length),
                       ])
                     }
                   >
@@ -846,31 +841,32 @@ export default function OnboardingWizard() {
           {step === 12 && (
             <>
               <Help>Vérifiez les informations saisies. Vous pourrez tout modifier ultérieurement dans Paramètres généraux.</Help>
-              <ul className="text-sm text-slate-700 space-y-2">
+              <ul className="text-sm text-stone-700 space-y-2">
                 <li><strong>Organisation :</strong> {identity.name} ({identity.organizationKind === "groupe" ? "groupe scolaire" : "établissement unique"})</li>
                 <li><strong>Établissements :</strong> {establishments.map((e) => e.label).join(", ") || "—"}</li>
                 <li><strong>Adresse :</strong> {identity.address?.street}, {identity.address?.zip} {identity.address?.city}</li>
                 <li><strong>Transporteurs :</strong> {(travels.transportProviders || []).length}</li>
                 <li><strong>Raccourcis :</strong> {wantQuickLinks ? externalLinks.filter((l) => l.name && l.link).length : 0}</li>
+                <li><strong>Licences Microsoft :</strong> à configurer à l&apos;étape suivante (A3 référents + A1 enseignants)</li>
               </ul>
             </>
           )}
 
-          <div className="flex justify-between mt-8 pt-6 border-t border-slate-100">
-            <button type="button" className="px-4 py-2 text-sm text-slate-600 disabled:opacity-40" disabled={step <= 1 || saving} onClick={goPrev}>
+          <div className="flex justify-between mt-8 pt-6 border-t border-stone-100">
+            <button type="button" className="px-4 py-2 text-sm text-stone-600 disabled:opacity-40" disabled={step <= 1 || saving} onClick={goPrev}>
               Précédent
             </button>
             <button
               type="button"
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-[#2F6B4A] text-white text-sm font-semibold disabled:opacity-50 hover:bg-[#255A3D]"
               disabled={saving}
               onClick={goNext}
             >
-              {saving ? "Enregistrement…" : step === TOTAL_STEPS ? (reviewMode ? "Terminer la relecture" : "Accéder à la plateforme") : "Suivant"}
+              {saving ? "Enregistrement…" : step === TOTAL_STEPS ? (reviewMode ? "Terminer la relecture" : "Continuer — licences Microsoft") : "Suivant"}
             </button>
           </div>
           {reviewMode && step === TOTAL_STEPS && (
-            <button type="button" className="mt-3 text-sm text-indigo-600 w-full text-center" onClick={() => router.push("/parametres")}>
+            <button type="button" className="mt-3 text-sm text-[#2F6B4A] w-full text-center" onClick={() => router.push("/parametres")}>
               Retour aux paramètres sans finaliser
             </button>
           )}

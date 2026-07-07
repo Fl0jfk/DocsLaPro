@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Categories } from "@/app/contexts/data";
 import BentoColumnGrid from "@/app/components/Dashboard/bento/BentoColumnGrid";
 import BentoEditColumnGrid from "@/app/components/Dashboard/bento/BentoEditColumnGrid";
@@ -18,9 +18,6 @@ import { dash } from "@/app/lib/dashboard-brand";
 type Props = {
   categories: Categories[];
   userId?: string;
-  onEnterEdit?: () => void;
-  onFinishEdit?: () => void;
-  quickLinksEditor?: ReactNode;
 };
 
 function useDashboardViewport(): DashboardViewport {
@@ -39,9 +36,6 @@ function useDashboardViewport(): DashboardViewport {
 export default function BentoDashboard({
   categories,
   userId,
-  onEnterEdit,
-  onFinishEdit,
-  quickLinksEditor,
 }: Props) {
   const viewport = useDashboardViewport();
   const widgetSize = getBentoWidgetSize(viewport);
@@ -68,14 +62,12 @@ export default function BentoDashboard({
   } = useBentoDashboardLayout(categories, userId);
 
   const enterEdit = useCallback(() => {
-    onEnterEdit?.();
     setEditMode(true);
-  }, [onEnterEdit, setEditMode]);
+  }, [setEditMode]);
 
   const handleFinish = useCallback(() => {
-    onFinishEdit?.();
     finishEdit();
-  }, [finishEdit, onFinishEdit]);
+  }, [finishEdit]);
 
   const gridColumns = useMemo(() => {
     const cols = editMode
@@ -183,7 +175,6 @@ export default function BentoDashboard({
               </div>
             </div>
           ) : null}
-          {quickLinksEditor}
         </div>
       ) : (
         <div className="flex justify-center pt-2 sm:justify-end">

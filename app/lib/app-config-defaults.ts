@@ -97,3 +97,13 @@ export function defaultProfRoomModule(): ProfRoomModuleConfig {
     adminClerkUserIds: [],
   };
 }
+
+export function defaultClassAllocationSettings() {
+  return {
+    levels: [] as {
+      level: "ecole" | "college" | "lycee";
+      sourceClassPrefixes: string[];
+      targetClasses: string[];
+    }[],
+  };
+}

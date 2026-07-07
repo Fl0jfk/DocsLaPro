@@ -23,7 +23,6 @@ import {
   subjectSchedulePresentation,
   teacherSchedulePresentation,
 } from "@/app/components/Dashboard/bento/BentoScheduleEntry";
-import { DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS } from "@/app/lib/domain-planning-defaults";
 import { DEFAULT_PROF_ROOM_SUBJECT_COLORS } from "@/app/lib/prof-room-defaults";
 import BentoDropZone from "@/app/components/Dashboard/bento/BentoDropZone";
 import { absencesInWeek, absencesToday, type AbsenceTodayRow, type AbsenceWeekRow } from "@/app/lib/dashboard-absences";
@@ -37,7 +36,6 @@ import {
   DASHBOARD_BTN_EMERALD,
   DASHBOARD_BTN_INDIGO,
   DASHBOARD_BTN_SLATE,
-  DASHBOARD_BTN_VIOLET,
   DASHBOARD_SELECT,
   DASHBOARD_TILE_HIGHLIGHT,
   DASHBOARD_TILE_META,
@@ -640,149 +638,6 @@ export function ProfRoomBentoWidget({ category, size }: WidgetProps) {
   );
 }
 
-export function DomainPlanningBentoWidget({ category, size }: WidgetProps) {
-  const [domains, setDomains] = useState<{ id: string; name: string; color?: string }[]>([]);
-  const [bookings, setBookings] = useState<
-    {
-      id: string;
-      domainId: string;
-      startsAt: string;
-      activityLabel?: string;
-      className: string;
-      status?: string;
-    }[]
-  >([]);
-  const [activityColors, setActivityColors] = useState<Record<string, string>>(
-    DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS,
-  );
-  const [domainId, setDomainId] = useState("");
-  const isLg = size === "lg";
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [dRes, bRes, cfgRes] = await Promise.all([
-          fetch("/api/domain-planning/domains", { cache: "no-store" }),
-          fetch("/api/domain-planning/bookings", { cache: "no-store" }),
-          fetch("/api/domain-planning/module-config", { cache: "no-store" }),
-        ]);
-        if (cancelled) return;
-        if (dRes.ok) {
-          const list = ((await dRes.json()).domains || []) as { id: string; name: string; color?: string }[];
-          setDomains(list);
-          if (list[0]) setDomainId(list[0].id);
-        }
-        if (bRes.ok) setBookings(((await bRes.json()).bookings || []) as typeof bookings);
-        if (cfgRes.ok) {
-          const cfg = (await cfgRes.json()).config as { activityColors?: Record<string, string> };
-          if (cfg?.activityColors) {
-            setActivityColors({ ...DEFAULT_DOMAIN_PLANNING_ACTIVITY_COLORS, ...cfg.activityColors });
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const schoolDays = useMemo(() => schoolWeekDaysParis(), []);
-  const selectedDomainColor =
-    domains.find((d) => d.id === domainId)?.color || "bg-violet-600 text-white";
-
-  const bookingColor = useCallback(
-    (activityLabel?: string) =>
-      activityColors[activityLabel || ""] || selectedDomainColor || "bg-violet-600 text-white",
-    [activityColors, selectedDomainColor],
-  );
-
-  const filtered = useMemo(() => {
-    const keys = isLg
-      ? schoolDays.map((d) => d.key)
-      : [schoolDays.find((d) => d.key === calendarDateKeyParis())?.key ?? schoolDays[0].key];
-    return bookings
-      .filter(
-        (b) =>
-          b.status !== "CANCELLED" &&
-          b.domainId === domainId &&
-          keys.some((k) => b.startsAt.startsWith(k)),
-      )
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [bookings, domainId, isLg, schoolDays]);
-
-  const domainWeekGrid = useMemo(() => {
-    return schoolDays.map((day) => ({
-      key: day.key,
-      short: day.short,
-      items: filtered
-        .filter((b) => b.startsAt.startsWith(day.key))
-        .map((b) => {
-          const time = formatDashboardSlotTime(b.startsAt);
-          const activity = (b.activityLabel || "Activité").trim();
-          return (
-            <BentoScheduleEntry
-              key={b.id}
-              time={time}
-              primary={activity}
-              secondary={b.className}
-              title={`${time} — ${activity} · ${b.className}`}
-              presentation={subjectSchedulePresentation(bookingColor(b.activityLabel))}
-            />
-          );
-        }),
-    }));
-  }, [schoolDays, filtered, bookingColor]);
-
-  const todayKey = calendarDateKeyParis();
-  const todayRows = filtered.filter((b) => b.startsAt.startsWith(todayKey));
-
-  return (
-    <BentoWidget
-      {...widgetHeader(category)}
-      headerExtra={
-        <QuickBtn href="/domain-planning?new=1#form-section" className={`${DASHBOARD_BTN_VIOLET} !py-1.5`}>
-          Réserver
-        </QuickBtn>
-      }
-    >
-      <div className="flex flex-col">
-        <select
-          value={domainId}
-          onChange={(e) => setDomainId(e.target.value)}
-          className={`${DASHBOARD_SELECT} mb-2 shrink-0`}
-        >
-          {domains.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
-        {isLg ? (
-          <BentoWeekGrid days={domainWeekGrid} />
-        ) : todayRows.length === 0 ? (
-          <EmptyLine>Aucun créneau aujourd&apos;hui.</EmptyLine>
-        ) : (
-          <ul className="list-none space-y-1.5">
-            {todayRows.slice(0, 4).map((b) => (
-              <li key={b.id}>
-                <BentoScheduleEntry
-                  time={formatDashboardSlotTime(b.startsAt)}
-                  primary={b.activityLabel || "Activité"}
-                  secondary={b.className}
-                  presentation={subjectSchedulePresentation(bookingColor(b.activityLabel))}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </BentoWidget>
-  );
-}
-
 export function InternatBentoWidget({ category, size }: WidgetProps) {
   const [status, setStatus] = useState<"validee" | "en_cours" | "non_demarre">("non_demarre");
   const [activeStudents, setActiveStudents] = useState<number | null>(null);
@@ -1123,8 +978,6 @@ export function renderBentoWidget(category: Categories, size: BentoWidgetSize) {
       return <PhotocopiesBentoWidget {...props} />;
     case "prof-room":
       return <ProfRoomBentoWidget {...props} />;
-    case "domain-planning":
-      return <DomainPlanningBentoWidget {...props} />;
     case "internat":
       return <InternatBentoWidget {...props} />;
     case "personnel-ogec":

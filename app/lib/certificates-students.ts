@@ -2,12 +2,10 @@ import "server-only";
 
 import type { EleveConfig } from "@/app/lib/eleves-config";
 import { eleveMatchKey } from "@/app/lib/eleves-import";
+import { loadElevesRegistry } from "@/app/lib/eleves-registry";
 import { loadMefSecteurMap } from "@/app/lib/mef-secteurs";
 import { resolveEleveSecteur } from "@/app/lib/onedrive-eleves";
 import type { CertificateSecteur } from "@/app/lib/certificates-types";
-import { getJson } from "@/app/lib/s3-storage";
-
-const ELEVES_KEY = "eleves.json";
 
 export type CertificateStudentOption = {
   key: string;
@@ -30,8 +28,7 @@ export async function loadCertificateStudents(opts?: {
   q?: string;
   classe?: string;
 }): Promise<CertificateStudentOption[]> {
-  const hit = await getJson<EleveConfig[]>(ELEVES_KEY);
-  const eleves = Array.isArray(hit?.data) ? hit.data : [];
+  const eleves = await loadElevesRegistry();
   const mefMap = await loadMefSecteurMap();
   const q = opts?.q?.trim().toLowerCase() || "";
   const classeFilter = opts?.classe?.trim().toLowerCase() || "";

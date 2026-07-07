@@ -1,0 +1,201 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { ExternalQuickLinkConfig } from "@/app/lib/app-config-schemas";
+import { QuickLinkIcon } from "@/app/components/Dashboard/ExternalQuickLinks";
+import { clearDashboardLinksCache } from "@/app/lib/dashboard-links-cache";
+import { DEFAULT_QUICK_LINK_ROLES, newQuickLinkSlot } from "@/app/lib/dashboard-quick-links";
+import { INTRANET_ROLE_OPTIONS } from "@/app/lib/intranet-roles";
+
+const ROLE_OPTIONS = INTRANET_ROLE_OPTIONS.filter((r) => r.slug !== "parent" && r.slug !== "eleve");
+
+export default function DashboardQuickLinksPanel() {
+  const [links, setLinks] = useState<ExternalQuickLinkConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/settings/external-links", { cache: "no-store" });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Chargement impossible");
+      setLinks(Array.isArray(j.links) ? j.links : []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function patchLink(index: number, patch: Partial<ExternalQuickLinkConfig>) {
+    setLinks((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function toggleRole(index: number, slug: string) {
+    setLinks((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return row;
+        const has = row.allowedRoles.includes(slug);
+        const allowedRoles = has
+          ? row.allowedRoles.filter((r) => r !== slug)
+          : [...row.allowedRoles, slug];
+        return { ...row, allowedRoles };
+      }),
+    );
+  }
+
+  async function save() {
+    setSaving(true);
+    setMsg(null);
+    setError(null);
+    try {
+      const payload = links
+        .map((l) => ({
+          id: l.id.trim() || `link-${Date.now()}`,
+          name: l.name.trim(),
+          link: l.link.trim(),
+          img: l.img?.trim() || "",
+          allowedRoles: l.allowedRoles.length ? l.allowedRoles : [...DEFAULT_QUICK_LINK_ROLES],
+        }))
+        .filter((l) => l.name && l.link);
+
+      const res = await fetch("/api/settings/external-links", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: payload }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Enregistrement impossible");
+      setLinks(j.links || payload);
+      clearDashboardLinksCache();
+      setMsg("Raccourcis enregistrés — identiques pour tout le personnel concerné.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-slate-500">Chargement des raccourcis…</p>;
+  }
+
+  return (
+    <div className="rounded-2xl border bg-white p-6 space-y-5">
+      <div>
+        <h2 className="text-lg font-bold text-slate-900">Raccourcis tableau de bord</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Liens affichés en haut à droite du tableau de bord pour <strong>tout l&apos;établissement</strong> (selon les
+          rôles cochés). La personnalisation individuelle du dashboard ne gère plus ces raccourcis.
+        </p>
+        <p className="mt-2 text-xs text-slate-500">
+          École Directe et ZeenDoc peuvent aussi apparaître automatiquement si activés dans l&apos;onglet{" "}
+          <strong>Intégrations</strong>.
+        </p>
+      </div>
+
+      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>}
+      {msg && (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{msg}</p>
+      )}
+
+      <div className="space-y-4">
+        {links.length === 0 ? (
+          <p className="text-sm text-slate-500">Aucun raccourci configuré.</p>
+        ) : (
+          links.map((row, index) => (
+            <div key={row.id || index} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase text-slate-500">Raccourci {index + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => setLinks((prev) => prev.filter((_, i) => i !== index))}
+                  className="text-xs font-bold text-red-600 hover:text-red-800"
+                >
+                  Retirer
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <QuickLinkIcon src={row.img || ""} name={row.name} />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <input
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    placeholder="Nom (ex. Arena Ac-Normandie)"
+                    value={row.name}
+                    onChange={(e) => patchLink(index, { name: e.target.value })}
+                  />
+                  <input
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    placeholder="https://…"
+                    type="url"
+                    value={row.link}
+                    onChange={(e) => patchLink(index, { link: e.target.value })}
+                  />
+                  <input
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    placeholder="URL de l'image (optionnel)"
+                    type="url"
+                    value={row.img || ""}
+                    onChange={(e) => patchLink(index, { img: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">Rôles autorisés</p>
+                <div className="flex flex-wrap gap-2">
+                  {ROLE_OPTIONS.map((role) => {
+                    const checked = row.allowedRoles.includes(role.slug);
+                    return (
+                      <label
+                        key={role.slug}
+                        className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
+                          checked
+                            ? "border-indigo-300 bg-indigo-50 text-indigo-900"
+                            : "border-slate-200 bg-white text-slate-600"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={checked}
+                          onChange={() => toggleRole(index, role.slug)}
+                        />
+                        {role.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setLinks((prev) => [...prev, newQuickLinkSlot(prev.length)])}
+          className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-900"
+        >
+          + Ajouter un raccourci
+        </button>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void save()}
+          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+        >
+          {saving ? "Enregistrement…" : "Enregistrer"}
+        </button>
+      </div>
+    </div>
+  );
+}

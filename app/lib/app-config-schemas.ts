@@ -222,6 +222,13 @@ export type AppConfigBundle = {
   integrations: IntegrationsConfig;
   externalLinks: ExternalQuickLinkConfig[];
   requestsRouting?: RequestsRoutingConfig;
+  classAllocation?: {
+    levels: {
+      level: "ecole" | "college" | "lycee";
+      sourceClassPrefixes: string[];
+      targetClasses: string[];
+    }[];
+  };
 };
 
 function isEmail(s: string): boolean {
@@ -632,4 +639,22 @@ export function parseRequestsRouting(raw: unknown): RequestsRoutingConfig {
     assignments: parsedAssignments,
     directionQueues: parsedDirection,
   };
+}
+
+export function parseClassAllocationSettings(raw: unknown): NonNullable<AppConfigBundle["classAllocation"]> {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const levelsRaw = Array.isArray(o.levels) ? o.levels : [];
+  const levels = levelsRaw
+    .map((l) => {
+      const x = l && typeof l === "object" ? (l as Record<string, unknown>) : {};
+      const level = str(x.level).trim() as "ecole" | "college" | "lycee";
+      if (!["ecole", "college", "lycee"].includes(level)) return null;
+      return {
+        level,
+        sourceClassPrefixes: strArr(x.sourceClassPrefixes),
+        targetClasses: strArr(x.targetClasses),
+      };
+    })
+    .filter((v): v is NonNullable<typeof v> => Boolean(v));
+  return { levels };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ToolboxToolId } from "@/app/lib/toolbox-types";
+import type { ToolboxAdminLinkId } from "@/app/lib/toolbox-tools";
 
 type IconProps = { className?: string };
 
@@ -74,6 +75,17 @@ export function PortesOuvertesToolboxIcon({ className = "w-10 h-10" }: IconProps
   );
 }
 
+export function RepartitionClassesToolboxIcon({ className = "w-10 h-10" }: IconProps) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <rect x="6" y="8" width="14" height="14" rx="3" fill="currentColor" opacity="0.9" />
+      <rect x="28" y="8" width="14" height="14" rx="3" fill="currentColor" opacity="0.65" />
+      <rect x="6" y="26" width="14" height="14" rx="3" fill="currentColor" opacity="0.65" />
+      <rect x="28" y="26" width="14" height="14" rx="3" fill="currentColor" opacity="0.9" />
+    </svg>
+  );
+}
+
 export function ToolboxFolderIcon({ className = "w-10 h-10" }: IconProps) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
@@ -81,6 +93,36 @@ export function ToolboxFolderIcon({ className = "w-10 h-10" }: IconProps) {
         d="M6 14 H20 L24 10 H42 C43.1 10 44 10.9 44 12 V38 C44 39.1 43.1 40 42 40 H6 C4.9 40 4 39.1 4 38 V16 C4 14.9 4.9 14 6 14 Z"
         fill="currentColor"
         opacity="0.9"
+      />
+    </svg>
+  );
+}
+
+export function ParametresToolboxIcon({ className = "w-10 h-10" }: IconProps) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <circle cx="24" cy="24" r="8" fill="none" stroke="currentColor" strokeWidth="3" opacity="0.9" />
+      <path
+        d="M24 6v6M24 36v6M6 24h6M36 24h6M11.5 11.5l4.2 4.2M32.3 32.3l4.2 4.2M11.5 36.5l4.2-4.2M32.3 15.7l4.2-4.2"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function UtilisateursToolboxIcon({ className = "w-10 h-10" }: IconProps) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <circle cx="18" cy="16" r="6" fill="currentColor" opacity="0.9" />
+      <circle cx="32" cy="18" r="5" fill="currentColor" opacity="0.65" />
+      <path
+        d="M8 38c0-6 4.5-10 10-10s10 4 10 10M26 38c0-4.5 3-7.5 7-7.5"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
       />
     </svg>
   );
@@ -100,6 +142,19 @@ export function renderToolboxIcon(id: ToolboxToolId, className?: string) {
       return <FournituresToolboxIcon className={className} />;
     case "portes-ouvertes":
       return <PortesOuvertesToolboxIcon className={className} />;
+    case "repartition-classes":
+      return <RepartitionClassesToolboxIcon className={className} />;
+    default:
+      return <ToolboxFolderIcon className={className} />;
+  }
+}
+
+export function renderToolboxAdminIcon(id: ToolboxAdminLinkId, className?: string) {
+  switch (id) {
+    case "parametres":
+      return <ParametresToolboxIcon className={className} />;
+    case "utilisateurs":
+      return <UtilisateursToolboxIcon className={className} />;
     default:
       return <ToolboxFolderIcon className={className} />;
   }
