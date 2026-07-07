@@ -8,6 +8,7 @@ import {
   loadSchoolLogoForPdf,
 } from "@/app/lib/pdf-branding";
 import {
+  comptaAfficheMargeSecurite,
   computeComptaSheetDerived,
   resolveFacturationsFromSheet,
   type TravelsComptaSheet,
@@ -142,8 +143,15 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
       ...(sheet.autresDepensesHorsBus != null && sheet.autresDepensesHorsBus > 0
         ? [["Autres dépenses", euroPlain(sheet.autresDepensesHorsBus)]]
         : []),
-      ["Marge de sécurité", euroPlain(sheet.margeRisqueMontant)],
-      ["Objectif de facturation (dépenses + marge)", euroPlain(sheet.montantCibleFacturation)],
+      ...(comptaAfficheMargeSecurite(sheet)
+        ? [["Marge de sécurité", euroPlain(sheet.margeRisqueMontant)]]
+        : []),
+      [
+        comptaAfficheMargeSecurite(sheet)
+          ? "Objectif de facturation (dépenses + marge)"
+          : "Objectif de facturation (dépenses)",
+        euroPlain(sheet.montantCibleFacturation),
+      ],
       ...(sheet.prixParEleveAvantMargeRisque != null
         ? [["Prix / élève avant marge", euroPlain(sheet.prixParEleveAvantMargeRisque)]]
         : []),

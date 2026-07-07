@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   computeComptaSheetDerived,
   COMPTA_MARGE_PRESETS,
+  comptaAfficheMargeSecurite,
   emptyComptaSheet,
   formatEuroDisplay,
   isUsableComptaAmount,
@@ -300,6 +301,7 @@ export default function TravelsComptaSheetForm({
   }
 
   function applyMargePreset(presetId: ComptaMargePresetId) {
+    if (recettesFigees) return;
     const percent = COMPTA_MARGE_PRESETS.find((p) => p.id === presetId)?.percent ?? 0;
     const suggested = suggestComptaMargeFromPreset(derived.depensesTotal, percent);
     patch({ margeSecuriteEuro: suggested ?? 0 });
@@ -312,25 +314,34 @@ export default function TravelsComptaSheetForm({
 
   function toggleRecettesFigees(enabled: boolean) {
     if (enabled) {
+      const marge = derived.margeRisqueMontant ?? 0;
       patch({
         recettesElevesFigees: true,
         prixParEleveAnnonce: derived.prixParEleveAvecSubventions,
         nbElevesFactures: sheet.nbElevesFactures ?? sheet.nbEleves,
+        margeFigeeEuro: marge > 0 ? marge : null,
       });
     } else {
-      patch({ recettesElevesFigees: false, prixParEleveAnnonce: null });
+      patch({ recettesElevesFigees: false, prixParEleveAnnonce: null, margeFigeeEuro: null });
     }
   }
 
   function figerPrixAnnonceActuel() {
+    const marge = derived.margeRisqueMontant ?? 0;
     patch({
       recettesElevesFigees: true,
       prixParEleveAnnonce: derived.prixParEleveAvecSubventions,
       nbElevesFactures: sheet.nbEleves ?? sheet.nbElevesFactures,
+      margeFigeeEuro: marge > 0 ? marge : null,
     });
   }
 
   const recettesFigees = derived.recettesElevesFigees;
+  const afficheMarge = comptaAfficheMargeSecurite({
+    recettesElevesFigees: derived.recettesElevesFigees,
+    prixParEleveAnnonce: sheet.prixParEleveAnnonce,
+    margeFigeeEuro: derived.margeFigeeEuro ?? sheet.margeFigeeEuro,
+  });
 
   const shellClass =
     variant === "inline"
@@ -672,52 +683,86 @@ export default function TravelsComptaSheetForm({
                     <td className="p-3" />
                   </tr>
 
-                  <tr className="border-b border-amber-100 bg-amber-50/40">
-                    <td className="p-3 align-top" colSpan={2}>
-                      <p className="text-xs font-black uppercase tracking-widest text-amber-800 mb-2">
-                        Marge de sécurité
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {COMPTA_MARGE_PRESETS.map((opt) => {
-                          const suggested = suggestComptaMargeFromPreset(derived.depensesTotal, opt.percent);
-                          const active = margeMatchesPreset(sheet.margeSecuriteEuro, derived.depensesTotal, opt.percent);
-                          return (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={() => applyMargePreset(opt.id)}
-                              disabled={readOnly}
-                              title={
-                                suggested != null && derived.depensesTotal
-                                  ? `${formatEuroDisplay(suggested)} €`
-                                  : undefined
-                              }
-                              className={`rounded-lg border px-2 py-1 text-[11px] font-bold transition-colors ${
-                                active
-                                  ? "border-amber-500 bg-amber-100 text-amber-900"
-                                  : "border-amber-200 bg-white text-amber-800 hover:bg-amber-50"
-                              }`}
-                            >
-                              {opt.percent === 0 ? "0 %" : `+${opt.percent} %`}
-                              <span className="block font-normal normal-case text-[10px] opacity-80 leading-tight">
-                                {opt.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td className="p-3 align-top">
-                      <p className="text-[10px] font-bold text-slate-500 mb-1">Montant en €</p>
-                      {euroInput(sheet.margeSecuriteEuro, (v) => patch({ margeSecuriteEuro: v }), "bg-white", readOnly)}
-                    </td>
-                  </tr>
+                  {afficheMarge ? (
+                    <tr className="border-b border-amber-100 bg-amber-50/40">
+                      <td className="p-3 align-top" colSpan={2}>
+                        <p className="text-xs font-black uppercase tracking-widest text-amber-800 mb-2">
+                          Marge de sécurité
+                          {recettesFigees ? (
+                            <span className="ml-2 font-normal normal-case text-amber-700/80">
+                              (figée à l&apos;annonce aux parents)
+                            </span>
+                          ) : null}
+                        </p>
+                        {!recettesFigees ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {COMPTA_MARGE_PRESETS.map((opt) => {
+                              const suggested = suggestComptaMargeFromPreset(derived.depensesTotal, opt.percent);
+                              const active = margeMatchesPreset(
+                                sheet.margeSecuriteEuro,
+                                derived.depensesTotal,
+                                opt.percent,
+                              );
+                              return (
+                                <button
+                                  key={opt.id}
+                                  type="button"
+                                  onClick={() => applyMargePreset(opt.id)}
+                                  disabled={readOnly}
+                                  title={
+                                    suggested != null && derived.depensesTotal
+                                      ? `${formatEuroDisplay(suggested)} €`
+                                      : undefined
+                                  }
+                                  className={`rounded-lg border px-2 py-1 text-[11px] font-bold transition-colors ${
+                                    active
+                                      ? "border-amber-500 bg-amber-100 text-amber-900"
+                                      : "border-amber-200 bg-white text-amber-800 hover:bg-amber-50"
+                                  }`}
+                                >
+                                  {opt.percent === 0 ? "0 %" : `+${opt.percent} %`}
+                                  <span className="block font-normal normal-case text-[10px] opacity-80 leading-tight">
+                                    {opt.label}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-amber-900">
+                            Montant prévu avant l&apos;annonce aux familles.
+                          </p>
+                        )}
+                      </td>
+                      <td className="p-3 align-top">
+                        <p className="text-[10px] font-bold text-slate-500 mb-1">Montant en €</p>
+                        {recettesFigees ? (
+                          <div className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-sm font-mono text-right text-amber-950">
+                            {derived.margeRisqueMontant != null
+                              ? `${formatEuroDisplay(derived.margeRisqueMontant)} €`
+                              : "—"}
+                          </div>
+                        ) : (
+                          euroInput(
+                            sheet.margeSecuriteEuro,
+                            (v) => patch({ margeSecuriteEuro: v }),
+                            "bg-white",
+                            readOnly,
+                          )
+                        )}
+                      </td>
+                    </tr>
+                  ) : null}
 
                   <tr className="bg-indigo-50/60 font-bold">
                     <td className="p-3 text-indigo-900">
                       Objectif de facturation
                       <span className="block text-[10px] font-normal text-indigo-700/70 normal-case">
-                        Dépenses + marge (avant annonce aux parents)
+                        {recettesFigees
+                          ? afficheMarge
+                            ? "Dépenses + marge figée (référence pour le déficit)"
+                            : "Total dépenses (prix déjà annoncé sans marge)"
+                          : "Dépenses + marge (avant annonce aux parents)"}
                       </span>
                     </td>
                     <td className="p-3 font-mono text-right text-indigo-900">
@@ -808,7 +853,9 @@ export default function TravelsComptaSheetForm({
                 <span>Excédent ou déficit</span>
                 <span className="block text-[10px] font-normal normal-case mt-0.5 opacity-80">
                   {recettesFigees
-                    ? "Recettes figées + subventions − dépenses réelles"
+                    ? afficheMarge
+                      ? "Recettes figées + subventions − (dépenses + marge figée)"
+                      : "Recettes figées + subventions − dépenses réelles"
                     : "Total recettes + subventions − total dépenses"}
                 </span>
               </div>

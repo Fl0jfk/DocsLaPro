@@ -214,6 +214,8 @@ export type TravelsComptaSheet = {
   facturation?: TravelsComptaFacturation;
   /** Marge de sécurité (imprévus / annulations) en euros, appliquée au total dépenses. */
   margeSecuriteEuro: number | null;
+  /** Marge figée au moment de l'annonce aux parents (null = pas de marge prévue à l'annonce). */
+  margeFigeeEuro: number | null;
   /** Prix par élève déjà communiqué aux familles (ne peut plus être augmenté). */
   prixParEleveAnnonce: number | null;
   /** Nombre d'élèves facturés / ayant réglé (peut différer de l'effectif réel). */
@@ -249,6 +251,20 @@ export type TravelsComptaSheet = {
   /** Dernier journal OCR (affiché sur la fiche compta). */
   ocrDebugLog?: ComptaOcrLogEntry[] | null;
 };
+
+export function comptaRecettesFigees(
+  sheet: Pick<TravelsComptaSheet, "recettesElevesFigees" | "prixParEleveAnnonce">,
+): boolean {
+  return Boolean(sheet.recettesElevesFigees || sheet.prixParEleveAnnonce != null);
+}
+
+/** Afficher la marge : toujours avant annonce ; après annonce seulement si elle avait été prévue. */
+export function comptaAfficheMargeSecurite(
+  sheet: Pick<TravelsComptaSheet, "recettesElevesFigees" | "prixParEleveAnnonce" | "margeFigeeEuro">,
+): boolean {
+  if (!comptaRecettesFigees(sheet)) return true;
+  return sheet.margeFigeeEuro != null && sheet.margeFigeeEuro > 0;
+}
 
 export type TravelsComptaDocumentRef = {
   key: string;
@@ -337,6 +353,7 @@ export function emptyComptaSheet(): TravelsComptaSheet {
     aidesIndividuelles: [{ name: "", amount: null }],
     facturations: [emptyComptaFacturation()],
     margeSecuriteEuro: null,
+    margeFigeeEuro: null,
     prixParEleveAnnonce: null,
     nbElevesFactures: null,
     recettesElevesFigees: false,
@@ -410,14 +427,21 @@ export function computeComptaSheetDerived(
   const busAmount = resolveBusDepenseAmount({ depenses });
   const prixFactureBus = busAmount;
   const autresDepensesTotal = autresDepensesHorsBus(depensesTotalRounded, busAmount);
-  const margeRisqueMontant = resolveMargeSecuriteEuro(sheet, depensesTotalRounded, trip);
+  const recettesFigees = comptaRecettesFigees(sheet);
+  const rawMarge = resolveMargeSecuriteEuro(sheet, depensesTotalRounded, trip);
+
+  let margeFigeeEuro = sheet.margeFigeeEuro;
+  if (recettesFigees && margeFigeeEuro == null && rawMarge > 0) {
+    margeFigeeEuro = rawMarge;
+  }
+
+  const margeRisqueMontant = recettesFigees ? (margeFigeeEuro ?? 0) : rawMarge;
   const depensesAvecMargeRisque =
     depensesTotalRounded != null
       ? Math.round((depensesTotalRounded + margeRisqueMontant) * 100) / 100
       : null;
 
   const montantCibleFacturation = depensesAvecMargeRisque;
-  const recettesFigees = Boolean(sheet.recettesElevesFigees || sheet.prixParEleveAnnonce != null);
   const nbFactures = sheet.nbElevesFactures ?? (nb > 0 ? nb : null);
 
   let recettesEleves: number | null;
@@ -451,12 +475,15 @@ export function computeComptaSheetDerived(
 
   const excedentOuDeficit =
     depensesTotalRounded != null
-      ? Math.round((recettesSum - depensesTotalRounded) * 100) / 100
+      ? recettesFigees && montantCibleFacturation != null && totalRecettes != null
+        ? Math.round((totalRecettes - montantCibleFacturation) * 100) / 100
+        : Math.round((recettesSum - depensesTotalRounded) * 100) / 100
       : null;
 
   return {
     ...sheet,
     depenses,
+    margeFigeeEuro: recettesFigees ? margeFigeeEuro : sheet.margeFigeeEuro,
     recettesElevesFigees: recettesFigees,
     prixParEleve,
     facturations,
