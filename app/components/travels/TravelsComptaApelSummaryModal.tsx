@@ -90,19 +90,6 @@ export default function TravelsComptaApelSummaryModal({
             <p className="text-center text-slate-500 py-8">Chargement du récapitulatif…</p>
           ) : summary ? (
             <>
-              {summary.currentTrip ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 flex justify-between items-center gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">Ce voyage</p>
-                    <p className="font-semibold text-slate-900">{summary.currentTrip.title}</p>
-                    <p className="text-xs text-slate-500">{summary.currentTrip.travelDateLabel}</p>
-                  </div>
-                  <p className="font-mono font-black text-lg text-emerald-900 whitespace-nowrap">
-                    {formatEuroDisplay(summary.currentTrip.totalApel)} €
-                  </p>
-                </div>
-              ) : null}
-
               <div className="rounded-xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
@@ -117,12 +104,7 @@ export default function TravelsComptaApelSummaryModal({
                   <tbody>
                     {summary.trips.length > 0 ? (
                       summary.trips.map((row) => (
-                        <tr
-                          key={row.tripId}
-                          className={`border-b border-slate-50 ${
-                            row.tripId === summary.currentTripId ? "bg-emerald-50/40" : ""
-                          }`}
-                        >
+                        <tr key={row.tripId} className="border-b border-slate-50">
                           <td className="p-3 text-slate-800">{row.title}</td>
                           <td className="p-3 text-slate-500 whitespace-nowrap">{row.travelDateLabel}</td>
                           <td className="p-3 font-mono text-right whitespace-nowrap">

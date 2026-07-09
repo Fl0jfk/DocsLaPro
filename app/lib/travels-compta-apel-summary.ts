@@ -1,27 +1,35 @@
 import { pdfFormatDateFr } from "@/app/lib/pdf-format-numbers";
-import { computeComptaSheetDerived, readComptaSheetFromTrip } from "@/app/lib/travels-compta-sheet";
-import { tripTravelStartMs } from "@/app/lib/travels-trip-helpers";
+import {
+  computeComptaSheetDerived,
+  normalizeComptaRecettesLignes,
+  readComptaSheetFromTrip,
+  type TravelsComptaSheet,
+} from "@/app/lib/travels-compta-sheet";
 import type { TravelsTrip } from "@/app/lib/travels-types";
 
 /** Année scolaire APEL : 1er septembre → 15 juillet inclus. */
 export function comptaApelSchoolYearBounds(now = new Date()) {
   const y = now.getFullYear();
   const m = now.getMonth();
+  const day = now.getDate();
+
+  // Septembre → 15 juillet : année N-(N+1) en cours.
+  // 16 juillet → août : bascule vers l'année suivante (facturation des voyages à venir).
+  let startYear: number;
   if (m >= 8) {
-    return {
-      start: new Date(y, 8, 1),
-      end: new Date(y + 1, 6, 15, 23, 59, 59, 999),
-      label: `${y}-${y + 1}`,
-      startIso: `${y}-09-01`,
-      endIso: `${y + 1}-07-15`,
-    };
+    startYear = y;
+  } else if (m < 6 || (m === 6 && day <= 15)) {
+    startYear = y - 1;
+  } else {
+    startYear = y;
   }
+
   return {
-    start: new Date(y - 1, 8, 1),
-    end: new Date(y, 6, 15, 23, 59, 59, 999),
-    label: `${y - 1}-${y}`,
-    startIso: `${y - 1}-09-01`,
-    endIso: `${y}-07-15`,
+    start: new Date(startYear, 8, 1),
+    end: new Date(startYear + 1, 6, 15, 23, 59, 59, 999),
+    label: `${startYear}-${startYear + 1}`,
+    startIso: `${startYear}-09-01`,
+    endIso: `${startYear + 1}-07-15`,
   };
 }
 
@@ -63,7 +71,8 @@ export function apelCommitmentFromSheet(sheet: TravelsComptaSheet | null | undef
   if (!sheet) {
     return { apelCollective: 0, aidesIndividuelles: 0, totalApel: 0 };
   }
-  const apelCollective = sheet.recettesLignes?.[0]?.amount ?? 0;
+  const recettesLignes = normalizeComptaRecettesLignes(sheet);
+  const apelCollective = recettesLignes[0]?.amount ?? 0;
   const aidesIndividuelles =
     sheet.totalAidesIndividuelles ??
     (sheet.aidesIndividuelles ?? []).reduce((sum, row) => sum + (row.amount ?? 0), 0);
@@ -90,14 +99,33 @@ function formatTravelDateLabel(trip: TravelsTrip): string {
   return pdfFormatDateFr(d);
 }
 
-function tripInApelSchoolYear(trip: TravelsTrip, start: Date, end: Date): boolean {
-  let ms = tripTravelStartMs(trip);
-  if (ms == null && trip.createdAt) {
-    const created = new Date(trip.createdAt);
-    if (!Number.isNaN(created.getTime())) ms = created.getTime();
+function parseTripLocalDate(raw: string | null | undefined): Date | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) {
+    const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    return Number.isNaN(d.getTime()) ? null : d;
   }
-  if (ms == null) return true;
-  return ms >= start.getTime() && ms <= end.getTime();
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Date de début du voyage (tri + filtre année scolaire). */
+function tripTravelStartDate(trip: TravelsTrip): Date | null {
+  return parseTripLocalDate(trip.data?.startDate || trip.data?.date || null);
+}
+
+function tripInApelSchoolYear(trip: TravelsTrip, start: Date, end: Date): boolean {
+  const travel = tripTravelStartDate(trip);
+  if (!travel) return false;
+  travel.setHours(0, 0, 0, 0);
+  const startDay = new Date(start);
+  startDay.setHours(0, 0, 0, 0);
+  const endDay = new Date(end);
+  endDay.setHours(23, 59, 59, 999);
+  const ms = travel.getTime();
+  return ms >= startDay.getTime() && ms <= endDay.getTime();
 }
 
 export function comptaApelCommitmentForTrip(
@@ -129,48 +157,31 @@ export function buildComptaApelSummary(
   const bounds = comptaApelSchoolYearBounds(options?.now);
   const currentTripId = options?.currentTripId ?? null;
   const rows: ComptaApelTripCommitment[] = [];
-  const rowById = new Map<string, ComptaApelTripCommitment>();
 
   for (const trip of trips) {
     if (!tripInApelSchoolYear(trip, bounds.start, bounds.end)) continue;
     const sheetOverride = trip.id === currentTripId ? options?.currentSheet : undefined;
     const row = comptaApelCommitmentForTrip(trip, sheetOverride);
-    if (row.totalApel > 0 || row.hasComptaSheet) {
-      rowById.set(trip.id, row);
-    }
+    if (row.totalApel <= 0) continue;
+    rows.push(row);
   }
 
-  if (currentTripId) {
-    const current = trips.find((t) => t.id === currentTripId);
-    if (current) {
-      const row = comptaApelCommitmentForTrip(current, options?.currentSheet);
-      rowById.set(currentTripId, row);
-    }
-  }
+  rows.sort((a, b) => {
+    const da = a.travelDate ? parseTripLocalDate(a.travelDate)?.getTime() ?? 0 : 0;
+    const db = b.travelDate ? parseTripLocalDate(b.travelDate)?.getTime() ?? 0 : 0;
+    return da - db;
+  });
 
-  rows.push(
-    ...Array.from(rowById.values()).sort((a, b) => {
-      const da = a.travelDate ? new Date(a.travelDate).getTime() : 0;
-      const db = b.travelDate ? new Date(b.travelDate).getTime() : 0;
-      return da - db;
+  const totals = rows.reduce(
+    (acc, row) => ({
+      apelCollective: acc.apelCollective + row.apelCollective,
+      aidesIndividuelles: acc.aidesIndividuelles + row.aidesIndividuelles,
+      totalApel: acc.totalApel + row.totalApel,
+      tripCount: acc.tripCount + 1,
+      tripsWithApel: acc.tripsWithApel + (row.totalApel > 0 ? 1 : 0),
     }),
+    { apelCollective: 0, aidesIndividuelles: 0, totalApel: 0, tripCount: 0, tripsWithApel: 0 },
   );
-
-  const totals = rows
-    .filter((row) => {
-      const trip = trips.find((t) => t.id === row.tripId);
-      return trip ? tripInApelSchoolYear(trip, bounds.start, bounds.end) : false;
-    })
-    .reduce(
-      (acc, row) => ({
-        apelCollective: acc.apelCollective + row.apelCollective,
-        aidesIndividuelles: acc.aidesIndividuelles + row.aidesIndividuelles,
-        totalApel: acc.totalApel + row.totalApel,
-        tripCount: acc.tripCount + 1,
-        tripsWithApel: acc.tripsWithApel + (row.totalApel > 0 ? 1 : 0),
-      }),
-      { apelCollective: 0, aidesIndividuelles: 0, totalApel: 0, tripCount: 0, tripsWithApel: 0 },
-    );
 
   totals.apelCollective = Math.round(totals.apelCollective * 100) / 100;
   totals.aidesIndividuelles = Math.round(totals.aidesIndividuelles * 100) / 100;
