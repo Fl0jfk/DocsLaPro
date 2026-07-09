@@ -537,7 +537,8 @@ async function analyzeAndMove(
   if (!move.ok) {
     if (move.status === 404) {
       ocrTrace(ctx.jobId, "onedrive", "move-skip-404", "source Temp absente — déjà rangé", { displayName });
-      return { success: true, result: ai, fileName: displayName };
+      const oneDriveItemPath = `${ai.oneDriveFolderPath}/${ai.fileName}.pdf`;
+      return { success: true, result: { ...ai, oneDriveItemPath }, fileName: displayName };
     }
     ocrTrace(
       ctx.jobId,
@@ -557,9 +558,10 @@ async function analyzeAndMove(
   }
   ocrTrace(ctx.jobId, "onedrive", "move-ok", "document rangé", {
     displayName,
-    destination: `${ai.oneDriveFolderPath}/${ai.fileName}.pdf`,
+    destination: `${ai.oneDriveFolderPath}/${move.finalFileName}`,
   });
-  return { success: true, result: ai, fileName: displayName };
+  const oneDriveItemPath = `${ai.oneDriveFolderPath}/${move.finalFileName}`;
+  return { success: true, result: { ...ai, oneDriveItemPath }, fileName: displayName };
 }
 
 /**
@@ -636,7 +638,11 @@ async function analyzeAndFileSegment(
     destination: upload.path,
     fileName: upload.fileName,
   });
-  return { success: true, result: ai, fileName: displayName };
+  return {
+    success: true,
+    result: { ...ai, oneDriveItemPath: upload.path, oneDriveFinalFileName: upload.fileName },
+    fileName: displayName,
+  };
 }
 
 async function stepItem(

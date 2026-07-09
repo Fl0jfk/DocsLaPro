@@ -201,6 +201,7 @@ function OneDriveUpDocsOCRAIContent() {
   const [batchPollIssue, setBatchPollIssue] = useState<"offline" | "auth" | null>(null);
   const [batchServerSelfRelays, setBatchServerSelfRelays] = useState(false);
   const [progressDetail, setProgressDetail] = useState<OcrProgressDetail | null>(null);
+  const [openingOneDrivePath, setOpeningOneDrivePath] = useState<string | null>(null);
 
   const applyOneDriveSession = useCallback((activeAccount: msal.AccountInfo | null, token: string | null) => {
     setAccount(activeAccount);
@@ -1110,6 +1111,44 @@ function OneDriveUpDocsOCRAIContent() {
     }
   };
 
+  const openOneDrivePath = useCallback(
+    async (itemPath: string) => {
+      const cleanPath = String(itemPath || "").replace(/^\/+/, "");
+      if (!cleanPath) return;
+      setOpeningOneDrivePath(cleanPath);
+      try {
+        const token = pickCachedAccessToken(oneDriveTokenRef.current) ?? (await ensureOneDriveConnection());
+        if (!token) return;
+        const encodedPath = cleanPath
+          .split("/")
+          .filter(Boolean)
+          .map((part) => encodeURIComponent(part))
+          .join("/");
+        const res = await fetch(
+          `https://graph.microsoft.com/v1.0/me/drive/root:/${encodedPath}:?$select=webUrl`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        if (!res.ok) {
+          throw new Error(`Graph ${res.status}`);
+        }
+        const data = (await res.json()) as { webUrl?: string };
+        if (!data.webUrl) throw new Error("Lien OneDrive introuvable");
+        window.open(data.webUrl, "_blank", "noopener,noreferrer");
+      } catch (e: unknown) {
+        setError(
+          `Impossible d'ouvrir le document OneDrive (${cleanPath}) : ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      } finally {
+        setOpeningOneDrivePath(null);
+      }
+    },
+    [ensureOneDriveConnection],
+  );
+
   if (!msalReady) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -1990,6 +2029,26 @@ function OneDriveUpDocsOCRAIContent() {
                           ) : null}
                         </>
                       )}
+                      {result.result?.oneDriveItemPath || result.tempOneDrivePath ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void openOneDrivePath(
+                              String(result.result?.oneDriveItemPath || result.tempOneDrivePath),
+                            )
+                          }
+                          disabled={
+                            openingOneDrivePath ===
+                            String(result.result?.oneDriveItemPath || result.tempOneDrivePath)
+                          }
+                          className="mt-2 inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:opacity-60"
+                        >
+                          {openingOneDrivePath ===
+                          String(result.result?.oneDriveItemPath || result.tempOneDrivePath)
+                            ? "Ouverture…"
+                            : "Ouvrir le document source dans OneDrive"}
+                        </button>
+                      ) : null}
                     </div>
                   ))}
               </div>
