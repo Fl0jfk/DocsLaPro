@@ -179,6 +179,81 @@ export async function moveOneDriveFile(
   return { ok: false, status: 429, detail: "Limite OneDrive lors du déplacement" };
 }
 
+/** Renomme un fichier sur place (même dossier parent). */
+export async function renameOneDriveFileInPlace(
+  accessToken: string,
+  sourcePath: string,
+  newFileName: string,
+): Promise<{ ok: true; finalPath: string; finalFileName: string } | { ok: false; status: number; detail: string }> {
+  const trimmed = newFileName.trim();
+  if (!trimmed) {
+    return { ok: false, status: 400, detail: "Nom de fichier vide" };
+  }
+
+  const sourceRes = await fetch(`${GRAPH_BASE}/me/drive/root:/${sourcePath}:`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!sourceRes.ok) {
+    return { ok: false, status: sourceRes.status, detail: await sourceRes.text() };
+  }
+  const sourceItem = await sourceRes.json();
+  const sourceItemId = sourceItem.id as string | undefined;
+  const driveId = sourceItem.parentReference?.driveId as string | undefined;
+  const parentId = sourceItem.parentReference?.id as string | undefined;
+  if (!sourceItemId || !driveId || !parentId) {
+    return { ok: false, status: 500, detail: "ID source, drive ou parent manquant" };
+  }
+
+  const childrenRes = await fetch(`${GRAPH_BASE}/drives/${driveId}/items/${parentId}/children`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let children: any[] = [];
+  if (childrenRes.ok) {
+    const childrenJson = await childrenRes.json();
+    children = childrenJson.value || [];
+  }
+
+  const dotIndex = trimmed.lastIndexOf(".");
+  const base = dotIndex > 0 ? trimmed.slice(0, dotIndex) : trimmed;
+  const ext = dotIndex > 0 ? trimmed.slice(dotIndex) : "";
+  let safeName = trimmed;
+  let suffix = 2;
+  while (children.some((c) => c.id !== sourceItemId && c.name === safeName)) {
+    safeName = `${base} (${suffix})${ext}`;
+    suffix++;
+  }
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const patchRes = await fetch(`${GRAPH_BASE}/drives/${driveId}/items/${sourceItemId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: safeName }),
+    });
+    if (patchRes.status === 429) {
+      await sleep(parseGraphRetryAfterMs(patchRes, attempt));
+      continue;
+    }
+    if (!patchRes.ok) {
+      const detail = await patchRes.text();
+      if (graphConflict(detail, patchRes.status) && attempt < 5) {
+        suffix++;
+        safeName = `${base} (${suffix})${ext}`;
+        await sleep(300 + attempt * 200);
+        continue;
+      }
+      return { ok: false, status: patchRes.status, detail };
+    }
+    const parentPath = sourcePath.includes("/") ? sourcePath.slice(0, sourcePath.lastIndexOf("/")) : "";
+    const finalPath = parentPath ? `${parentPath}/${safeName}` : safeName;
+    return { ok: true, finalPath, finalFileName: safeName };
+  }
+  return { ok: false, status: 429, detail: "Limite OneDrive lors du renommage" };
+}
+
 /** Dépose un PDF dans un dossier élève avec suffixe (2), (3)… si le nom existe déjà. */
 export async function uploadBytesToOneDriveUnique(
   accessToken: string,

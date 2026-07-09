@@ -19,6 +19,7 @@ import { extractPdfPagesBytes, getPdfPageCountFromS3 } from "@/app/lib/ocr-extra
 import {
   deleteOneDrivePath,
   moveOneDriveFile,
+  renameOneDriveFileInPlace,
   uploadBytesToOneDriveUnique,
 } from "@/app/lib/ocr-graph-ops";
 import { runDocumentSegmentation, resolveSegmentationEngine } from "@/app/lib/ocr-segment-run";
@@ -506,25 +507,49 @@ async function analyzeAndMove(
     };
   }
   if (!ai.oneDriveFolderPath) {
+    let tempPath = sourcePath;
+    const suggestedPdf = `${ai.fileName}.pdf`;
+    const rename = await withToken(ctx, (token) =>
+      renameOneDriveFileInPlace(token, sourcePath, suggestedPdf),
+    );
+    if (rename.ok) {
+      tempPath = rename.finalPath;
+      ocrTrace(ctx.jobId, "onedrive", "rename-temp", "fichier renommé dans Temp (sans dossier élève)", {
+        displayName,
+        tempPath,
+        suggestedPdf: rename.finalFileName,
+      });
+    } else {
+      ocrTrace(
+        ctx.jobId,
+        "onedrive",
+        "rename-temp-fail",
+        "renommage Temp impossible",
+        { displayName, status: rename.status, detail: rename.detail.slice(0, 200) },
+        "warn",
+      );
+    }
     ocrTrace(
       ctx.jobId,
       "classify",
       "no-match",
-      "élève non identifié — fichier laissé dans Temp",
+      "élève non identifié — fichier renommé dans Temp",
       {
         displayName,
         profilOneDrive: ctx.odProfile ? ctx.odProfile.secteur : null,
         extracted: { nom: ai.nom, prenom: ai.prénom, ine: ai.ine },
+        tempPath,
       },
       "warn",
     );
     return {
       success: false,
       error:
-        "Élève non identifié — le fichier reste dans Temp. Rangez-le à la main ou repassez-le en mode Standard.",
+        "Élève non identifié — le fichier a été renommé dans Temp. Choisissez l'élève ci-dessous pour le ranger.",
       fileName: displayName,
       result: ai,
-      tempOneDrivePath: sourcePath,
+      tempOneDrivePath: tempPath,
+      manualReview: true,
     };
   }
   ocrTrace(ctx.jobId, "onedrive", "move-start", "déplacement OneDrive", {
