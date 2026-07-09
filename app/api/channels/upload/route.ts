@@ -4,12 +4,6 @@ import { putObject } from "@/app/lib/s3-storage";
 import { s3Key } from "@/app/lib/s3-path";
 import { publicS3UrlForKey } from "@/app/lib/travels-s3";
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {

@@ -4,7 +4,9 @@ import { loadAppConfig } from "@/app/lib/app-config";
 import { geocodeFrenchAddress } from "@/app/lib/geocode-address";
 import { weatherCodeIcon, weatherCodeLabel } from "@/app/lib/weather-codes";
 
-export const revalidate = 1800;
+export const dynamic = "force-dynamic";
+
+const WEATHER_FETCH_REVALIDATE_SEC = 1800;
 
 type OpenMeteoResponse = {
   current?: {
@@ -56,7 +58,7 @@ export async function GET() {
   url.searchParams.set("forecast_days", "1");
 
   try {
-    const res = await fetch(url, { next: { revalidate } });
+    const res = await fetch(url, { next: { revalidate: WEATHER_FETCH_REVALIDATE_SEC } });
     if (!res.ok) {
       return NextResponse.json({ error: "Météo indisponible." }, { status: 502 });
     }
