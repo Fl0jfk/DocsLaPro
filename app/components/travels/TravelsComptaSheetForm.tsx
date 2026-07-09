@@ -309,13 +309,7 @@ export default function TravelsComptaSheetForm({
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const depenses = withoutBlankDepenses(sheet.depenses);
-      const finalSheet = computeComptaSheetDerived({ ...sheet, depenses });
-      if (depenses.length !== sheet.depenses.length) {
-        skipSave.current = true;
-        setSheet(finalSheet);
-      }
-      void persistSheet(finalSheet);
+      void persistSheet(sheet);
     }, 500);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
