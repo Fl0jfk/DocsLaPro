@@ -33,16 +33,48 @@ export function comptaApelSchoolYearBounds(now = new Date()) {
   };
 }
 
+export const COMPTA_APEL_ETABLISSEMENTS = [
+  "École",
+  "Collège",
+  "Lycée",
+  "Groupe Scolaire",
+] as const;
+
+export type ComptaApelEtablissement = (typeof COMPTA_APEL_ETABLISSEMENTS)[number];
+
+export function normalizeApelEtablissement(raw: string | null | undefined): ComptaApelEtablissement {
+  const s = String(raw || "").trim();
+  if (s === "École" || s === "Ecole") return "École";
+  if (s === "Collège" || s === "College") return "Collège";
+  if (s === "Lycée" || s === "Lycee") return "Lycée";
+  if (s === "Groupe Scolaire" || s === "Groupe scolaire") return "Groupe Scolaire";
+  return "Groupe Scolaire";
+}
+
+export type ComptaApelTotals = {
+  apelCollective: number;
+  aidesIndividuelles: number;
+  totalApel: number;
+  tripCount: number;
+  tripsWithApel: number;
+};
+
 export type ComptaApelTripCommitment = {
   tripId: string;
   title: string;
-  etablissement: string;
+  etablissement: ComptaApelEtablissement;
   travelDate: string | null;
   travelDateLabel: string;
   apelCollective: number;
   aidesIndividuelles: number;
   totalApel: number;
   hasComptaSheet: boolean;
+};
+
+export type ComptaApelEtablissementGroup = {
+  etablissement: ComptaApelEtablissement;
+  trips: ComptaApelTripCommitment[];
+  totals: ComptaApelTotals;
 };
 
 export type ComptaApelSummary = {
@@ -53,15 +85,41 @@ export type ComptaApelSummary = {
   };
   currentTripId: string | null;
   currentTrip: ComptaApelTripCommitment | null;
+  byEtablissement: ComptaApelEtablissementGroup[];
   trips: ComptaApelTripCommitment[];
-  totals: {
-    apelCollective: number;
-    aidesIndividuelles: number;
-    totalApel: number;
-    tripCount: number;
-    tripsWithApel: number;
-  };
+  totals: ComptaApelTotals;
 };
+
+function roundApelMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function computeApelTotals(rows: ComptaApelTripCommitment[]): ComptaApelTotals {
+  const totals = rows.reduce(
+    (acc, row) => ({
+      apelCollective: acc.apelCollective + row.apelCollective,
+      aidesIndividuelles: acc.aidesIndividuelles + row.aidesIndividuelles,
+      totalApel: acc.totalApel + row.totalApel,
+      tripCount: acc.tripCount + 1,
+      tripsWithApel: acc.tripsWithApel + (row.totalApel > 0 ? 1 : 0),
+    }),
+    { apelCollective: 0, aidesIndividuelles: 0, totalApel: 0, tripCount: 0, tripsWithApel: 0 },
+  );
+  return {
+    apelCollective: roundApelMoney(totals.apelCollective),
+    aidesIndividuelles: roundApelMoney(totals.aidesIndividuelles),
+    totalApel: roundApelMoney(totals.totalApel),
+    tripCount: totals.tripCount,
+    tripsWithApel: totals.tripsWithApel,
+  };
+}
+
+function buildApelGroupsByEtablissement(rows: ComptaApelTripCommitment[]): ComptaApelEtablissementGroup[] {
+  return COMPTA_APEL_ETABLISSEMENTS.map((etablissement) => {
+    const trips = rows.filter((row) => row.etablissement === etablissement);
+    return { etablissement, trips, totals: computeApelTotals(trips) };
+  }).filter((group) => group.trips.length > 0);
+}
 
 export function apelCommitmentFromSheet(sheet: TravelsComptaSheet | null | undefined): {
   apelCollective: number;
@@ -140,7 +198,7 @@ export function comptaApelCommitmentForTrip(
   return {
     tripId: trip.id,
     title: String(trip.data?.title || "Sortie sans titre"),
-    etablissement: String(trip.data?.etablissement || "—"),
+    etablissement: normalizeApelEtablissement(trip.data?.etablissement),
     travelDate: travelRaw ? String(travelRaw) : null,
     travelDateLabel: formatTravelDateLabel(trip),
     apelCollective,
@@ -172,20 +230,8 @@ export function buildComptaApelSummary(
     return da - db;
   });
 
-  const totals = rows.reduce(
-    (acc, row) => ({
-      apelCollective: acc.apelCollective + row.apelCollective,
-      aidesIndividuelles: acc.aidesIndividuelles + row.aidesIndividuelles,
-      totalApel: acc.totalApel + row.totalApel,
-      tripCount: acc.tripCount + 1,
-      tripsWithApel: acc.tripsWithApel + (row.totalApel > 0 ? 1 : 0),
-    }),
-    { apelCollective: 0, aidesIndividuelles: 0, totalApel: 0, tripCount: 0, tripsWithApel: 0 },
-  );
-
-  totals.apelCollective = Math.round(totals.apelCollective * 100) / 100;
-  totals.aidesIndividuelles = Math.round(totals.aidesIndividuelles * 100) / 100;
-  totals.totalApel = Math.round(totals.totalApel * 100) / 100;
+  const totals = computeApelTotals(rows);
+  const byEtablissement = buildApelGroupsByEtablissement(rows);
 
   const currentTrip = currentTripId ? rows.find((r) => r.tripId === currentTripId) ?? null : null;
 
@@ -197,6 +243,7 @@ export function buildComptaApelSummary(
     },
     currentTripId,
     currentTrip,
+    byEtablissement,
     trips: rows,
     totals,
   };

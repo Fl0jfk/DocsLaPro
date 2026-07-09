@@ -4,7 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { TripButton } from "@/app/components/travels/TripDetailUI";
 import { formatEuroDisplay } from "@/app/lib/travels-compta-sheet";
 import type { TravelsComptaSheet } from "@/app/lib/travels-compta-sheet";
-import type { ComptaApelSummary } from "@/app/lib/travels-compta-apel-summary";
+import {
+  COMPTA_APEL_ETABLISSEMENTS,
+  type ComptaApelEtablissementGroup,
+  type ComptaApelSummary,
+  type ComptaApelTripCommitment,
+} from "@/app/lib/travels-compta-apel-summary";
 
 type Props = {
   tripId: string;
@@ -58,6 +63,46 @@ export default function TravelsComptaApelSummaryModal({
 
   if (!open) return null;
 
+  function ApelTripTable({ trips }: { trips: ComptaApelTripCommitment[] }) {
+    return (
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-slate-50 border-b border-slate-100 text-left text-xs text-slate-500">
+            <th className="p-3 font-bold">Voyage</th>
+            <th className="p-3 font-bold">Date</th>
+            <th className="p-3 font-bold text-right">Collectif</th>
+            <th className="p-3 font-bold text-right">Individ.</th>
+            <th className="p-3 font-bold text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {trips.map((row) => (
+            <tr key={row.tripId} className="border-b border-slate-50">
+              <td className="p-3 text-slate-800">{row.title}</td>
+              <td className="p-3 text-slate-500 whitespace-nowrap">{row.travelDateLabel}</td>
+              <td className="p-3 font-mono text-right whitespace-nowrap">
+                {row.apelCollective > 0 ? `${formatEuroDisplay(row.apelCollective)} €` : "—"}
+              </td>
+              <td className="p-3 font-mono text-right whitespace-nowrap">
+                {row.aidesIndividuelles > 0 ? `${formatEuroDisplay(row.aidesIndividuelles)} €` : "—"}
+              </td>
+              <td className="p-3 font-mono text-right font-semibold whitespace-nowrap">
+                {row.totalApel > 0 ? `${formatEuroDisplay(row.totalApel)} €` : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
+  function etabEmoji(etab: string): string {
+    if (etab === "École") return "🏫";
+    if (etab === "Collège") return "📚";
+    if (etab === "Lycée") return "🎓";
+    return "🏛";
+  }
+
   return (
     <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4">
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -68,7 +113,7 @@ export default function TravelsComptaApelSummaryModal({
             <p className="mt-1 text-sm text-slate-600">
               Année scolaire {summary?.schoolYear.label ?? "…"} — du 1<sup>er</sup> septembre au 15 juillet.
               <span className="block text-xs text-slate-500 mt-0.5">
-                Aide collective du voyage + aides individuelles, cumulées sur tous les voyages de l&apos;année.
+                Récapitulatif par niveau (école, collège, lycée, groupe scolaire) pour le versement à l&apos;APEL.
               </span>
             </p>
           </div>
@@ -90,47 +135,50 @@ export default function TravelsComptaApelSummaryModal({
             <p className="text-center text-slate-500 py-8">Chargement du récapitulatif…</p>
           ) : summary ? (
             <>
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <div className="rounded-xl border border-emerald-200 overflow-hidden">
+                <div className="bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-800">
+                  Synthèse par niveau — versement APEL
+                </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100 text-left text-xs text-slate-500">
-                      <th className="p-3 font-bold">Voyage</th>
-                      <th className="p-3 font-bold">Date</th>
+                    <tr className="bg-white border-b border-emerald-100 text-left text-xs text-slate-500">
+                      <th className="p-3 font-bold">Niveau</th>
                       <th className="p-3 font-bold text-right">Collectif</th>
                       <th className="p-3 font-bold text-right">Individ.</th>
-                      <th className="p-3 font-bold text-right">Total</th>
+                      <th className="p-3 font-bold text-right">Total à verser</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {summary.trips.length > 0 ? (
-                      summary.trips.map((row) => (
-                        <tr key={row.tripId} className="border-b border-slate-50">
-                          <td className="p-3 text-slate-800">{row.title}</td>
-                          <td className="p-3 text-slate-500 whitespace-nowrap">{row.travelDateLabel}</td>
-                          <td className="p-3 font-mono text-right whitespace-nowrap">
-                            {row.apelCollective > 0 ? `${formatEuroDisplay(row.apelCollective)} €` : "—"}
+                    {COMPTA_APEL_ETABLISSEMENTS.map((etab) => {
+                      const group = summary.byEtablissement.find((g) => g.etablissement === etab);
+                      const t = group?.totals;
+                      return (
+                        <tr key={etab} className="border-b border-emerald-50">
+                          <td className="p-3 font-medium text-slate-800">
+                            {etabEmoji(etab)} {etab}
                           </td>
                           <td className="p-3 font-mono text-right whitespace-nowrap">
-                            {row.aidesIndividuelles > 0 ? `${formatEuroDisplay(row.aidesIndividuelles)} €` : "—"}
+                            {(t?.apelCollective ?? 0) > 0
+                              ? `${formatEuroDisplay(t?.apelCollective ?? 0)} €`
+                              : "—"}
+                          </td>
+                          <td className="p-3 font-mono text-right whitespace-nowrap">
+                            {(t?.aidesIndividuelles ?? 0) > 0
+                              ? `${formatEuroDisplay(t?.aidesIndividuelles ?? 0)} €`
+                              : "—"}
                           </td>
                           <td className="p-3 font-mono text-right font-semibold whitespace-nowrap">
-                            {row.totalApel > 0 ? `${formatEuroDisplay(row.totalApel)} €` : "—"}
+                            {(t?.totalApel ?? 0) > 0
+                              ? `${formatEuroDisplay(t?.totalApel ?? 0)} €`
+                              : "—"}
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="p-6 text-center text-slate-400 italic">
-                          Aucun engagement APEL renseigné sur les voyages de cette année scolaire.
-                        </td>
-                      </tr>
-                    )}
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="bg-emerald-50 font-bold text-emerald-950">
-                      <td className="p-3" colSpan={2}>
-                        Total année scolaire
-                      </td>
+                      <td className="p-3">Total général</td>
                       <td className="p-3 font-mono text-right whitespace-nowrap">
                         {formatEuroDisplay(summary.totals.apelCollective)} €
                       </td>
@@ -144,6 +192,26 @@ export default function TravelsComptaApelSummaryModal({
                   </tfoot>
                 </table>
               </div>
+
+              {summary.byEtablissement.length > 0 ? (
+                summary.byEtablissement.map((group: ComptaApelEtablissementGroup) => (
+                  <div key={group.etablissement} className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-2 flex flex-wrap justify-between items-center gap-2 border-b border-slate-100">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-600">
+                        {etabEmoji(group.etablissement)} {group.etablissement}
+                      </p>
+                      <p className="font-mono font-bold text-slate-800 whitespace-nowrap">
+                        {formatEuroDisplay(group.totals.totalApel)} €
+                      </p>
+                    </div>
+                    <ApelTripTable trips={group.trips} />
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-slate-400 italic py-4">
+                  Aucun engagement APEL renseigné sur les voyages de cette année scolaire.
+                </p>
+              )}
             </>
           ) : (
             <p className="text-center text-slate-500 py-8">Récapitulatif indisponible.</p>

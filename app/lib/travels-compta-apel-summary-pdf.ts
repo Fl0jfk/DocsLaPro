@@ -11,10 +11,29 @@ import {
   pdfFormatDateFrLong,
   pdfFormatEuroAmount,
 } from "@/app/lib/pdf-format-numbers";
-import type { ComptaApelSummary } from "@/app/lib/travels-compta-apel-summary";
+import {
+  COMPTA_APEL_ETABLISSEMENTS,
+  type ComptaApelSummary,
+  type ComptaApelTripCommitment,
+} from "@/app/lib/travels-compta-apel-summary";
 
 function euroPlain(n: number | null | undefined): string {
   return pdfFormatEuroAmount(n);
+}
+
+function pdfLastTableY(doc: jsPDF): number {
+  return (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+}
+
+function tripRowsBody(trips: ComptaApelTripCommitment[]): string[][] {
+  if (trips.length === 0) return [["—", "—", "—", "—", "—"]];
+  return trips.map((row) => [
+    row.title,
+    row.travelDateLabel,
+    euroPlain(row.apelCollective),
+    euroPlain(row.aidesIndividuelles),
+    euroPlain(row.totalApel),
+  ]);
 }
 
 export async function buildComptaApelSummaryPdfBase64(summary: ComptaApelSummary): Promise<string> {
@@ -23,7 +42,6 @@ export async function buildComptaApelSummaryPdfBase64(summary: ComptaApelSummary
   const doc = new jsPDF({ compress: true });
   const W = doc.internal.pageSize.getWidth();
   const ML = 14;
-  const MR = W - 14;
   const dateStr = pdfFormatDateFrLong();
 
   drawPdfLetterhead(doc, letterhead, logo, [16, 185, 129]);
@@ -44,54 +62,112 @@ export async function buildComptaApelSummaryPdfBase64(summary: ComptaApelSummary
 
   let y = 64;
 
-  const body = summary.trips.map((row) => [
-    row.title,
-    row.travelDateLabel,
-    euroPlain(row.apelCollective),
-    euroPlain(row.aidesIndividuelles),
-    euroPlain(row.totalApel),
-  ]);
-
-  if (body.length === 0) body.push(["—", "—", "—", "—", "—"]);
+  const synthBody = COMPTA_APEL_ETABLISSEMENTS.map((etab) => {
+    const group = summary.byEtablissement.find((g) => g.etablissement === etab);
+    const t = group?.totals;
+    return [
+      etab,
+      euroPlain(t?.apelCollective ?? 0),
+      euroPlain(t?.aidesIndividuelles ?? 0),
+      euroPlain(t?.totalApel ?? 0),
+    ];
+  });
 
   autoTable(doc, {
     startY: y,
-    head: [["Voyage", "Date", "APEL collectif", "Aides individ.", "Total APEL"]],
+    head: [["Niveau scolaire", "APEL collectif", "Aides individ.", "Total à verser"]],
     body: [
-      ...body,
+      ...synthBody,
       [
-        "TOTAL ANNÉE SCOLAIRE",
-        "",
+        "TOTAL GÉNÉRAL",
         euroPlain(summary.totals.apelCollective),
         euroPlain(summary.totals.aidesIndividuelles),
         euroPlain(summary.totals.totalApel),
       ],
     ],
     theme: "grid",
-    headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: "bold", fontSize: 8.5 },
+    headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: "bold", fontSize: 9 },
     columnStyles: {
-      0: { cellWidth: 52 },
-      1: { cellWidth: 38 },
-      2: { halign: "right", cellWidth: 28 },
-      3: { halign: "right", cellWidth: 28 },
-      4: { halign: "right", cellWidth: 28 },
+      0: { cellWidth: 58 },
+      1: { halign: "right", cellWidth: 38 },
+      2: { halign: "right", cellWidth: 38 },
+      3: { halign: "right", cellWidth: 38 },
     },
-    bodyStyles: { fontSize: 8 },
-    styles: { cellPadding: 2.5 },
+    bodyStyles: { fontSize: 8.5 },
+    styles: { cellPadding: 3 },
     didParseCell: (data) => {
-      if (data.section === "body" && data.row.index === body.length) {
+      if (data.section === "body" && data.row.index === synthBody.length) {
         data.cell.styles.fontStyle = "bold";
         data.cell.styles.fillColor = [236, 253, 245];
       }
     },
   });
 
-  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  y = pdfLastTableY(doc) + 10;
+
+  for (const group of summary.byEtablissement) {
+    if (y > 250) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(6, 95, 70);
+    doc.text(group.etablissement, ML, y);
+    y += 5;
+
+    const body = tripRowsBody(group.trips);
+    const subtotalRowIndex = body.length;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Voyage", "Date", "APEL collectif", "Aides individ.", "Total APEL"]],
+      body: [
+        ...body,
+        [
+          `Sous-total ${group.etablissement}`,
+          "",
+          euroPlain(group.totals.apelCollective),
+          euroPlain(group.totals.aidesIndividuelles),
+          euroPlain(group.totals.totalApel),
+        ],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 52 },
+        1: { cellWidth: 34 },
+        2: { halign: "right", cellWidth: 28 },
+        3: { halign: "right", cellWidth: 28 },
+        4: { halign: "right", cellWidth: 28 },
+      },
+      bodyStyles: { fontSize: 8 },
+      styles: { cellPadding: 2.5 },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.row.index === subtotalRowIndex) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [236, 253, 245];
+        }
+      },
+    });
+
+    y = pdfLastTableY(doc) + 8;
+  }
+
+  if (summary.byEtablissement.length === 0) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Aucun engagement APEL renseigné sur les voyages de cette année scolaire.", ML, y);
+    y += 8;
+  }
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text(
-    "Montants = aide APEL collective (ligne recettes) + aides individuelles par élève, tous voyages de l'année.",
+    "Montants = aide APEL collective (ligne recettes) + aides individuelles. Récapitulatif par niveau pour versement.",
     ML,
     y,
     { maxWidth: W - 28 },
