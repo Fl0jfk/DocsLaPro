@@ -7,14 +7,23 @@ import {
   comptaAfficheMargeSecurite,
   emptyComptaSheet,
   formatEuroDisplay,
+  formatEuroWhole,
   isUsableComptaAmount,
-  parseEuroAmount,
+  isBlankRecetteLine,
+  isApelRecetteLineIndex,
+  normalizeComptaRecettesLignes,
+  perStudentEuroCeilAdjusted,
   suggestComptaMargeFromPreset,
+  withoutBlankRecettesLignes,
   type ComptaMargePresetId,
+  type TravelsComptaExpenseLine,
+  type TravelsComptaRecetteLine,
   type TravelsComptaIndividualAid,
   type TravelsComptaSheet,
 } from "@/app/lib/travels-compta-sheet";
 import { TripButton } from "@/app/components/travels/TripDetailUI";
+import TravelsComptaApelSummaryModal from "@/app/components/travels/TravelsComptaApelSummaryModal";
+import type { ComptaApelSummary } from "@/app/lib/travels-compta-apel-summary";
 
 type Props = {
   tripId: string;
@@ -27,28 +36,57 @@ type Props = {
   onValidateBudget?: (sheet: TravelsComptaSheet) => void | Promise<void>;
 };
 
-function euroInput(
-  value: number | null,
-  onChange: (v: number | null) => void,
+function parseNumberInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+function EuroAmountInput({
+  value,
+  onChange,
   className = "",
   readOnly = false,
-) {
+  onBlur,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  className?: string;
+  readOnly?: boolean;
+  onBlur?: () => void;
+}) {
   return (
     <input
-      type="text"
+      type="number"
       inputMode="decimal"
-      value={value == null ? "" : formatEuroDisplay(value)}
-      onChange={(e) => onChange(parseEuroAmount(e.target.value))}
+      step="0.01"
+      min={0}
+      value={value == null ? "" : value}
+      onChange={(e) => onChange(parseNumberInput(e.target.value))}
+      onBlur={onBlur}
       readOnly={readOnly}
       disabled={readOnly}
-      className={`w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-mono text-right disabled:bg-slate-50 ${className}`}
-      placeholder="0,00"
+      className={`w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-right disabled:bg-slate-50 ${className}`}
+      placeholder="0"
     />
   );
 }
 
+function isBlankDepenseLine(line: TravelsComptaExpenseLine): boolean {
+  return !line.label.trim() && line.amount == null;
+}
+
+function withoutBlankDepenses(depenses: TravelsComptaExpenseLine[]): TravelsComptaExpenseLine[] {
+  return depenses.filter((line) => !isBlankDepenseLine(line));
+}
+
 function depensesAffichees(depenses: TravelsComptaSheet["depenses"]) {
   return depenses.filter((line) => line.label.trim() || line.amount != null);
+}
+
+function recettesLignesAffichees(lignes: TravelsComptaRecetteLine[]) {
+  return lignes.filter((line) => line.label.trim() || line.amount != null);
 }
 
 function aideRowsForDisplay(aides: TravelsComptaIndividualAid[]) {
@@ -86,6 +124,9 @@ export default function TravelsComptaSheetForm({
   const [ocrInfo, setOcrInfo] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [apelSummaryOpen, setApelSummaryOpen] = useState(false);
+  const [apelSummary, setApelSummary] = useState<ComptaApelSummary | null>(null);
+  const [apelSummaryLoading, setApelSummaryLoading] = useState(false);
 
   const hydrated = useRef(false);
   const skipSave = useRef(true);
@@ -93,6 +134,7 @@ export default function TravelsComptaSheetForm({
   const onSavedRef = useRef(onSaved);
   const onValidateBudgetRef = useRef(onValidateBudget);
   const loadSeq = useRef(0);
+  const sheetRef = useRef(sheet);
 
   useEffect(() => {
     onSavedRef.current = onSaved;
@@ -102,10 +144,43 @@ export default function TravelsComptaSheetForm({
     onValidateBudgetRef.current = onValidateBudget;
   }, [onValidateBudget]);
 
+  useEffect(() => {
+    sheetRef.current = sheet;
+  }, [sheet]);
+
   const derived = useMemo(() => computeComptaSheetDerived(sheet), [sheet]);
+  const coutPrevisionnelArrondi = perStudentEuroCeilAdjusted(
+    derived.montantCibleFacturation,
+    sheet.nbEleves ?? 0,
+  );
   const busLine = sheet.depenses.find((d) => d.source === "devis_signe");
   const lignesDepensesInfo = useMemo(() => depensesAffichees(sheet.depenses), [sheet.depenses]);
+  const lignesRecettesInfo = useMemo(
+    () => recettesLignesAffichees(derived.recettesLignes ?? []),
+    [derived.recettesLignes],
+  );
   const lignesAides = useMemo(() => aideRowsForDisplay(sheet.aidesIndividuelles), [sheet.aidesIndividuelles]);
+
+  const loadApelSummary = useCallback(async () => {
+    setApelSummaryLoading(true);
+    try {
+      const res = await fetch("/api/travels/compta-apel-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tripId,
+          currentSheet: computeComptaSheetDerived(sheetRef.current),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur");
+      setApelSummary(data as ComptaApelSummary);
+    } catch {
+      setApelSummary(null);
+    } finally {
+      setApelSummaryLoading(false);
+    }
+  }, [tripId]);
 
   const patch = useCallback((partial: Partial<TravelsComptaSheet>) => {
     if (readOnly) return;
@@ -115,16 +190,21 @@ export default function TravelsComptaSheetForm({
   const persistSheet = useCallback(async (finalSheet: TravelsComptaSheet) => {
     setSaveState("saving");
     setError(null);
+    const cleanedSheet = computeComptaSheetDerived({
+      ...finalSheet,
+      depenses: withoutBlankDepenses(finalSheet.depenses),
+      recettesLignes: withoutBlankRecettesLignes(finalSheet.recettesLignes ?? []),
+    });
     try {
       const res = await fetch("/api/travels/compta-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tripId, action: "save", sheet: finalSheet }),
+        body: JSON.stringify({ tripId, action: "save", sheet: cleanedSheet }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Erreur");
       setSaveState("saved");
-      onSavedRef.current?.(data.sheet || finalSheet);
+      onSavedRef.current?.(data.sheet || cleanedSheet);
     } catch (e) {
       setSaveState("error");
       setError(e instanceof Error ? e.message : "Erreur d'enregistrement");
@@ -229,7 +309,13 @@ export default function TravelsComptaSheetForm({
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void persistSheet(computeComptaSheetDerived(sheet));
+      const depenses = withoutBlankDepenses(sheet.depenses);
+      const finalSheet = computeComptaSheetDerived({ ...sheet, depenses });
+      if (depenses.length !== sheet.depenses.length) {
+        skipSave.current = true;
+        setSheet(finalSheet);
+      }
+      void persistSheet(finalSheet);
     }, 500);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -237,7 +323,11 @@ export default function TravelsComptaSheetForm({
   }, [sheet, initialLoading, analyzing, persistSheet, readOnly]);
 
   async function handleValidateBudget() {
-    const finalSheet = computeComptaSheetDerived(sheet);
+    const finalSheet = computeComptaSheetDerived({
+      ...sheet,
+      depenses: withoutBlankDepenses(sheet.depenses),
+      recettesLignes: withoutBlankRecettesLignes(sheet.recettesLignes ?? []),
+    });
     setValidating(true);
     setError(null);
     try {
@@ -283,8 +373,43 @@ export default function TravelsComptaSheetForm({
     patch({ depenses });
   }
 
+  function removeDepense(index: number) {
+    patch({ depenses: sheet.depenses.filter((_, i) => i !== index) });
+  }
+
+  function pruneBlankDepense(index: number) {
+    const line = sheet.depenses[index];
+    if (!line || !isBlankDepenseLine(line)) return;
+    patch({ depenses: sheet.depenses.filter((_, i) => i !== index) });
+  }
+
   function addDepense() {
     patch({ depenses: [...sheet.depenses, { label: "", amount: null }] });
+  }
+
+  function updateRecette(index: number, field: "label" | "amount", value: string | number | null) {
+    const recettesLignes = normalizeComptaRecettesLignes(sheet).map((line, i) =>
+      i === index ? { ...line, [field]: field === "amount" ? (value as number | null) : String(value) } : line,
+    );
+    patch({ recettesLignes });
+  }
+
+  function removeRecette(index: number) {
+    if (isApelRecetteLineIndex(index)) return;
+    patch({ recettesLignes: normalizeComptaRecettesLignes(sheet).filter((_, i) => i !== index) });
+  }
+
+  function pruneBlankRecette(index: number) {
+    if (isApelRecetteLineIndex(index)) return;
+    const line = normalizeComptaRecettesLignes(sheet)[index];
+    if (!line || !isBlankRecetteLine(line)) return;
+    patch({ recettesLignes: normalizeComptaRecettesLignes(sheet).filter((_, i) => i !== index) });
+  }
+
+  function addRecette() {
+    patch({
+      recettesLignes: [...normalizeComptaRecettesLignes(sheet), { label: "", amount: null }],
+    });
   }
 
   function updateAide(index: number, field: keyof TravelsComptaIndividualAid, value: string | number | null) {
@@ -434,7 +559,8 @@ export default function TravelsComptaSheetForm({
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
                     <th className="p-3 font-bold">Libellé</th>
-                    <th className="p-3 font-bold w-36">Montant</th>
+                    <th className="p-3 font-bold w-44 min-w-[11rem]">Montant</th>
+                    {!readOnly ? <th className="p-3 w-10" aria-label="Actions" /> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -444,15 +570,49 @@ export default function TravelsComptaSheetForm({
                         <input
                           value={line.label}
                           onChange={(e) => updateDepense(i, "label", e.target.value)}
+                          onBlur={() => pruneBlankDepense(i)}
                           readOnly={readOnly}
                           disabled={readOnly}
                           className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-50"
                           placeholder="Ex. Transport bus"
                         />
                       </td>
-                      <td className="p-2">{euroInput(line.amount, (v) => updateDepense(i, "amount", v), "", readOnly)}</td>
+                      <td className="p-2">
+                        <EuroAmountInput
+                          value={line.amount}
+                          onChange={(v) => updateDepense(i, "amount", v)}
+                          onBlur={() => pruneBlankDepense(i)}
+                          readOnly={readOnly}
+                        />
+                      </td>
+                      {!readOnly ? (
+                        <td className="p-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeDepense(i)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            title="Supprimer la ligne"
+                            aria-label="Supprimer la ligne"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
+                  {!readOnly ? (
+                    <tr>
+                      <td colSpan={3} className="px-2 py-1">
+                        <button
+                          type="button"
+                          onClick={addDepense}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                        >
+                          + Ligne de dépense
+                        </button>
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-50 font-bold">
@@ -462,42 +622,172 @@ export default function TravelsComptaSheetForm({
                         {budgetValidated ? "Budget total final validé" : "Devient le budget total final à la validation"}
                       </span>
                     </td>
-                    <td className="p-3 text-right font-mono">
+                    <td className="p-3 text-right font-mono whitespace-nowrap">
                       {derived.depensesTotal != null ? `${formatEuroDisplay(derived.depensesTotal)} €` : "—"}
                     </td>
+                    {!readOnly ? <td className="p-3" /> : null}
+                  </tr>
+                  <tr className="border-t border-slate-100 bg-slate-50/80">
+                    <td className="p-3">
+                      Nb élèves
+                      <span className="block text-[10px] font-normal text-slate-400 normal-case">
+                        Joindre une liste
+                      </span>
+                    </td>
+                    <td className="p-2">
+                      <input
+                        type="number"
+                        min={0}
+                        value={sheet.nbEleves ?? ""}
+                        onChange={(e) =>
+                          patch({
+                            nbEleves:
+                              e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))),
+                          })
+                        }
+                        readOnly={readOnly}
+                        disabled={readOnly}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-right disabled:bg-slate-50"
+                      />
+                    </td>
+                    {!readOnly ? <td className="p-3" /> : null}
+                  </tr>
+                  <tr className="border-t border-slate-100 bg-slate-50/80">
+                    <td className="p-3">
+                      Coût par élève
+                      <span className="block text-[10px] font-normal text-slate-400 normal-case">
+                        Total dépenses ÷ nombre d&apos;élèves
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-mono font-semibold text-slate-800 whitespace-nowrap">
+                      {derived.prixParEleve != null ? `${formatEuroDisplay(derived.prixParEleve)} €` : "—"}
+                    </td>
+                    {!readOnly ? <td className="p-3" /> : null}
                   </tr>
                 </tfoot>
               </table>
-              {!readOnly && (
-                <button type="button" onClick={addDepense} className="m-3 text-xs font-bold text-indigo-600">
-                  + Ligne de dépense
-                </button>
-              )}
             </section>
 
-            <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-xl border border-slate-200 p-4 bg-slate-50/60">
-              <label className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Nb élèves (joindre une liste)
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  value={sheet.nbEleves ?? ""}
-                  onChange={(e) => patch({ nbEleves: parseEuroAmount(e.target.value) })}
-                  readOnly={readOnly}
-                  disabled={readOnly}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
-                />
-              </label>
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prix par élève</span>
-                <div className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-mono text-right">
-                  {derived.prixParEleve != null ? `${formatEuroDisplay(derived.prixParEleve)} €` : "—"}
+            {afficheMarge ? (
+              <section className="rounded-xl border border-amber-200 overflow-hidden bg-amber-50/25">
+                <div className="bg-amber-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-amber-900 border-b border-amber-100">
+                  Marge de sécurité
+                  {recettesFigees ? (
+                    <span className="ml-2 font-normal normal-case text-amber-800/80">
+                      (figée à l&apos;annonce aux parents)
+                    </span>
+                  ) : null}
                 </div>
-                <p className="text-[10px] text-slate-400">Total dépenses ÷ nombre d&apos;élèves</p>
-              </label>
-            </section>
+                <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg border border-amber-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-800/70">Nb élèves</p>
+                      <p className="mt-1 font-mono font-semibold text-slate-800">{sheet.nbEleves ?? "—"}</p>
+                    </div>
+                    <div className="rounded-lg border border-amber-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-800/70">
+                        Total dépenses
+                      </p>
+                      <p className="mt-1 font-mono font-semibold text-slate-800 whitespace-nowrap">
+                        {derived.depensesTotal != null ? `${formatEuroDisplay(derived.depensesTotal)} €` : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-3">
+                    <p className="text-xs font-black uppercase tracking-widest text-amber-800">Montant de la marge</p>
+                    {!recettesFigees ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {COMPTA_MARGE_PRESETS.map((opt) => {
+                          const suggested = suggestComptaMargeFromPreset(derived.depensesTotal, opt.percent);
+                          const active = margeMatchesPreset(
+                            sheet.margeSecuriteEuro,
+                            derived.depensesTotal,
+                            opt.percent,
+                          );
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => applyMargePreset(opt.id)}
+                              disabled={readOnly}
+                              title={
+                                suggested != null && derived.depensesTotal
+                                  ? `${formatEuroDisplay(suggested)} €`
+                                  : undefined
+                              }
+                              className={`rounded-lg border px-2 py-1 text-[11px] font-bold transition-colors ${
+                                active
+                                  ? "border-amber-500 bg-amber-100 text-amber-900"
+                                  : "border-amber-200 bg-white text-amber-800 hover:bg-amber-50"
+                              }`}
+                            >
+                              {opt.percent === 0 ? "0 %" : `+${opt.percent} %`}
+                              <span className="block font-normal normal-case text-[10px] opacity-80 leading-tight">
+                                {opt.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-900">Montant prévu avant l&apos;annonce aux familles.</p>
+                    )}
+                    <div className="max-w-xs ml-auto">
+                      <p className="text-[10px] font-bold text-slate-500 mb-1">Montant en €</p>
+                      {recettesFigees ? (
+                        <div className="w-full rounded-lg border border-amber-200 bg-amber-50/50 px-2 py-1.5 text-sm font-mono text-right text-amber-950">
+                          {derived.margeRisqueMontant != null
+                            ? `${formatEuroDisplay(derived.margeRisqueMontant)} €`
+                            : "—"}
+                        </div>
+                      ) : (
+                        <EuroAmountInput
+                          value={sheet.margeSecuriteEuro}
+                          onChange={(v) => patch({ margeSecuriteEuro: v })}
+                          className="bg-white"
+                          readOnly={readOnly}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-amber-100">
+                    <div className="flex justify-between items-baseline gap-3 text-sm font-bold text-amber-950">
+                      <span>
+                        Budget prévisionnel total
+                        <span className="block text-[10px] font-normal text-amber-800/80 normal-case">
+                          Dépenses + marge de sécurité
+                        </span>
+                      </span>
+                      <span className="font-mono whitespace-nowrap">
+                        {derived.montantCibleFacturation != null
+                          ? `${formatEuroDisplay(derived.montantCibleFacturation)} €`
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-baseline gap-3 text-sm font-bold text-amber-950">
+                      <span>
+                        Coût prévisionnel par élève
+                        <span className="block text-[10px] font-normal text-amber-800/80 normal-case">
+                          Budget prévisionnel ÷ nb élèves
+                        </span>
+                        {coutPrevisionnelArrondi ? (
+                          <span className="block text-[10px] font-medium text-amber-700 normal-case mt-1">
+                            Attention, ce coût a été arrondi à l&apos;entier supérieur.
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="font-mono whitespace-nowrap">
+                        {derived.coutPrevisionnelParEleve != null
+                          ? `${formatEuroWhole(derived.coutPrevisionnelParEleve)} €`
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
             <section className="rounded-xl border border-slate-200 overflow-hidden">
               <div className="bg-indigo-50 px-4 py-3 flex flex-wrap justify-between items-center gap-3 border-b border-indigo-100">
@@ -512,58 +802,165 @@ export default function TravelsComptaSheetForm({
                 </div>
               </div>
 
-              <div className="px-4 py-3 space-y-2 border-b border-slate-100 bg-white">
-                {recettesFigees && derived.montantCibleFacturation != null ? (
-                  <div className="flex justify-between text-sm text-slate-500">
-                    <span>Objectif de facturation (dépenses + marge)</span>
-                    <span className="font-mono line-through decoration-slate-300">
-                      {formatEuroDisplay(derived.montantCibleFacturation)} €
-                    </span>
+              <div className="border-b border-slate-100 bg-white">
+                {!readOnly ? (
+                  <div className="px-4 pt-3">
+                    <button
+                      type="button"
+                      onClick={addRecette}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                    >
+                      + Ligne de recette
+                    </button>
                   </div>
                 ) : null}
-                <div className="flex justify-between text-sm">
-                  <span>
-                    Recettes élèves
-                    <span className="block text-[10px] font-normal text-slate-500 normal-case">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
+                      <th className="p-3 font-bold">Libellé</th>
+                      <th className="p-3 font-bold w-44 min-w-[11rem] text-right">Montant</th>
+                      {!readOnly ? <th className="p-3 w-10" aria-label="Actions" /> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(derived.recettesLignes ?? []).map((line, i) => (
+                      <tr key={i} className="border-b border-slate-50">
+                        <td className="p-2">
+                          {isApelRecetteLineIndex(i) ? (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-semibold text-slate-700">
+                              {line.label}
+                            </div>
+                          ) : (
+                            <input
+                              value={line.label}
+                              onChange={(e) => updateRecette(i, "label", e.target.value)}
+                              onBlur={() => pruneBlankRecette(i)}
+                              readOnly={readOnly}
+                              disabled={readOnly}
+                              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-50"
+                              placeholder="Ex. Subvention région…"
+                            />
+                          )}
+                        </td>
+                        <td className="p-2">
+                          <EuroAmountInput
+                            value={line.amount}
+                            onChange={(v) => updateRecette(i, "amount", v)}
+                            onBlur={isApelRecetteLineIndex(i) ? undefined : () => pruneBlankRecette(i)}
+                            readOnly={readOnly}
+                          />
+                        </td>
+                        {!readOnly ? (
+                          <td className="p-2 text-center">
+                            {isApelRecetteLineIndex(i) ? null : (
+                              <button
+                                type="button"
+                                onClick={() => removeRecette(i)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                title="Supprimer la ligne"
+                                aria-label="Supprimer la ligne"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                  {lignesRecettesInfo.length > 0 ? (
+                    <tfoot>
+                      <tr className="bg-emerald-50/60 font-bold text-emerald-900">
+                        <td className="p-3">Total recettes complémentaires</td>
+                        <td className="p-3 text-right font-mono whitespace-nowrap">
+                          {derived.totalSubventions != null && derived.totalSubventions > 0
+                            ? `${formatEuroDisplay(derived.totalSubventions)} €`
+                            : "—"}
+                        </td>
+                        {!readOnly ? <td className="p-3" /> : null}
+                      </tr>
+                    </tfoot>
+                  ) : null}
+                </table>
+              </div>
+
+              <div className="px-4 py-4 border-b border-slate-100 bg-white">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div className="min-w-[10rem] flex-1">
+                    <p className="text-sm font-semibold text-slate-800">Recettes élèves</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
                       {recettesFigees
                         ? "Prix annoncé × nb élèves facturés"
-                        : "Total dépenses + marge de sécurité"}
-                    </span>
-                  </span>
-                  <span className="font-mono font-bold">
-                    {derived.recettesEleves != null ? `${formatEuroDisplay(derived.recettesEleves)} €` : "—"}
-                  </span>
-                </div>
-                {(derived.totalSubventions ?? 0) > 0 ? (
-                  <div className="flex justify-between text-sm text-emerald-800">
-                    <span>Subventions (APEL + autres)</span>
-                    <span className="font-mono font-bold">
-                      + {formatEuroDisplay(derived.totalSubventions ?? 0)} €
-                    </span>
+                        : "Budget prévisionnel total (dépenses + marge)"}
+                    </p>
                   </div>
-                ) : null}
-                <div className="flex justify-between text-sm font-bold text-indigo-800 pt-1 border-t border-slate-100">
+                  <label className="space-y-1 shrink-0">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Date de facturation
+                    </span>
+                    <input
+                      type="date"
+                      value={sheet.facturations[0]?.dateFacturation ?? ""}
+                      onChange={(e) => updateFacturationDate(e.target.value)}
+                      readOnly={readOnly}
+                      disabled={readOnly}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
+                    />
+                  </label>
+                  <p className="font-mono font-black text-lg text-indigo-900 whitespace-nowrap">
+                    {derived.recettesEleves != null ? `${formatEuroDisplay(derived.recettesEleves)} €` : "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-4 py-3 space-y-2 border-b border-slate-100 bg-white">
+                <div className="flex justify-between text-sm font-bold text-indigo-800">
                   <span>
-                    {recettesFigees ? "Prix annoncé / élève" : "Prix par élève définitif"}
+                    Prix par élève définitif
                     <span className="block text-[10px] font-normal text-slate-500 normal-case">
-                      {recettesFigees
-                        ? "Figé — ne plus augmenter après annonce aux parents"
-                        : "(Total dépenses + marge − subventions) ÷ nb élèves"}
+                      (Budget prévisionnel − subventions) ÷ nb élèves
                     </span>
                   </span>
-                  <span className="font-mono">
-                    {recettesFigees
-                      ? sheet.prixParEleveAnnonce != null
-                        ? `${formatEuroDisplay(sheet.prixParEleveAnnonce)} €`
-                        : "—"
-                      : derived.prixParEleveAvecSubventions != null
-                        ? `${formatEuroDisplay(derived.prixParEleveAvecSubventions)} €`
-                        : "#DIV/0!"}
+                  <span className="font-mono whitespace-nowrap">
+                    {derived.prixParEleveAvecSubventions != null
+                      ? `${formatEuroWhole(derived.prixParEleveAvecSubventions)} €`
+                      : sheet.nbEleves
+                        ? "#DIV/0!"
+                        : "—"}
                   </span>
                 </div>
               </div>
 
-              <div className="px-4 py-3 border-b border-violet-100 bg-violet-50/40 space-y-3">
+              {lignesDepensesInfo.length > 0 ? (
+                <>
+                  <div className="bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-500 border-b border-slate-100">
+                    Détail des dépenses
+                    <span className="ml-2 font-normal normal-case text-slate-400">(lecture seule)</span>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
+                        <th className="p-3 font-bold">Libellé</th>
+                        <th className="p-3 font-bold w-36 text-right">Montant</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesDepensesInfo.map((line, i) => (
+                        <tr key={i} className="border-b border-slate-50 text-slate-600">
+                          <td className="p-3">{line.label.trim() || "—"}</td>
+                          <td className="p-3 font-mono text-right whitespace-nowrap">
+                            {line.amount != null ? `${formatEuroDisplay(line.amount)} €` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              ) : null}
+            </section>
+
+            <section className="rounded-xl border border-violet-200 overflow-hidden bg-violet-50/30">
+              <div className="px-4 py-3 border-b border-violet-100 space-y-3">
                 <label className={`flex items-start gap-2 ${readOnly ? "" : "cursor-pointer"}`}>
                   <input
                     type="checkbox"
@@ -586,12 +983,11 @@ export default function TravelsComptaSheetForm({
                       <span className="text-[10px] font-black uppercase tracking-widest text-violet-700">
                         Prix annoncé / élève
                       </span>
-                      {euroInput(
-                        sheet.prixParEleveAnnonce,
-                        (v) => patch({ recettesElevesFigees: true, prixParEleveAnnonce: v }),
-                        "",
-                        readOnly,
-                      )}
+                      <EuroAmountInput
+                        value={sheet.prixParEleveAnnonce}
+                        onChange={(v) => patch({ recettesElevesFigees: true, prixParEleveAnnonce: v })}
+                        readOnly={readOnly}
+                      />
                     </label>
                     <label className="space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-widest text-violet-700">
@@ -604,7 +1000,8 @@ export default function TravelsComptaSheetForm({
                         onChange={(e) =>
                           patch({
                             recettesElevesFigees: true,
-                            nbElevesFactures: parseEuroAmount(e.target.value),
+                            nbElevesFactures:
+                              e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))),
                           })
                         }
                         readOnly={readOnly}
@@ -628,166 +1025,6 @@ export default function TravelsComptaSheetForm({
                     </div>
                   </div>
                 ) : null}
-              </div>
-
-              <div className="bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-500 border-b border-slate-100">
-                Facturation / recettes élèves
-                <span className="ml-2 font-normal normal-case text-slate-400">
-                  (reprise des dépenses — lecture seule)
-                </span>
-              </div>
-
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                    <th className="p-3 font-bold">Libellé</th>
-                    <th className="p-3 font-bold w-32 text-right">Montant</th>
-                    <th className="p-3 font-bold w-40">Date facturation</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lignesDepensesInfo.length > 0 ? (
-                    lignesDepensesInfo.map((line, i) => (
-                      <tr key={i} className="border-b border-slate-50 text-slate-600">
-                        <td className="p-3">{line.label.trim() || "—"}</td>
-                        <td className="p-3 font-mono text-right">
-                          {line.amount != null ? `${formatEuroDisplay(line.amount)} €` : "—"}
-                        </td>
-                        <td className="p-3">
-                          {i === 0 ? (
-                            <input
-                              type="date"
-                              value={sheet.facturations[0]?.dateFacturation ?? ""}
-                              onChange={(e) => updateFacturationDate(e.target.value)}
-                              readOnly={readOnly}
-                              disabled={readOnly}
-                              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-50"
-                            />
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr className="border-b border-slate-50 text-slate-400">
-                      <td className="p-3 italic" colSpan={3}>
-                        Aucune dépense renseignée
-                      </td>
-                    </tr>
-                  )}
-
-                  <tr className="border-b border-slate-200 bg-slate-50 font-bold">
-                    <td className="p-3 text-slate-800">Total dépenses</td>
-                    <td className="p-3 font-mono text-right text-slate-900">
-                      {derived.depensesTotal != null ? `${formatEuroDisplay(derived.depensesTotal)} €` : "—"}
-                    </td>
-                    <td className="p-3" />
-                  </tr>
-
-                  {afficheMarge ? (
-                    <tr className="border-b border-amber-100 bg-amber-50/40">
-                      <td className="p-3 align-top" colSpan={2}>
-                        <p className="text-xs font-black uppercase tracking-widest text-amber-800 mb-2">
-                          Marge de sécurité
-                          {recettesFigees ? (
-                            <span className="ml-2 font-normal normal-case text-amber-700/80">
-                              (figée à l&apos;annonce aux parents)
-                            </span>
-                          ) : null}
-                        </p>
-                        {!recettesFigees ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {COMPTA_MARGE_PRESETS.map((opt) => {
-                              const suggested = suggestComptaMargeFromPreset(derived.depensesTotal, opt.percent);
-                              const active = margeMatchesPreset(
-                                sheet.margeSecuriteEuro,
-                                derived.depensesTotal,
-                                opt.percent,
-                              );
-                              return (
-                                <button
-                                  key={opt.id}
-                                  type="button"
-                                  onClick={() => applyMargePreset(opt.id)}
-                                  disabled={readOnly}
-                                  title={
-                                    suggested != null && derived.depensesTotal
-                                      ? `${formatEuroDisplay(suggested)} €`
-                                      : undefined
-                                  }
-                                  className={`rounded-lg border px-2 py-1 text-[11px] font-bold transition-colors ${
-                                    active
-                                      ? "border-amber-500 bg-amber-100 text-amber-900"
-                                      : "border-amber-200 bg-white text-amber-800 hover:bg-amber-50"
-                                  }`}
-                                >
-                                  {opt.percent === 0 ? "0 %" : `+${opt.percent} %`}
-                                  <span className="block font-normal normal-case text-[10px] opacity-80 leading-tight">
-                                    {opt.label}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-amber-900">
-                            Montant prévu avant l&apos;annonce aux familles.
-                          </p>
-                        )}
-                      </td>
-                      <td className="p-3 align-top">
-                        <p className="text-[10px] font-bold text-slate-500 mb-1">Montant en €</p>
-                        {recettesFigees ? (
-                          <div className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-sm font-mono text-right text-amber-950">
-                            {derived.margeRisqueMontant != null
-                              ? `${formatEuroDisplay(derived.margeRisqueMontant)} €`
-                              : "—"}
-                          </div>
-                        ) : (
-                          euroInput(
-                            sheet.margeSecuriteEuro,
-                            (v) => patch({ margeSecuriteEuro: v }),
-                            "bg-white",
-                            readOnly,
-                          )
-                        )}
-                      </td>
-                    </tr>
-                  ) : null}
-
-                  <tr className="bg-indigo-50/60 font-bold">
-                    <td className="p-3 text-indigo-900">
-                      Objectif de facturation
-                      <span className="block text-[10px] font-normal text-indigo-700/70 normal-case">
-                        {recettesFigees
-                          ? afficheMarge
-                            ? "Dépenses + marge figée (référence pour le déficit)"
-                            : "Total dépenses (prix déjà annoncé sans marge)"
-                          : "Dépenses + marge (avant annonce aux parents)"}
-                      </span>
-                    </td>
-                    <td className="p-3 font-mono text-right text-indigo-900">
-                      {derived.montantCibleFacturation != null
-                        ? `${formatEuroDisplay(derived.montantCibleFacturation)} €`
-                        : "—"}
-                    </td>
-                    <td className="p-3" />
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 border-t border-slate-100">
-                <label className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    APEL — aides collectives
-                  </span>
-                  {euroInput(sheet.apelAidesCollectives, (v) => patch({ apelAidesCollectives: v }), "", readOnly)}
-                </label>
-                <label className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Autres subventions
-                  </span>
-                  {euroInput(sheet.autresSubventions, (v) => patch({ autresSubventions: v }), "", readOnly)}
-                </label>
               </div>
             </section>
 
@@ -818,7 +1055,13 @@ export default function TravelsComptaSheetForm({
                           placeholder="Nom Prénom"
                         />
                       </td>
-                      <td className="p-2">{euroInput(row.amount, (v) => updateAide(index, "amount", v), "", readOnly)}</td>
+                      <td className="p-2">
+                        <EuroAmountInput
+                          value={row.amount}
+                          onChange={(v) => updateAide(index, "amount", v)}
+                          readOnly={readOnly}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -885,7 +1128,7 @@ export default function TravelsComptaSheetForm({
                     <p className="text-xs text-slate-500">Prix par élève définitif</p>
                     <p className="font-mono font-black text-lg text-slate-900">
                       {derived.prixParEleveAvecSubventions != null
-                        ? `${formatEuroDisplay(derived.prixParEleveAvecSubventions)} €`
+                        ? `${formatEuroWhole(derived.prixParEleveAvecSubventions)} €`
                         : "—"}
                     </p>
                   </div>
@@ -905,6 +1148,26 @@ export default function TravelsComptaSheetForm({
                 )}
               </section>
             )}
+
+            <p className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => setApelSummaryOpen(true)}
+                className="text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 decoration-slate-300"
+              >
+                Total général à facturer à l&apos;APEL
+              </button>
+            </p>
+
+            <TravelsComptaApelSummaryModal
+              tripId={tripId}
+              open={apelSummaryOpen}
+              onClose={() => setApelSummaryOpen(false)}
+              summary={apelSummary}
+              loading={apelSummaryLoading}
+              onRefresh={loadApelSummary}
+              currentSheet={derived}
+            />
           </>
         )}
       </div>

@@ -20,6 +20,7 @@ import {
   resolveBusQuoteAmountFromTrip,
   resolveSignedBusQuoteAmount,
   resolveFacturationsFromSheet,
+  resolveComptaRecettesLignes,
   type TravelsComptaDocumentScan,
   type TravelsComptaExpenseLine,
   type TravelsComptaIndividualAid,
@@ -714,6 +715,16 @@ export async function extractComptaSheetWithAi(
       montant: parseEuroAmount(fact.montant) ?? facturations[0]?.montant,
     };
 
+    const recettesLignes = [...resolveComptaRecettesLignes(baseSheet)];
+    const apelAi = parseEuroAmount(parsed.apel_aides_collectives);
+    const autresAi = parseEuroAmount(parsed.autres_subventions);
+    if (isUsableComptaAmount(apelAi)) {
+      recettesLignes[0] = { label: "APEL", amount: apelAi };
+    }
+    if (isUsableComptaAmount(autresAi)) {
+      recettesLignes.push({ label: "Autres subventions", amount: autresAi });
+    }
+
     const sheet: TravelsComptaSheet = {
       ...baseSheet,
       compte: String(parsed.compte ?? baseSheet.compte ?? "").trim(),
@@ -723,8 +734,7 @@ export async function extractComptaSheetWithAi(
       accompagnateurs: String(parsed.accompagnateurs ?? baseSheet.accompagnateurs ?? "").trim(),
       depenses,
       nbEleves: parseEuroAmount(parsed.nb_eleves) ?? baseSheet.nbEleves,
-      apelAidesCollectives: parseEuroAmount(parsed.apel_aides_collectives) ?? baseSheet.apelAidesCollectives,
-      autresSubventions: parseEuroAmount(parsed.autres_subventions) ?? baseSheet.autresSubventions,
+      recettesLignes,
       aidesIndividuelles,
       facturations,
       analyzedAt: new Date().toISOString(),

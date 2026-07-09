@@ -7,6 +7,7 @@ import {
   getSchoolLetterhead,
   loadSchoolLogoForPdf,
 } from "@/app/lib/pdf-branding";
+import { pdfFormatDateFr, pdfFormatDateFrLong, pdfFormatEuroAmount, pdfFormatWholeEuro } from "@/app/lib/pdf-format-numbers";
 import {
   comptaAfficheMargeSecurite,
   computeComptaSheetDerived,
@@ -21,14 +22,78 @@ export type ComptaSheetPdfInput = {
   sheet: TravelsComptaSheet;
 };
 
+const PDF_ML = 14;
+const PDF_MR = 14;
+const PDF_AMOUNT_COL_W = 42;
+
+function pdfTableWidth(doc: jsPDF): number {
+  return doc.internal.pageSize.getWidth() - PDF_ML - PDF_MR;
+}
+
+function pdfGridColumnStyles(doc: jsPDF) {
+  const tableWidth = pdfTableWidth(doc);
+  return {
+    0: { cellWidth: tableWidth - PDF_AMOUNT_COL_W },
+    1: { halign: "right" as const, cellWidth: PDF_AMOUNT_COL_W },
+  };
+}
+
+type PdfGridTableOpts = {
+  doc: jsPDF;
+  startY: number;
+  head: [string, string][];
+  body: string[][];
+  headFillColor: [number, number, number];
+  headTextColor: number | [number, number, number];
+  boldRowIndices?: number[];
+  boldFillColor?: [number, number, number];
+};
+
+function drawComptaGridTable({
+  doc,
+  startY,
+  head,
+  body,
+  headFillColor,
+  headTextColor,
+  boldRowIndices = [],
+  boldFillColor = [238, 242, 255],
+}: PdfGridTableOpts): void {
+  autoTable(doc, {
+    startY,
+    head,
+    body,
+    theme: "grid",
+    margin: { left: PDF_ML, right: PDF_MR },
+    tableWidth: pdfTableWidth(doc),
+    headStyles: {
+      fillColor: headFillColor,
+      textColor: headTextColor,
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    columnStyles: pdfGridColumnStyles(doc),
+    bodyStyles: { fontSize: 8.5 },
+    styles: { cellPadding: 3, overflow: "linebreak" },
+    didParseCell: (data) => {
+      if (data.section === "body" && boldRowIndices.includes(data.row.index)) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = boldFillColor;
+      }
+    },
+  });
+}
+
+function pdfLastTableY(doc: jsPDF): number {
+  return (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+}
+
 function euro(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
+  return pdfFormatEuroAmount(n);
 }
 
 function euroPlain(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} €`;
+  return pdfFormatEuroAmount(n);
 }
 
 export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Promise<string> {
@@ -37,13 +102,9 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
 
   const doc = new jsPDF({ compress: true });
   const W = doc.internal.pageSize.getWidth();
-  const ML = 14;
-  const MR = W - 14;
-  const dateStr = new Date().toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const ML = PDF_ML;
+  const MR = W - PDF_MR;
+  const dateStr = pdfFormatDateFrLong();
 
   drawPdfLetterhead(doc, letterhead, logo, [79, 70, 229]);
   doc.setFont("helvetica", "bold");
@@ -83,147 +144,142 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
     .filter((d) => d.label || d.amount != null)
     .map((d) => [d.label || "—", euroPlain(d.amount)]);
   if (depenseBody.length === 0) depenseBody.push(["—", "—"]);
+  const totalDepensesRowIndex = depenseBody.length;
   depenseBody.push(["Total dépenses", euroPlain(sheet.depensesTotal)]);
+  depenseBody.push(["Nb élèves (joindre une liste)", sheet.nbEleves != null ? String(sheet.nbEleves) : "—"]);
+  depenseBody.push(["Coût par élève (total dépenses ÷ nb élèves)", euroPlain(sheet.prixParEleve)]);
 
-  autoTable(doc, {
+  drawComptaGridTable({
+    doc,
     startY: y,
     head: [["Dépenses", "Montant"]],
     body: depenseBody,
-    theme: "grid",
-    headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: "bold", fontSize: 9 },
-    columnStyles: { 0: { cellWidth: 120 }, 1: { halign: "right", cellWidth: 40 } },
-    bodyStyles: { fontSize: 8.5 },
-    styles: { cellPadding: 3 },
-    didParseCell: (data) => {
-      if (data.section === "body" && data.row.index === depenseBody.length - 1) {
-        data.cell.styles.fontStyle = "bold";
-        data.cell.styles.fillColor = [238, 242, 255];
-      }
-    },
+    headFillColor: [79, 70, 229],
+    headTextColor: 255,
+    boldRowIndices: [totalDepensesRowIndex],
   });
 
-  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  y = pdfLastTableY(doc) + 8;
 
-  autoTable(doc, {
-    startY: y,
-    head: [["Synthèse dépenses", ""]],
-    body: [
-      ["Nb élèves (joindre une liste)", sheet.nbEleves != null ? String(sheet.nbEleves) : "—"],
-      ["Prix par élève (total dépenses ÷ nb élèves)", euroPlain(sheet.prixParEleve)],
-    ],
-    theme: "plain",
-    headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 9 },
-    columnStyles: { 0: { cellWidth: 100 }, 1: { halign: "right" } },
-    bodyStyles: { fontSize: 8.5 },
-    styles: { cellPadding: 2.5 },
-  });
-
-  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-
-  autoTable(doc, {
-    startY: y,
-    head: [["Recettes", ""]],
-    body: [
-      ["Total recettes + subventions (hors aides individuelles)", euroPlain(sheet.totalRecettes)],
-      ["Recettes élèves", euroPlain(sheet.recettesEleves)],
-      ...(sheet.recettesElevesFigees
-        ? [
-            ["Prix annoncé / élève", euroPlain(sheet.prixParEleveAnnonce)],
-            ["Nb élèves facturés", sheet.nbElevesFactures != null ? String(sheet.nbElevesFactures) : "—"],
-            ["Objectif de facturation", euroPlain(sheet.montantCibleFacturation)],
-          ]
-        : []),
-      ...(sheet.totalSubventions != null && sheet.totalSubventions > 0
-        ? [["Subventions (APEL + autres)", euroPlain(sheet.totalSubventions)]]
-        : []),
-      ["Total dépenses", euroPlain(sheet.depensesTotal)],
-      ...(sheet.prixFactureBus != null
-        ? [["Prix facture (devis bus)", euroPlain(sheet.prixFactureBus)]]
-        : []),
-      ...(sheet.autresDepensesHorsBus != null && sheet.autresDepensesHorsBus > 0
-        ? [["Autres dépenses", euroPlain(sheet.autresDepensesHorsBus)]]
-        : []),
-      ...(comptaAfficheMargeSecurite(sheet)
-        ? [["Marge de sécurité", euroPlain(sheet.margeRisqueMontant)]]
-        : []),
-      [
-        comptaAfficheMargeSecurite(sheet)
-          ? "Objectif de facturation (dépenses + marge)"
-          : "Objectif de facturation (dépenses)",
-        euroPlain(sheet.montantCibleFacturation),
-      ],
-      ...(sheet.prixParEleveAvantMargeRisque != null
-        ? [["Prix / élève avant marge", euroPlain(sheet.prixParEleveAvantMargeRisque)]]
-        : []),
-      [
-        "Prix par élève définitif",
-        euroPlain(sheet.prixParEleveAvecSubventions),
-      ],
-    ],
-    theme: "plain",
-    headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 9 },
-    columnStyles: { 0: { cellWidth: 100 }, 1: { halign: "right" } },
-    bodyStyles: { fontSize: 8.5 },
-    styles: { cellPadding: 2.5 },
-  });
-
-  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-
-  const facturationRows: [string, string][] = [];
-  const f = resolveFacturationsFromSheet(sheet)[0];
-  if (f?.dateFacturation) {
-    facturationRows.push([
-      "Date de facturation",
-      new Date(f.dateFacturation).toLocaleDateString("fr-FR"),
+  if (comptaAfficheMargeSecurite(sheet)) {
+    const margeBody: string[][] = [
+      ["Nb élèves (rappel)", sheet.nbEleves != null ? String(sheet.nbEleves) : "—"],
+      ["Total dépenses (rappel)", euroPlain(sheet.depensesTotal)],
+      ["Marge de sécurité", euroPlain(sheet.margeRisqueMontant)],
+    ];
+    const budgetPrevisionnelRowIndex = margeBody.length;
+    margeBody.push(["Budget prévisionnel total", euroPlain(sheet.montantCibleFacturation)]);
+    margeBody.push([
+      "Coût prévisionnel par élève (arrondi à l'entier supérieur)",
+      sheet.coutPrevisionnelParEleve != null
+        ? pdfFormatWholeEuro(sheet.coutPrevisionnelParEleve)
+        : "—",
     ]);
+
+    drawComptaGridTable({
+      doc,
+      startY: y,
+      head: [["Marge de sécurité", "Montant"]],
+      body: margeBody,
+      headFillColor: [255, 251, 235],
+      headTextColor: [146, 64, 14],
+      boldRowIndices: [budgetPrevisionnelRowIndex, budgetPrevisionnelRowIndex + 1],
+      boldFillColor: [255, 251, 235],
+    });
+    y = pdfLastTableY(doc) + 8;
   }
 
-  if (facturationRows.length === 0) facturationRows.push(["—", "—"]);
+  const f = resolveFacturationsFromSheet(sheet)[0];
+  const dateFacturationLabel = f?.dateFacturation ? pdfFormatDateFr(f.dateFacturation) : "—";
 
-  autoTable(doc, {
+  const recettesLignesRows = (sheet.recettesLignes ?? [])
+    .filter((r) => r.label.trim() || r.amount != null)
+    .map((r) => [r.label.trim() || "—", euroPlain(r.amount)]);
+
+  const recettesBody: string[][] = [...recettesLignesRows];
+  if (recettesLignesRows.length === 0) recettesBody.push(["—", "—"]);
+  if (sheet.totalSubventions != null && sheet.totalSubventions > 0) {
+    recettesBody.push(["Total recettes complémentaires", euroPlain(sheet.totalSubventions)]);
+  }
+  recettesBody.push([
+    `Recettes élèves (facturé le ${dateFacturationLabel})`,
+    euroPlain(sheet.recettesEleves),
+  ]);
+  const totalRecettesRowIndex = recettesBody.length;
+  recettesBody.push([
+    "Total recettes + subventions (hors aides individuelles)",
+    euroPlain(sheet.totalRecettes),
+  ]);
+  recettesBody.push([
+    "Prix par élève définitif (arrondi à l'entier supérieur)",
+    pdfFormatWholeEuro(sheet.prixParEleveAvecSubventions),
+  ]);
+
+  drawComptaGridTable({
+    doc,
     startY: y,
-    head: [["Facturation", ""]],
-    body: facturationRows,
-    theme: "plain",
-    headStyles: { fillColor: [241, 245, 249], textColor: [51, 65, 85], fontStyle: "bold", fontSize: 9 },
-    columnStyles: { 0: { cellWidth: 100 }, 1: { halign: "right" } },
-    bodyStyles: { fontSize: 8.5 },
-    styles: { cellPadding: 2.5 },
+    head: [["Recettes", "Montant"]],
+    body: recettesBody,
+    headFillColor: [79, 70, 229],
+    headTextColor: 255,
+    boldRowIndices: [totalRecettesRowIndex, totalRecettesRowIndex + 1],
+    boldFillColor: [238, 242, 255],
   });
 
-  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  y = pdfLastTableY(doc) + 8;
+
+  const depenseDetailRows = sheet.depenses
+    .filter((d) => d.label || d.amount != null)
+    .map((d) => [d.label || "—", euroPlain(d.amount)]);
+  if (depenseDetailRows.length > 0) {
+    drawComptaGridTable({
+      doc,
+      startY: y,
+      head: [["Détail des dépenses (lecture seule)", "Montant"]],
+      body: depenseDetailRows,
+      headFillColor: [241, 245, 249],
+      headTextColor: [51, 65, 85],
+    });
+    y = pdfLastTableY(doc) + 8;
+  }
+
+  if (sheet.recettesElevesFigees) {
+    drawComptaGridTable({
+      doc,
+      startY: y,
+      head: [["Prix déjà annoncé aux parents", "Montant"]],
+      body: [
+        ["Prix annoncé / élève", euroPlain(sheet.prixParEleveAnnonce)],
+        ["Nb élèves facturés", sheet.nbElevesFactures != null ? String(sheet.nbElevesFactures) : "—"],
+      ],
+      headFillColor: [245, 243, 255],
+      headTextColor: [91, 33, 182],
+    });
+    y = pdfLastTableY(doc) + 8;
+  }
 
   const aideRows = sheet.aidesIndividuelles
-    .filter((a) => a.name || a.amount != null)
-    .map((a) => [a.name || "—", euroPlain(a.amount)]);
-  while (aideRows.length < 2) aideRows.push(["", "—"]);
+    .filter((a) => a.name?.trim() || (a.amount != null && a.amount !== 0))
+    .map((a) => [a.name?.trim() || "—", euroPlain(a.amount)]);
 
-  autoTable(doc, {
-    startY: y,
-    head: [["Subventions", "Montant"]],
-    body: [
-      ["APEL — aides collectives", euroPlain(sheet.apelAidesCollectives)],
-      ["Autres subventions", euroPlain(sheet.autresSubventions)],
-      ...aideRows.map(([name, amt], i) => [
-        i === 0 ? "APEL — aide individuelle" : "APEL — aide individuelle (suite)",
-        name ? `${name} : ${amt}` : amt,
-      ]),
-      ["Total aides individuelles (informatif)", euroPlain(sheet.totalAidesIndividuelles)],
-    ],
-    theme: "grid",
-    headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: "bold", fontSize: 9 },
-    columnStyles: { 0: { cellWidth: 120 }, 1: { halign: "right" } },
-    bodyStyles: { fontSize: 8.5 },
-    styles: { cellPadding: 3 },
-    didParseCell: (data) => {
-      if (data.section === "body" && data.row.index === 2 + aideRows.length) {
-        data.cell.styles.fontStyle = "bold";
-        data.cell.styles.fillColor = [248, 250, 252];
-      }
-    },
-  });
-
-  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  if (aideRows.length > 0) {
+    drawComptaGridTable({
+      doc,
+      startY: y,
+      head: [["APEL — aides individuelles", "Montant"]],
+      body: [
+        ...aideRows,
+        ["Total aides individuelles (informatif)", euroPlain(sheet.totalAidesIndividuelles)],
+      ],
+      headFillColor: [79, 70, 229],
+      headTextColor: 255,
+      boldRowIndices: [aideRows.length],
+      boldFillColor: [248, 250, 252],
+    });
+    y = pdfLastTableY(doc) + 10;
+  } else {
+    y += 2;
+  }
   const deficit = sheet.excedentOuDeficit;
   const positive = deficit != null && deficit >= 0;
   const negative = deficit != null && deficit < 0;
@@ -240,7 +296,7 @@ export async function buildComptaSheetPdfBase64(input: ComptaSheetPdfInput): Pro
     negative ? 28 : positive ? 95 : 85,
     negative ? 28 : positive ? 70 : 105,
   );
-  doc.text("Excédent ou déficit (recettes − dépenses)", ML + 4, y + 8);
+  doc.text("Excédent ou déficit", ML + 4, y + 8);
   doc.text(euro(deficit), MR - 4, y + 8, { align: "right" });
 
   doc.setFont("helvetica", "normal");

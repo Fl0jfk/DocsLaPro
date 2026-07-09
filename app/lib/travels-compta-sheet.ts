@@ -6,6 +6,11 @@ export type TravelsComptaExpenseLine = {
   source?: string | null;
 };
 
+export type TravelsComptaRecetteLine = {
+  label: string;
+  amount: number | null;
+};
+
 export type TravelsComptaIndividualAid = {
   name: string;
   amount: number | null;
@@ -206,8 +211,12 @@ export type TravelsComptaSheet = {
   depenses: TravelsComptaExpenseLine[];
   nbEleves: number | null;
   prixParEleve: number | null;
-  apelAidesCollectives: number | null;
-  autresSubventions: number | null;
+  /** Lignes de recettes complémentaires (subventions, APEL, etc.). */
+  recettesLignes: TravelsComptaRecetteLine[];
+  /** @deprecated Migré vers `recettesLignes`. */
+  apelAidesCollectives?: number | null;
+  /** @deprecated Migré vers `recettesLignes`. */
+  autresSubventions?: number | null;
   aidesIndividuelles: TravelsComptaIndividualAid[];
   facturations: TravelsComptaFacturation[];
   /** @deprecated Premier élément de `facturations` — conservé pour rétrocompat. */
@@ -238,6 +247,8 @@ export type TravelsComptaSheet = {
   autresDepensesHorsBus: number | null;
   prixParEleveAvantMargeRisque: number | null;
   prixParEleveAvecSubventions: number | null;
+  /** Coût prévisionnel par élève (budget prévisionnel ÷ nb), arrondi à l'entier supérieur. */
+  coutPrevisionnelParEleve: number | null;
   excedentOuDeficit: number | null;
   analyzedAt?: string | null;
   analysisNotes?: string | null;
@@ -335,6 +346,73 @@ export function formatEuroDisplay(n: number | null | undefined): string {
   return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
+/** Montant par élève arrondi à l'entier supérieur (tarification familles). */
+export function perStudentEuroCeil(total: number | null | undefined, nb: number): number | null {
+  if (nb <= 0 || total == null) return null;
+  return Math.ceil(Math.max(0, total) / nb);
+}
+
+export function perStudentEuroCeilAdjusted(total: number | null | undefined, nb: number): boolean {
+  if (nb <= 0 || total == null) return false;
+  const raw = Math.max(0, total) / nb;
+  return raw !== Math.ceil(raw);
+}
+
+export function formatEuroWhole(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "";
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n);
+}
+
+export const COMPTA_APEL_RECETTE_LABEL = "APEL";
+
+export function isBlankRecetteLine(line: TravelsComptaRecetteLine): boolean {
+  return !line.label.trim() && line.amount == null;
+}
+
+export function isApelRecetteLineIndex(index: number): boolean {
+  return index === 0;
+}
+
+export function normalizeComptaRecettesLignes(
+  sheet: Pick<TravelsComptaSheet, "recettesLignes" | "apelAidesCollectives" | "autresSubventions">,
+): TravelsComptaRecetteLine[] {
+  const raw = Array.isArray(sheet.recettesLignes) ? [...sheet.recettesLignes] : [];
+  let apelAmount: number | null = null;
+  const additional: TravelsComptaRecetteLine[] = [];
+
+  if (raw.length === 0) {
+    if (isUsableComptaAmount(sheet.apelAidesCollectives)) {
+      apelAmount = sheet.apelAidesCollectives!;
+    }
+    if (isUsableComptaAmount(sheet.autresSubventions)) {
+      additional.push({ label: "Autres subventions", amount: sheet.autresSubventions! });
+    }
+  } else {
+    for (const line of raw) {
+      if (/^apel\b/i.test(line.label.trim()) && apelAmount == null) {
+        apelAmount = line.amount;
+      } else {
+        additional.push(line);
+      }
+    }
+  }
+
+  return [{ label: COMPTA_APEL_RECETTE_LABEL, amount: apelAmount }, ...additional];
+}
+
+export function withoutBlankRecettesLignes(lines: TravelsComptaRecetteLine[]): TravelsComptaRecetteLine[] {
+  const normalized = normalizeComptaRecettesLignes({ recettesLignes: lines });
+  const [apel, ...rest] = normalized;
+  return [apel, ...rest.filter((line) => !isBlankRecetteLine(line))];
+}
+
+/** @deprecated Utiliser normalizeComptaRecettesLignes */
+export function resolveComptaRecettesLignes(
+  sheet: Pick<TravelsComptaSheet, "recettesLignes" | "apelAidesCollectives" | "autresSubventions">,
+): TravelsComptaRecetteLine[] {
+  return normalizeComptaRecettesLignes(sheet);
+}
+
 export function emptyComptaSheet(): TravelsComptaSheet {
   return {
     compte: "",
@@ -348,8 +426,7 @@ export function emptyComptaSheet(): TravelsComptaSheet {
     ],
     nbEleves: null,
     prixParEleve: null,
-    apelAidesCollectives: null,
-    autresSubventions: null,
+    recettesLignes: [{ label: COMPTA_APEL_RECETTE_LABEL, amount: null }],
     aidesIndividuelles: [{ name: "", amount: null }],
     facturations: [emptyComptaFacturation()],
     margeSecuriteEuro: null,
@@ -369,6 +446,7 @@ export function emptyComptaSheet(): TravelsComptaSheet {
     autresDepensesHorsBus: null,
     prixParEleveAvantMargeRisque: null,
     prixParEleveAvecSubventions: null,
+    coutPrevisionnelParEleve: null,
     excedentOuDeficit: null,
   };
 }
@@ -414,6 +492,7 @@ export function computeComptaSheetDerived(
   trip?: Pick<TravelsTrip, "type" | "data"> | null,
 ): TravelsComptaSheet {
   const depenses = sheet.depenses ?? [];
+  const recettesLignes = normalizeComptaRecettesLignes(sheet);
   const depensesTotal = depenses.reduce((sum, line) => sum + (line?.amount ?? 0), 0);
   const nb = sheet.nbEleves ?? 0;
   const depensesTotalRounded =
@@ -442,6 +521,7 @@ export function computeComptaSheetDerived(
       : null;
 
   const montantCibleFacturation = depensesAvecMargeRisque;
+  const coutPrevisionnelParEleve = perStudentEuroCeil(montantCibleFacturation, nb);
   const nbFactures = sheet.nbElevesFactures ?? (nb > 0 ? nb : null);
 
   let recettesEleves: number | null;
@@ -454,8 +534,7 @@ export function computeComptaSheetDerived(
   const facturations = buildComptaFacturation(sheet, busAmount, montantCibleFacturation);
 
   const totalAidesIndividuelles = sheet.aidesIndividuelles.reduce((sum, a) => sum + (a.amount ?? 0), 0);
-  const totalSubventions =
-    (sheet.apelAidesCollectives ?? 0) + (sheet.autresSubventions ?? 0);
+  const totalSubventions = recettesLignes.reduce((sum, line) => sum + (line?.amount ?? 0), 0);
 
   const recettesSum = (recettesEleves ?? 0) + totalSubventions;
   const totalRecettes =
@@ -470,8 +549,10 @@ export function computeComptaSheetDerived(
 
   const prixParEleveAvecSubventions =
     nb > 0 && depensesAvecMargeRisque != null
-      ? Math.round((Math.max(0, depensesAvecMargeRisque - totalSubventions) / nb) * 100) / 100
-      : prixParEleveAvantMargeRisque;
+      ? perStudentEuroCeil(Math.max(0, depensesAvecMargeRisque - totalSubventions), nb)
+      : prixParEleveAvantMargeRisque != null
+        ? Math.ceil(prixParEleveAvantMargeRisque)
+        : null;
 
   const excedentOuDeficit =
     depensesTotalRounded != null
@@ -483,6 +564,9 @@ export function computeComptaSheetDerived(
   return {
     ...sheet,
     depenses,
+    recettesLignes,
+    apelAidesCollectives: null,
+    autresSubventions: null,
     margeFigeeEuro: recettesFigees ? margeFigeeEuro : sheet.margeFigeeEuro,
     recettesElevesFigees: recettesFigees,
     prixParEleve,
@@ -505,6 +589,7 @@ export function computeComptaSheetDerived(
     autresDepensesHorsBus: autresDepensesTotal,
     prixParEleveAvantMargeRisque,
     prixParEleveAvecSubventions,
+    coutPrevisionnelParEleve,
     excedentOuDeficit,
   };
 }
