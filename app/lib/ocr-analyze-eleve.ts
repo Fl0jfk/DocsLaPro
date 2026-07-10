@@ -87,39 +87,31 @@ function closeness(a: string, b: string): number {
   return 1 - levenshtein(a, b) / maxLen;
 }
 
-const MIN_STRICT_FIELD_CLOSENESS = 0.8;
-
 /**
- * Nom ET prénom doivent correspondre (ordre normal ou inversé).
- * Un seul champ commun (ex. prénom « Taïs ») ne suffit pas.
+ * Score de similarité nom/prénom, tolérant aux fautes d'OCR.
+ * Accepte un appariement même si un seul des deux champs est exploitable.
  */
-function strictNamePairMatch(
-  aNom: string,
-  aPrenom: string,
-  bNom: string,
-  bPrenom: string,
-  minCloseness = MIN_STRICT_FIELD_CLOSENESS,
-): boolean {
+function nameSimilarity(aNom: string, aPrenom: string, bNom: string, bPrenom: string): number {
   const an = normalize(aNom);
   const ap = normalize(aPrenom);
   const bn = normalize(bNom);
   const bp = normalize(bPrenom);
-  if (!an || !ap || !bn || !bp) return false;
-  const direct = closeness(an, bn) >= minCloseness && closeness(ap, bp) >= minCloseness;
-  const swapped = closeness(an, bp) >= minCloseness && closeness(ap, bn) >= minCloseness;
-  return direct || swapped;
-}
 
-/** Score de similarité nom/prénom — 0 si la paire nom+prénom ne matche pas strictement. */
-function strictNamePairScore(aNom: string, aPrenom: string, bNom: string, bPrenom: string): number {
-  if (!strictNamePairMatch(aNom, aPrenom, bNom, bPrenom)) return 0;
-  const an = normalize(aNom);
-  const ap = normalize(aPrenom);
-  const bn = normalize(bNom);
-  const bp = normalize(bPrenom);
-  const direct = closeness(an, bn) + closeness(ap, bp);
-  const swapped = closeness(an, bp) + closeness(ap, bn);
-  return Math.max(direct, swapped) * 2;
+  let score = 0;
+  if (an && bn) {
+    const c = closeness(an, bn);
+    if (c >= 0.8) score += 2 * c;
+  }
+  if (ap && bp) {
+    const c = closeness(ap, bp);
+    if (c >= 0.8) score += 2 * c;
+  }
+  // Inversion nom/prénom fréquente sur les bulletins.
+  if (an && bp && ap && bn) {
+    const cross = (closeness(an, bp) + closeness(ap, bn)) / 2;
+    if (cross >= 0.9) score = Math.max(score, 3.5);
+  }
+  return score;
 }
 
 export type OcrAnalyzeResult = {
@@ -361,14 +353,14 @@ export async function analyzeDocMatchEleve(
       }
     }
 
-    // 2) Nom/prénom flou : les DEUX champs doivent être extraits et correspondre.
+    // 2) Nom/prénom flou : d'abord le pool secteur, repli sur toute la liste si rien.
     let bestNameScore = 0;
-    if (!matchedEleve && hasNom && hasPrenom) {
+    if (!matchedEleve && (hasNom || hasPrenom)) {
       const scoreList = (list: typeof eleves) =>
         list
           .map((e) => ({
             eleve: e,
-            score: strictNamePairScore(nom, prénom, e.nom, e.prenom),
+            score: nameSimilarity(hasNom ? nom : "", hasPrenom ? prénom : "", e.nom, e.prenom),
           }))
           .filter((s) => s.score > 0)
           .sort((a, b) => b.score - a.score);
@@ -377,16 +369,16 @@ export async function analyzeDocMatchEleve(
         scored = scoreList(allEleves).slice(0, 5);
       }
       bestNameScore = scored[0]?.score ?? 0;
-      ocrTraceCtx(trace, "classify", "match-name-shortlist", "shortlist nom+prénom (strict)", {
+      ocrTraceCtx(trace, "classify", "match-name-shortlist", "shortlist nom/prénom", {
         candidates: scored.map((s) => ({
           nom: s.eleve.nom,
           prenom: s.eleve.prenom,
           score: Math.round(s.score * 100) / 100,
         })),
       });
-      if (segmentMode && scored.length > 0 && scored[0].score >= 3.2) {
+      if (segmentMode && scored.length > 0 && scored[0].score >= 1.4) {
         matchedEleve = scored[0].eleve;
-        ocrTraceCtx(trace, "classify", "match-name-auto", "élève retenu par score strict (sans 2e appel Mistral)", {
+        ocrTraceCtx(trace, "classify", "match-name-auto", "élève retenu par score (sans 2e appel Mistral)", {
           score: Math.round(scored[0].score * 100) / 100,
           folderName: matchedEleve.folderName,
         });
@@ -406,7 +398,6 @@ export async function analyzeDocMatchEleve(
             Règles :
             - Analyse le texte du document.
             - Compare avec les informations de chaque élève (nom, prénom, INE si présent dans le texte).
-            - Le nom de famille ET le prénom doivent correspondre ensemble (un seul prénom commun ne suffit pas).
             - Choisis l'index de l'élève qui correspond le mieux au document.
             - Si aucun élève ne correspond de manière raisonnable, répond "0".
             Réponds UNIQUEMENT avec un JSON valide de la forme :
@@ -435,23 +426,11 @@ export async function analyzeDocMatchEleve(
             selectedIndex = 0;
           }
           if (selectedIndex > 0 && selectedIndex <= shortlist.length) {
-            const candidate = shortlist[selectedIndex - 1];
-            if (strictNamePairMatch(nom, prénom, candidate.nom, candidate.prenom)) {
-              matchedEleve = candidate;
-              ocrTraceCtx(trace, "classify", "match-name-mistral", "élève choisi par Mistral shortlist", {
-                selectedIndex,
-                folderName: matchedEleve.folderName,
-              });
-            } else {
-              ocrTraceCtx(
-                trace,
-                "classify",
-                "match-name-reject",
-                "Mistral a proposé un élève mais nom+prénom ne correspondent pas strictement",
-                { selectedIndex, candidate: candidate.folderName },
-                "warn",
-              );
-            }
+            matchedEleve = shortlist[selectedIndex - 1];
+            ocrTraceCtx(trace, "classify", "match-name-mistral", "élève choisi par Mistral shortlist", {
+              selectedIndex,
+              folderName: matchedEleve.folderName,
+            });
           } else {
             ocrTraceCtx(trace, "classify", "match-name-miss", "Mistral n'a pas choisi d'élève dans la shortlist", {
               selectedIndex,
@@ -464,29 +443,11 @@ export async function analyzeDocMatchEleve(
         }
       }
     }
-    if (
-      matchedEleve &&
-      !ineMatched &&
-      hasNom &&
-      hasPrenom &&
-      !strictNamePairMatch(nom, prénom, matchedEleve.nom, matchedEleve.prenom)
-    ) {
-      ocrTraceCtx(
-        trace,
-        "classify",
-        "match-name-reject",
-        "match rejeté : nom+prénom extraits ne correspondent pas à l'élève retenu",
-        { folderName: matchedEleve.folderName },
-        "warn",
-      );
-      matchedEleve = null;
-    }
     matchDebug = {
       ...matchDebug,
       ineProvided: Boolean(ineNorm),
       elevesWithIne,
       ineMatched,
-      bothNamesRequired: true,
       bestNameScore: Math.round(bestNameScore * 100) / 100,
       matchedBy: matchedEleve ? (ineMatched ? "ine" : "name") : null,
     };

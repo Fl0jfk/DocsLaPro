@@ -52,17 +52,6 @@ type ProcessResult = {
   fileName: string;
   /** Chemin OneDrive (ex. Temp/monfichier.pdf) si le fichier est resté dans Temp */
   tempOneDrivePath?: string;
-  /** Élève non trouvé : fichier renommé dans Temp, affectation manuelle possible */
-  manualReview?: boolean;
-};
-
-type AssignmentEleve = {
-  ine: string;
-  nom: string;
-  prenom: string;
-  folderName: string;
-  classe: string | null;
-  targetFolderPath: string;
 };
 
 const INITIAL_OCR_PROCESSING_STATUS = {
@@ -173,11 +162,6 @@ function OneDriveUpDocsOCRAIContent() {
   const [isDraggingClass, setIsDraggingClass] = useState(false);
 
   const [elevesCount, setElevesCount] = useState<number | null>(null);
-  const [assignmentEleves, setAssignmentEleves] = useState<AssignmentEleve[]>([]);
-  const [assignmentSecteurLabel, setAssignmentSecteurLabel] = useState<string | null>(null);
-  const [assignmentLoading, setAssignmentLoading] = useState(false);
-  const [assigningFileKey, setAssigningFileKey] = useState<string | null>(null);
-  const [selectedEleveFolderByFile, setSelectedEleveFolderByFile] = useState<Record<string, string>>({});
   const [syncingFolders, setSyncingFolders] = useState(false);
   const [syncReport, setSyncReport] = useState<{
     message?: string;
@@ -274,21 +258,6 @@ function OneDriveUpDocsOCRAIContent() {
     }
   }, []);
 
-  const loadAssignmentEleves = useCallback(async () => {
-    setAssignmentLoading(true);
-    try {
-      const res = await fetch("/api/agentIAOCR/assignment-eleves");
-      if (!res.ok) return;
-      const data = await res.json();
-      setAssignmentEleves(Array.isArray(data.eleves) ? data.eleves : []);
-      setAssignmentSecteurLabel(typeof data.secteurLabel === "string" ? data.secteurLabel : null);
-    } catch {
-      /* ignore */
-    } finally {
-      setAssignmentLoading(false);
-    }
-  }, []);
-
   const loadMefCounts = useCallback(async () => {
     try {
       const res = await fetch("/api/mef-secteurs");
@@ -372,11 +341,6 @@ function OneDriveUpDocsOCRAIContent() {
   useEffect(() => {
     activeBatchJobIdRef.current = activeBatchJobId;
   }, [activeBatchJobId]);
-
-  useEffect(() => {
-    if (!ocrResults.some((r) => !r.success && r.manualReview)) return;
-    void loadAssignmentEleves();
-  }, [ocrResults, loadAssignmentEleves]);
 
   const abortOcrInFlight = useCallback(() => {
     ocrAbortRef.current?.abort();
@@ -1106,7 +1070,6 @@ function OneDriveUpDocsOCRAIContent() {
     if (!token) return;
     setSyncingFolders(true);
     setSyncReport(null);
-    setElevesMessage("");
     try {
       const res = await fetch("/api/agentIAOCR/sync-folders", {
         method: "POST",
@@ -1116,9 +1079,8 @@ function OneDriveUpDocsOCRAIContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Échec synchronisation");
       setSyncReport(data);
-      setElevesMessage(data.message || "Synchronisation terminée.");
     } catch (e: unknown) {
-      setElevesMessage("Erreur : " + (e instanceof Error ? e.message : String(e)));
+      setError("Erreur synchronisation OneDrive : " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setSyncingFolders(false);
     }
@@ -1146,60 +1108,6 @@ function OneDriveUpDocsOCRAIContent() {
       if (mefInputRef.current) mefInputRef.current.value = "";
     }
   };
-
-  const assignManualToEleve = useCallback(
-    async (result: ProcessResult, targetFolderPath: string) => {
-      if (!result.tempOneDrivePath) return;
-      setAssigningFileKey(result.fileName);
-      try {
-        const token = await ensureOneDriveConnection();
-        if (!token) {
-          setError("Reconnectez OneDrive pour ranger le fichier.");
-          return;
-        }
-        const newFileName = result.result?.fileName ? `${result.result.fileName}.pdf` : undefined;
-        const res = await fetch("/api/agentIAOCR/move-file", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            accessToken: token,
-            sourcePath: result.tempOneDrivePath,
-            targetFolderPath,
-            newFileName,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || "Déplacement impossible.");
-          return;
-        }
-        const destPath = `${targetFolderPath}/${data.finalFileName}`;
-        setOcrResults((prev) =>
-          prev.map((r) =>
-            r.fileName === result.fileName
-              ? {
-                  ...r,
-                  success: true,
-                  manualReview: false,
-                  error: undefined,
-                  result: {
-                    ...r.result,
-                    oneDriveItemPath: destPath,
-                    oneDriveFinalFileName: data.finalFileName,
-                  },
-                  tempOneDrivePath: undefined,
-                }
-              : r,
-          ),
-        );
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setAssigningFileKey(null);
-      }
-    },
-    [ensureOneDriveConnection],
-  );
 
   const openOneDrivePath = useCallback(
     async (itemPath: string) => {
@@ -1352,9 +1260,6 @@ function OneDriveUpDocsOCRAIContent() {
   };
 
   const failureHint = (result: ProcessResult): string => {
-    if (result.manualReview) {
-      return "L'IA a renommé le fichier selon ce qu'elle a lu, mais aucun dossier élève ne correspond exactement (nom + prénom).";
-    }
     const err = (result.error || "").toLowerCase();
     if (err.includes("élève") || err.includes("eleve") || err.includes("identifi")) {
       return "Le nom ou prénom de l'élève n'a pas été reconnu clairement dans le document.";
@@ -1375,9 +1280,6 @@ function OneDriveUpDocsOCRAIContent() {
   const failureCategory = (
     result: ProcessResult,
   ): { label: string; technical: boolean } => {
-    if (result.manualReview) {
-      return { label: "À affecter", technical: false };
-    }
     const err = (result.error || "").toLowerCase();
     if (err.includes("élève") || err.includes("eleve") || err.includes("identifi")) {
       return { label: "Élève non trouvé", technical: false };
@@ -1405,68 +1307,6 @@ function OneDriveUpDocsOCRAIContent() {
   };
 
   const failedResults = ocrResults.filter((r) => !r.success);
-
-  const renderManualAssignControls = (result: ProcessResult, keyPrefix: string) => {
-    if (!result.manualReview || !result.tempOneDrivePath) return null;
-    const extractedNom =
-      result.result?.nom && result.result.nom !== "non_trouvé" ? String(result.result.nom) : "";
-    const extractedPrenom =
-      result.result?.prénom && result.result.prénom !== "non_trouvé" ? String(result.result.prénom) : "";
-    const selectedFolder = selectedEleveFolderByFile[result.fileName] ?? "";
-    const selectedEleve = assignmentEleves.find((e) => e.folderName === selectedFolder) ?? null;
-
-    return (
-      <div className="mt-3 p-3 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-2">
-        {result.result?.fileName ? (
-          <p className="text-sm text-slate-800">
-            Nom proposé par l&apos;IA : <strong>{result.result.fileName}.pdf</strong>
-          </p>
-        ) : null}
-        {(extractedNom || extractedPrenom) && (
-          <p className="text-xs text-slate-600">
-            Lu dans le document :{" "}
-            <strong>
-              {[extractedNom, extractedPrenom].filter(Boolean).join(" ")}
-            </strong>
-          </p>
-        )}
-        <label className="block text-xs font-bold text-slate-700" htmlFor={`${keyPrefix}-eleve`}>
-          Affecter à un élève
-          {assignmentSecteurLabel ? ` (${assignmentSecteurLabel})` : ""}
-        </label>
-        <select
-          id={`${keyPrefix}-eleve`}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-          value={selectedFolder}
-          disabled={assignmentLoading || assigningFileKey === result.fileName}
-          onChange={(e) =>
-            setSelectedEleveFolderByFile((prev) => ({ ...prev, [result.fileName]: e.target.value }))
-          }
-        >
-          <option value="">
-            {assignmentLoading ? "Chargement des élèves…" : "— Choisir un élève —"}
-          </option>
-          {assignmentEleves.map((e) => (
-            <option key={`${e.ine}-${e.folderName}`} value={e.folderName}>
-              {e.nom} {e.prenom}
-              {e.classe ? ` (${e.classe})` : ""}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          disabled={!selectedEleve || assigningFileKey === result.fileName}
-          onClick={() => {
-            if (!selectedEleve) return;
-            void assignManualToEleve(result, selectedEleve.targetFolderPath);
-          }}
-          className="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {assigningFileKey === result.fileName ? "Rangement…" : "Ranger vers cet élève"}
-        </button>
-      </div>
-    );
-  };
 
   const ProcessingSpinner = ({ size = "text-7xl" }: { size?: string }) => (
     <span
@@ -2102,11 +1942,11 @@ function OneDriveUpDocsOCRAIContent() {
                 </p>
                 <ul className="list-disc pl-5 space-y-1">
                   <li>
-                    Utilisez le sélecteur ci-dessous pour ranger le fichier vers le bon élève (liste filtrée par
-                    votre secteur) ;
+                    Ouvrez OneDrive → dossier <strong>Temp</strong> → déplacez le PDF dans le bon dossier élève ;
                   </li>
                   <li>
-                    ou ouvrez OneDrive → dossier <strong>Temp</strong> → déplacez le PDF manuellement.
+                    ou, si le document n&apos;a pas été reconnu, vérifiez qu&apos;il est lisible et que l&apos;élève
+                    figure bien dans la liste, puis redéposez-le.
                   </li>
                 </ul>
               </div>
@@ -2124,7 +1964,6 @@ function OneDriveUpDocsOCRAIContent() {
                         <span className="font-semibold">Temp / {r.tempOneDrivePath.replace(/^Temp\//, "")}</span>
                       </p>
                     )}
-                    {renderManualAssignControls(r, `fail-${index}`)}
                   </li>
                 ))}
               </ul>
@@ -2186,7 +2025,6 @@ function OneDriveUpDocsOCRAIContent() {
                               <strong>Temp</strong> ({result.tempOneDrivePath.replace(/^Temp\//, "")})
                             </p>
                           ) : null}
-                          {renderManualAssignControls(result, `journal-${index}`)}
                         </>
                       )}
                       {result.result?.oneDriveItemPath || result.tempOneDrivePath ? (

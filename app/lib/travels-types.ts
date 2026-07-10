@@ -122,6 +122,10 @@ export type TravelsTripData = {
     gmailMessageId?: string;
   };
   pendingAmendedQuote?: boolean;
+  /** Direction : passage aux finances sans devis transport signé. */
+  transportPhaseBypassedAt?: string;
+  transportPhaseBypassedBy?: string;
+  transportPhaseBypassNote?: string;
   piqueNique?: boolean;
   piqueNiqueDetails?: Record<string, unknown>;
   cuisineOrderSentAt?: string;

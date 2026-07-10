@@ -25,8 +25,6 @@ export type OcrBatchResult = {
   fileName: string;
   error?: string;
   tempOneDrivePath?: string;
-  /** Élève non trouvé : fichier renommé dans Temp, affectation manuelle possible. */
-  manualReview?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   result?: any;
 };

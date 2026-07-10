@@ -456,6 +456,29 @@ export default function TripDetails() {
     if (!saved) alert("Impossible d'enregistrer la modification. Réessayez.");
   };
 
+  const skipTransportToCompta = async () => {
+    if (!canSign || !complexNeedsBus(trip)) return;
+    if (trip.status !== "PROF_LOGISTICS" && trip.status !== "EN_ATTENTE_BUS_SIGNATURE") return;
+    const note =
+      prompt(
+        "Motif du passage aux finances sans devis transport signé (obligatoire) :",
+      )?.trim() ?? "";
+    if (!note) return;
+    if (
+      !confirm(
+        "Passer ce dossier à l'étape Finances (comptabilité) sans devis bus signé ?\n\nLa comptabilité pourra saisir le montant transport manuellement si besoin.",
+      )
+    ) {
+      return;
+    }
+    await handleAction("EN_ATTENTE_COMPTA", `Passage aux finances sans devis signé — ${note}`, {
+      pendingAmendedQuote: false,
+      transportPhaseBypassedAt: new Date().toISOString(),
+      transportPhaseBypassedBy: user?.fullName || "Direction",
+      transportPhaseBypassNote: note,
+    });
+  };
+
   const onComptaSheetSaved = useCallback((sheet: TravelsComptaSheet) => {
     setTrip((prev) =>
       prev
@@ -1427,6 +1450,39 @@ export default function TripDetails() {
             ) : undefined
           }
         >
+          {trip.data.transportPhaseBypassedAt && (
+            <TripAlert tone="info" title="Étape transport contournée" icon="ℹ️">
+              <p className="text-xs leading-relaxed">
+                La direction a validé le passage aux finances sans devis bus signé
+                {trip.data.transportPhaseBypassedBy ? ` (${trip.data.transportPhaseBypassedBy})` : ""}.
+                {trip.data.transportPhaseBypassNote ? (
+                  <>
+                    <br />
+                    <span className="italic">{trip.data.transportPhaseBypassNote}</span>
+                  </>
+                ) : null}
+              </p>
+            </TripAlert>
+          )}
+          {trip.data.pendingAmendedQuote && trip.status === "PROF_LOGISTICS" && (
+            <TripAlert tone="warning" title="Devis rectifié en attente" icon="⏳">
+              <p className="text-xs leading-relaxed">
+                Une demande de devis (avenant) a été envoyée aux transporteurs. Si le devis n&apos;est plus
+                nécessaire, la direction peut passer aux finances sans attendre.
+              </p>
+              {canSign && (
+                <TripButton
+                  variant="warning"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => void skipTransportToCompta()}
+                  disabled={!!loadingAction}
+                >
+                  Passer aux finances sans devis signé
+                </TripButton>
+              )}
+            </TripAlert>
+          )}
           {trip.data.transportProviderConfirmation && (
             <TripAlert tone="success" title="Confirmation transporteur reçue" icon="✅">
               <p className="text-xs leading-relaxed">{trip.data.transportProviderConfirmation.summary}</p>
@@ -1637,6 +1693,15 @@ export default function TripDetails() {
                         className="w-full"
                       >
                         ✍️ Signer et commander
+                      </TripButton>
+                      <TripButton
+                        variant="warning"
+                        size="sm"
+                        onClick={() => void skipTransportToCompta()}
+                        disabled={!!loadingAction}
+                        className="w-full"
+                      >
+                        Passer aux finances sans signer
                       </TripButton>
                       <button
                         type="button"
@@ -2303,6 +2368,13 @@ export default function TripDetails() {
                 Passer aux finances
               </TripButton>
             )}
+            {canSign &&
+              withBusLogistics &&
+              (trip.status === "PROF_LOGISTICS" || trip.status === "EN_ATTENTE_BUS_SIGNATURE") && (
+                <TripButton variant="warning" size="sm" onClick={() => void skipTransportToCompta()} disabled={!!loadingAction}>
+                  Passer aux finances sans devis signé
+                </TripButton>
+              )}
             {canSign && trip.status === "EN_ATTENTE_DIR_INITIAL" && trip.type !== "COMPLEX" && !seriesId && (
               <TripButton variant="primary" size="sm" onClick={() => handleAction("EN_ATTENTE_COMPTA", "Pédagogie validée")}>
                 Valider pédagogie
