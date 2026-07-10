@@ -928,6 +928,12 @@ export function buildDefaultComptaDepenses(trip: TravelsTrip): TravelsComptaExpe
       source: "devis_signe",
     });
     seenSources.add(signedUrl);
+  } else if (tripTransportBypassed(trip)) {
+    depenses.push({
+      label: "Transport (saisie manuelle)",
+      amount: resolveBusQuoteAmountFromTrip(trip),
+      source: "devis_signe",
+    });
   }
 
   for (const att of trip.data?.attachments || []) {
@@ -995,6 +1001,14 @@ export function listComptaDocumentRefs(trip: TravelsTrip): TravelsComptaDocument
       fallbackAmount: resolveBusQuoteAmountFromTrip(trip),
     });
     seen.add(signedUrl);
+  } else if (tripTransportBypassed(trip)) {
+    refs.push({
+      key: "devis_signe",
+      fileUrl: "",
+      label: "Transport (saisie manuelle — sans devis signé)",
+      role: "devis_signe",
+      fallbackAmount: resolveBusQuoteAmountFromTrip(trip),
+    });
   }
 
   for (const att of trip.data?.attachments || []) {
@@ -1045,6 +1059,28 @@ export function comptaDocumentsFingerprint(trip: TravelsTrip): string {
   return listComptaDocumentRefs(trip)
     .map((r) => `${r.key}\t${r.label}\t${r.role}`)
     .join("\n");
+}
+
+/** Marque la fiche comme synchronisée avec les documents du dossier (évite un re-OCR qui efface la saisie). */
+export function finalizeComptaSheetForPersist(
+  trip: TravelsTrip,
+  sheet: TravelsComptaSheet,
+): TravelsComptaSheet {
+  const fingerprint = comptaDocumentsFingerprint(trip);
+  const now = new Date().toISOString();
+  return computeComptaSheetDerived(
+    patchDocumentScansFromDepenses({
+      ...sheet,
+      syncedDocumentsFingerprint: fingerprint,
+      syncedAt: now,
+      analyzedAt: sheet.analyzedAt || now,
+    }),
+    trip,
+  );
+}
+
+function tripTransportBypassed(trip: TravelsTrip): boolean {
+  return Boolean(trip.data?.transportPhaseBypassedAt);
 }
 
 function depenseSourceKey(line: TravelsComptaExpenseLine): string {

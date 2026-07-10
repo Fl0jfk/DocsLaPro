@@ -11,6 +11,7 @@ import {
   comptaSheetFromTrip,
   computeComptaSheetDerived,
   documentsNeedComptaSync,
+  finalizeComptaSheetForPersist,
   isUsableComptaAmount,
   patchDocumentScansFromDepenses,
   readComptaSheetFromTrip,
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
 
   if (action === "save") {
     if (!body.sheet) return NextResponse.json({ error: "sheet requis." }, { status: 400 });
-    const sheet = computeComptaSheetDerived(patchDocumentScansFromDepenses(body.sheet));
+    const sheet = finalizeComptaSheetForPersist(trip, body.sheet);
     await persistComptaSheet(tripId, trip, sheet);
     return NextResponse.json({ ok: true, sheet });
   }

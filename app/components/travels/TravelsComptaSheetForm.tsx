@@ -203,8 +203,11 @@ export default function TravelsComptaSheetForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Erreur");
+      const saved = computeComptaSheetDerived(data.sheet || cleanedSheet);
+      skipSave.current = true;
+      setSheet(saved);
       setSaveState("saved");
-      onSavedRef.current?.(data.sheet || cleanedSheet);
+      onSavedRef.current?.(saved);
     } catch (e) {
       setSaveState("error");
       setError(e instanceof Error ? e.message : "Erreur d'enregistrement");
