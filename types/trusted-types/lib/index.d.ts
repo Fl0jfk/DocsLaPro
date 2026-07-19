@@ -1,6 +1,3 @@
-// Copie @types/trusted-types@2.0.7 — évite l'erreur "Cannot find type definition file for 'trusted-types'"
-// quand npm/IDE ne résout pas node_modules/@types correctement.
-
 export type FnNames = keyof TrustedTypePolicyOptions;
 export type Args<Options extends TrustedTypePolicyOptions, K extends FnNames> = Parameters<
   NonNullable<Options[K]>

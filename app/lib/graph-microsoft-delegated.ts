@@ -3,10 +3,14 @@ import { getTenantSecrets } from "@/app/lib/tenant-registry";
 
 const GRAPH_SCOPES = "https://graph.microsoft.com/Files.ReadWrite offline_access User.Read";
 
+export type MicrosoftRefreshTokenResult =
+  | { accessToken: string; refreshToken?: string }
+  | { error: string };
+
 /** Échange un refresh token Microsoft contre un access token Graph (dépôt OneDrive serveur). */
 export async function getMicrosoftAccessTokenFromRefresh(
   refreshToken: string,
-): Promise<{ accessToken: string } | { error: string }> {
+): Promise<MicrosoftRefreshTokenResult> {
   const token = refreshToken.trim();
   if (!token) return { error: "Refresh token vide." };
 
@@ -41,7 +45,13 @@ export async function getMicrosoftAccessTokenFromRefresh(
     return { error: `Refresh token Microsoft : ${err.slice(0, 200)}` };
   }
 
-  const data = (await res.json()) as { access_token?: string };
+  const data = (await res.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+  };
   if (!data.access_token) return { error: "Réponse token sans access_token." };
-  return { accessToken: data.access_token };
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token?.trim() || undefined,
+  };
 }

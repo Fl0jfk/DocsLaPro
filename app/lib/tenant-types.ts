@@ -49,6 +49,13 @@ export type TenantSecrets = {
     oneDriveBySecteur?: Partial<
       Record<"ecole" | "college" | "lycee", { refreshToken: string }>
     >;
+    /** Refresh token du OneDrive RH (attachée de gestion) — dépôts unattended. */
+    rhDrive?: {
+      refreshToken: string;
+      linkedUpn?: string;
+      linkedDisplayName?: string;
+      linkedAt?: string;
+    };
   };
   /** Données S3 : roleArn (recommandé) ou clés dédiées ; sinon repli IAM plateforme Amplify. */
   aws?: {

@@ -74,12 +74,24 @@ export type OneDriveUserSecteur = {
   secteur: OneDriveSecteur;
 };
 
+/** Lien public (sans secret) du OneDrive RH — attachée de gestion. */
+export type MicrosoftRhDriveIntegration = {
+  enabled: boolean;
+  linked: boolean;
+  linkedUpn?: string;
+  linkedDisplayName?: string;
+  linkedAt?: string;
+  basePath: string;
+};
+
 export type MicrosoftOneDriveIntegration = {
   enabled: boolean;
   /** Surcharge des dossiers racine par cycle (sinon valeurs par défaut en dur). */
   basesBySecteur?: Partial<Record<OneDriveSecteur, OneDriveSecteurBase>>;
   /** Mapping utilisateur → cycle (pour les comptes non câblés en dur). */
   userSecteurs?: OneDriveUserSecteur[];
+  /** OneDrive cible RH (meta publique ; refresh token dans secrets tenant). */
+  rhDrive?: MicrosoftRhDriveIntegration;
 };
 
 export type IntegrationsConfig = {
@@ -482,6 +494,20 @@ function parseOneDriveIntegration(raw: Record<string, unknown>): MicrosoftOneDri
       if (match && secteur) list.push({ match, secteur });
     }
     if (list.length > 0) result.userSecteurs = list;
+  }
+
+  const rhRaw = raw.rhDrive;
+  if (rhRaw && typeof rhRaw === "object") {
+    const rh = rhRaw as Record<string, unknown>;
+    const basePath = str(rh.basePath) || "Dossier personnel";
+    result.rhDrive = {
+      enabled: rh.enabled !== false,
+      linked: rh.linked === true,
+      linkedUpn: str(rh.linkedUpn) || undefined,
+      linkedDisplayName: str(rh.linkedDisplayName) || undefined,
+      linkedAt: str(rh.linkedAt) || undefined,
+      basePath,
+    };
   }
 
   return result;

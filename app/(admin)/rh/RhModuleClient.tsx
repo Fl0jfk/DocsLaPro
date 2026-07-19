@@ -4,20 +4,30 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import PersonnelDashboard from "@/app/components/personnel/PersonnelDashboard";
-import PersonnelDepositTab from "@/app/components/personnel/PersonnelDepositTab";
-import PersonnelDropZone from "@/app/components/personnel/PersonnelDropZone";
 import PersonnelStaffCard from "@/app/components/personnel/PersonnelStaffCard";
 import RhAdminOverviewPanel from "@/app/components/personnel/RhAdminOverviewPanel";
 import RhHubNav, { type RhHubTab } from "@/app/components/personnel/RhHubNav";
 import RhLeavePanel from "@/app/components/personnel/RhLeavePanel";
 import RhNewStaffModal from "@/app/components/personnel/RhNewStaffModal";
+import RhOnboardingPanel from "@/app/components/personnel/RhOnboardingPanel";
+import RhBulkDepositPanel from "@/app/components/personnel/RhBulkDepositPanel";
 import RhOrganigramPanel from "@/app/components/personnel/RhOrganigramPanel";
+import RhRegistrePanel from "@/app/components/personnel/RhRegistrePanel";
+import RhSelfDepositPanel from "@/app/components/personnel/RhSelfDepositPanel";
 import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 import type { PersonnelDashboardData } from "@/app/lib/personnel-dashboard";
 import { type PersonnelIndexEntry, type SharedPersonnelDocument } from "@/app/lib/personnel-types";
-import { PERSONNEL_DROP_ACCEPT } from "@/app/lib/personnel-upload-client";
 
-const TAB_IDS: RhHubTab[] = ["dashboard", "annuaire", "admin", "temps", "organigramme", "deposit"];
+const TAB_IDS: RhHubTab[] = [
+  "dashboard",
+  "annuaire",
+  "admin",
+  "onboarding",
+  "registre",
+  "temps",
+  "organigramme",
+  "deposit",
+];
 
 function parseTab(raw: string | null): RhHubTab {
   if (raw && TAB_IDS.includes(raw as RhHubTab)) return raw as RhHubTab;
@@ -37,7 +47,6 @@ export default function RhModuleClient() {
   const [error, setError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [canManage, setCanManage] = useState(false);
-  const [quickDepositBusy, setQuickDepositBusy] = useState(false);
 
   const setTab = (tab: RhHubTab) => {
     router.push(`/rh?tab=${tab}`);
@@ -70,23 +79,6 @@ export default function RhModuleClient() {
     void load();
   }, [isLoaded, load]);
 
-  const quickDeposit = async (file: File) => {
-    setQuickDepositBusy(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/personnel/deposit", { method: "POST", body: fd });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error || "Dépôt impossible");
-      await load();
-      if (j.matched?.id) router.push(`/rh/${j.matched.id}`);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setQuickDepositBusy(false);
-    }
-  };
-
   if (!isLoaded || (loading && !dashboard)) {
     return <p className="p-10 text-center text-slate-500">Chargement du module RH…</p>;
   }
@@ -105,9 +97,13 @@ export default function RhModuleClient() {
       <RhHubNav active={activeTab} onChange={setTab} canManage={canManage} />
 
       {activeTab === "deposit" && canManage ? (
-        <PersonnelDepositTab onDone={() => void load()} />
+        <RhBulkDepositPanel />
       ) : activeTab === "admin" && canManage ? (
         <RhAdminOverviewPanel index={index} />
+      ) : activeTab === "onboarding" && canManage ? (
+        <RhOnboardingPanel />
+      ) : activeTab === "registre" && canManage ? (
+        <RhRegistrePanel />
       ) : activeTab === "temps" ? (
         <RhLeavePanel canManage={canManage} index={index} />
       ) : activeTab === "organigramme" ? (
@@ -135,21 +131,7 @@ export default function RhModuleClient() {
         </div>
       ) : (
         <>
-          {canManage && (
-            <div data-tour="rh-upload" className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 p-5 shadow-sm">
-              <p className="text-sm font-black text-indigo-900 mb-1">Déposer un document (IA)</p>
-              <p className="text-xs text-indigo-700/80 mb-3">
-                Glissez un PDF ou un fichier Office : identification automatique du collaborateur.
-              </p>
-              <PersonnelDropZone
-                title={quickDepositBusy ? "Analyse en cours…" : "Glisser-déposer ici"}
-                hint="PDF · Excel · Word"
-                disabled={quickDepositBusy}
-                accept={PERSONNEL_DROP_ACCEPT}
-                onFile={quickDeposit}
-              />
-            </div>
-          )}
+          <RhSelfDepositPanel />
           <PersonnelDashboard data={dashboard} onNewStaff={() => setShowNew(true)} />
           <SharedDocsBlock sharedDocs={sharedDocs} canManage={canManage} onRefresh={load} />
         </>

@@ -363,13 +363,14 @@ export const INTRANET_MODULES: IntranetModule[] = [
   },
   {
     id: "rh",
-    pathPrefixes: ["/rh", "/personnel", "/api/personnel"],
+    pathPrefixes: ["/rh", "/personnel", "/api/personnel", "/api/rh"],
     allowedRoles: [
       ...DIRECTIONS,
       "administratif",
       "comptabilite",
       "education",
       "maintenance",
+      "professeur",
     ],
     dashboard: {
       id: 23,

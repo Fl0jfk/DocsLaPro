@@ -87,9 +87,13 @@ export async function ensureClerkUserForPersonnel(input: {
   firstName: string;
   lastName: string;
   category: PersonnelCategory;
+  /** Surcharge des rôles Clerk (ex. professeur pour une entrée enseignant). */
+  roles?: string[];
 }): Promise<{ clerkUserId: string | null; mode: "existing" | "invitation"; pending: boolean }> {
   const email = input.email.trim().toLowerCase();
-  const roles = clerkRolesForPersonnelCategory(input.category);
+  const roles = input.roles?.length
+    ? input.roles
+    : clerkRolesForPersonnelCategory(input.category);
   const client = await getClerkClientForTenant();
 
   const existing = await client.users.getUserList({ emailAddress: [email], limit: 1 });

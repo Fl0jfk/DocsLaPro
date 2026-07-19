@@ -56,6 +56,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/portes-ouvertes/register',
   '/faire-une-demande(.*)',
   '/demande/merci',
+  '/onboarding-rh(.*)',
+  '/api/rh/onboarding/public(.*)',
   '/api/agentIAOCR/batch-job/internal-run',
   '/api/travels/ingest-from-email',
   '/api/requests/create',

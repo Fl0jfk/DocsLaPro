@@ -7,21 +7,43 @@ type Props = {
   title: string;
   hint: string;
   disabled?: boolean;
-  onFile: (file: File) => void | Promise<void>;
+  onFile?: (file: File) => void | Promise<void>;
+  onFiles?: (files: File[]) => void | Promise<void>;
   accept?: string;
+  multiple?: boolean;
 };
 
-export default function PersonnelDropZone({ title, hint, disabled, onFile, accept }: Props) {
+export default function PersonnelDropZone({
+  title,
+  hint,
+  disabled,
+  onFile,
+  onFiles,
+  accept,
+  multiple,
+}: Props) {
   const [dragOver, setDragOver] = useState(false);
   const inputId = "personnel-drop-zone-input";
 
-  const handleFiles = async (file: File | undefined) => {
+  const handleOne = async (file: File | undefined) => {
     if (!file || disabled) return;
     if (!isPersonnelDropFile(file)) {
       alert("Format non supporté. Utilisez Excel (.xlsx, .xls), PDF ou Word.");
       return;
     }
-    await onFile(file);
+    if (onFiles) await onFiles([file]);
+    else if (onFile) await onFile(file);
+  };
+
+  const handleMany = async (list: FileList | undefined) => {
+    if (!list?.length || disabled) return;
+    const files = Array.from(list).filter(isPersonnelDropFile);
+    if (files.length === 0) {
+      alert("Format non supporté. Utilisez Excel (.xlsx, .xls), PDF ou Word.");
+      return;
+    }
+    if (onFiles) await onFiles(files);
+    else if (files[0]) await onFile?.(files[0]);
   };
 
   return (
@@ -47,7 +69,8 @@ export default function PersonnelDropZone({ title, hint, disabled, onFile, accep
         e.stopPropagation();
         setDragOver(false);
         if (disabled) return;
-        void handleFiles(e.dataTransfer.files?.[0]);
+        if (multiple) void handleMany(e.dataTransfer.files);
+        else void handleOne(e.dataTransfer.files?.[0]);
       }}
       className={[
         "block border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-colors",
@@ -61,8 +84,10 @@ export default function PersonnelDropZone({ title, hint, disabled, onFile, accep
         className="hidden"
         disabled={disabled}
         accept={accept}
+        multiple={multiple}
         onChange={(e) => {
-          void handleFiles(e.target.files?.[0]);
+          if (multiple) void handleMany(e.target.files ?? undefined);
+          else void handleOne(e.target.files?.[0]);
           e.target.value = "";
         }}
       />

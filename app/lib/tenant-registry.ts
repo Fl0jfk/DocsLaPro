@@ -164,6 +164,27 @@ export function parseTenantSecrets(raw: unknown): TenantSecrets | null {
         secrets.microsoft!.oneDriveBySecteur = out;
       }
     }
+    const rhDrive = microsoft.rhDrive;
+    if (rhDrive && typeof rhDrive === "object") {
+      const rt = String((rhDrive as Record<string, unknown>).refreshToken ?? "").trim();
+      if (rt) {
+        secrets.microsoft!.rhDrive = {
+          refreshToken: rt,
+          linkedUpn:
+            typeof (rhDrive as Record<string, unknown>).linkedUpn === "string"
+              ? String((rhDrive as Record<string, unknown>).linkedUpn).trim() || undefined
+              : undefined,
+          linkedDisplayName:
+            typeof (rhDrive as Record<string, unknown>).linkedDisplayName === "string"
+              ? String((rhDrive as Record<string, unknown>).linkedDisplayName).trim() || undefined
+              : undefined,
+          linkedAt:
+            typeof (rhDrive as Record<string, unknown>).linkedAt === "string"
+              ? String((rhDrive as Record<string, unknown>).linkedAt).trim() || undefined
+              : undefined,
+        };
+      }
+    }
   }
 
   const aws = o.aws as Record<string, unknown> | undefined;

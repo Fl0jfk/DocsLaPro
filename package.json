@@ -22,6 +22,7 @@
     "@clerk/localizations": "latest",
     "@clerk/nextjs": "^7.0.12",
     "@clerk/shared": "^4.6.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@tailwindcss/postcss": "latest",
     "framer-motion": "latest",
     "html5-qrcode": "latest",

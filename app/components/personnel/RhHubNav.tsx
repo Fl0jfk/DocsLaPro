@@ -4,6 +4,8 @@ export type RhHubTab =
   | "dashboard"
   | "annuaire"
   | "admin"
+  | "onboarding"
+  | "registre"
   | "temps"
   | "organigramme"
   | "deposit";
@@ -12,6 +14,8 @@ const TABS: { id: RhHubTab; label: string; desc?: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
   { id: "annuaire", label: "Annuaire" },
   { id: "admin", label: "Entrées / sorties" },
+  { id: "onboarding", label: "Nouveaux arrivants" },
+  { id: "registre", label: "Registre" },
   { id: "temps", label: "Congés & absences" },
   { id: "organigramme", label: "Organigramme" },
   { id: "deposit", label: "Dépôt IA" },
@@ -26,9 +30,10 @@ export default function RhHubNav({
   onChange: (tab: RhHubTab) => void;
   canManage: boolean;
 }) {
-  const visible = TABS.filter(
-    (t) => canManage || t.id === "dashboard" || t.id === "annuaire" || t.id === "organigramme",
-  );
+  const visible = TABS.filter((t) => {
+    if (canManage) return true;
+    return t.id === "dashboard" || t.id === "annuaire" || t.id === "organigramme";
+  });
 
   return (
     <nav className="flex flex-wrap gap-2 mb-6">
