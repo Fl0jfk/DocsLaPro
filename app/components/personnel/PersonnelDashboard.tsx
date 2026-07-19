@@ -167,7 +167,7 @@ export default function PersonnelDashboard({
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xl">🩺</span>
             <h2 className="font-black text-rose-800">Absents aujourd&apos;hui</h2>
-            <Link href="/absences" className="ml-auto text-xs font-bold text-rose-600 underline">
+            <Link href="/rh?tab=absences" className="ml-auto text-xs font-bold text-rose-600 underline">
               Voir absences
             </Link>
           </div>

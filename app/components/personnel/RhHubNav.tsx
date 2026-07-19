@@ -6,33 +6,38 @@ export type RhHubTab =
   | "admin"
   | "onboarding"
   | "registre"
-  | "temps"
+  | "absences"
+  | "hse"
   | "organigramme"
   | "deposit";
 
-const TABS: { id: RhHubTab; label: string; desc?: string }[] = [
+const TABS: { id: RhHubTab; label: string; manageOnly?: boolean; hseOnly?: boolean }[] = [
   { id: "dashboard", label: "Tableau de bord" },
+  { id: "absences", label: "Absences" },
+  { id: "hse", label: "Demandes HSE", hseOnly: true },
   { id: "annuaire", label: "Annuaire" },
-  { id: "admin", label: "Entrées / sorties" },
-  { id: "onboarding", label: "Nouveaux arrivants" },
-  { id: "registre", label: "Registre" },
-  { id: "temps", label: "Congés & absences" },
+  { id: "admin", label: "Entrées / sorties", manageOnly: true },
+  { id: "onboarding", label: "Nouveaux arrivants", manageOnly: true },
+  { id: "registre", label: "Registre", manageOnly: true },
   { id: "organigramme", label: "Organigramme" },
-  { id: "deposit", label: "Dépôt IA" },
+  { id: "deposit", label: "Dépôt IA", manageOnly: true },
 ];
 
 export default function RhHubNav({
   active,
   onChange,
   canManage,
+  canAccessHse,
 }: {
   active: RhHubTab;
   onChange: (tab: RhHubTab) => void;
   canManage: boolean;
+  canAccessHse: boolean;
 }) {
   const visible = TABS.filter((t) => {
-    if (canManage) return true;
-    return t.id === "dashboard" || t.id === "annuaire" || t.id === "organigramme";
+    if (t.hseOnly) return canAccessHse;
+    if (t.manageOnly) return canManage;
+    return true;
   });
 
   return (

@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import AbsencesPageClient from "@/app/(admin)/absences/AbsencesPageClient";
+import DemandesHsePanel from "@/app/components/demandes-hse/DemandesHsePanel";
 import PersonnelDashboard from "@/app/components/personnel/PersonnelDashboard";
 import PersonnelStaffCard from "@/app/components/personnel/PersonnelStaffCard";
 import RhAdminOverviewPanel from "@/app/components/personnel/RhAdminOverviewPanel";
 import RhHubNav, { type RhHubTab } from "@/app/components/personnel/RhHubNav";
-import RhLeavePanel from "@/app/components/personnel/RhLeavePanel";
 import RhNewStaffModal from "@/app/components/personnel/RhNewStaffModal";
 import RhOnboardingPanel from "@/app/components/personnel/RhOnboardingPanel";
 import RhBulkDepositPanel from "@/app/components/personnel/RhBulkDepositPanel";
@@ -15,6 +16,7 @@ import RhOrganigramPanel from "@/app/components/personnel/RhOrganigramPanel";
 import RhRegistrePanel from "@/app/components/personnel/RhRegistrePanel";
 import RhSelfDepositPanel from "@/app/components/personnel/RhSelfDepositPanel";
 import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
+import { canAccessHseModule } from "@/app/lib/demandes-hse-access";
 import type { PersonnelDashboardData } from "@/app/lib/personnel-dashboard";
 import { type PersonnelIndexEntry, type SharedPersonnelDocument } from "@/app/lib/personnel-types";
 
@@ -24,12 +26,14 @@ const TAB_IDS: RhHubTab[] = [
   "admin",
   "onboarding",
   "registre",
-  "temps",
+  "absences",
+  "hse",
   "organigramme",
   "deposit",
 ];
 
 function parseTab(raw: string | null): RhHubTab {
+  if (raw === "temps") return "absences";
   if (raw && TAB_IDS.includes(raw as RhHubTab)) return raw as RhHubTab;
   return "dashboard";
 }
@@ -38,7 +42,7 @@ export default function RhModuleClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = parseTab(searchParams.get("tab"));
-  const { isLoaded } = useUser();
+  const { isLoaded, user } = useUser();
 
   const [dashboard, setDashboard] = useState<PersonnelDashboardData | null>(null);
   const [index, setIndex] = useState<PersonnelIndexEntry[]>([]);
@@ -48,7 +52,18 @@ export default function RhModuleClient() {
   const [showNew, setShowNew] = useState(false);
   const [canManage, setCanManage] = useState(false);
 
+  const roles = useMemo(() => {
+    const rolesRaw = user?.publicMetadata?.role;
+    return Array.isArray(rolesRaw) ? rolesRaw.map(String) : rolesRaw ? [String(rolesRaw)] : [];
+  }, [user]);
+
+  const canAccessHse = canAccessHseModule(roles);
+
   const setTab = (tab: RhHubTab) => {
+    if (tab === "absences") {
+      router.push("/rh?tab=absences&view=se-declarer");
+      return;
+    }
     router.push(`/rh?tab=${tab}`);
   };
 
@@ -79,6 +94,13 @@ export default function RhModuleClient() {
     void load();
   }, [isLoaded, load]);
 
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (activeTab === "hse" && !canAccessHse) {
+      router.replace("/rh?tab=dashboard");
+    }
+  }, [activeTab, canAccessHse, isLoaded, router]);
+
   if (!isLoaded || (loading && !dashboard)) {
     return <p className="p-10 text-center text-slate-500">Chargement du module RH…</p>;
   }
@@ -90,11 +112,16 @@ export default function RhModuleClient() {
       <header>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Module RH</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Administration du personnel OGEC — sans paie ni coffre bulletins (logiciels dédiés).
+          Portail RH unifié — personnel, absences, HSE (sans paie ni coffre bulletins).
         </p>
       </header>
 
-      <RhHubNav active={activeTab} onChange={setTab} canManage={canManage} />
+      <RhHubNav
+        active={activeTab}
+        onChange={setTab}
+        canManage={canManage}
+        canAccessHse={canAccessHse}
+      />
 
       {activeTab === "deposit" && canManage ? (
         <RhBulkDepositPanel />
@@ -104,8 +131,12 @@ export default function RhModuleClient() {
         <RhOnboardingPanel />
       ) : activeTab === "registre" && canManage ? (
         <RhRegistrePanel />
-      ) : activeTab === "temps" ? (
-        <RhLeavePanel canManage={canManage} index={index} />
+      ) : activeTab === "absences" ? (
+        <Suspense fallback={<p className="text-sm text-slate-500">Chargement des absences…</p>}>
+          <AbsencesPageClient embeddedInRh />
+        </Suspense>
+      ) : activeTab === "hse" && canAccessHse ? (
+        <DemandesHsePanel embeddedInRh />
       ) : activeTab === "organigramme" ? (
         <RhOrganigramPanel index={index} />
       ) : activeTab === "annuaire" ? (

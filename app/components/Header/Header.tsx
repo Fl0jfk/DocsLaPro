@@ -15,7 +15,7 @@ const MOBILE_MODULE_LINKS = [
   { href: "/documents", label: "Mes documents", icon: "📁" },
   { href: "/requests?nouvelle=1", label: "Faire une demande", icon: "📋" },
   { href: "/prof-room?new=1", label: "Faire une réservation de salle", icon: "🏫" },
-  { href: "/absences?tab=se-declarer#nouvelle-absence", label: "Déclarer une absence", icon: "📅" },
+  { href: "/rh?tab=absences&view=se-declarer#nouvelle-absence", label: "Déclarer une absence", icon: "📅" },
 ] as const;
 
 function UserPopover({ onClose }: { onClose: () => void }) {

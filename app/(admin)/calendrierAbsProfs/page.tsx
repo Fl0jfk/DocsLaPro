@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function CalendrierAbsProfsRedirectPage() {
-  redirect("/absences?tab=calendrier");
+export default function CalendrierAbsProfsPage() {
+  redirect("/rh?tab=absences&view=calendrier");
 }

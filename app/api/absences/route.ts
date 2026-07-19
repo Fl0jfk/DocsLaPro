@@ -282,7 +282,7 @@ export async function POST(req: Request) {
     try {
       const target = await resolveDecisionTarget(scope, scope === "ogec" ? null : etablissement);
       const mail = await getMailer();
-      const absencesLink = await tenantAbsolutePath("/absences");
+      const absencesLink = await tenantAbsolutePath("/rh?tab=absences");
       if (mail) {
       const { smtp, transporter } = mail;
       await transporter.sendMail({
@@ -554,7 +554,7 @@ export async function PATCH(req: Request) {
           const mail = await getMailer();
           if (mail) {
           const { smtp, transporter } = mail;
-          const absencesLink = await tenantAbsolutePath("/absences");
+          const absencesLink = await tenantAbsolutePath("/rh?tab=absences");
           await transporter.sendMail({
             from: `"Absences" <${smtp.user}>`,
             to: current.createdBy.email,

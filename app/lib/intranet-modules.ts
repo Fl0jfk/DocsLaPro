@@ -245,14 +245,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
       "professeur",
       "maintenance",
     ],
-    dashboard: {
-      id: 13,
-      name: "Absences",
-      img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/planning+abs.jpg",
-      link: "/absences",
-      external: false,
-      variant: "absences",
-    },
+    // Tuile dashboard retirée : module absorbé dans RH (`/rh?tab=absences`).
   },
   {
     id: "organigramme",
@@ -315,13 +308,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
     id: "demandes-hse",
     pathPrefixes: ["/demandes-hse", "/api/demandes-hse"],
     allowedRoles: [...DIRECTIONS, "administratif", "professeur"],
-    dashboard: {
-      id: 20,
-      name: "Demandes HSE",
-      img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/Demande+HSE.jpg",
-      link: "/demandes-hse",
-      external: false,
-    },
+    // Tuile dashboard retirée : module absorbé dans RH (`/rh?tab=hse`).
   },
   {
     id: "conformite-rgpd",

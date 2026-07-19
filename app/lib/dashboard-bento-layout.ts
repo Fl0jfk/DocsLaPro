@@ -13,7 +13,6 @@ const DEFAULT_SORT = 50;
 export const BENTO_DEFAULT_ORDER: string[] = [
   "documents",
   "travels",
-  "absences",
   "agent-ia-ocr",
   "prof-room",
   DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID,
@@ -25,29 +24,26 @@ export const BENTO_DEFAULT_ORDER: string[] = [
   "toolbox",
   "domain-planning",
   "covoiturage",
-  "demandes-hse",
   "assistance",
 ];
 
 export const BENTO_MODULE_SORT: Record<string, number> = {
   documents: 1,
   travels: 2,
-  absences: 3,
-  "agent-ia-ocr": 4,
-  "prof-room": 5,
-  [DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID]: 6,
-  rh: 7,
-  channels: 8,
-  internat: 9,
-  "requests-staff": 10,
-  organigramme: 11,
-  toolbox: 12,
-  "domain-planning": 13,
-  covoiturage: 14,
-  "photocopies-couleur": 15,
-  "chatbot-knowledge": 16,
-  "demandes-hse": 17,
-  assistance: 18,
+  "agent-ia-ocr": 3,
+  "prof-room": 4,
+  [DASHBOARD_ACADEMIC_DEADLINES_MODULE_ID]: 5,
+  rh: 6,
+  channels: 7,
+  internat: 8,
+  "requests-staff": 9,
+  organigramme: 10,
+  toolbox: 11,
+  "domain-planning": 12,
+  covoiturage: 13,
+  "photocopies-couleur": 14,
+  "chatbot-knowledge": 15,
+  assistance: 16,
 };
 
 export function getBentoModuleSort(moduleId: string): number {
@@ -64,13 +60,10 @@ export function sortModuleIds(moduleIds: string[]): string[] {
 
 export function defaultBentoModuleOrder(moduleIds: string[]): string[] {
   const set = new Set(moduleIds);
-  const tailId = "demandes-hse";
-  const main = BENTO_DEFAULT_ORDER.filter((id) => set.has(id) && id !== tailId);
+  const main = BENTO_DEFAULT_ORDER.filter((id) => set.has(id));
   const used = new Set(main);
-  const rest = sortModuleIds(moduleIds.filter((id) => !used.has(id) && id !== tailId));
-  for (const id of rest) used.add(id);
-  const tail = set.has(tailId) ? [tailId] : [];
-  return [...main, ...rest, ...tail];
+  const rest = sortModuleIds(moduleIds.filter((id) => !used.has(id)));
+  return [...main, ...rest];
 }
 
 export function defaultBentoModuleColumns(moduleIds: string[]): string[][] {

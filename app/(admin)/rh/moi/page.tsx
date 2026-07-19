@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
-import RhMyLeavesPanel from "@/app/components/personnel/RhMyLeavesPanel";
 import StaffDossier from "@/app/components/personnel/StaffDossier";
 import {
   canViewPersonnelDashboard,
@@ -83,19 +82,36 @@ export default function RhMoiPage() {
           {medNext && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm">
               <p className="text-[10px] font-bold uppercase text-emerald-800">Médecine du travail</p>
-              <p className="font-bold text-slate-900 mt-1">Prochaine visite : {new Date(medNext).toLocaleDateString("fr-FR")}</p>
+              <p className="font-bold text-slate-900 mt-1">
+                Prochaine visite : {new Date(medNext).toLocaleDateString("fr-FR")}
+              </p>
             </div>
           )}
           {entretienNext && (
             <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm">
               <p className="text-[10px] font-bold uppercase text-violet-800">Entretien professionnel</p>
-              <p className="font-bold text-slate-900 mt-1">Prochain cycle : {new Date(entretienNext).toLocaleDateString("fr-FR")}</p>
+              <p className="font-bold text-slate-900 mt-1">
+                Prochain cycle : {new Date(entretienNext).toLocaleDateString("fr-FR")}
+              </p>
             </div>
           )}
         </div>
       )}
 
-      <RhMyLeavesPanel personnelId={record.id} />
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-black text-slate-900 text-sm">Absences</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Déclarez une absence depuis le module RH (congés scolaires imposés — hors périmètre).
+          </p>
+        </div>
+        <Link
+          href="/rh?tab=absences&view=se-declarer#nouvelle-absence"
+          className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold"
+        >
+          Déclarer une absence
+        </Link>
+      </div>
 
       <StaffDossier record={record} canManage={false} sharedDocs={sharedDocs} onRefresh={load} />
     </div>

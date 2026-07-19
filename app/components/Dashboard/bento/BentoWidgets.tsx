@@ -452,7 +452,7 @@ export function AbsencesBentoWidget({ category, size }: WidgetProps) {
       pulse={showCalendar && (todayCount > 0 || weekHasAny)}
       headerExtra={
         <QuickBtn
-          href="/absences?tab=se-declarer#nouvelle-absence"
+          href="/rh?tab=absences&view=se-declarer#nouvelle-absence"
           className="bg-sky-600 text-white hover:bg-sky-700"
         >
           Déclarer

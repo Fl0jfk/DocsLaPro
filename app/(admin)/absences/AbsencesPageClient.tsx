@@ -97,7 +97,12 @@ function resolvedHoursTreatment(item: AbsenceItem, draft: Record<string, string>
   return draft[item.id] ?? item.hoursTreatment ?? "";
 }
 
-export default function AbsencesPageClient() {
+export default function AbsencesPageClient({
+  embeddedInRh = false,
+}: {
+  /** Affiché dans le hub RH (`/rh?tab=absences&view=…`). */
+  embeddedInRh?: boolean;
+} = {}) {
   const { user, isLoaded } = useUser();
   const [items, setItems] = useState<AbsenceItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,21 +141,25 @@ export default function AbsencesPageClient() {
 
   const canDeleteJustificatif = (item: AbsenceItem) => canManageAbsenceAttachment(asRecord(item), roles);
   const defaultTab = showCalendar ? "calendrier" : "se-declarer";
-  const rawTab = searchParams.get("tab");
+  const rawTab = embeddedInRh ? searchParams.get("view") : searchParams.get("tab");
   const activeTab =
     rawTab === "declarer" || rawTab === "mes-demandes" ? "se-declarer" : rawTab || defaultTab;
-  const setTab = (tab: string) => router.push(`/absences?tab=${tab}`);
+  const absencesHref = (view: string) =>
+    embeddedInRh ? `/rh?tab=absences&view=${view}` : `/absences?tab=${view}`;
+  const setTab = (tab: string) => router.push(absencesHref(tab));
   const [calendarRefresh, setCalendarRefresh] = useState(0);
 
   useEffect(() => {
     if (!isLoaded) return;
     if ((activeTab === "calendrier" || activeTab === "autre-personne") && !showCalendar) {
-      router.replace("/absences?tab=se-declarer");
+      router.replace(absencesHref("se-declarer"));
     }
     if (rawTab === "declarer" || rawTab === "mes-demandes") {
-      router.replace("/absences?tab=se-declarer");
+      router.replace(absencesHref("se-declarer"));
     }
-  }, [activeTab, rawTab, showCalendar, isLoaded, router]);
+    // absencesHref is stable for a given embeddedInRh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, rawTab, showCalendar, isLoaded, router, embeddedInRh]);
   const fetchItems = async () => {
     try {
       setLoading(true);
@@ -447,11 +456,21 @@ export default function AbsencesPageClient() {
 
   if (!isLoaded) return null;
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-4xl font-black text-slate-900">Absences</h1>
-        <p className="text-slate-500 mt-2">Déclaration, suivi et calendrier des absences.</p>
-      </div>
+    <div className={embeddedInRh ? "space-y-4" : "max-w-7xl mx-auto p-6"}>
+      {!embeddedInRh && (
+        <div className="mb-6">
+          <h1 className="text-4xl font-black text-slate-900">Absences</h1>
+          <p className="text-slate-500 mt-2">Déclaration, suivi et calendrier des absences.</p>
+        </div>
+      )}
+      {embeddedInRh && (
+        <div className="mb-2">
+          <h2 className="text-xl font-black text-slate-900">Absences</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Déclaration, suivi et calendrier — intégré au module RH.
+          </p>
+        </div>
+      )}
       <nav data-tour="absences-tabs" className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 pb-3">
         {tabs.map((t) => (
           <button
@@ -859,7 +878,7 @@ export default function AbsencesPageClient() {
           )}
         </div>
       ) : null}
-      <ReplayModuleTourButton moduleId="absences" />
+      {!embeddedInRh && <ReplayModuleTourButton moduleId="absences" />}
     </div>
   );
 }

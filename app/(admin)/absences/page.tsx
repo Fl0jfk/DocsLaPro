@@ -1,18 +1,12 @@
-import { Suspense } from "react";
-import AbsencesPageClient from "./AbsencesPageClient";
+import { redirect } from "next/navigation";
 
-function AbsencesPageFallback() {
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <p className="text-slate-500 text-sm">Chargement des absences…</p>
-    </div>
-  );
-}
-
-export default function AbsencesPage() {
-  return (
-    <Suspense fallback={<AbsencesPageFallback />}>
-      <AbsencesPageClient />
-    </Suspense>
-  );
+/** Absences absorbées dans le module RH. */
+export default async function AbsencesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const sp = await searchParams;
+  const view = sp.tab === "declarer" || sp.tab === "mes-demandes" ? "se-declarer" : sp.tab || "se-declarer";
+  redirect(`/rh?tab=absences&view=${encodeURIComponent(view)}`);
 }
