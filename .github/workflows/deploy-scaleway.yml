@@ -109,56 +109,59 @@ jobs:
           SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
           SCW_CONTAINER_ID: ${{ secrets.SCW_CONTAINER_ID }}
           REGION: ${{ env.REGION }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           if [ -z "${SCW_CONTAINER_ID:-}" ]; then
-            echo "SCW_CONTAINER_ID non défini — image poussée, redéploie manuellement."
+            echo "::warning::SCW_CONTAINER_ID non défini — image poussée, redéploie manuellement dans la console."
             exit 0
           fi
 
-          BASE_V1="https://api.scaleway.com/containers/v1/regions/${REGION}/containers/${SCW_CONTAINER_ID}"
-          BASE_BETA="https://api.scaleway.com/containers/v1beta1/regions/${REGION}/containers/${SCW_CONTAINER_ID}"
+          IMAGE_REF="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          BASE="https://api.scaleway.com/containers/v1/regions/${REGION}/containers/${SCW_CONTAINER_ID}"
 
-          echo "Vérification du conteneur ${SCW_CONTAINER_ID} (région ${REGION})…"
+          echo "Conteneur ${SCW_CONTAINER_ID} → image ${IMAGE_REF}"
           code=$(curl -sS -o /tmp/container.json -w "%{http_code}" \
             -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
-            "${BASE_V1}") || true
+            "${BASE}") || true
 
-          if [ "$code" = "200" ]; then
-            name=$(python3 -c "import json;print(json.load(open('/tmp/container.json')).get('name','?'))" 2>/dev/null || echo "?")
-            echo "Conteneur trouvé (API v1) : $name"
-            curl -fsS -X POST \
-              -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
-              -H "Content-Type: application/json" \
-              -d '{}' \
-              "${BASE_V1}/redeploy"
-            echo
-            echo "OK — redéploiement déclenché (v1)."
-            exit 0
+          if [ "$code" != "200" ]; then
+            echo "::error::Conteneur introuvable (HTTP $code). Corps: $(cat /tmp/container.json)"
+            curl -sS -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
+              "https://api.scaleway.com/containers/v1/regions/${REGION}/containers" \
+              -o /tmp/containers-list.json || true
+            python3 -c "import json; d=json.load(open('/tmp/containers-list.json')); items=d.get('containers') or []; print('  (aucun)') if not items else [print('  - %s  id=%s' % (c.get('name','?'), c.get('id'))) for c in items]"
+            exit 1
           fi
 
-          code_beta=$(curl -sS -o /tmp/container-beta.json -w "%{http_code}" \
+          name=$(python3 -c "import json;print(json.load(open('/tmp/container.json')).get('name','?'))")
+          echo "Conteneur trouvé : $name — mise à jour registry_image + redeploy"
+
+          # Pointer explicitement sur le tag du commit (évite le cache :latest)
+          upd=$(curl -sS -o /tmp/container-upd.json -w "%{http_code}" -X PATCH \
             -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
-            "${BASE_BETA}") || true
-
-          if [ "$code_beta" = "200" ]; then
-            echo "Conteneur trouvé (API v1beta1) — redéploiement…"
-            curl -fsS -X POST \
-              -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
-              -H "Content-Type: application/json" \
-              -d '{}' \
-              "${BASE_BETA}/deploy"
-            echo
-            echo "OK — redéploiement déclenché (v1beta1)."
-            exit 0
+            -H "Content-Type: application/json" \
+            -d "{\"registry_image\":\"${IMAGE_REF}\"}" \
+            "${BASE}")
+          if [ "$upd" != "200" ]; then
+            echo "::error::PATCH registry_image échoué (HTTP $upd) : $(cat /tmp/container-upd.json)"
+            exit 1
           fi
 
-          echo "::warning::SCW_CONTAINER_ID introuvable (v1=$code, v1beta1=$code_beta). Image déjà poussée."
-          echo "Corps API : $(cat /tmp/container.json 2>/dev/null || true)"
-          echo ""
-          echo "Conteneurs Serverless visibles avec cette clé (région ${REGION}) :"
-          curl -sS -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
-            "https://api.scaleway.com/containers/v1/regions/${REGION}/containers" \
-            -o /tmp/containers-list.json || true
-          python3 -c "import json; d=json.load(open('/tmp/containers-list.json')); items=d.get('containers') or []; print('  (aucun conteneur visible — verifie REGION / projet / ID)') if not items else [print('  - %s  id=%s  status=%s' % (c.get('name','?'), c.get('id'), c.get('status','?'))) for c in items]"
-          # Ne pas faire échouer le job : le push image a réussi
-          exit 0
+          # Sur API v1, le PATCH redéploie déjà souvent ; on force quand même
+          redeploy=$(curl -sS -o /tmp/container-redeploy.json -w "%{http_code}" -X POST \
+            -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "${BASE}/redeploy") || true
+          if [ "$redeploy" = "200" ] || [ "$redeploy" = "201" ]; then
+            echo "OK — redéploiement déclenché (HTTP $redeploy)."
+            exit 0
+          fi
+          if [ "$redeploy" = "409" ]; then
+            echo "OK — conteneur déjà en cours de déploiement (HTTP 409, normal après PATCH)."
+            exit 0
+          fi
+          echo "::error::Redeploy échoué (HTTP $redeploy) : $(cat /tmp/container-redeploy.json)"
+          exit 1
