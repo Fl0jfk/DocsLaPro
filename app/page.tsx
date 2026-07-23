@@ -15,23 +15,18 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "";
-
   if (isMultiTenantEnabled()) {
     const session = await resolveSession();
     if (!session) return <LandingPage />;
     if (isPlatformHostname(host)) {
       const user = await safeCurrentUser();
-      if (isPlatformMasterFromPublicMetadata(user?.publicMetadata)) {
-        redirect("/plateforme");
-      }
+      if (isPlatformMasterFromPublicMetadata(user?.publicMetadata)) { redirect("/plateforme")}
       return <LandingPage />;
     }
     redirect("/dashboard");
   }
-
   const { userId } = await auth();
   if (!userId) return <LandingPage />;
-
   if (isPlatformHostname(host)) {
     const user = await currentUser();
     if (isPlatformMasterFromPublicMetadata(user?.publicMetadata)) { redirect("/plateforme")}
