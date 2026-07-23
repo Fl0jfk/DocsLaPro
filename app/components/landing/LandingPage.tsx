@@ -10,7 +10,7 @@ import WorkflowTravelsAnimation from "@/app/components/landing/WorkflowTravelsAn
 import WorkflowRoomsAnimation from "@/app/components/landing/WorkflowRoomsAnimation";
 import WorkflowAbsencesAnimation from "@/app/components/landing/WorkflowAbsencesAnimation";
 import { SectionReveal } from "@/app/components/landing/SectionReveal";
-import BrandMark, { BrandOrigin } from "@/app/components/landing/BrandMark";
+import BrandMark from "@/app/components/landing/BrandMark";
 import {
   AUDIENCES,
   BENEFITS,
@@ -48,20 +48,8 @@ export default function LandingPage() {
         <section className="mx-auto max-w-6xl px-6 pb-8 pt-10 md:pt-14">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
             <div className="text-center lg:text-left">
-              <motion.span
-                custom={0}
-                variants={fadeUp}
-                initial="hidden"
-                animate="show"
-                className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#2F6B4A]/25 bg-white/80 px-4 py-1.5 text-xs font-semibold tracking-wide text-[#2F6B4A]"
-              >
-                <BrandOrigin />
-                <span className="text-stone-400">·</span>
-                <span>Intranet scolaire</span>
-              </motion.span>
-
               <motion.h1
-                custom={1}
+                custom={0}
                 variants={fadeUp}
                 initial="hidden"
                 animate="show"
@@ -72,7 +60,7 @@ export default function LandingPage() {
               </motion.h1>
 
               <motion.p
-                custom={2}
+                custom={1}
                 variants={fadeUp}
                 initial="hidden"
                 animate="show"
@@ -85,7 +73,7 @@ export default function LandingPage() {
               </motion.p>
 
               <motion.div
-                custom={3}
+                custom={2}
                 variants={fadeUp}
                 initial="hidden"
                 animate="show"
@@ -106,7 +94,7 @@ export default function LandingPage() {
               </motion.div>
 
               <motion.div
-                custom={4}
+                custom={3}
                 variants={fadeUp}
                 initial="hidden"
                 animate="show"
