@@ -2,10 +2,11 @@
 export const MARKETING = {
   productName: "ScolIA",
   productNameExplanation: "School + IA",
-  tagline: "Intranet tout-en-un pour établissements scolaires",
+  tagline: "Intranet pour établissements scolaires",
   contactEmail: process.env.NEXT_PUBLIC_SCOLA_CONTACT_EMAIL?.trim() || "contact@scolia.fr",
   contactCtaLabel: "Nous contacter",
-  pricingPromise: "Trois forfaits clairs selon votre effectif — tout inclus, licences Microsoft comprises.",
+  pricingPromise:
+    "Trois forfaits selon l'effectif de l'établissement, licences Microsoft Éducation incluses.",
 
   legal: {
     companyName: process.env.NEXT_PUBLIC_SCOLA_LEGAL_COMPANY?.trim() || "[Raison sociale à compléter]",
@@ -24,74 +25,125 @@ export const MARKETING = {
 } as const;
 
 export const POSITIONING = {
-  headline: "Pas un ENT de plus",
-  text: "Les ENT classiques excellent sur la communication scolaire. ScolIA va plus loin : workflows métier, tri documentaire, sorties, salles et RH — tout en un, pour gagner du temps au quotidien.",
+  headline: "Au-delà de la communication scolaire",
+  text: "Les ENT couvrent la relation familles et la vie scolaire. ScolIA complète ce périmètre avec les workflows métier de l'établissement : documents élèves, sorties, salles et RH, dans un environnement unique hébergé en France.",
 } as const;
 
 export const BENEFITS = [
   {
-    title: "Tout en un, sans surprise",
-    desc: "Documents élèves, sorties, salles, RH, internat, cloud personnel et demandes — un seul abonnement, pas de module en add-on.",
+    title: "Une plateforme unifiée",
+    desc: "Documents élèves, sorties, salles, RH, internat, cloud personnel et demandes — un abonnement unique, sans modules optionnels.",
   },
   {
-    title: "Gain de temps concret",
-    desc: "Tri automatique des documents élèves, parcours de sorties assistés par IA, RH et demandes tracées de bout en bout.",
+    title: "Processus structurés",
+    desc: "Classement documentaire assisté, parcours de sorties, suivi RH et demandes : des circuits clairs pour les équipes.",
   },
   {
-    title: "Souveraineté maximisée",
-    desc: "Hébergement Scaleway, IA & OCR Mistral, paiements EasyTransac — made in France. Microsoft Éducation et Clerk en complément.",
+    title: "Souveraineté et partenaires",
+    desc: "Hébergement Scaleway, IA et OCR Mistral, paiements EasyTransac. Microsoft Éducation pour les licences ; Clerk pour l'authentification.",
   },
 ] as const;
 
-/** Quatre piliers produit. */
+/** Quatre piliers produit — détail du parcours métier. */
 export const KEY_PILLARS = [
   {
+    id: "docs",
     title: "Documents élèves",
-    desc: "OCR + IA Mistral : segmentation, matching élève/classe, rangement automatique vers OneDrive.",
     accent: "#2F6B4A",
+    lead:
+      "Les pièces reçues (bulletins, attestations, conventions, justificatifs…) sont déposées une fois, puis classées dans le bon dossier élève.",
+    steps: [
+      "Dépôt d'un PDF ou d'un lot de documents (scan, e-mail, espace dédié).",
+      "Lecture OCR via Mistral : le texte et la structure du document sont extraits.",
+      "Identification de l'élève et de la classe (matching assisté par IA).",
+      "Rangement automatique dans l'arborescence OneDrive / Microsoft 365 de l'établissement.",
+      "Les équipes consultent et complètent le dossier sans ressaisir ni trier à la main.",
+    ],
   },
   {
+    id: "travels",
     title: "Sorties scolaires",
-    desc: "Parcours complet de A à Z — validations, devis bus, e-mails et suivi.",
     accent: "#234B73",
+    lead:
+      "Une sortie n'est plus un fil d'e-mails : chaque étape (projet, validations, transport, communication) est suivie dans un parcours unique.",
+    steps: [
+      "Création de la sortie (dates, niveau, effectif, interlocuteurs).",
+      "Circuit de validation direction / vie scolaire selon vos règles.",
+      "Gestion des devis (bus, etc.), comparaison et signature.",
+      "Génération et envoi des circulaires / e-mails aux familles et intervenants.",
+      "Suivi jusqu'au retour : statut, pièces jointes et historique au même endroit.",
+    ],
   },
   {
+    id: "rooms",
     title: "Réservation de salles",
-    desc: "Grille claire, matières en couleurs, récurrence — le planning sans tableur.",
     accent: "#4C3D7A",
+    lead:
+      "Le planning des salles et équipements se partage en temps réel, sans tableur ni double saisie.",
+    steps: [
+      "Consultation de la grille (salles, créneaux, matières ou usages en couleurs).",
+      "Réservation ponctuelle ou récurrente (cours, réunions, examens).",
+      "Visibilité des conflits et disponibilités pour toute l'équipe.",
+      "Modification ou annulation tracée, sans version Excel concurrente.",
+    ],
   },
   {
+    id: "rh",
     title: "RH",
-    desc: "Dossiers personnel, absences, arrivées et signatures — l'administratif RH centralisé.",
     accent: "#6B3A4A",
+    lead:
+      "Le volet ressources humaines centralise dossiers, absences et arrivées pour l'administratif et la direction.",
+    steps: [
+      "Dossier collaborateur (identité, contrats, pièces) accessible selon les droits.",
+      "Déclaration et suivi des absences (arrêt, congés, justifications).",
+      "Parcours d'arrivée : invitation, informations, documents à fournir.",
+      "Signatures et validations RH / direction sur les actes concernés.",
+      "Vue d'ensemble pour le service RH sans multiplier les outils.",
+    ],
   },
 ] as const;
 
-/** Le reste de la plateforme (hors les 4 piliers). */
+/** Compléments (hors les 4 piliers principaux). */
 export const REST_CAPABILITIES = [
   {
-    title: "Internat",
-    desc: "Vie de l'internat, demandes et suivi dédiés dans le même espace.",
-  },
-  {
     title: "Cloud personnel",
-    desc: "Espace documents pour le personnel — dossiers partagés et fichiers utiles au quotidien.",
+    desc: "Espace documents pour le personnel : fichiers de travail et dossiers partagés utiles au quotidien.",
   },
   {
     title: "Demandes & corbeilles",
-    desc: "Dépôt, routage et suivi des tickets par service (administratif, maintenance, compta…).",
+    desc: "Ouverture, routage et suivi des demandes par service (administratif, maintenance, comptabilité…).",
+  },
+  {
+    title: "Internat",
+    desc: "Module complémentaire pour le suivi de la vie d'internat, disponible dans le même abonnement.",
   },
 ] as const;
 
 export const PLATFORM_CAPABILITIES = [
-  { title: "Documents élèves (IA)", desc: "OCR Mistral, découpage et rangement automatique." },
-  { title: "Sorties scolaires", desc: "Workflow complet, devis et validations." },
-  { title: "Réservation de salles", desc: "Planning partagé sans tableur." },
-  { title: "RH", desc: "Dossiers, absences, arrivées et signatures." },
-  { title: "Internat", desc: "Suivi et demandes de la vie d'internat." },
-  { title: "Cloud personnel", desc: "Documents et partages pour le personnel." },
-  { title: "Demandes", desc: "Tickets et corbeilles par service." },
-  { title: "Licences Microsoft", desc: "A1 / A3 Éducation incluses selon le forfait." },
+  {
+    title: "Documents élèves",
+    desc: "Dépôt → OCR → matching élève → rangement OneDrive.",
+  },
+  {
+    title: "Sorties scolaires",
+    desc: "Validations, devis, circulaires et suivi de bout en bout.",
+  },
+  {
+    title: "Réservation de salles",
+    desc: "Planning partagé, récurrence, sans tableur.",
+  },
+  {
+    title: "RH",
+    desc: "Dossiers, absences, arrivées et signatures.",
+  },
+  {
+    title: "Cloud & demandes",
+    desc: "Documents personnel et tickets par service.",
+  },
+  {
+    title: "Licences Microsoft",
+    desc: "A1 / A3 Éducation incluses selon le forfait.",
+  },
 ] as const;
 
 export const AUDIENCES = [
@@ -160,22 +212,22 @@ export const PARTNERS = [
 export const SOVEREIGNTY = {
   title: "Souveraineté numérique",
   intro:
-    "ScolIA maximise le made in France : hébergement Scaleway, IA et OCR Mistral, paiements EasyTransac. Hors France, uniquement Microsoft Éducation (licences) et Clerk (authentification).",
+    "ScolIA s'appuie prioritairement sur des acteurs français : hébergement Scaleway, IA et OCR Mistral, paiements EasyTransac. Hors France : Microsoft Éducation (licences) et Clerk (authentification).",
   bullets: [
-    "Hébergement 100 % Scaleway (France) — plus d'AWS.",
-    "IA + OCR via Mistral — plus de Textract.",
-    "Mensualités via EasyTransac, startup française.",
-    "Microsoft pour les licences Éducation · Clerk pour l'auth.",
+    "Hébergement Scaleway en France (région Paris).",
+    "IA et OCR via Mistral AI.",
+    "Mensualités via EasyTransac.",
+    "Licences Microsoft Éducation · authentification Clerk.",
   ],
 } as const;
 
 export const RGPD_COMPACT = {
   title: "Données & confiance",
   summary:
-    "ScolIA organise vos workflows sans devenir un coffre-fort généraliste. Hébergement Scaleway en France. IA et OCR Mistral. Paiements EasyTransac. Licences Microsoft Éducation dans l'abonnement.",
+    "ScolIA orchestre les workflows de l'établissement. Hébergement Scaleway en France, IA et OCR Mistral, paiements EasyTransac, licences Microsoft Éducation dans l'abonnement.",
   bullets: [
-    "Les dossiers élèves sensibles rejoignent vos espaces Microsoft — vous restez maître de vos données.",
-    "Hébergement France (Scaleway) · IA & OCR français (Mistral) · paiement français (EasyTransac).",
+    "Les dossiers élèves sensibles sont orientés vers vos espaces Microsoft : l'établissement reste maître de ses données.",
+    "Hébergement France (Scaleway) · IA et OCR (Mistral) · paiement (EasyTransac).",
     "Licences Microsoft A1 / A3 Éducation selon forfait · authentification Clerk.",
   ],
 } as const;
@@ -195,11 +247,11 @@ export const RGPD_HIGHLIGHTS = {
     },
     {
       label: "Hébergement en France",
-      detail: "Infrastructure Scaleway uniquement, région Paris (fr-par) — plus d'AWS.",
+      detail: "Infrastructure Scaleway, région Paris (fr-par).",
     },
     {
       label: "IA & OCR français",
-      detail: "Mistral AI pour l'assistant, l'aide documentaire et l'OCR (remplace Textract).",
+      detail: "Mistral AI pour l'assistant, l'aide documentaire et l'OCR.",
     },
     {
       label: "Paiement français",
@@ -318,45 +370,50 @@ export const MICROSOFT_PRICING_NOTE = {
   /** Badge officiel : téléchargez-le depuis Partner Center (Logo Builder) → public/partners/microsoft-partner.svg ou .png */
   partnerLogoPath: "/partners/microsoft-partner.svg",
   intro:
-    "Fini d'attendre que le prestataire réseau déploie les bonnes licences. Chaque abonnement ScolIA embarque un pack Microsoft Éducation pour équiper direction, administratif et enseignants.",
+    "Chaque abonnement ScolIA inclut un pack Microsoft Éducation pour équiper direction, services administratifs et enseignants.",
   partnerNote:
-    "ScolIA est membre du Microsoft Partner Program : nous provisionnons vos licences Éducation (A1 / A3) directement dans l'abonnement, via le canal partenaire.",
+    "En tant que membre du Microsoft Partner Program, ScolIA provisionne les licences Éducation (A1 / A3) dans le cadre de l'abonnement, via le canal partenaire.",
   bullets: [
-    "Licences A3 pour les profils administratifs / direction (Word, Excel, Outlook…).",
+    "Licences A3 pour les profils administratifs et de direction (Word, Excel, Outlook…).",
     "Licences A1 pour les enseignants (outils Office en ligne).",
-    "Volumes selon forfait — sans surcoût de licences Business.",
+    "Volumes de base définis par forfait.",
+    "Licences A3 Éducation supplémentaires disponibles sur demande : le forfait est alors ajusté selon le volume.",
   ],
   disclaimer:
-    "Les volumes A1 / A3 sont ceux indiqués sur chaque forfait. Besoin de licences supplémentaires ? Contactez-nous.",
+    "Les volumes A1 / A3 indiqués sont ceux inclus dans chaque forfait. Besoin de licences A3 supplémentaires ? Contactez-nous pour un devis adapté.",
 } as const;
 
 export const PRICING_FAQ = [
   {
     q: "Y a-t-il des modules en option ?",
-    a: "Non. Documents élèves, sorties, salles, RH, internat, cloud personnel, demandes et IA — tout est dans l'abonnement.",
+    a: "Non. Documents élèves, sorties, salles, RH, internat, cloud personnel, demandes et IA sont inclus dans l'abonnement.",
   },
   {
     q: "Comment choisir mon forfait ?",
-    a: "Selon votre effectif : moins de 500 élèves → 299 €/mois ; 500 à 1 000 → 499 €/mois ; plus de 1 000 → 699 €/mois. Les licences Microsoft sont incluses dans chaque palier.",
+    a: "Selon l'effectif : moins de 500 élèves → 299 €/mois ; 500 à 1 000 → 499 €/mois ; plus de 1 000 → 699 €/mois. Les licences Microsoft sont incluses à chaque palier.",
   },
   {
     q: "Que contiennent les licences Microsoft ?",
-    a: "ScolIA est membre du Microsoft Partner Program. Essentielle : 5× A3 + 50× A1. Standard : 10× A3 + 150× A1. Plus : 15× A3 + 150× A1 — licences Éducation provisionnées via le canal partenaire.",
+    a: "ScolIA est membre du Microsoft Partner Program. Essentielle : 5× A3 + 50× A1. Standard : 10× A3 + 150× A1. Plus : 15× A3 + 150× A1.",
+  },
+  {
+    q: "Puis-je ajouter des licences A3 si le pack ne suffit pas ?",
+    a: "Oui. Des licences Microsoft A3 Éducation supplémentaires peuvent être ajoutées sur demande. Le montant mensuel est alors ajusté selon le volume nécessaire. Contactez-nous pour un devis.",
   },
   {
     q: "Puis-je résilier quand je veux ?",
-    a: "Oui, l'abonnement est mensuel, sans engagement longue durée. Contactez-nous pour un devis ou une mise en route.",
+    a: "Oui. L'abonnement est mensuel, sans engagement de durée. Contactez-nous pour un devis ou une mise en route.",
   },
   {
     q: "Où sont hébergées les données ?",
-    a: "En France, chez Scaleway (Paris) — plus d'AWS. L'IA et l'OCR passent par Mistral (plus de Textract). La bureautique s'appuie sur Microsoft Éducation ; l'authentification sur Clerk.",
+    a: "En France, chez Scaleway (Paris). L'IA et l'OCR s'appuient sur Mistral. La bureautique repose sur Microsoft Éducation ; l'authentification sur Clerk.",
   },
   {
     q: "Comment sont réglées les mensualités ?",
-    a: "Via EasyTransac, startup française de paiement (PCI DSS). Contactez-nous pour la mise en place de l'abonnement.",
+    a: "Via EasyTransac, prestataire de paiement français (PCI DSS). Contactez-nous pour la mise en place de l'abonnement.",
   },
   {
     q: "Comment démarrer ?",
-    a: "Écrivez-nous : on confirme le forfait selon votre effectif et on planifie la mise en route avec direction / OGEC.",
+    a: "Écrivez-nous : nous confirmons le forfait selon votre effectif et planifions la mise en route avec la direction ou l'OGEC.",
   },
 ] as const;

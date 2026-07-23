@@ -95,6 +95,9 @@ export default function TarifsContent() {
                   <p className="mt-1 font-semibold">
                     {plan.microsoftA3}× A3 · {plan.microsoftA1}× A1
                   </p>
+                  <p className="mt-2 text-[11px] font-medium leading-snug text-[#2F6B4A]/80">
+                    Licences A3 supplémentaires sur demande — tarif ajusté.
+                  </p>
                 </div>
 
                 <ul className="mt-4 flex-1 space-y-2">
@@ -128,7 +131,8 @@ export default function TarifsContent() {
             Tout est <span className="text-[#2F6B4A]">inclus</span>
           </h2>
           <p className="mx-auto mb-8 mt-2 max-w-xl text-center text-sm text-stone-600">
-            Les mêmes briques métier sur les trois forfaits — seul le pack Microsoft change.
+            Les mêmes briques métier sur les trois forfaits — seul le pack Microsoft change. Des
+            licences A3 Éducation peuvent être ajoutées sur demande, avec un montant mensuel adapté.
           </p>
           <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-lg shadow-emerald-900/5 md:p-8">
             <ul className="grid gap-3 sm:grid-cols-2">

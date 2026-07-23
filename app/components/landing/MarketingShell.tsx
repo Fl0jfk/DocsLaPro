@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MARKETING } from "@/app/lib/marketing-site";
 import { SCOLA, SCOLA_GRADIENT_TEXT, SCOLA_HEADER_ACCENT, SCOLA_HEADER_SHELL } from "@/app/lib/marketing-theme";
+import BrandMark from "@/app/components/landing/BrandMark";
 import PlatformMasterNav from "@/app/components/platform/PlatformMasterNav";
 import Logo from "../../../public/Logo header.png";
 
@@ -68,9 +69,7 @@ export default function MarketingShell({ children }: { children: ReactNode }) {
               height={42}
               className="transition group-hover:scale-105 drop-shadow-[0_4px_14px_rgba(47,107,74,0.35)]"
             />
-            <span className={`text-xl font-black tracking-tight ${SCOLA_GRADIENT_TEXT}`}>
-              {MARKETING.productName}
-            </span>
+            <BrandMark size="md" />
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm md:flex">
@@ -102,12 +101,12 @@ export default function MarketingShell({ children }: { children: ReactNode }) {
       <footer className="mt-16 border-t border-emerald-200/60 bg-gradient-to-b from-white/40 to-emerald-50/30">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="text-sm font-black text-[#14231A]">
-              <span className={SCOLA_GRADIENT_TEXT}>{MARKETING.productName}</span> — {MARKETING.tagline}
+            <p className="text-sm font-semibold text-[#14231A]">
+              <BrandMark size="sm" /> — {MARKETING.tagline}
             </p>
             <p className="mt-2 max-w-sm text-xs leading-relaxed text-stone-500">
-              Intranet tout-en-un pour centraliser workflows, vie administrative et pédagogique de
-              votre établissement.
+              Plateforme intranet pour centraliser les workflows administratifs et pédagogiques de
+              l&apos;établissement.
             </p>
           </div>
           <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">

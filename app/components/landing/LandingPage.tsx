@@ -10,9 +10,11 @@ import WorkflowTravelsAnimation from "@/app/components/landing/WorkflowTravelsAn
 import WorkflowRoomsAnimation from "@/app/components/landing/WorkflowRoomsAnimation";
 import WorkflowAbsencesAnimation from "@/app/components/landing/WorkflowAbsencesAnimation";
 import { SectionReveal } from "@/app/components/landing/SectionReveal";
+import BrandMark, { BrandOrigin } from "@/app/components/landing/BrandMark";
 import {
   AUDIENCES,
   BENEFITS,
+  KEY_PILLARS,
   MARKETING,
   PLATFORM_CAPABILITIES,
   POSITIONING,
@@ -23,7 +25,12 @@ import {
 } from "@/app/lib/marketing-site";
 import { SCOLA_GRADIENT_TEXT } from "@/app/lib/marketing-theme";
 
-const BENEFIT_ICONS = ["⚡", "🎯", "🇫🇷"] as const;
+const PILLAR_ANIMATIONS = {
+  docs: WorkflowDocsAnimation,
+  travels: WorkflowTravelsAnimation,
+  rooms: WorkflowRoomsAnimation,
+  rh: WorkflowAbsencesAnimation,
+} as const;
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -46,10 +53,11 @@ export default function LandingPage() {
                 variants={fadeUp}
                 initial="hidden"
                 animate="show"
-                className="mb-5 inline-flex items-center gap-2 rounded-full border-2 border-[#2F6B4A]/20 bg-emerald-50 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-[#2F6B4A]"
+                className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#2F6B4A]/25 bg-white/80 px-4 py-1.5 text-xs font-semibold tracking-wide text-[#2F6B4A]"
               >
-                <span className="h-2 w-2 animate-pulse rounded-full bg-[#4ADE80]" />
-                {MARKETING.productNameExplanation} · Intranet scolaire
+                <BrandOrigin />
+                <span className="text-stone-400">·</span>
+                <span>Intranet scolaire</span>
               </motion.span>
 
               <motion.h1
@@ -59,8 +67,8 @@ export default function LandingPage() {
                 animate="show"
                 className="text-4xl font-black leading-[1.05] tracking-tight text-[#14231A] sm:text-5xl lg:text-[3.25rem]"
               >
-                L&apos;intranet qui{" "}
-                <span className={SCOLA_GRADIENT_TEXT}>fait gagner du temps</span>
+                L&apos;intranet métier{" "}
+                <span className={SCOLA_GRADIENT_TEXT}>des établissements</span>
               </motion.h1>
 
               <motion.p
@@ -70,9 +78,10 @@ export default function LandingPage() {
                 animate="show"
                 className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-stone-600 lg:mx-0 lg:text-lg"
               >
-                <span className={`font-black ${SCOLA_GRADIENT_TEXT}`}>{MARKETING.productName}</span>{" "}
-                regroupe vos workflows métier — documents élèves, sorties, salles et RH — dans un
-                seul espace, hébergé en France.
+                <BrandMark size="sm" className="align-baseline text-base lg:text-lg" /> structure le
+                travail des équipes : dépôt et classement des documents élèves, organisation des
+                sorties, réservation des salles, et gestion RH — dans un environnement unique hébergé
+                en France.
               </motion.p>
 
               <motion.div
@@ -149,51 +158,54 @@ export default function LandingPage() {
           <SectionReveal>
             <div className="mb-10 text-center">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-[#3D8A5C]">
-                Voir en action
+                Fonctionnalités principales
               </p>
               <h2 className="mt-2 text-2xl font-black text-[#14231A] md:text-3xl">
-                Des workflows qui se voient
+                Quatre piliers métier
               </h2>
-              <p className="mx-auto mt-2 max-w-xl text-sm text-stone-600">
-                Quatre piliers au cœur de {MARKETING.productName} — documents élèves, sorties,
-                salles et RH.
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-stone-600">
+                Chaque module suit un parcours concret. Voici ce que fait{" "}
+                <BrandMark size="sm" className="align-baseline" /> au quotidien — l&apos;animation
+                ci-dessous illustre le flux.
               </p>
             </div>
 
-            <div className="grid gap-8 sm:grid-cols-2 lg:gap-10">
-              <div>
-                <h3 className="mb-1 text-sm font-black text-[#2F6B4A]">Documents élèves</h3>
-                <p className="mb-4 text-xs text-stone-500">
-                  Déposez. L&apos;IA trie. C&apos;est rangé.
-                </p>
-                <WorkflowDocsAnimation />
-              </div>
-              <div>
-                <h3 className="mb-1 text-sm font-black text-[#234B73]">Sorties scolaires</h3>
-                <p className="mb-4 text-xs text-stone-500">
-                  Validations, devis bus et e-mails automatiques — de A à Z.
-                </p>
-                <WorkflowTravelsAnimation />
-              </div>
-              <div>
-                <h3 className="mb-1 text-sm font-black text-[#4C3D7A]">Réservation de salles</h3>
-                <p className="mb-4 text-xs text-stone-500">
-                  Grille claire, matières en couleurs, récurrence — sans tableur.
-                </p>
-                <WorkflowRoomsAnimation />
-              </div>
-              <div>
-                <h3 className="mb-1 text-sm font-black text-[#6B3A4A]">RH</h3>
-                <p className="mb-4 text-xs text-stone-500">
-                  Dossiers personnel, absences, arrivées et signatures — tout le volet RH.
-                </p>
-                <WorkflowAbsencesAnimation />
-              </div>
+            <div className="grid gap-10 sm:grid-cols-2 lg:gap-12">
+              {KEY_PILLARS.map((pillar) => {
+                const Animation = PILLAR_ANIMATIONS[pillar.id];
+                return (
+                  <article key={pillar.id} className="flex flex-col">
+                    <h3
+                      className="text-base font-black md:text-lg"
+                      style={{ color: pillar.accent }}
+                    >
+                      {pillar.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-stone-600">{pillar.lead}</p>
+                    <ol className="mt-4 space-y-2.5 border-l-2 border-emerald-100 pl-4">
+                      {pillar.steps.map((step, i) => (
+                        <li key={step} className="text-sm leading-relaxed text-stone-600">
+                          <span
+                            className="mr-1.5 font-bold tabular-nums"
+                            style={{ color: pillar.accent }}
+                          >
+                            {i + 1}.
+                          </span>
+                          {step}
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="mt-5">
+                      <Animation />
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
             <div className="mt-12">
               <p className="mb-6 text-center text-xs font-bold uppercase tracking-wider text-stone-400">
-                Et le reste
+                Également inclus
               </p>
               <div className="grid gap-4 sm:grid-cols-3">
                 {REST_CAPABILITIES.map((c) => (
@@ -213,17 +225,19 @@ export default function LandingPage() {
         <section id="benefices" className="mx-auto max-w-6xl px-6 pb-16">
           <SectionReveal>
             <h2 className="mb-8 text-center text-2xl font-black text-[#14231A] md:text-3xl">
-              Pourquoi <span className="text-[#2F6B4A]">{MARKETING.productName}</span> ?
+              Pourquoi <BrandMark size="lg" className="align-baseline" /> ?
             </h2>
             <div className="grid gap-5 md:grid-cols-3">
               {BENEFITS.map((b, i) => (
                 <motion.article
                   key={b.title}
-                  whileHover={{ y: -4, scale: 1.02 }}
+                  whileHover={{ y: -2 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg shadow-emerald-900/5"
+                  className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm"
                 >
-                  <span className="text-3xl">{BENEFIT_ICONS[i] ?? "✓"}</span>
+                  <p className="text-xs font-bold uppercase tracking-widest text-[#3D8A5C]">
+                    {String(i + 1).padStart(2, "0")}
+                  </p>
                   <h3 className="mt-3 text-base font-black text-[#2F6B4A]">{b.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-stone-600">{b.desc}</p>
                 </motion.article>
@@ -353,10 +367,11 @@ export default function LandingPage() {
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#2F6B4A] via-[#25633F] to-[#1E4A32] px-6 py-12 text-center shadow-2xl shadow-emerald-900/30 md:px-12">
               <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#4ADE80]/20 blur-2xl" />
               <h2 className="relative text-2xl font-black text-white md:text-3xl">
-                Prêt à gagner du temps ?
+                Échanger sur votre projet
               </h2>
               <p className="relative mx-auto mt-3 max-w-xl text-sm text-emerald-100/90 md:text-base">
-                Contactez-nous ou connectez-vous si votre établissement est déjà équipé.
+                Contactez-nous pour un devis, ou connectez-vous si votre établissement est déjà
+                équipé.
               </p>
               <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
                 <a
