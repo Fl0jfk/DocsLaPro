@@ -1,26 +1,24 @@
 # Build + push image Docker → Scaleway Container Registry,
 # puis redéploie le Serverless Container.
 #
-# ── Secrets GitHub (Settings → Secrets and variables → Actions) ─────────────
+# ── Secrets GitHub (Settings → Secrets and variables → Actions → Secrets) ──
 #
-# Obligatoires :
-#   SCW_SECRET_KEY                 Secret Key IAM Scaleway (pas l’Access Key)
-#                                  → celle du `docker login -u nologin -p …`
-#                                  Nom EXACT : SCW_SECRET_KEY (sans espace)
-#   PLATFORM_CLERK_PUBLISHABLE_KEY pk_… de l’app Clerk plateforme
-#                                  (les tenants : clés dans le JSON S3, pas ici)
-#   NEXT_PUBLIC_APP_URL            URL publique (ex. https://app.scolia.fr)
+# Obligatoires (mêmes noms que dans ton .env) :
+#   SECRET_ACCESS_KEY              Secret Access Key Scaleway
+#                                  → docker login -u nologin -p …
+#                                  (PAS l’Access Key ID qui commence par SCW…)
+#   PLATFORM_CLERK_PUBLISHABLE_KEY pk_… Clerk plateforme
+#   NEXT_PUBLIC_APP_URL            URL publique
 #
-# Fortement recommandés :
+# Recommandés :
 #   SCW_CONTAINER_ID               UUID du conteneur (auto-redeploy)
 #   NEXT_PUBLIC_PLATFORM_APP_URL
 #   PLATFORM_APP_URL
 #   PLATFORM_HOSTNAMES
 #   NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST
 #
-# Runtime (console Scaleway → Conteneur → Variables d’environnement), PAS GitHub :
-#   PLATFORM_CLERK_SECRET_KEY, CLERK_ENCRYPTION_KEY, MISTRAL_API_KEY,
-#   ACCESS_KEY_ID, SECRET_ACCESS_KEY, buckets, etc.
+# Runtime conteneur Scaleway (pas GitHub) :
+#   PLATFORM_CLERK_SECRET_KEY, ACCESS_KEY_ID, SECRET_ACCESS_KEY, MISTRAL_API_KEY, …
 
 name: Deploy Scaleway
 
@@ -51,26 +49,24 @@ jobs:
 
       - name: Vérifier les secrets requis
         env:
-          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
           PLATFORM_CLERK_PUBLISHABLE_KEY: ${{ secrets.PLATFORM_CLERK_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         run: |
           missing=0
-          for name in SCW_SECRET_KEY PLATFORM_CLERK_PUBLISHABLE_KEY NEXT_PUBLIC_APP_URL; do
+          for name in SECRET_ACCESS_KEY PLATFORM_CLERK_PUBLISHABLE_KEY NEXT_PUBLIC_APP_URL; do
             if [ -z "${!name}" ]; then
               echo "::error::Secret GitHub manquant ou vide : $name"
               missing=1
             else
-              # Ne jamais afficher la valeur — juste la longueur pour diagnostiquer
               eval "len=\${#${name}}"
               echo "$name : présent (${len} caractères)"
             fi
           done
           if [ "$missing" -ne 0 ]; then
             echo ""
-            echo "→ Settings → Secrets and variables → Actions → New repository secret"
-            echo "→ Vérifie que tu es sur le BON repo (ScolIA, pas un fork / ancien DocsLaPro)"
-            echo "→ SCW_SECRET_KEY = Secret Key IAM (UUID / longue chaîne), PAS l’Access Key (SCW…)"
+            echo "→ Settings → Secrets and variables → Actions → onglet Secrets (pas Variables)"
+            echo "→ Nom exact : SECRET_ACCESS_KEY (comme dans ton .env)"
             exit 1
           fi
 
@@ -82,7 +78,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: nologin
-          password: ${{ secrets.SCW_SECRET_KEY }}
+          password: ${{ secrets.SECRET_ACCESS_KEY }}
 
       - name: Build & push
         uses: docker/build-push-action@v6
@@ -110,7 +106,7 @@ jobs:
 
       - name: Redeploy Scaleway container
         env:
-          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
           SCW_CONTAINER_ID: ${{ secrets.SCW_CONTAINER_ID }}
           SCW_REGION: ${{ env.SCW_REGION }}
         run: |
@@ -120,7 +116,7 @@ jobs:
           fi
           echo "Redéploiement du conteneur $SCW_CONTAINER_ID…"
           curl -fsS -X POST \
-            -H "X-Auth-Token: ${SCW_SECRET_KEY}" \
+            -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
             -H "Content-Type: application/json" \
             "https://api.scaleway.com/containers/v1beta1/regions/${SCW_REGION}/containers/${SCW_CONTAINER_ID}/deploy"
           echo
