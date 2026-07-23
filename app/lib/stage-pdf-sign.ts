@@ -1,115 +1,60 @@
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { DetectDocumentTextCommand, TextractClient } from "@aws-sdk/client-textract";
 import { PDFDocument } from "pdf-lib";
 import { resolveDirectionSignatureImageUrl } from "@/app/lib/stage-config";
 import { loadReferentSignatureBytes, parsePngBase64 } from "@/app/lib/stage-signature-store";
 import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getBucketName } from "@/app/lib/s3-storage";
+import { getMistralApiKey } from "@/app/lib/tenant-config";
 import {
-  textractSignatureBBoxToPdfLibDrawCoords,
-  type SignatureFieldBBoxNormalized,
-} from "@/app/lib/travel-devis-ocr";
+  detectAllSignatureZones,
+  signatureBBoxToPdfLibCoords,
+  type SignatureBBox,
+} from "@/app/lib/pdf-signature-vision";
 import type { StageConvention, StageSignerRole } from "@/app/lib/stage-types";
 
 const SIG_W = 140;
 const SIG_H = 55;
 
-const ROLE_LABEL_PATTERNS: Partial<Record<StageSignerRole, RegExp[]>> = {
-  professeur_referent: [
-    /professeur/i,
-    /referent/i,
-    /etablissement\s+d.?enseignement/i,
-    /representant.*etablissement/i,
-    /visa.*etablissement/i,
-  ],
-  direction: [
-    /chef\s+d.?etablissement/i,
-    /directeur/i,
-    /\bdirection\b/i,
-    /etablissement\s+scolaire/i,
-    /cachet.*etablissement/i,
-  ],
-};
-
-function textractClient() {
-  return new TextractClient({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
-}
-
-function scoreLineForRole(text: string, patterns: RegExp[]): number {
-  const t = text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-  let score = 0;
-  for (const re of patterns) {
-    if (re.test(t)) score += 8;
+/**
+ * Détecte toutes les zones de signature du PDF via Mistral OCR + Vision.
+ * Retourne un tableau de BBox normalisées (une par zone, sur n'importe quelle page).
+ * En cas d'échec (pas de clé API, erreur réseau…) : retourne un tableau vide → fallback.
+ */
+async function findAllSignatureZones(pdfBytes: Uint8Array): Promise<SignatureBBox[]> {
+  const apiKey = await getMistralApiKey();
+  if (!apiKey) {
+    console.warn("[stage-pdf-sign] MISTRAL_API_KEY absent — détection signature Vision ignorée");
+    return [];
   }
-  if (/signature/.test(t)) score += 4;
-  return score;
-}
-
-async function findSignatureBBoxForRole(
-  pdfBytes: Uint8Array,
-  role: StageSignerRole,
-): Promise<SignatureFieldBBoxNormalized | null> {
-  const patterns = ROLE_LABEL_PATTERNS[role];
-  if (!patterns?.length || !process.env.ACCESS_KEY_ID) return null;
 
   try {
-    const client = textractClient();
-    const res = await client.send(
-      new DetectDocumentTextCommand({ Document: { Bytes: pdfBytes } }),
-    );
-    const blocks = res.Blocks || [];
-    type Cand = { page: number; score: number; left: number; top: number; width: number; height: number };
-    const cands: Cand[] = [];
-
-    for (const b of blocks) {
-      if (b.BlockType !== "LINE" || !b.Text?.trim()) continue;
-      const score = scoreLineForRole(b.Text, patterns);
-      if (score <= 0) continue;
-      const bb = b.Geometry?.BoundingBox;
-      if (bb?.Left == null || bb.Top == null || bb.Width == null || bb.Height == null) continue;
-      cands.push({
-        page: b.Page != null && b.Page > 0 ? b.Page : 1,
-        score,
-        left: bb.Left,
-        top: bb.Top,
-        width: bb.Width,
-        height: bb.Height,
-      });
+    const zones = await detectAllSignatureZones(pdfBytes, apiKey, { mode: "generic" });
+    if (zones.length > 0) {
+      console.log(`[stage-pdf-sign] Vision : ${zones.length} zone(s) de signature détectée(s)`);
     }
-
-    if (!cands.length) return null;
-    cands.sort((a, b) => b.score - a.score || b.page - a.page);
-    const best = cands[0]!;
-    return {
-      pageNumber: best.page,
-      left: best.left,
-      top: best.top,
-      width: best.width,
-      height: best.height,
-    };
-  } catch (e) {
-    console.error("[stage-pdf-sign] Textract:", e);
-    return null;
+    return zones;
+  } catch (err) {
+    console.error("[stage-pdf-sign] Erreur détection Vision :", err);
+    return [];
   }
 }
 
-function fallbackCoords(pageWidth: number, role: StageSignerRole): { x: number; y: number } {
+/**
+ * Position de repli lorsque Vision ne trouve aucune zone.
+ * Convention : prof référent → bas gauche, direction → bas droite.
+ */
+function fallbackZone(pageWidth: number, role: StageSignerRole): { x: number; y: number } {
   if (role === "direction") {
     return { x: pageWidth - SIG_W - 48, y: 72 };
   }
   return { x: 48, y: 72 };
 }
 
-async function embedImageOnPdf(
+/**
+ * Appose l'image de signature sur le PDF sur TOUTES les zones détectées.
+ * Si aucune zone n'est trouvée via Vision, on utilise le bas de la dernière page (fallback).
+ */
+async function embedSignatureOnPdf(
   pdfBytes: Uint8Array,
   imageBytes: Uint8Array,
   role: StageSignerRole,
@@ -118,27 +63,27 @@ async function embedImageOnPdf(
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const sigImage = isJpg ? await pdfDoc.embedJpg(imageBytes) : await pdfDoc.embedPng(imageBytes);
   const pages = pdfDoc.getPages();
-  const bbox = await findSignatureBBoxForRole(pdfBytes, role);
 
-  let targetPage = pages[pages.length - 1]!;
-  let drawX: number;
-  let drawY: number;
+  // Détection de toutes les zones de signature via OCR + Vision
+  const zones = await findAllSignatureZones(pdfBytes);
 
-  if (bbox && pages.length > 0) {
-    const pageIndex = Math.min(Math.max(1, bbox.pageNumber), pages.length) - 1;
-    targetPage = pages[pageIndex]!;
-    const { width: pw, height: ph } = targetPage.getSize();
-    const coords = textractSignatureBBoxToPdfLibDrawCoords(pw, ph, bbox, SIG_W, SIG_H, 4);
-    drawX = coords.x;
-    drawY = coords.y;
+  if (zones.length === 0) {
+    // Fallback : bas de la dernière page
+    const lastPage = pages[pages.length - 1]!;
+    const { width } = lastPage.getSize();
+    const { x, y } = fallbackZone(width, role);
+    lastPage.drawImage(sigImage, { x, y, width: SIG_W, height: SIG_H });
   } else {
-    const { width } = targetPage.getSize();
-    const fb = fallbackCoords(width, role);
-    drawX = fb.x;
-    drawY = fb.y;
+    // Apposer la signature sur chaque zone détectée
+    for (const zone of zones) {
+      const pageIndex = Math.min(Math.max(1, zone.pageNumber), pages.length) - 1;
+      const page = pages[pageIndex]!;
+      const { width: pw, height: ph } = page.getSize();
+      const { x, y } = signatureBBoxToPdfLibCoords(pw, ph, zone, SIG_W, SIG_H, 4);
+      page.drawImage(sigImage, { x, y, width: SIG_W, height: SIG_H });
+    }
   }
 
-  targetPage.drawImage(sigImage, { x: drawX, y: drawY, width: SIG_W, height: SIG_H });
   return pdfDoc.save();
 }
 
@@ -239,7 +184,7 @@ export async function stampSignatureOnConventionPdf(params: {
   }
 
   const isJpg = sigBytes![0] === 0xff && sigBytes![1] === 0xd8;
-  const stamped = await embedImageOnPdf(pdfBytes, sigBytes!, params.role, isJpg);
+  const stamped = await embedSignatureOnPdf(pdfBytes, sigBytes!, params.role, isJpg);
   await saveConventionPdfBytes(params.convention, stamped);
   return { ok: true };
 }

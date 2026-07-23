@@ -5,13 +5,8 @@ import { jsPDF } from 'jspdf';
 import { drawPdfLetterhead, getSchoolLetterhead, loadSchoolLogoForPdf } from "@/app/lib/pdf-branding";
 import { normalizeTravelImageUrl } from "@/app/lib/travels-image-url";
 import { parseTravelsS3KeyFromUrl } from "@/app/lib/travels-s3";
-import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
-import {  TextractClient, StartDocumentTextDetectionCommand, GetDocumentTextDetectionCommand} from "@aws-sdk/client-textract";
-
-const textractClient = new TextractClient({
-  region: process.env.REGION,
-  credentials: { accessKeyId: process.env.ACCESS_KEY_ID!, secretAccessKey: process.env.SECRET_ACCESS_KEY!}
-});
+import { requireMistralApiKey } from "@/app/lib/tenant-config";
+import { runTextractForS3Key } from "@/app/lib/ocr-textract";
 
 export async function POST(req: Request) {
   const session = await resolveSession();
@@ -23,7 +18,6 @@ export async function POST(req: Request) {
     const professorName = tripData.ownerName || "l'enseignant";
     const costPerStudent = d.costPerStudent || (d.coutTotal && d.nbEleves ? (d.coutTotal / d.nbEleves).toFixed(2) : 'À préciser');
     let ocrCombinedText = "";
-    const bucket = await getTenantBucketName();
     const documents = tripData.data?.attachments; 
     if (documents && Array.isArray(documents)) {      
       for (const doc of documents) {
@@ -33,27 +27,8 @@ export async function POST(req: Request) {
             console.warn(`[OCR] Clé S3 introuvable pour ${doc.name || "document"}`);
             continue;
           }
-          const startCommand = new StartDocumentTextDetectionCommand({DocumentLocation: { S3Object: { Bucket: bucket, Name: docKey}}});
-          const startResponse = await textractClient.send(startCommand);
-          const jobId = startResponse.JobId;
-          let finished = false;
-          let attempts = 0;
-          const maxAttempts = 240;
-          while (!finished && attempts < maxAttempts) {
-            const getCommand = new GetDocumentTextDetectionCommand({ JobId: jobId });
-            const getResponse = await textractClient.send(getCommand);
-            const status = getResponse.JobStatus;
-            if (status === "SUCCEEDED") {
-              const extractedText = getResponse.Blocks?.filter(b => b.BlockType === "LINE").map(b => b.Text).join(" ");
-              ocrCombinedText += `\n--- Contenu du document [${doc.name || docKey}] ---\n${extractedText}\n`;
-              finished = true;
-            } else if (status === "FAILED") { finished = true;
-            } else {
-              attempts+=2;
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-            }
-          }
-          if (attempts >= maxAttempts) { console.warn(`[OCR] Timeout pour le document ${doc.name}`)}
+          const ocrResult = await runTextractForS3Key(docKey);
+          ocrCombinedText += `\n--- Contenu du document [${doc.name || docKey}] ---\n${ocrResult.text}\n`;
         } catch (ocrErr) { console.error(`Erreur OCR sur le document ${doc.name}:`, ocrErr)}
       }
     }

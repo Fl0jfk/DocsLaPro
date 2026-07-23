@@ -15,9 +15,8 @@ export function contentSecurityPolicyHeaderValue(): string {
     https://login.microsoft.com;
   object-src 'self' blob: data:;
   connect-src 'self'
-    https://*.s3.eu-west-3.amazonaws.com
-    https://*.s3.amazonaws.com
-    https://docslapro.s3.eu-west-3.amazonaws.com
+    https://*.s3.fr-par.scw.cloud
+    https://s3.fr-par.scw.cloud
     https://${SCOLA_IMAGE_CDN_HOST}
     https://clerk-telemetry.com
     https://*.clerk-telemetry.com
@@ -32,7 +31,7 @@ export function contentSecurityPolicyHeaderValue(): string {
     https://login.microsoftonline.com
     https://graph.microsoft.com;
   worker-src 'self' blob:;
-  form-action 'self' https://*.s3.eu-west-3.amazonaws.com https://docslapro.s3.eu-west-3.amazonaws.com;
+  form-action 'self' https://*.s3.fr-par.scw.cloud https://s3.fr-par.scw.cloud;
   img-src 'self' https://img.clerk.com https://clerk.docslapro.com https://clerk.lp.docslapro.com https: data:;
   script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https:;
   style-src 'self' 'unsafe-inline' https:;

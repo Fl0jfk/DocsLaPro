@@ -67,16 +67,21 @@ export default function MentionsLegalesPage() {
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <li>
-                <strong>Amazon Web Services (AWS)</strong> — hébergement en France (région Paris).
+                <strong>Scaleway</strong> — hébergement de l&apos;application et des données en France
+                (région Paris, fr-par).
               </li>
               <li>
-                <strong>Mistral AI</strong> — intelligence artificielle française (assistant, aide
-                documentaire).
+                <strong>Mistral AI</strong> — intelligence artificielle et OCR français (assistant, aide
+                documentaire, reconnaissance de documents).
               </li>
               <li>
-                <strong>Microsoft</strong> — dépôt des dossiers sensibles dans les espaces Microsoft 365
-                de l&apos;établissement ; démarche Microsoft Partner en cours pour proposer des licences
-                intégrées à l&apos;offre.
+                <strong>EasyTransac</strong> — encaissement des mensualités d&apos;abonnement (startup
+                française).
+              </li>
+              <li>
+                <strong>Microsoft</strong> — membre du Microsoft Partner Program ; licences Microsoft
+                Éducation (A1 / A3) et dépôt des dossiers sensibles dans les espaces Microsoft 365 de
+                l&apos;établissement.
               </li>
               <li>
                 <strong>Clerk</strong> — authentification et gestion des comptes.
@@ -105,8 +110,8 @@ export default function MentionsLegalesPage() {
               outil de traitement et d&apos;orchestration des workflows.
             </p>
             <p>
-              <strong>Localisation :</strong> {legal.hostRegion} (AWS). Dépôts sensibles selon workflow vers
-              les systèmes de l&apos;établissement.
+              <strong>Localisation :</strong> {legal.hostRegion} (Scaleway). Dépôts sensibles selon
+              workflow vers les systèmes de l&apos;établissement.
             </p>
             <p>
               Vous disposez d&apos;un droit d&apos;accès, de rectification, d&apos;effacement, de limitation du

@@ -1,6 +1,5 @@
 import "server-only";
 import { S3Client } from "@aws-sdk/client-s3";
-import { AssumeRoleCommand, STSClient } from "@aws-sdk/client-sts";
 import { getTenant } from "@/app/lib/tenant-context";
 import type { TenantSecrets } from "@/app/lib/tenant-types";
 
@@ -8,10 +7,18 @@ type TenantAwsConfig = NonNullable<TenantSecrets["aws"]>;
 
 let _platformClient: S3Client | null = null;
 const staticTenantClients = new Map<string, S3Client>();
-const assumedRoleCache = new Map<string, { client: S3Client; expiresAt: number }>();
 
 function defaultRegion(): string {
-  return process.env.REGION?.trim() || "eu-west-3";
+  return process.env.REGION?.trim() || "fr-par";
+}
+
+/** Endpoint Object Storage — Scaleway fr-par par défaut, surchargeable via S3_ENDPOINT. */
+function s3Endpoint(): string | undefined {
+  return process.env.S3_ENDPOINT?.trim() || undefined;
+}
+
+function s3ForcePathStyle(): boolean {
+  return process.env.S3_FORCE_PATH_STYLE !== "false"; // true par défaut (Scaleway le requiert)
 }
 
 function platformCredentials() {
@@ -23,10 +30,22 @@ function platformCredentials() {
   return { accessKeyId, secretAccessKey };
 }
 
+function buildS3Client(opts: {
+  region: string;
+  credentials: { accessKeyId: string; secretAccessKey: string };
+}): S3Client {
+  const endpoint = s3Endpoint();
+  return new S3Client({
+    region: opts.region,
+    credentials: opts.credentials,
+    ...(endpoint ? { endpoint, forcePathStyle: s3ForcePathStyle() } : {}),
+  });
+}
+
 /** IAM plateforme — registry S3 uniquement (index + secrets tenants). */
 export function getPlatformS3Client(): S3Client {
   if (!_platformClient) {
-    _platformClient = new S3Client({
+    _platformClient = buildS3Client({
       region: defaultRegion(),
       credentials: platformCredentials(),
     });
@@ -37,44 +56,21 @@ export function getPlatformS3Client(): S3Client {
 async function clientForTenantAws(slug: string, aws?: TenantAwsConfig): Promise<S3Client> {
   const region = aws?.region?.trim() || defaultRegion();
 
-  if (aws?.roleArn?.trim()) {
-    const roleArn = aws.roleArn.trim();
-    const cacheKey = `${slug}:${roleArn}`;
-    const cached = assumedRoleCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now() + 60_000) return cached.client;
-
-    const sts = new STSClient({ region, credentials: platformCredentials() });
-    const assumed = await sts.send(
-      new AssumeRoleCommand({
-        RoleArn: roleArn,
-        RoleSessionName: `docslapro-${slug}`.slice(0, 64),
-        DurationSeconds: 3600,
-      }),
+  // STS AssumeRole n'est pas disponible sur Scaleway.
+  // Si un ancien roleArn est configuré sans clés dédiées, on remonte une erreur explicite.
+  if (aws?.roleArn?.trim() && !(aws?.accessKeyId?.trim() && aws?.secretAccessKey?.trim())) {
+    throw new Error(
+      `[ROLE_ARN_UNSUPPORTED_ON_SCALEWAY] Le tenant « ${slug} » utilise roleArn AWS STS, ` +
+        `non disponible sur Scaleway. Configurez des clés Scaleway dédiées (accessKeyId + secretAccessKey) ` +
+        `dans les secrets du tenant via la console ou l'API IAM Scaleway.`,
     );
-    const creds = assumed.Credentials;
-    if (!creds?.AccessKeyId || !creds.SecretAccessKey || !creds.SessionToken) {
-      throw new Error(`AssumeRole échoué pour le tenant « ${slug} ».`);
-    }
-
-    const client = new S3Client({
-      region,
-      credentials: {
-        accessKeyId: creds.AccessKeyId,
-        secretAccessKey: creds.SecretAccessKey,
-        sessionToken: creds.SessionToken,
-      },
-    });
-    assumedRoleCache.set(cacheKey, {
-      client,
-      expiresAt: creds.Expiration?.getTime() ?? Date.now() + 3_500_000,
-    });
-    return client;
   }
 
+  // Clés dédiées par tenant (Application Key Scaleway IAM).
   if (aws?.accessKeyId?.trim() && aws?.secretAccessKey?.trim()) {
     const cached = staticTenantClients.get(slug);
     if (cached) return cached;
-    const client = new S3Client({
+    const client = buildS3Client({
       region,
       credentials: {
         accessKeyId: aws.accessKeyId.trim(),
@@ -85,10 +81,11 @@ async function clientForTenantAws(slug: string, aws?: TenantAwsConfig): Promise<
     return client;
   }
 
+  // Repli sur la clé plateforme.
   return getPlatformS3Client();
 }
 
-/** IAM données du tenant courant — bucket métier (AssumeRole, clés dédiées, ou repli plateforme). */
+/** IAM données du tenant courant — bucket métier (clés dédiées, ou repli plateforme). */
 export async function getTenantDataS3Client(): Promise<S3Client> {
   try {
     const tenant = await getTenant();

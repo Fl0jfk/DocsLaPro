@@ -10,7 +10,7 @@ import PlatformMasterNav from "@/app/components/platform/PlatformMasterNav";
 import Logo from "../../../public/Logo header.png";
 
 const NAV = [
-  { href: "/#demo", label: "Démo" },
+  { href: "/#produit", label: "Produit" },
   { href: "/#benefices", label: "Bénéfices" },
   { href: "/#modules", label: "Tout inclus" },
   { href: "/tarifs", label: "Tarifs" },
@@ -69,7 +69,7 @@ export default function MarketingShell({ children }: { children: ReactNode }) {
               className="transition group-hover:scale-105 drop-shadow-[0_4px_14px_rgba(47,107,74,0.35)]"
             />
             <span className={`text-xl font-black tracking-tight ${SCOLA_GRADIENT_TEXT}`}>
-              Scola
+              {MARKETING.productName}
             </span>
           </Link>
 
@@ -87,10 +87,10 @@ export default function MarketingShell({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-2">
             <a
-              href={`mailto:${MARKETING.contactEmail}?subject=Demande%20de%20d%C3%A9mo%20Scola`}
+              href={`mailto:${MARKETING.contactEmail}?subject=Contact%20${encodeURIComponent(MARKETING.productName)}`}
               className="hidden rounded-full border-2 border-[#2F6B4A]/30 bg-white/90 px-4 py-2 text-sm font-bold text-[#2F6B4A] shadow-sm transition hover:border-[#2F6B4A] hover:bg-emerald-50 hover:shadow-md sm:inline-flex"
             >
-              {MARKETING.demoCtaLabel}
+              {MARKETING.contactCtaLabel}
             </a>
             <PlatformMasterNav />
           </div>

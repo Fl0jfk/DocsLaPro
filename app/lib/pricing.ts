@@ -201,7 +201,7 @@ export const BILLING_OPTIONS = [
 
     highlighted: true,
 
-    priceLine: `${formatEur(PRICE_PER_STUDENT_MONTHLY_EUR, { decimals: 2 })} / élève / mois`,
+    priceLine: "Sur devis",
 
     summary: "Comme un abonnement classique : vous payez au mois, vous résiliez quand vous voulez.",
 
@@ -229,9 +229,9 @@ export const BILLING_OPTIONS = [
 
     highlighted: false,
 
-    priceLine: `${formatEur(PRICE_PER_STUDENT_MONTHLY_EUR * 12 * (1 - ANNUAL_UPFRONT_DISCOUNT), { decimals: 2 })} / élève / an`,
+    priceLine: "Sur devis (−10 %)",
 
-    summary: "Un seul paiement à la rentrée — l'équivalent de 0,27 € par élève et par mois.",
+    summary: "Un seul paiement à la rentrée — budget annuel simplifié pour l'OGEC.",
 
     perks: [
 
@@ -323,7 +323,7 @@ export function getSubscribeCta(mode: BillingMode): {
 
   return {
     label: "Nous contacter pour souscrire",
-    href: `mailto:${MARKETING.contactEmail}?subject=${encodeURIComponent(`Abonnement Scola — ${BILLING_OPTIONS.find((o) => o.mode === mode)?.name ?? mode}`)}`,
+    href: `mailto:${MARKETING.contactEmail}?subject=${encodeURIComponent(`Abonnement ${MARKETING.productName} — ${BILLING_OPTIONS.find((o) => o.mode === mode)?.name ?? mode}`)}`,
     stripeReady: false,
     easytransacReady: false,
   };

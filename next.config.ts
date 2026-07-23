@@ -2,18 +2,22 @@ import type { NextConfig } from "next";
 import { contentSecurityPolicyHeaderValue, crossOriginOpenerPolicyHeaderValue } from "./app/lib/content-security-policy";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"],
   typescript: { ignoreBuildErrors: true },
   images: {
     formats : ['image/webp'],
     remotePatterns: [
+        // Scaleway Object Storage — fr-par (virtual-hosted)
         {
             protocol: 'https',
-            hostname: 'docslapro.s3.eu-west-3.amazonaws.com',
+            hostname: '*.s3.fr-par.scw.cloud',
             pathname: '/**',
         },
+        // Scaleway Object Storage — fr-par (path-style)
         {
             protocol: 'https',
-            hostname: 'scola-image.s3.eu-west-3.amazonaws.com',
+            hostname: 's3.fr-par.scw.cloud',
             pathname: '/**',
         },
         {

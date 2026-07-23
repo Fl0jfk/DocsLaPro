@@ -187,7 +187,11 @@ export function canViewOgecAbsenceAttachments(roles: string[]) {
 }
 
 /** Pièces jointes absences professeurs : administratif et direction de l'établissement. */
+/** Pièces jointes absences : jamais exposées dans l’UI (données sensibles). */
+export const ABSENCE_ATTACHMENTS_DISABLED = true;
+
 export function canViewProfAbsenceAttachments(abs: AbsenceRecord, roles: string[]) {
+  if (ABSENCE_ATTACHMENTS_DISABLED) return false;
   const flags = getRoleFlags(roles);
   if (flags.isAdministratif) return true;
   const etab = abs.data.etablissement;
@@ -198,6 +202,7 @@ export function canViewProfAbsenceAttachments(abs: AbsenceRecord, roles: string[
 }
 
 export function canViewAbsenceAttachment(abs: AbsenceRecord, viewerUserId: string, roles: string[]) {
+  if (ABSENCE_ATTACHMENTS_DISABLED) return false;
   const scope = resolveAbsenceScope(abs);
   if (scope === "ogec") {
     if (abs.createdBy.userId === viewerUserId) return true;
@@ -208,6 +213,7 @@ export function canViewAbsenceAttachment(abs: AbsenceRecord, viewerUserId: strin
 
 /** Ajout / suppression de pièces jointes (hors dépôt par le demandeur sur sa propre demande). */
 export function canManageAbsenceAttachment(abs: AbsenceRecord, roles: string[]) {
+  if (ABSENCE_ATTACHMENTS_DISABLED) return false;
   const scope = resolveAbsenceScope(abs);
   if (scope === "ogec") return canViewOgecAbsenceAttachments(roles);
   return canViewProfAbsenceAttachments(abs, roles);

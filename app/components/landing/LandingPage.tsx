@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import MarketingShell from "@/app/components/landing/MarketingShell";
-import DashboardPreview from "@/app/components/landing/DashboardPreview";
+import PartnerBadges from "@/app/components/landing/PartnerBadges";
+import MicrosoftEducationCard from "@/app/components/landing/MicrosoftEducationCard";
 import WorkflowDocsAnimation from "@/app/components/landing/WorkflowDocsAnimation";
 import WorkflowTravelsAnimation from "@/app/components/landing/WorkflowTravelsAnimation";
 import WorkflowRoomsAnimation from "@/app/components/landing/WorkflowRoomsAnimation";
@@ -15,12 +16,14 @@ import {
   MARKETING,
   PLATFORM_CAPABILITIES,
   POSITIONING,
+  REST_CAPABILITIES,
   RGPD_COMPACT,
+  SOVEREIGNTY,
   STATS,
 } from "@/app/lib/marketing-site";
 import { SCOLA_GRADIENT_TEXT } from "@/app/lib/marketing-theme";
 
-const BENEFIT_ICONS = ["⚡", "🎯", "🏫"] as const;
+const BENEFIT_ICONS = ["⚡", "🎯", "🇫🇷"] as const;
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -35,7 +38,6 @@ export default function LandingPage() {
   return (
     <MarketingShell>
       <main>
-        {/* Hero */}
         <section className="mx-auto max-w-6xl px-6 pb-8 pt-10 md:pt-14">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
             <div className="text-center lg:text-left">
@@ -47,7 +49,7 @@ export default function LandingPage() {
                 className="mb-5 inline-flex items-center gap-2 rounded-full border-2 border-[#2F6B4A]/20 bg-emerald-50 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-[#2F6B4A]"
               >
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#4ADE80]" />
-                Intranet tout-en-un
+                {MARKETING.productNameExplanation} · Intranet scolaire
               </motion.span>
 
               <motion.h1
@@ -69,9 +71,8 @@ export default function LandingPage() {
                 className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-stone-600 lg:mx-0 lg:text-lg"
               >
                 <span className={`font-black ${SCOLA_GRADIENT_TEXT}`}>{MARKETING.productName}</span>{" "}
-                regroupe
-                vos workflows métier — tri documentaire IA, sorties, absences, salles, RH, internat —
-                dans un seul espace.
+                regroupe vos workflows métier — documents élèves, sorties, salles et RH — dans un
+                seul espace, hébergé en France.
               </motion.p>
 
               <motion.div
@@ -82,16 +83,16 @@ export default function LandingPage() {
                 className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
               >
                 <a
-                  href={`mailto:${MARKETING.contactEmail}?subject=Demande%20de%20d%C3%A9mo%20Scola`}
+                  href={`mailto:${MARKETING.contactEmail}?subject=Contact%20${encodeURIComponent(MARKETING.productName)}`}
                   className="rounded-2xl bg-gradient-to-r from-[#2F6B4A] to-[#1E4A32] px-8 py-3.5 text-sm font-black text-white shadow-xl shadow-emerald-900/30 transition hover:scale-[1.02] hover:brightness-110"
                 >
-                  {MARKETING.demoCtaLabel}
+                  {MARKETING.contactCtaLabel}
                 </a>
                 <Link
                   href="/tarifs"
                   className="rounded-2xl border-2 border-[#2F6B4A]/30 bg-white px-8 py-3.5 text-sm font-bold text-[#2F6B4A] shadow-sm transition hover:border-[#2F6B4A] hover:bg-emerald-50"
                 >
-                  0,30 € / élève / mois
+                  Voir les tarifs
                 </Link>
               </motion.div>
 
@@ -102,7 +103,7 @@ export default function LandingPage() {
                 animate="show"
                 className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start"
               >
-                {["Tout inclus", "Hébergé en France", "IA Mistral"].map((tag) => (
+                {["Tout inclus", "Scaleway France", "IA Mistral", "Microsoft inclus"].map((tag) => (
                   <span
                     key={tag}
                     className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-bold text-stone-600 shadow-sm ring-1 ring-stone-200/80"
@@ -144,8 +145,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Démos workflows */}
-        <section id="demo" className="mx-auto max-w-6xl px-6 pb-16">
+        <section id="produit" className="mx-auto max-w-6xl px-6 pb-16">
           <SectionReveal>
             <div className="mb-10 text-center">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-[#3D8A5C]">
@@ -155,59 +155,61 @@ export default function LandingPage() {
                 Des workflows qui se voient
               </h2>
               <p className="mx-auto mt-2 max-w-xl text-sm text-stone-600">
-                Quatre piliers au cœur de Scola — le reste de la plateforme vient en bonus.
+                Quatre piliers au cœur de {MARKETING.productName} — documents élèves, sorties,
+                salles et RH.
               </p>
             </div>
 
             <div className="grid gap-8 sm:grid-cols-2 lg:gap-10">
               <div>
-                <h3 className="mb-1 text-sm font-black text-[#2F6B4A]">
-                  Documents élèves
-                </h3>
+                <h3 className="mb-1 text-sm font-black text-[#2F6B4A]">Documents élèves</h3>
                 <p className="mb-4 text-xs text-stone-500">
                   Déposez. L&apos;IA trie. C&apos;est rangé.
                 </p>
                 <WorkflowDocsAnimation />
               </div>
               <div>
-                <h3 className="mb-1 text-sm font-black text-[#234B73]">
-                  Sorties scolaires
-                </h3>
+                <h3 className="mb-1 text-sm font-black text-[#234B73]">Sorties scolaires</h3>
                 <p className="mb-4 text-xs text-stone-500">
                   Validations, devis bus et e-mails automatiques — de A à Z.
                 </p>
                 <WorkflowTravelsAnimation />
               </div>
               <div>
-                <h3 className="mb-1 text-sm font-black text-[#4C3D7A]">
-                  Réservation de salles
-                </h3>
+                <h3 className="mb-1 text-sm font-black text-[#4C3D7A]">Réservation de salles</h3>
                 <p className="mb-4 text-xs text-stone-500">
                   Grille claire, matières en couleurs, récurrence — sans tableur.
                 </p>
                 <WorkflowRoomsAnimation />
               </div>
               <div>
-                <h3 className="mb-1 text-sm font-black text-[#6B3A4A]">
-                  Absences
-                </h3>
+                <h3 className="mb-1 text-sm font-black text-[#6B3A4A]">RH</h3>
                 <p className="mb-4 text-xs text-stone-500">
-                  Déclaration, calendrier partagé et validation direction.
+                  Dossiers personnel, absences, arrivées et signatures — tout le volet RH.
                 </p>
                 <WorkflowAbsencesAnimation />
               </div>
             </div>
 
             <div className="mt-12">
-              <p className="mb-4 text-center text-xs font-bold uppercase tracking-wider text-stone-400">
-                Et le reste — cloud, RH, internat, demandes…
+              <p className="mb-6 text-center text-xs font-bold uppercase tracking-wider text-stone-400">
+                Et le reste
               </p>
-              <DashboardPreview />
+              <div className="grid gap-4 sm:grid-cols-3">
+                {REST_CAPABILITIES.map((c) => (
+                  <article
+                    key={c.title}
+                    className="rounded-2xl border border-emerald-100 bg-white/90 p-5 shadow-sm"
+                  >
+                    <h3 className="text-sm font-black text-[#2F6B4A]">{c.title}</h3>
+                    <p className="mt-2 text-sm text-stone-600">{c.desc}</p>
+                  </article>
+                ))}
+              </div>
             </div>
           </SectionReveal>
         </section>
 
-        {/* Bénéfices */}
         <section id="benefices" className="mx-auto max-w-6xl px-6 pb-16">
           <SectionReveal>
             <h2 className="mb-8 text-center text-2xl font-black text-[#14231A] md:text-3xl">
@@ -230,7 +232,6 @@ export default function LandingPage() {
           </SectionReveal>
         </section>
 
-        {/* Audiences */}
         <section className="mx-auto max-w-6xl px-6 pb-16">
           <SectionReveal>
             <h2 className="mb-8 text-center text-sm font-black uppercase tracking-[0.2em] text-[#3D8A5C]">
@@ -254,7 +255,6 @@ export default function LandingPage() {
           </SectionReveal>
         </section>
 
-        {/* Tout inclus */}
         <section id="modules" className="mx-auto max-w-6xl px-6 pb-16">
           <SectionReveal>
             <h2 className="text-center text-2xl font-black text-[#14231A] md:text-3xl">
@@ -263,7 +263,7 @@ export default function LandingPage() {
             <p className="mx-auto mb-8 mt-2 max-w-xl text-center text-sm text-stone-600">
               Un abonnement, l&apos;ensemble de la plateforme — pas de module en option.
             </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {PLATFORM_CAPABILITIES.map((f) => (
                 <article
                   key={f.title}
@@ -282,7 +282,35 @@ export default function LandingPage() {
           </SectionReveal>
         </section>
 
-        {/* RGPD */}
+        <section className="mx-auto max-w-6xl px-6 pb-16">
+          <SectionReveal>
+            <div className="mb-8 text-center">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-[#3D8A5C]">
+                {SOVEREIGNTY.title}
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-[#14231A] md:text-3xl">
+                Scaleway · Mistral · EasyTransac
+              </h2>
+              <p className="mx-auto mt-3 max-w-2xl text-sm text-stone-600">{SOVEREIGNTY.intro}</p>
+              <ul className="mx-auto mt-4 max-w-xl space-y-1.5 text-left text-sm text-stone-600">
+                {SOVEREIGNTY.bullets.map((b) => (
+                  <li key={b} className="flex gap-2">
+                    <span className="font-bold text-[#3D8A5C]">·</span>
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <PartnerBadges />
+          </SectionReveal>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-6 pb-16">
+          <SectionReveal>
+            <MicrosoftEducationCard />
+          </SectionReveal>
+        </section>
+
         <section id="donnees" className="mx-auto max-w-6xl px-6 pb-16">
           <SectionReveal>
             <div className="rounded-2xl border border-emerald-100 bg-white px-5 py-6 shadow-sm md:px-8">
@@ -305,7 +333,6 @@ export default function LandingPage() {
           </SectionReveal>
         </section>
 
-        {/* Stats */}
         <section className="mx-auto max-w-6xl px-6 pb-16">
           <SectionReveal>
             <div className="grid grid-cols-2 gap-4 rounded-3xl bg-gradient-to-br from-[#2F6B4A] to-[#1A3D2B] p-6 text-center text-white md:grid-cols-4 md:p-8">
@@ -321,7 +348,6 @@ export default function LandingPage() {
           </SectionReveal>
         </section>
 
-        {/* CTA final */}
         <section className="mx-auto max-w-6xl px-6 pb-20">
           <SectionReveal>
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#2F6B4A] via-[#25633F] to-[#1E4A32] px-6 py-12 text-center shadow-2xl shadow-emerald-900/30 md:px-12">
@@ -330,14 +356,14 @@ export default function LandingPage() {
                 Prêt à gagner du temps ?
               </h2>
               <p className="relative mx-auto mt-3 max-w-xl text-sm text-emerald-100/90 md:text-base">
-                Demandez une démo ou connectez-vous si votre établissement est déjà équipé.
+                Contactez-nous ou connectez-vous si votre établissement est déjà équipé.
               </p>
               <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
                 <a
-                  href={`mailto:${MARKETING.contactEmail}?subject=Demande%20de%20d%C3%A9mo%20Scola`}
+                  href={`mailto:${MARKETING.contactEmail}?subject=Contact%20${encodeURIComponent(MARKETING.productName)}`}
                   className="rounded-2xl bg-white px-8 py-3.5 text-sm font-black text-[#2F6B4A] shadow-lg transition hover:scale-[1.02]"
                 >
-                  {MARKETING.demoCtaLabel}
+                  {MARKETING.contactCtaLabel}
                 </a>
                 <Link
                   href="/tarifs"

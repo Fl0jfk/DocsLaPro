@@ -1,10 +1,5 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import {
-  DetectDocumentTextCommand,
-  GetDocumentTextDetectionCommand,
-  StartDocumentTextDetectionCommand,
-  TextractClient,
-} from "@aws-sdk/client-textract";
+import { runTextractForPdfBytes } from "@/app/lib/ocr-textract";
 import {
   readIngestJob,
   writeIngestJob,
@@ -23,10 +18,6 @@ import { getTenantDataS3Client } from "@/app/lib/s3-clients";
 import { getTenantBucketName, requireMistralApiKey } from "@/app/lib/tenant-config";
 
 const RUN_LOCK_PREFIX = "absences/ingest-locks/";
-const SYNC_OCR_MAX_BYTES = 5 * 1024 * 1024;
-const ASYNC_POLL_MS_FIRST = 1500;
-const ASYNC_POLL_MS_MAX = 4000;
-const ASYNC_MAX_WAIT_MS = 7 * 60 * 1000;
 const MISTRAL_TIMEOUT_MS = 120_000;
 const MISTRAL_OCR_SLICE = 16_000;
 
@@ -41,13 +32,6 @@ type ParsedConvocation = {
   slots: ParsedSlot[];
 };
 
-const textract = new TextractClient({
-  region: process.env.REGION,
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
 
 function runLockKey(jobId: string) {
   return `${RUN_LOCK_PREFIX}${jobId}.lock`;
@@ -144,93 +128,22 @@ async function patchJob(jobId: string, patch: Partial<IngestJob>) {
   await writeIngestJob({ ...job, ...patch });
 }
 
-function blocksToText(blocks: { Text?: string | null; BlockType?: string }[]) {
-  return blocks
-    .filter((b) => b.BlockType === "LINE" && b.Text)
-    .map((b) => b.Text)
-    .join(" ");
-}
-
-async function ocrPdfBytesSync(pdfBytes: Uint8Array): Promise<string> {
-  const res = await textract.send(new DetectDocumentTextCommand({ Document: { Bytes: pdfBytes } }));
-  const text = blocksToText(res.Blocks || []);
-  if (!text.trim()) throw new Error("Textract: texte vide.");
-  return text;
-}
-
-async function collectTextractBlocks(jobId: string) {
-  const blocks: NonNullable<
-    Awaited<ReturnType<typeof textract.send<GetDocumentTextDetectionCommand>>>["Blocks"]
-  > = [];
-  let nextToken: string | undefined;
-  do {
-    const page = await textract.send(
-      new GetDocumentTextDetectionCommand({ JobId: jobId, NextToken: nextToken }),
-    );
-    if (page.Blocks?.length) blocks.push(...page.Blocks);
-    nextToken = page.NextToken;
-  } while (nextToken);
-  return blocks;
-}
-
-async function ocrS3KeyAsync(key: string): Promise<string> {
-  const start = await textract.send(
-    new StartDocumentTextDetectionCommand({
-      DocumentLocation: { S3Object: { Bucket: (await getTenantBucketName()), Name: key } },
-    }),
-  );
-  const jobId = start.JobId;
-  if (!jobId) throw new Error("Textract: Job ID manquant.");
-
-  const deadline = Date.now() + ASYNC_MAX_WAIT_MS;
-  let waitMs = ASYNC_POLL_MS_FIRST;
-  while (Date.now() < deadline) {
-    const result = await textract.send(new GetDocumentTextDetectionCommand({ JobId: jobId }));
-    if (result.JobStatus === "SUCCEEDED") {
-      const blocks = await collectTextractBlocks(jobId);
-      const text = blocks
-        .map((b) => b.Text)
-        .filter(Boolean)
-        .join(" ");
-      if (!text) throw new Error("Textract: texte vide.");
-      return text;
-    }
-    if (result.JobStatus === "FAILED" || result.JobStatus === "PARTIAL_SUCCESS") {
-      throw new Error(`Textract: statut ${result.JobStatus}`);
-    }
-    await sleep(waitMs);
-    waitMs = Math.min(waitMs + 500, ASYNC_POLL_MS_MAX);
-  }
-  throw new Error("Textract: timeout d'extraction.");
-}
-
 async function downloadS3Pdf(key: string): Promise<Uint8Array> {
   const s3Client = await getTenantDataS3Client();
   const res = await s3Client.send(
     new GetObjectCommand({ Bucket: (await getTenantBucketName()), Key: key }),
   );
   const bytes = await res.Body?.transformToByteArray();
-  if (!bytes?.length) throw new Error("Textract: PDF introuvable sur S3.");
+  if (!bytes?.length) throw new Error("OCR: PDF introuvable sur S3.");
   return bytes;
 }
 
-/** OCR rapide (sync) pour petits PDF, sinon file d'attente Textract async + 1 retry. */
-async function runTextractForS3Key(key: string): Promise<string> {
+/** OCR du PDF via Mistral OCR — délègue à la façade unifiée. */
+async function runOcrForS3Key(key: string): Promise<string> {
   const bytes = await downloadS3Pdf(key);
-  if (bytes.length <= SYNC_OCR_MAX_BYTES) {
-    try {
-      return await ocrPdfBytesSync(bytes);
-    } catch (e) {
-      console.warn("[absence-ingest] OCR sync échoué, repli async:", e);
-    }
-  }
-  try {
-    return await ocrS3KeyAsync(key);
-  } catch (first) {
-    console.warn("[absence-ingest] OCR async 1ère tentative:", first);
-    await sleep(2000);
-    return await ocrS3KeyAsync(key);
-  }
+  const result = await runTextractForPdfBytes(bytes);
+  if (!result.text.trim()) throw new Error("OCR: texte vide.");
+  return result.text;
 }
 
 function parseJsonFromMistral(content: string) {
@@ -530,7 +443,7 @@ export async function runAbsenceIngestJob(jobId: string, documentKey: string, so
 
   try {
     await setPhase("ocr");
-    const ocrText = await runTextractForS3Key(documentKey);
+    const ocrText = await runOcrForS3Key(documentKey);
 
     await setPhase("ai");
     const parsed = await parseConvocationWithMistral(ocrText, sourceFileName);

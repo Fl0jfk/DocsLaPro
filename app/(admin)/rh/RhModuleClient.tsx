@@ -13,8 +13,8 @@ import RhNewStaffModal from "@/app/components/personnel/RhNewStaffModal";
 import RhOnboardingPanel from "@/app/components/personnel/RhOnboardingPanel";
 import RhBulkDepositPanel from "@/app/components/personnel/RhBulkDepositPanel";
 import RhOrganigramPanel from "@/app/components/personnel/RhOrganigramPanel";
+import RhPersonnelHome from "@/app/components/personnel/RhPersonnelHome";
 import RhRegistrePanel from "@/app/components/personnel/RhRegistrePanel";
-import RhSelfDepositPanel from "@/app/components/personnel/RhSelfDepositPanel";
 import ReplayModuleTourButton from "@/app/components/module-tour/ReplayModuleTourButton";
 import { canAccessHseModule } from "@/app/lib/demandes-hse-access";
 import type { PersonnelDashboardData } from "@/app/lib/personnel-dashboard";
@@ -162,9 +162,14 @@ export default function RhModuleClient() {
         </div>
       ) : (
         <>
-          <RhSelfDepositPanel />
-          <PersonnelDashboard data={dashboard} onNewStaff={() => setShowNew(true)} />
-          <SharedDocsBlock sharedDocs={sharedDocs} canManage={canManage} onRefresh={load} />
+          <RhPersonnelHome canManage={canManage} />
+          {canManage && (
+            <div className="pt-2 border-t border-slate-100 space-y-4">
+              <h2 className="text-lg font-black text-slate-800">Pilotage RH</h2>
+              <PersonnelDashboard data={dashboard} onNewStaff={() => setShowNew(true)} />
+              <SharedDocsBlock sharedDocs={sharedDocs} canManage={canManage} onRefresh={load} />
+            </div>
+          )}
         </>
       )}
 

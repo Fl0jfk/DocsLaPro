@@ -4,8 +4,6 @@ import { useUser } from "@clerk/nextjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   canManageAbsence,
-  canManageAbsenceAttachment,
-  canViewAbsenceAttachment,
   resolveAbsenceScope,
 } from "@/app/lib/absences-types";
 import type { AbsenceRecord, AbsenceScope, Etablissement } from "@/app/lib/absences-types";
@@ -363,14 +361,13 @@ export default function AbsencesCalendar({ refreshKey = 0 }: AbsencesCalendarPro
   }, [user, userLoaded]);
 
   const canViewDocumentsFor = useMemo(() => {
-    if (!userLoaded || !user?.id) return () => false;
-    const viewerId = user.id;
-    return (item: AbsenceRecord) => canViewAbsenceAttachment(item, viewerId, roles);
-  }, [user, userLoaded, roles]);
+    // Pièces jointes absences : jamais affichées (trop sensibles).
+    return (_item?: AbsenceRecord) => false;
+  }, []);
 
   const canManageDocsFor = useMemo(() => {
-    return (item: AbsenceRecord) => canManageAbsenceAttachment(item, roles);
-  }, [roles]);
+    return (_item?: AbsenceRecord) => false;
+  }, []);
 
   const canManageSlot = useMemo(() => {
     return (item: AbsenceRecord) => canManageAbsence(item, roles);

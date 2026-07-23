@@ -144,7 +144,7 @@ async function ocrPdfUrl(
     return "";
   };
 
-  // PDF multi-pages / gros fichiers : async direct (le sync DetectDocumentText échoue souvent)
+  // PDF multi-pages / gros fichiers : OCR Mistral via la façade unifiée
   if (pdfBytes && pdfBytes.length > 200_000) {
     logger.info(`PDF volumineux — OCR async en priorité${ctx}`, { s3Key: key, bytes: pdfBytes.length });
     const asyncFirst = await runAsyncOcr();

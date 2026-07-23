@@ -307,8 +307,9 @@ export const INTRANET_MODULES: IntranetModule[] = [
   {
     id: "demandes-hse",
     pathPrefixes: ["/demandes-hse", "/api/demandes-hse"],
-    allowedRoles: [...DIRECTIONS, "administratif", "professeur"],
+    allowedRoles: [...DIRECTIONS, "professeur"],
     // Tuile dashboard retirée : module absorbé dans RH (`/rh?tab=hse`).
+    // Visibilité métier : soi (prof) + direction établissement uniquement.
   },
   {
     id: "conformite-rgpd",

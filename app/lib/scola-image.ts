@@ -1,7 +1,15 @@
 /** Bucket S3 public — icônes modules, organigramme, voyages, rentrée, etc. */
-export const SCOLA_IMAGE_BUCKET = "scola-image";
+export const SCOLA_IMAGE_BUCKET =
+  process.env.IMAGE_BUCKET?.trim() || "scola-image";
 
-export const SCOLA_IMAGE_CDN_HOST = `${SCOLA_IMAGE_BUCKET}.s3.eu-west-3.amazonaws.com`;
+/**
+ * Host CDN du bucket images public.
+ * Scaleway : <bucket>.s3.<region>.scw.cloud
+ * Surchargeable via NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST pour les déploiements custom.
+ */
+export const SCOLA_IMAGE_CDN_HOST =
+  process.env.NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST?.trim() ||
+  `${SCOLA_IMAGE_BUCKET}.s3.fr-par.scw.cloud`;
 
 export const SCOLA_IMAGE_CDN_BASE = `https://${SCOLA_IMAGE_CDN_HOST}`;
 

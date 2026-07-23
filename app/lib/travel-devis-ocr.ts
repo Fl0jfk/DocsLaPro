@@ -1,106 +1,22 @@
-import {
-  TextractClient,
-  StartDocumentTextDetectionCommand,
-  GetDocumentTextDetectionCommand,
-  DetectDocumentTextCommand,
-  type Block,
-} from "@aws-sdk/client-textract";
 import { getMistralApiKey } from "@/app/lib/tenant-config";
+import { runTextractForPdfBytes, runTextractForS3Key } from "@/app/lib/ocr-textract";
+import { detectAllSignatureZones, signatureBBoxToPdfLibCoords } from "@/app/lib/pdf-signature-vision";
 
-function textractClient() {
-  return new TextractClient({
-    region: process.env.REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY_ID!,
-      secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-    },
-  });
-}
-
-function textractLineText(blocks: Block[]): string {
-  const fromLines = blocks
-    .filter((b) => b.BlockType === "LINE" && b.Text?.trim())
-    .map((b) => b.Text!)
-    .join(" ");
-  if (fromLines.trim()) return fromLines;
-  return blocks
-    .map((b) => b.Text)
-    .filter((t): t is string => Boolean(t?.trim()))
-    .join(" ");
-}
-
-async function collectTextractJobBlocks(
-  client: TextractClient,
-  jobId: string,
-  initialBlocks: Block[] = [],
-  initialToken?: string,
-): Promise<Block[]> {
-  const blocks = [...initialBlocks];
-  let nextToken = initialToken;
-  while (nextToken) {
-    const res = await client.send(
-      new GetDocumentTextDetectionCommand({ JobId: jobId, NextToken: nextToken }),
-    );
-    if (res.Blocks?.length) blocks.push(...res.Blocks);
-    nextToken = res.NextToken;
-  }
-  return blocks;
-}
-
-/** OCR synchrone (1ère page) — repli si le job async est lent ou vide. */
+/** OCR synchrone sur bytes PDF — délègue à Mistral OCR via la façade. */
 export async function ocrPdfBytes(pdfBytes: Buffer | Uint8Array): Promise<string> {
-  const client = textractClient();
-  const bytes = Buffer.isBuffer(pdfBytes) ? new Uint8Array(pdfBytes) : pdfBytes;
-  const res = await client.send(new DetectDocumentTextCommand({ Document: { Bytes: bytes } }));
-  const text = textractLineText(res.Blocks || []);
-  if (!text.trim()) throw new Error("Textract sync: texte vide");
-  return text;
+  const result = await runTextractForPdfBytes(pdfBytes);
+  if (!result.text.trim()) throw new Error("Mistral OCR : texte vide");
+  return result.text;
 }
 
-export async function ocrS3Key(bucket: string, key: string): Promise<string> {
-  const client = textractClient();
-  const start = await client.send(
-    new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object: { Bucket: bucket, Name: key } } }),
-  );
-  const jobId = start.JobId;
-  if (!jobId) return "";
-
-  const started = Date.now();
-  const maxWaitMs = 120_000;
-  let waitMs = 1500;
-  let textractFailed = false;
-
-  while (Date.now() - started < maxWaitMs) {
-    const res = await client.send(new GetDocumentTextDetectionCommand({ JobId: jobId }));
-    if (res.JobStatus === "SUCCEEDED") {
-      const blocks = await collectTextractJobBlocks(client, jobId, res.Blocks ?? [], res.NextToken);
-      const text = textractLineText(blocks);
-      if (!text.trim()) {
-        console.warn("[travel-devis-ocr] Textract SUCCEEDED mais texte vide", {
-          key,
-          jobId,
-          blocks: blocks.length,
-        });
-      }
-      return text;
-    }
-    if (res.JobStatus === "FAILED") {
-      textractFailed = true;
-      console.error("[travel-devis-ocr] Textract FAILED", { key, jobId });
-      break;
-    }
-    await new Promise((r) => setTimeout(r, waitMs));
-    waitMs = Math.min(waitMs + 400, 4000);
-  }
-
-  if (!textractFailed) {
-    console.error("[travel-devis-ocr] Textract timeout", {
-      key,
-      jobId,
-      waitedMs: Date.now() - started,
-    });
-  }
-  return "";
+/**
+ * OCR d'une clé S3 — délègue à Mistral OCR via la façade.
+ * Le paramètre `bucket` n'est plus requis par la façade (elle récupère le bucket en interne)
+ * mais on le conserve pour ne pas casser les signatures existantes.
+ */
+export async function ocrS3Key(_bucket: string, key: string): Promise<string> {
+  const result = await runTextractForS3Key(key);
+  return result.text;
 }
 
 export type SignatureFieldBBoxNormalized = {
@@ -111,82 +27,53 @@ export type SignatureFieldBBoxNormalized = {
   height: number;
 };
 
-function scoreSignatureLine(text: string): number {
-  const t = text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-  let s = 0;
-  if (/signature/.test(t)) s += 10;
-  if (/signataire/.test(t)) s += 7;
-  if (/bon\s+pour/.test(t)) s += 9;
-  if (/lu\s+et\s+approuv/.test(t)) s += 8;
-  if (/cachet/.test(t)) s += 5;
-  if (/paraphe/.test(t)) s += 4;
-  if (/\bvisa\b/.test(t)) s += 3;
-  if (/accord/.test(t) && s > 0) s += 1;
-  return s;
-}
+/**
+ * Détecte TOUTES les zones de signature client/direction d'un devis (multi-page).
+ * Utilise Mistral Vision (pixtral-large) + rasterisation page + filtres anti faux-positifs.
+ */
+export async function findAllDevisSignatureZones(
+  pdfBytes: Buffer | Uint8Array,
+): Promise<SignatureFieldBBoxNormalized[]> {
+  const apiKey = await getMistralApiKey();
+  if (!apiKey) return [];
 
-export async function findSignatureFieldBBoxFromTextract(pdfBytes: Buffer | Uint8Array): Promise<SignatureFieldBBoxNormalized | null> {
-  if (!process.env.ACCESS_KEY_ID || !process.env.SECRET_ACCESS_KEY) {
-    return null;
-  }
-  const client = textractClient();
-  const bytes = Buffer.isBuffer(pdfBytes) ? new Uint8Array(pdfBytes) : pdfBytes;
-  let res;
   try {
-    res = await client.send(new DetectDocumentTextCommand({ Document: { Bytes: bytes } }));
-  } catch (e) {
-    console.error("[travel-devis-ocr] DetectDocumentText (signature):", e);
-    return null;
+    const zones = await detectAllSignatureZones(pdfBytes, apiKey, { mode: "devis" });
+    return zones.map((z) => ({
+      pageNumber: z.pageNumber,
+      left: z.left,
+      top: z.top,
+      width: z.width,
+      height: z.height,
+    }));
+  } catch (err) {
+    console.error("[travel-devis-ocr] findAllDevisSignatureZones:", err);
+    return [];
   }
-  const blocks = res.Blocks || [];
-  type Cand = { page: number; score: number; left: number; top: number; width: number; height: number };
-  const cands: Cand[] = [];
-  for (const b of blocks) {
-    if (b.BlockType !== "LINE" || !b.Text?.trim()) continue;
-    const score = scoreSignatureLine(b.Text);
-    if (score <= 0) continue;
-    const bb = b.Geometry?.BoundingBox;
-    if (bb?.Left == null || bb.Top == null || bb.Width == null || bb.Height == null) continue;
-    const page = b.Page != null && b.Page > 0 ? b.Page : 1;
-    cands.push({
-      page,
-      score,
-      left: bb.Left,
-      top: bb.Top,
-      width: bb.Width,
-      height: bb.Height,
-    });
-  }
-  if (!cands.length) return null;
-  cands.sort((a, b) => b.page * 1000 + b.score - (a.page * 1000 + a.score));
-  const best = cands[0];
-  return {
-    pageNumber: best.page,
-    left: best.left,
-    top: best.top,
-    width: best.width,
-    height: best.height,
-  };
 }
 
+/**
+ * Compat legacy : une seule BBox (meilleure zone = score le plus haut / dernière page).
+ * Préférer findAllDevisSignatureZones pour signer tous les devis d'un PDF.
+ */
+export async function findSignatureFieldBBoxFromTextract(
+  pdfBytes: Buffer | Uint8Array,
+): Promise<SignatureFieldBBoxNormalized | null> {
+  const zones = await findAllDevisSignatureZones(pdfBytes);
+  if (!zones.length) return null;
+  return zones[zones.length - 1]!;
+}
+
+/** Délègue à signatureBBoxToPdfLibCoords — conservé pour rétro-compatibilité des appelants. */
 export function textractSignatureBBoxToPdfLibDrawCoords(
   pageWidth: number,
   pageHeight: number,
   bbox: SignatureFieldBBoxNormalized,
   sigDrawWidth: number,
   sigDrawHeight: number,
-  gapBelowLabelPt = 6
+  gapBelowLabelPt = 6,
 ): { x: number; y: number } {
-  const bottomOfLabelPdfY = pageHeight * (1 - bbox.top - bbox.height);
-  let y = bottomOfLabelPdfY - gapBelowLabelPt - sigDrawHeight;
-  let x = pageWidth * bbox.left;
-  const margin = 12;
-  x = Math.max(margin, Math.min(x, pageWidth - sigDrawWidth - margin));
-  y = Math.max(margin, y);
-  return { x, y };
+  return signatureBBoxToPdfLibCoords(pageWidth, pageHeight, bbox, sigDrawWidth, sigDrawHeight, gapBelowLabelPt);
 }
 
 export type DevisOcrMetadata = {

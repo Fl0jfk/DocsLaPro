@@ -6,7 +6,6 @@ import {
   canCreateHseDemand,
   canManageHseDemand,
   getHseRoleFlags,
-  isHseAdministratifViewer,
 } from "@/app/lib/demandes-hse-access";
 
 type Etablissement = "École" | "Collège" | "Lycée";
@@ -91,7 +90,6 @@ export default function DemandesHsePanel({
   const creator = canCreateHseDemand(roles);
   const dirFlags = getHseRoleFlags(roles);
   const directionAny = dirFlags.isDirectionEcole || dirFlags.isDirectionCollege || dirFlags.isDirectionLycee;
-  const administratifViewer = isHseAdministratifViewer(roles);
   const userEmail = user?.primaryEmailAddress?.emailAddress?.trim() ?? "";
 
   const fetchItems = useCallback(async () => {
@@ -101,7 +99,7 @@ export default function DemandesHsePanel({
       const res = await fetch("/api/demandes-hse");
       if (res.status === 403) {
         setItems([]);
-        setError("Accès réservé aux enseignants, aux directions et au service administratif.");
+        setError("Accès réservé aux enseignants et aux directions d’établissement.");
         return;
       }
       const data = await res.json().catch(() => ({}));
@@ -145,14 +143,6 @@ export default function DemandesHsePanel({
         )
         .sort((a, b) => +new Date(b.decidedAt || b.updatedAt) - +new Date(a.decidedAt || a.updatedAt)),
     [items, roles],
-  );
-
-  const administratifAccepted = useMemo(
-    () =>
-      [...items]
-        .filter((i) => i.status === "ACCEPTEE")
-        .sort((a, b) => +new Date(b.decidedAt || b.updatedAt) - +new Date(a.decidedAt || a.updatedAt)),
-    [items],
   );
 
   const cancelDemand = async (id: string) => {
@@ -270,18 +260,16 @@ export default function DemandesHsePanel({
           <>
             <h2 className="text-xl font-black text-slate-900">Demandes HSE</h2>
             <p className="text-sm text-slate-500 mt-1">
-              {administratifViewer
-                ? "Demandes acceptées et attestations PDF — intégré au module RH."
-                : "Heures supplémentaires exceptionnelles — intégré au module RH."}
+              Heures supplémentaires exceptionnelles — vos demandes uniquement (profs) ou votre
+              établissement (direction).
             </p>
           </>
         ) : (
           <>
             <h1 className="text-4xl font-black text-slate-900">HSE — heures supplémentaires exceptionnelles</h1>
             <p className="text-slate-500 font-medium mt-2">
-              {administratifViewer
-                ? "Consultez les demandes HSE acceptées par la direction et téléchargez les attestations PDF (sans dépôt ni validation)."
-                : "Déposez votre demande d’heures supplémentaires exceptionnelles à la validation de votre direction d’établissement (champs libres)."}
+              Déposez votre demande à la validation de votre direction. Chaque enseignant ne voit que
+              ses demandes ; la direction voit celles de son établissement.
             </p>
           </>
         )}
@@ -581,68 +569,10 @@ export default function DemandesHsePanel({
             </>
           )}
 
-          {administratifViewer && (
-            <>
-              <div className="bg-white border border-slate-200 rounded-3xl p-4">
-                <h3 className="font-black text-slate-900">HSE acceptées</h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Toutes les demandes validées par la direction — attestations PDF disponibles même si le mail de notification a été supprimé.
-                </p>
-                {error && (
-                  <p className="text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 mt-3">{error}</p>
-                )}
-              </div>
-
-              {loading ? (
-                <div className="bg-white border border-slate-200 rounded-3xl p-8 text-slate-500">Chargement…</div>
-              ) : administratifAccepted.length === 0 ? (
-                <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-8 text-slate-500">
-                  Aucune demande HSE acceptée pour le moment.
-                </div>
-              ) : (
-                administratifAccepted.map((item) => (
-                  <div key={item.id} className="bg-white border border-slate-200 rounded-3xl p-5">
-                    <div className="flex flex-wrap gap-3 items-center justify-between mb-3">
-                      <div>
-                        <p className="font-black text-slate-900">
-                          {item.createdBy.name} — {item.etablissement}
-                          {item.nombreHeures != null ? ` · ${formatNombreHeures(item.nombreHeures)}` : ""}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {item.createdBy.email}
-                          {item.decidedAt
-                            ? ` · acceptée le ${new Date(item.decidedAt).toLocaleString("fr-FR")}`
-                            : ""}
-                          {item.decidedBy ? ` par ${item.decidedBy.name}` : ""}
-                        </p>
-                      </div>
-                      <span className={`text-xs font-black px-3 py-1.5 rounded-xl border ${statusBadgeClass(item.status)}`}>
-                        {statusLabel(item.status)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-800 font-semibold mb-2 whitespace-pre-wrap">{item.resumeDemande}</p>
-                    <p className="text-sm text-slate-700 mb-1">
-                      <span className="font-bold">Classe / contexte :</span> {item.classe}
-                    </p>
-                    {item.details ? (
-                      <p className="text-sm text-slate-600 whitespace-pre-wrap mb-2">{item.details}</p>
-                    ) : null}
-                    {item.directionNote && (
-                      <p className="text-sm text-indigo-800 mb-2">
-                        <span className="font-bold">Note direction :</span> {item.directionNote}
-                      </p>
-                    )}
-                    <AttestationPdfLink id={item.id} />
-                  </div>
-                ))
-              )}
-            </>
-          )}
-
-          {!creator && !directionAny && !administratifViewer && !loading && (
+          {!creator && !directionAny && !loading && (
             <div className="bg-white border border-slate-200 rounded-3xl p-8 text-slate-600">
-              Votre profil ne permet pas d’accéder à cette page. Les demandes HSE sont réservées aux enseignants, à leur direction et au service administratif ; contactez
-              l’administrateur si vous pensez qu’il s’agit d’une erreur.
+              Votre profil ne permet pas d’accéder aux demandes HSE. Réservé aux enseignants (leurs
+              propres demandes) et à la direction de leur établissement.
             </div>
           )}
         </div>

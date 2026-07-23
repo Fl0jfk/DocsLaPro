@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" role="img" aria-label="Microsoft Partner Program">
+  <!-- Emplacement provisoire : remplacez par le badge officiel Partner Center (Logo Builder). -->
+  <rect width="200" height="120" rx="8" fill="#FFFFFF" stroke="#0078D4" stroke-width="2"/>
+  <g transform="translate(24,22)">
+    <rect x="0" y="0" width="14" height="14" fill="#F25022"/>
+    <rect x="16" y="0" width="14" height="14" fill="#7FBA00"/>
+    <rect x="0" y="16" width="14" height="14" fill="#00A4EF"/>
+    <rect x="16" y="16" width="14" height="14" fill="#FFB900"/>
+  </g>
+  <text x="66" y="42" font-family="Segoe UI,system-ui,sans-serif" font-size="16" font-weight="600" fill="#737373">Microsoft</text>
+  <text x="24" y="78" font-family="Segoe UI,system-ui,sans-serif" font-size="18" font-weight="700" fill="#000000">Partner</text>
+  <text x="24" y="100" font-family="Segoe UI,system-ui,sans-serif" font-size="12" fill="#737373">Program</text>
+</svg>

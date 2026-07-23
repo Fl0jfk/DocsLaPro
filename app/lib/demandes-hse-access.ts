@@ -31,6 +31,7 @@ export function canCreateHseDemand(roles: string[]) {
   return getHseRoleFlags(roles).isProfesseur;
 }
 
+/** Direction de l’établissement concerné uniquement. */
 export function canManageHseDemand(rec: HseRecordLike, roles: string[]) {
   const f = getHseRoleFlags(roles);
   if (rec.etablissement === "École") return f.isDirectionEcole;
@@ -39,14 +40,15 @@ export function canManageHseDemand(rec: HseRecordLike, roles: string[]) {
   return false;
 }
 
-export function canViewAcceptedHseAsAdministratif(rec: HseRecordLike, roles: string[]) {
-  return getHseRoleFlags(roles).isAdministratif && rec.status === "ACCEPTEE";
-}
-
+/**
+ * Visibilité HSE :
+ * - le demandeur voit uniquement ses demandes (en attente ou traitées) ;
+ * - la direction voit les demandes de son établissement (à traiter et traitées) ;
+ * - personne d’autre (pas l’administratif).
+ */
 export function canViewHseDemand(rec: HseRecordLike, userId: string, roles: string[]) {
   if (rec.createdBy.userId === userId) return true;
-  if (canManageHseDemand(rec, roles)) return true;
-  return canViewAcceptedHseAsAdministratif(rec, roles);
+  return canManageHseDemand(rec, roles);
 }
 
 export function canAccessHseModule(roles: string[]) {
@@ -55,18 +57,16 @@ export function canAccessHseModule(roles: string[]) {
     f.isProfesseur ||
     f.isDirectionEcole ||
     f.isDirectionCollege ||
-    f.isDirectionLycee ||
-    f.isAdministratif
+    f.isDirectionLycee
   );
 }
 
-export function isHseAdministratifViewer(roles: string[]) {
-  const f = getHseRoleFlags(roles);
-  return (
-    f.isAdministratif &&
-    !f.isProfesseur &&
-    !f.isDirectionEcole &&
-    !f.isDirectionCollege &&
-    !f.isDirectionLycee
-  );
+/** @deprecated Plus d’accès administratif aux HSE. */
+export function canViewAcceptedHseAsAdministratif(_rec: HseRecordLike, _roles: string[]) {
+  return false;
+}
+
+/** @deprecated Plus d’accès administratif aux HSE. */
+export function isHseAdministratifViewer(_roles: string[]) {
+  return false;
 }

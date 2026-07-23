@@ -13,8 +13,18 @@ export function encodeS3KeyForUrl(key: string): string {
 export async function publicS3UrlForKey(key: string): Promise<string> {
   const bucket = await getTenantBucketName();
   const region = await getTenantAwsRegion();
-  if (!bucket || !region) throw new Error("Bucket tenant ou région AWS manquant");
-  return `https://${bucket}.s3.${region}.amazonaws.com/${encodeS3KeyForUrl(key)}`;
+  if (!bucket || !region) throw new Error("Bucket tenant ou région manquant");
+
+  // Scaleway Object Storage : format path-style s3.<region>.scw.cloud/<bucket>/<key>
+  // (compatible avec forcePathStyle activé dans le client SDK)
+  const endpoint = process.env.S3_ENDPOINT?.trim();
+  if (endpoint) {
+    const base = endpoint.replace(/\/$/, "");
+    return `${base}/${bucket}/${encodeS3KeyForUrl(key)}`;
+  }
+
+  // Repli virtual-hosted (ex. si endpoint non défini)
+  return `https://${bucket}.s3.${region}.scw.cloud/${encodeS3KeyForUrl(key)}`;
 }
 
 /** Extrait la clé objet depuis une URL S3 (publique, signée ou path-style). */
@@ -39,6 +49,15 @@ export async function parseTravelsS3KeyFromUrl(fileUrl: string): Promise<string 
     const host = u.hostname;
     const pathKey = decodePath(u.pathname);
 
+    // Scaleway virtual-hosted
+    if (host === `${bucket}.s3.${region}.scw.cloud`) {
+      return pathKey || null;
+    }
+    // Scaleway path-style : s3.<region>.scw.cloud/<bucket>/…
+    if (host === `s3.${region}.scw.cloud` && pathKey.startsWith(`${bucket}/`)) {
+      return pathKey.slice(bucket.length + 1) || null;
+    }
+    // AWS legacy (conservé pour la période de transition)
     if (host === `${bucket}.s3.${region}.amazonaws.com` || host === `${bucket}.s3.amazonaws.com`) {
       return pathKey || null;
     }
@@ -53,6 +72,9 @@ export async function parseTravelsS3KeyFromUrl(fileUrl: string): Promise<string 
   }
 
   const markers = [
+    `${bucket}.s3.${region}.scw.cloud/`,
+    `s3.${region}.scw.cloud/${bucket}/`,
+    // AWS legacy (transition)
     `${bucket}.s3.${region}.amazonaws.com/`,
     `${bucket}.s3.amazonaws.com/`,
     `s3.${region}.amazonaws.com/${bucket}/`,
