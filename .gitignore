@@ -4,6 +4,10 @@ node_modules
 /.clerk/
 
 # environnement local (ne jamais pousser de secrets)
+.env
+.env.*
+!.env.example
+!.env.local.example
 .env.local
 .next/
 
