@@ -65,12 +65,11 @@ export const KEY_PILLARS = [
     title: "Sorties scolaires",
     accent: "#234B73",
     lead:
-      "Une sortie n'est plus un fil d'e-mails : chaque étape (projet, validations, transport, communication) est suivie dans un parcours unique.",
+      "Une sortie n'est plus un fil d'e-mails : chaque étape (projet, validations, transport, suivi) est gérée dans un parcours unique.",
     steps: [
       "Création de la sortie (dates, niveau, effectif, interlocuteurs).",
-      "Circuit de validation direction / vie scolaire selon vos règles.",
+      "Circuit de validation direction / comptabilité.",
       "Gestion des devis (bus, etc.), comparaison et signature.",
-      "Génération et envoi des circulaires / e-mails aux familles et intervenants.",
       "Suivi jusqu'au retour : statut, pièces jointes et historique au même endroit.",
     ],
   },
@@ -126,7 +125,7 @@ export const PLATFORM_CAPABILITIES = [
   },
   {
     title: "Sorties scolaires",
-    desc: "Validations, devis, circulaires et suivi de bout en bout.",
+    desc: "Validations direction / comptabilité, devis et suivi de bout en bout.",
   },
   {
     title: "Réservation de salles",
