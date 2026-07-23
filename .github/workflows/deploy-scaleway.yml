@@ -115,7 +115,6 @@ jobs:
             exit 0
           fi
 
-          # API v1 : …/redeploy  —  v1beta1 (legacy) : …/deploy
           BASE_V1="https://api.scaleway.com/containers/v1/regions/${REGION}/containers/${SCW_CONTAINER_ID}"
           BASE_BETA="https://api.scaleway.com/containers/v1beta1/regions/${REGION}/containers/${SCW_CONTAINER_ID}"
 
@@ -153,12 +152,30 @@ jobs:
             exit 0
           fi
 
-          echo "::error::Conteneur introuvable (GET v1 → HTTP $code, GET v1beta1 → HTTP $code_beta)."
-          echo "Corps v1 :"
-          cat /tmp/container.json 2>/dev/null || true
+          echo "::warning::SCW_CONTAINER_ID introuvable (v1=$code, v1beta1=$code_beta). Image déjà poussée."
+          echo "Corps API : $(cat /tmp/container.json 2>/dev/null || true)"
           echo ""
-          echo "Vérifie le secret SCW_CONTAINER_ID :"
-          echo "  → UUID du conteneur Scaleway (pas le namespace / projet)"
-          echo "  → secret REGION = ${REGION} (comme dans ton .env)"
-          echo "L'image a bien été poussée ; tu peux redéployer à la main en attendant."
-          exit 1
+          echo "Conteneurs Serverless visibles avec cette clé (région ${REGION}) :"
+          curl -sS -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
+            "https://api.scaleway.com/containers/v1/regions/${REGION}/containers" \
+            -o /tmp/containers-list.json || true
+          python3 <<'PY'
+import json
+try:
+    data = json.load(open("/tmp/containers-list.json"))
+except Exception as e:
+    print("  (lecture JSON impossible)", e)
+    raise SystemExit(0)
+items = data.get("containers") or []
+if not items:
+    print("  (aucun — mauvais projet, mauvaise région, ou ID = namespace Registry / projet)")
+    print("  → Console : Serverless → Containers → ouvrir le CONTENEUR → copier son ID")
+    print("  → Ce n'est PAS l'ID du namespace Container Registry (ex. scolia)")
+else:
+    for c in items:
+        print(f"  - {c.get('name', '?')}  id={c.get('id')}  status={c.get('status', '?')}")
+    print("")
+    print("Mets l'un de ces id= dans le secret GitHub SCW_CONTAINER_ID")
+PY
+          # Ne pas faire échouer le job : le push image a réussi
+          exit 0
