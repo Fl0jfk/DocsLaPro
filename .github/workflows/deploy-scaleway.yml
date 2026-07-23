@@ -1,16 +1,26 @@
-# Build + push image Docker vers Scaleway Container Registry,
-# puis redéploie le Serverless Container (si SCW_CONTAINER_ID est configuré).
+# Build + push image Docker → Scaleway Container Registry,
+# puis redéploie le Serverless Container.
 #
-# Secrets GitHub (Settings → Secrets and variables → Actions) :
-#   SCW_SECRET_KEY                      — clé secrète Scaleway (login registry + API)
-#   SCW_CONTAINER_ID                    — (optionnel) ID du conteneur à redéployer
-#   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY   — pk_… Clerk
-#   NEXT_PUBLIC_APP_URL                 — URL publique de l'app (ex. https://app.scolia.fr)
-#   NEXT_PUBLIC_PLATFORM_APP_URL        — (optionnel)
-#   NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST    — (optionnel) défaut scolia-images.s3.fr-par.scw.cloud
-#   PLATFORM_APP_URL                    — (optionnel)
-#   PLATFORM_HOSTNAMES                  — (optionnel)
-#   PLATFORM_CLERK_PUBLISHABLE_KEY      — (optionnel)
+# ── Secrets GitHub (Settings → Secrets and variables → Actions) ─────────────
+#
+# Obligatoires :
+#   SCW_SECRET_KEY                 Secret Key IAM Scaleway (pas l’Access Key)
+#                                  → celle du `docker login -u nologin -p …`
+#                                  Nom EXACT : SCW_SECRET_KEY (sans espace)
+#   PLATFORM_CLERK_PUBLISHABLE_KEY pk_… de l’app Clerk plateforme
+#                                  (les tenants : clés dans le JSON S3, pas ici)
+#   NEXT_PUBLIC_APP_URL            URL publique (ex. https://app.scolia.fr)
+#
+# Fortement recommandés :
+#   SCW_CONTAINER_ID               UUID du conteneur (auto-redeploy)
+#   NEXT_PUBLIC_PLATFORM_APP_URL
+#   PLATFORM_APP_URL
+#   PLATFORM_HOSTNAMES
+#   NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST
+#
+# Runtime (console Scaleway → Conteneur → Variables d’environnement), PAS GitHub :
+#   PLATFORM_CLERK_SECRET_KEY, CLERK_ENCRYPTION_KEY, MISTRAL_API_KEY,
+#   ACCESS_KEY_ID, SECRET_ACCESS_KEY, buckets, etc.
 
 name: Deploy Scaleway
 
@@ -39,6 +49,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Vérifier les secrets requis
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          PLATFORM_CLERK_PUBLISHABLE_KEY: ${{ secrets.PLATFORM_CLERK_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+        run: |
+          missing=0
+          for name in SCW_SECRET_KEY PLATFORM_CLERK_PUBLISHABLE_KEY NEXT_PUBLIC_APP_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret GitHub manquant ou vide : $name"
+              missing=1
+            else
+              # Ne jamais afficher la valeur — juste la longueur pour diagnostiquer
+              eval "len=\${#${name}}"
+              echo "$name : présent (${len} caractères)"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo ""
+            echo "→ Settings → Secrets and variables → Actions → New repository secret"
+            echo "→ Vérifie que tu es sur le BON repo (ScolIA, pas un fork / ancien DocsLaPro)"
+            echo "→ SCW_SECRET_KEY = Secret Key IAM (UUID / longue chaîne), PAS l’Access Key (SCW…)"
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -60,7 +95,8 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           build-args: |
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            PLATFORM_CLERK_PUBLISHABLE_KEY=${{ secrets.PLATFORM_CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.PLATFORM_CLERK_PUBLISHABLE_KEY }}
             NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
             NEXT_PUBLIC_PLATFORM_APP_URL=${{ secrets.NEXT_PUBLIC_PLATFORM_APP_URL }}
             NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
@@ -68,7 +104,6 @@ jobs:
             NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST=${{ secrets.NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST || 'scolia-images.s3.fr-par.scw.cloud' }}
             PLATFORM_APP_URL=${{ secrets.PLATFORM_APP_URL }}
             PLATFORM_HOSTNAMES=${{ secrets.PLATFORM_HOSTNAMES }}
-            PLATFORM_CLERK_PUBLISHABLE_KEY=${{ secrets.PLATFORM_CLERK_PUBLISHABLE_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -80,7 +115,7 @@ jobs:
           SCW_REGION: ${{ env.SCW_REGION }}
         run: |
           if [ -z "${SCW_CONTAINER_ID:-}" ]; then
-            echo "SCW_CONTAINER_ID non défini — image poussée, redéploie manuellement dans la console Scaleway."
+            echo "SCW_CONTAINER_ID non défini — image poussée, redéploie manuellement."
             exit 0
           fi
           echo "Redéploiement du conteneur $SCW_CONTAINER_ID…"
