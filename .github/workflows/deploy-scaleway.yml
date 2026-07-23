@@ -1,26 +1,28 @@
-# Build + push image Docker → Scaleway Container Registry,
-# puis redéploie le Serverless Container.
+# Build + push image Docker vers le registry, puis redéploie le conteneur.
 #
 # ── Secrets GitHub (Settings → Secrets and variables → Actions → Secrets) ──
+# Noms neutres = mêmes que ton .env (pas de préfixe cloud).
 #
-# Obligatoires (mêmes noms que dans ton .env) :
-#   SECRET_ACCESS_KEY              Secret Access Key Scaleway
-#                                  → docker login -u nologin -p …
-#                                  (PAS l’Access Key ID qui commence par SCW…)
+# Obligatoires :
+#   SECRET_ACCESS_KEY              Secret Access Key (login registry + API)
 #   PLATFORM_CLERK_PUBLISHABLE_KEY pk_… Clerk plateforme
 #   NEXT_PUBLIC_APP_URL            URL publique
 #
 # Recommandés :
-#   SCW_CONTAINER_ID               UUID du conteneur (auto-redeploy)
+#   SCW_CONTAINER_ID               UUID du conteneur Scaleway (pas le namespace)
+#                                  → spécifique Scaleway ; pas besoin sur Amplify/AWS
+#   REGION                         ex. fr-par (défaut fr-par)
+#   REGISTRY                       ex. rg.fr-par.scw.cloud
+#   IMAGE_NAME                     ex. scolia/docslapro
 #   NEXT_PUBLIC_PLATFORM_APP_URL
 #   PLATFORM_APP_URL
 #   PLATFORM_HOSTNAMES
 #   NEXT_PUBLIC_SCOLA_IMAGE_CDN_HOST
 #
-# Runtime conteneur Scaleway (pas GitHub) :
+# Runtime conteneur (console cloud, pas GitHub) :
 #   PLATFORM_CLERK_SECRET_KEY, ACCESS_KEY_ID, SECRET_ACCESS_KEY, MISTRAL_API_KEY, …
 
-name: Deploy Scaleway
+name: Deploy container
 
 on:
   push:
@@ -28,13 +30,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-scaleway-${{ github.ref }}
+  group: deploy-container-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  REGISTRY: rg.fr-par.scw.cloud
-  IMAGE_NAME: scolia/docslapro
-  SCW_REGION: fr-par
+  REGISTRY: ${{ secrets.REGISTRY || 'rg.fr-par.scw.cloud' }}
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME || 'scolia/docslapro' }}
+  REGION: ${{ secrets.REGION || 'fr-par' }}
 
 jobs:
   build-and-deploy:
@@ -64,16 +66,14 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo ""
             echo "→ Settings → Secrets and variables → Actions → onglet Secrets (pas Variables)"
-            echo "→ Nom exact : SECRET_ACCESS_KEY (comme dans ton .env)"
             exit 1
           fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login Scaleway Container Registry
+      - name: Login container registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -104,20 +104,61 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Redeploy Scaleway container
+      - name: Redeploy container
         env:
           SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
           SCW_CONTAINER_ID: ${{ secrets.SCW_CONTAINER_ID }}
-          SCW_REGION: ${{ env.SCW_REGION }}
+          REGION: ${{ env.REGION }}
         run: |
           if [ -z "${SCW_CONTAINER_ID:-}" ]; then
             echo "SCW_CONTAINER_ID non défini — image poussée, redéploie manuellement."
             exit 0
           fi
-          echo "Redéploiement du conteneur $SCW_CONTAINER_ID…"
-          curl -fsS -X POST \
+
+          # API v1 : …/redeploy  —  v1beta1 (legacy) : …/deploy
+          BASE_V1="https://api.scaleway.com/containers/v1/regions/${REGION}/containers/${SCW_CONTAINER_ID}"
+          BASE_BETA="https://api.scaleway.com/containers/v1beta1/regions/${REGION}/containers/${SCW_CONTAINER_ID}"
+
+          echo "Vérification du conteneur ${SCW_CONTAINER_ID} (région ${REGION})…"
+          code=$(curl -sS -o /tmp/container.json -w "%{http_code}" \
             -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
-            -H "Content-Type: application/json" \
-            "https://api.scaleway.com/containers/v1beta1/regions/${SCW_REGION}/containers/${SCW_CONTAINER_ID}/deploy"
-          echo
-          echo "OK — déploiement déclenché."
+            "${BASE_V1}") || true
+
+          if [ "$code" = "200" ]; then
+            name=$(python3 -c "import json;print(json.load(open('/tmp/container.json')).get('name','?'))" 2>/dev/null || echo "?")
+            echo "Conteneur trouvé (API v1) : $name"
+            curl -fsS -X POST \
+              -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${BASE_V1}/redeploy"
+            echo
+            echo "OK — redéploiement déclenché (v1)."
+            exit 0
+          fi
+
+          code_beta=$(curl -sS -o /tmp/container-beta.json -w "%{http_code}" \
+            -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
+            "${BASE_BETA}") || true
+
+          if [ "$code_beta" = "200" ]; then
+            echo "Conteneur trouvé (API v1beta1) — redéploiement…"
+            curl -fsS -X POST \
+              -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${BASE_BETA}/deploy"
+            echo
+            echo "OK — redéploiement déclenché (v1beta1)."
+            exit 0
+          fi
+
+          echo "::error::Conteneur introuvable (GET v1 → HTTP $code, GET v1beta1 → HTTP $code_beta)."
+          echo "Corps v1 :"
+          cat /tmp/container.json 2>/dev/null || true
+          echo ""
+          echo "Vérifie le secret SCW_CONTAINER_ID :"
+          echo "  → UUID du conteneur Scaleway (pas le namespace / projet)"
+          echo "  → secret REGION = ${REGION} (comme dans ton .env)"
+          echo "L'image a bien été poussée ; tu peux redéployer à la main en attendant."
+          exit 1
