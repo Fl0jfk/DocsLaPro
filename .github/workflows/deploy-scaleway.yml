@@ -159,23 +159,6 @@ jobs:
           curl -sS -H "X-Auth-Token: ${SECRET_ACCESS_KEY}" \
             "https://api.scaleway.com/containers/v1/regions/${REGION}/containers" \
             -o /tmp/containers-list.json || true
-          python3 <<'PY'
-import json
-try:
-    data = json.load(open("/tmp/containers-list.json"))
-except Exception as e:
-    print("  (lecture JSON impossible)", e)
-    raise SystemExit(0)
-items = data.get("containers") or []
-if not items:
-    print("  (aucun — mauvais projet, mauvaise région, ou ID = namespace Registry / projet)")
-    print("  → Console : Serverless → Containers → ouvrir le CONTENEUR → copier son ID")
-    print("  → Ce n'est PAS l'ID du namespace Container Registry (ex. scolia)")
-else:
-    for c in items:
-        print(f"  - {c.get('name', '?')}  id={c.get('id')}  status={c.get('status', '?')}")
-    print("")
-    print("Mets l'un de ces id= dans le secret GitHub SCW_CONTAINER_ID")
-PY
+          python3 -c "import json; d=json.load(open('/tmp/containers-list.json')); items=d.get('containers') or []; print('  (aucun conteneur visible — verifie REGION / projet / ID)') if not items else [print('  - %s  id=%s  status=%s' % (c.get('name','?'), c.get('id'), c.get('status','?'))) for c in items]"
           # Ne pas faire échouer le job : le push image a réussi
           exit 0
