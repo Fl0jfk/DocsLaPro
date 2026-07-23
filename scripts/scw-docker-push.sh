@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build + push image amd64 pour Scaleway Serverless Containers.
-# Usage (depuis la racine du repo, avec .env chargé) :
+# En CI : voir .github/workflows/deploy-scaleway.yml (push sur main).
+# Usage local (depuis la racine du repo, avec .env chargé) :
 #   set -a && source .env && set +a
 #   ./scripts/scw-docker-push.sh
 
