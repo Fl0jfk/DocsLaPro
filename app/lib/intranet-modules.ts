@@ -111,7 +111,7 @@ export const INTRANET_MODULES: IntranetModule[] = [
     ],
     dashboard: {
       id: 1,
-      name: "Les documents",
+      name: "Cloud personnel",
       img: "https://scola-image.s3.eu-west-3.amazonaws.com/categories/classeur.jpg",
       link: "/documents",
       external: false,

@@ -898,7 +898,7 @@ export default function DocumentsPage() {
       />
       <section className="bg-white border border-gray-200 shadow-sm p-5 rounded-2xl flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
         <div data-tour="documents-intro">
-          <h1 className="text-xl font-bold text-gray-900">Mes documents</h1>
+          <h1 className="text-xl font-bold text-gray-900">Cloud personnel</h1>
           <p className="text-sm text-gray-500 mt-1">
             Cloud personnel et dossiers partagés avec le personnel Clerk.
           </p>

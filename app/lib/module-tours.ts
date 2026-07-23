@@ -350,7 +350,7 @@ export const MODULE_TOURS: ModuleTourDefinition[] = [
   },
   {
     moduleId: "documents",
-    title: "Mes documents — cloud personnel",
+    title: "Cloud personnel",
     steps: [
       {
         title: "Bienvenue dans votre cloud",

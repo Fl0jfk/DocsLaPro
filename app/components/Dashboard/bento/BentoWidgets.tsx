@@ -211,7 +211,7 @@ export function DocumentsBentoWidget({ category, size }: WidgetProps) {
       : rootFiles;
 
   return (
-    <BentoWidget {...widgetHeader(category, "Mes documents")}>
+    <BentoWidget {...widgetHeader(category, "Cloud personnel")}>
       {loading ? (
         <EmptyLine>Chargement…</EmptyLine>
       ) : (

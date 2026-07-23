@@ -12,7 +12,7 @@ import { SCOLA_HEADER_ACCENT } from "@/app/lib/marketing-theme";
 import Logo from "../../../public/Logo header.png";
 
 const MOBILE_MODULE_LINKS = [
-  { href: "/documents", label: "Mes documents", icon: "📁" },
+  { href: "/documents", label: "Cloud personnel", icon: "📁" },
   { href: "/requests?nouvelle=1", label: "Faire une demande", icon: "📋" },
   { href: "/prof-room?new=1", label: "Faire une réservation de salle", icon: "🏫" },
   { href: "/rh?tab=absences&view=se-declarer#nouvelle-absence", label: "Déclarer une absence", icon: "📅" },

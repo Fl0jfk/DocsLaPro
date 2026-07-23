@@ -22,7 +22,7 @@ export const DASHBOARD_PREVIEW_TILES: DashboardPreviewTile[] = [
 
     id: "documents",
 
-    label: "Documents",
+    label: "Cloud personnel",
 
     title: "Cloud personnel & partages",
 
