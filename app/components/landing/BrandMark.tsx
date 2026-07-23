@@ -1,12 +1,16 @@
-import { Montserrat } from "next/font/google";
+import { Libre_Baskerville, Outfit } from "next/font/google";
 import { MARKETING } from "@/app/lib/marketing-site";
 
-/**
- * Montserrat ≈ esprit Gotham (géométrique, contemporain) — libre via Google Fonts.
- * Gotham (Hoefler) est propriétaire ; on ne peut pas l’embarquer sans licence.
- */
-const brandFont = Montserrat({
-  weight: ["500", "600", "700", "800"],
+/** « Scol » — serif : le L se distingue d’un I sans-serif. */
+const scolFont = Libre_Baskerville({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  display: "swap",
+});
+
+/** « IA » — sans moderne, plus grasse. */
+const iaFont = Outfit({
+  weight: ["700", "800"],
   subsets: ["latin"],
   display: "swap",
 });
@@ -21,8 +25,7 @@ const SIZE: Record<Size, string> = {
 };
 
 /**
- * Marque ScolIA : même famille moderne, contraste poids / couleur / tracking
- * pour éviter la confusion entre le L de « Scol » et le I de « IA ».
+ * Marque ScolIA : deux mots distincts (serif / sans, graisse, taille, espace).
  */
 export default function BrandMark({
   size = "md",
@@ -33,19 +36,19 @@ export default function BrandMark({
   className?: string;
   invert?: boolean;
 }) {
-  const scol = invert ? "text-white/95" : "text-[#14231A]";
+  const scol = invert ? "text-white/95" : "text-[#1A2E22]";
   const ia = invert
     ? "text-[#4ADE80]"
-    : "bg-gradient-to-r from-[#2F6B4A] via-[#3D8A5C] to-[#F59E0B] bg-clip-text text-transparent";
+    : "bg-gradient-to-r from-[#2F6B4A] to-[#E8A317] bg-clip-text text-transparent";
 
   return (
     <span
-      className={`${brandFont.className} inline-flex items-baseline ${SIZE[size]} ${className}`}
+      className={`inline-flex items-baseline ${SIZE[size]} ${className}`}
       aria-label={MARKETING.productName}
     >
-      <span className={`font-semibold tracking-[-0.02em] ${scol}`}>Scol</span>
+      <span className={`${scolFont.className} font-normal tracking-tight ${scol}`}>Scol</span>
       <span
-        className={`ml-[0.18em] font-extrabold tracking-[0.18em] ${ia}`}
+        className={`${iaFont.className} ml-[0.32em] text-[0.76em] font-extrabold uppercase tracking-[0.22em] ${ia}`}
         title="Intelligence artificielle"
       >
         IA
@@ -54,15 +57,19 @@ export default function BrandMark({
   );
 }
 
-/** Sous-titre « School · IA » — même famille. */
+/** Sous-titre « School · IA ». */
 export function BrandOrigin({ className = "" }: { className?: string }) {
   return (
-    <span className={`${brandFont.className} inline-flex items-baseline gap-1.5 ${className}`}>
-      <span className="font-semibold tracking-tight text-[#14231A]/85">School</span>
-      <span className="font-light text-stone-400" aria-hidden>
+    <span className={`inline-flex items-baseline gap-2 ${className}`}>
+      <span className={`${scolFont.className} text-xs font-normal text-[#1A2E22]/85`}>
+        School
+      </span>
+      <span className="text-[10px] font-light text-stone-400" aria-hidden>
         ·
       </span>
-      <span className="bg-gradient-to-r from-[#2F6B4A] to-[#F59E0B] bg-clip-text font-extrabold tracking-[0.16em] text-transparent">
+      <span
+        className={`${iaFont.className} bg-gradient-to-r from-[#2F6B4A] to-[#E8A317] bg-clip-text text-[10px] font-extrabold uppercase tracking-[0.22em] text-transparent`}
+      >
         IA
       </span>
     </span>

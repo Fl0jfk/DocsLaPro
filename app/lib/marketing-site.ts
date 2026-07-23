@@ -40,7 +40,7 @@ export const BENEFITS = [
   },
   {
     title: "Souveraineté et partenaires",
-    desc: "Hébergement Scaleway, IA et OCR Mistral, paiements EasyTransac. Microsoft Éducation pour les licences ; Clerk pour l'authentification.",
+    desc: "Hébergement Scaleway (cloud français), IA Mistral (française), paiements EasyTransac (startup française). Microsoft Éducation pour les licences ; Clerk pour l'authentification.",
   },
 ] as const;
 
@@ -169,7 +169,7 @@ export const PARTNERS = [
     id: "scaleway",
     name: "Scaleway",
     role: "Hébergement",
-    detail: "Cloud français — application et données à Paris (fr-par).",
+    detail: "Cloud souverain français — application et données hébergées à Paris (fr-par).",
     logoPath: "/partners/scaleway.svg",
     sovereign: true,
   },
@@ -177,7 +177,7 @@ export const PARTNERS = [
     id: "mistral",
     name: "Mistral AI",
     role: "IA & OCR",
-    detail: "Assistant, analyse documentaire et OCR — plus de Textract / AWS.",
+    detail: "Intelligence artificielle française — assistant, analyse documentaire et OCR.",
     logoPath: "/partners/mistral.svg",
     sovereign: true,
   },
@@ -185,7 +185,7 @@ export const PARTNERS = [
     id: "easytransac",
     name: "EasyTransac",
     role: "Paiement",
-    detail: "Encaissement des mensualités — startup française.",
+    detail: "Startup française — encaissement des mensualités d'abonnement.",
     logoPath: "/partners/easytransac.png",
     sovereign: true,
   },
@@ -211,11 +211,11 @@ export const PARTNERS = [
 export const SOVEREIGNTY = {
   title: "Souveraineté numérique",
   intro:
-    "ScolIA s'appuie prioritairement sur des acteurs français : hébergement Scaleway, IA et OCR Mistral, paiements EasyTransac. Hors France : Microsoft Éducation (licences) et Clerk (authentification).",
+    "ScolIA s'appuie prioritairement sur des acteurs français : hébergement Scaleway, intelligence artificielle Mistral, paiements EasyTransac. Hors France : Microsoft Éducation (licences) et Clerk (authentification).",
   bullets: [
-    "Hébergement Scaleway en France (région Paris).",
-    "IA et OCR via Mistral AI.",
-    "Mensualités via EasyTransac.",
+    "Scaleway — cloud français, hébergement à Paris.",
+    "Mistral AI — IA française pour l'assistant, l'analyse et l'OCR.",
+    "EasyTransac — startup française pour les mensualités.",
     "Licences Microsoft Éducation · authentification Clerk.",
   ],
 } as const;
@@ -223,10 +223,10 @@ export const SOVEREIGNTY = {
 export const RGPD_COMPACT = {
   title: "Données & confiance",
   summary:
-    "ScolIA orchestre les workflows de l'établissement. Hébergement Scaleway en France, IA et OCR Mistral, paiements EasyTransac, licences Microsoft Éducation dans l'abonnement.",
+    "ScolIA orchestre les workflows de l'établissement. Hébergement Scaleway en France, IA française Mistral, paiements EasyTransac (startup française), licences Microsoft Éducation dans l'abonnement.",
   bullets: [
     "Les dossiers élèves sensibles sont orientés vers vos espaces Microsoft : l'établissement reste maître de ses données.",
-    "Hébergement France (Scaleway) · IA et OCR (Mistral) · paiement (EasyTransac).",
+    "Hébergement France (Scaleway) · IA française (Mistral) · paiement français (EasyTransac).",
     "Licences Microsoft A1 / A3 Éducation selon forfait · authentification Clerk.",
   ],
 } as const;
@@ -246,15 +246,15 @@ export const RGPD_HIGHLIGHTS = {
     },
     {
       label: "Hébergement en France",
-      detail: "Infrastructure Scaleway, région Paris (fr-par).",
+      detail: "Scaleway — infrastructure cloud française, région Paris (fr-par).",
     },
     {
-      label: "IA & OCR français",
-      detail: "Mistral AI pour l'assistant, l'aide documentaire et l'OCR.",
+      label: "IA française",
+      detail: "Mistral AI : assistant, aide documentaire et OCR — entreprise française.",
     },
     {
       label: "Paiement français",
-      detail: "EasyTransac pour les mensualités d'abonnement.",
+      detail: "EasyTransac, startup française, pour les mensualités d'abonnement.",
     },
     {
       label: "Microsoft Éducation",
@@ -405,11 +405,11 @@ export const PRICING_FAQ = [
   },
   {
     q: "Où sont hébergées les données ?",
-    a: "En France, chez Scaleway (Paris). L'IA et l'OCR s'appuient sur Mistral. La bureautique repose sur Microsoft Éducation ; l'authentification sur Clerk.",
+    a: "En France, chez Scaleway (Paris), cloud français. L'IA et l'OCR s'appuient sur Mistral AI, entreprise française. La bureautique repose sur Microsoft Éducation ; l'authentification sur Clerk.",
   },
   {
     q: "Comment sont réglées les mensualités ?",
-    a: "Via EasyTransac, prestataire de paiement français (PCI DSS). Contactez-nous pour la mise en place de l'abonnement.",
+    a: "Via EasyTransac, startup française de paiement (PCI DSS). Contactez-nous pour la mise en place de l'abonnement.",
   },
   {
     q: "Comment démarrer ?",

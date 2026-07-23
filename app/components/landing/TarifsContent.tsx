@@ -168,8 +168,8 @@ export default function TarifsContent() {
               Scaleway · Mistral · EasyTransac · Microsoft · Clerk
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm text-stone-600">
-              Stack française pour l&apos;hébergement, l&apos;IA/OCR et le paiement — Microsoft
-              Éducation et Clerk en complément.
+              Hébergement Scaleway (cloud français), IA Mistral (française), paiements EasyTransac
+              (startup française) — Microsoft Éducation et Clerk en complément.
             </p>
           </div>
           <PartnerBadges />
